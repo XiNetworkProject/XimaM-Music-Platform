@@ -33,7 +33,7 @@ export default function ProjectSwitcher() {
         </div>
         <button
           type="button"
-          className="h-8 px-2 rounded-xl border border-border-secondary bg-white/5 hover:bg-white/10 transition flex items-center gap-1 text-xs"
+          className="h-8 px-2 rounded-xl border border-border-secondary bg-[var(--v2-raised)] hover:bg-[var(--v2-raised)] transition flex items-center gap-1 text-xs"
           onClick={() => createProject()}
           title="New project"
         >
@@ -52,7 +52,7 @@ export default function ProjectSwitcher() {
             <div className="flex items-center gap-1">
               <button
                 type="button"
-                className="h-8 w-8 rounded-xl border border-border-secondary bg-white/5 hover:bg-white/10 transition flex items-center justify-center"
+                className="h-8 w-8 rounded-xl border border-border-secondary bg-[var(--v2-raised)] hover:bg-[var(--v2-raised)] transition flex items-center justify-center"
                 onClick={() => {
                   setRenamingId(active.id);
                   setRenameValue(active.name);
@@ -63,7 +63,7 @@ export default function ProjectSwitcher() {
               </button>
               <button
                 type="button"
-                className="h-8 w-8 rounded-xl border border-border-secondary bg-white/5 hover:bg-white/10 transition flex items-center justify-center"
+                className="h-8 w-8 rounded-xl border border-border-secondary bg-[var(--v2-raised)] hover:bg-[var(--v2-raised)] transition flex items-center justify-center"
                 onClick={() => duplicateProject(active.id)}
                 title="Duplicate"
               >
@@ -71,7 +71,7 @@ export default function ProjectSwitcher() {
               </button>
               <button
                 type="button"
-                className="h-8 w-8 rounded-xl border border-border-secondary bg-white/5 hover:bg-white/10 transition flex items-center justify-center"
+                className="h-8 w-8 rounded-xl border border-border-secondary bg-[var(--v2-raised)] hover:bg-[var(--v2-raised)] transition flex items-center justify-center"
                 onClick={() => archiveProject(active.id, true)}
                 title="Archive"
               >
@@ -118,8 +118,8 @@ export default function ProjectSwitcher() {
                   onClick={() => setActiveProject(p.id)}
                   className={`w-full text-left px-3 py-2 rounded-xl border transition ${
                     isActive
-                      ? 'border-white/20 bg-white/10'
-                      : 'border-border-secondary bg-white/5 hover:bg-white/10'
+                      ? 'border-white/20 bg-[var(--v2-raised)]'
+                      : 'border-border-secondary bg-[var(--v2-raised)] hover:bg-[var(--v2-raised)]'
                   }`}
                 >
                   <div className="text-[13px] text-foreground-primary truncate">{p.name}</div>

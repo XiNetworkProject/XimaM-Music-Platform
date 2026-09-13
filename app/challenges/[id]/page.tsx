@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { SynauraImage } from '@/components/ui/SynauraImage';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
@@ -162,14 +163,14 @@ export default function ChallengeDetailPage() {
 
   return (
     <SynauraAppShell contentClassName="max-w-[900px]">
-      <div className="space-y-4 pb-24">
+      <div className="chambre-challenge space-y-4 pb-24">
         <Link href="/" className="inline-flex h-11 items-center gap-2 rounded-full border border-black/[0.08] bg-white px-4 text-sm font-black text-black/58 transition hover:bg-[#111111] hover:text-white">
           <ArrowLeft className="h-4 w-4" />
           Retour au Scroll
         </Link>
 
         <SynauraPanel className="overflow-hidden p-0">
-          <div className="p-6 sm:p-8" style={{ backgroundImage: `linear-gradient(145deg, ${accent}2b, rgba(255,250,242,.96) 62%)` }}>
+          <div className="v2-community-hero p-6 sm:p-8">
             <div className="flex items-center justify-between gap-3">
               <span className="grid h-12 w-12 place-items-center rounded-[1rem] bg-[#171313] text-white shadow-[0_12px_26px_rgba(23,19,19,0.17)]">
                 <Trophy className="h-5 w-5" />
@@ -219,8 +220,8 @@ export default function ChallengeDetailPage() {
                   href={entry.href}
                   className="flex items-center gap-3 rounded-2xl border border-black/[0.08] bg-white p-3 transition hover:bg-black/[0.03]"
                 >
-                  <img
-                    src={entry.coverUrl || '/brand/2026/synaura-symbol-2026.png'}
+                  <SynauraImage
+                    src={entry.coverUrl || '/default-cover.svg'}
                     alt=""
                     className="h-14 w-14 shrink-0 rounded-2xl object-cover"
                   />

@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import { createPortal } from 'react-dom';
 import QueueBubble from '@/components/QueueBubble';
 import QueueDialog from '@/components/QueueDialog';
+import { isChamberProductRoute } from '@/lib/routeChrome';
 
 export default function GlobalQueueBubble() {
   const [open, setOpen] = useState(false);
@@ -12,7 +13,7 @@ export default function GlobalQueueBubble() {
   const pathname = usePathname();
   useEffect(() => setMounted(true), []);
 
-  const hiddenOnSynaura = pathname === '/' || pathname === '/live' || pathname?.startsWith('/discover') || pathname?.startsWith('/library');
+  const hiddenOnSynaura = pathname === '/' || pathname === '/landing' || pathname === '/live' || pathname?.startsWith('/discover') || pathname?.startsWith('/library') || isChamberProductRoute(pathname);
 
   if (!mounted || typeof document === 'undefined' || hiddenOnSynaura) {
     return null;

@@ -187,10 +187,10 @@ function ContextMenu({
       <>
         <div className="fixed inset-0 z-[9998] bg-black/50 backdrop-blur-sm" onClick={onClose} />
         <div
-          className="fixed inset-x-0 bottom-0 z-[9999] rounded-t-[1.5rem] border-t border-black/[0.08] bg-[#fffaf2]/98 py-3 pb-[calc(12px+env(safe-area-inset-bottom,0px))] text-[#171313] shadow-[0_-18px_70px_rgba(30,25,20,.22)] backdrop-blur-2xl"
+          className="fixed inset-x-0 bottom-0 z-[9999] rounded-t-[1.5rem] border-t border-[var(--v2-line)] bg-[var(--v2-surface)] py-3 pb-[calc(12px+env(safe-area-inset-bottom,0px))] text-[var(--v2-text)] shadow-[0_-18px_70px_rgba(30,25,20,.22)] backdrop-blur-2xl"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-black/18" />
+          <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[var(--v2-raised)]" />
           {children}
         </div>
       </>,
@@ -200,7 +200,7 @@ function ContextMenu({
 
   return createPortal(
     <div
-      className="fixed z-[9999] w-[236px] rounded-[1rem] border border-black/[0.08] bg-[#fffaf2]/98 py-1.5 text-[#171313] shadow-[0_18px_60px_rgba(30,25,20,.22)] backdrop-blur-2xl"
+      className="fixed z-[9999] w-[236px] rounded-[1rem] border border-[var(--v2-line)] bg-[var(--v2-surface)] py-1.5 text-[var(--v2-text)] shadow-[0_18px_60px_rgba(30,25,20,.22)] backdrop-blur-2xl"
       style={{ top: pos.top, left: pos.left }}
       onClick={(e) => e.stopPropagation()}
     >
@@ -212,15 +212,15 @@ function ContextMenu({
 
 function Cover({ duration, coverUrl, className = 'h-[52px] w-[52px]', rounded = 'rounded-[14px]' }: { duration: string; coverUrl?: string; className?: string; rounded?: string }) {
   return (
-    <div className={cn('relative shrink-0 overflow-hidden bg-[#171313]/[0.06] ring-1 ring-black/[0.08]', className, rounded)}>
+    <div className={cn('relative shrink-0 overflow-hidden bg-[var(--v2-surface)] ring-1 ring-black/[0.08]', className, rounded)}>
       {coverUrl ? (
         <img src={coverUrl} alt="" className="absolute inset-0 h-full w-full object-cover" />
       ) : (
-        <div className="absolute inset-0 flex items-center justify-center bg-[radial-gradient(circle_at_35%_20%,rgba(255,111,97,0.35),transparent_42%),linear-gradient(135deg,rgba(23,19,19,0.14),rgba(23,19,19,0.04))]">
-          <Music2 className="w-5 h-5 text-[#171313]/25" />
+        <div className="absolute inset-0 flex items-center justify-center bg-[var(--v2-surface)]">
+          <Music2 className="w-5 h-5 text-[var(--v2-text)]" />
         </div>
       )}
-      <div className="absolute bottom-[3px] left-[3px] rounded-[5px] bg-[#171313]/72 px-[5px] py-[1px] text-[9px] font-semibold text-white tabular-nums backdrop-blur-sm">
+      <div className="absolute bottom-[3px] left-[3px] rounded-[5px] bg-[var(--v2-surface)] px-[5px] py-[1px] text-[9px] font-semibold text-white tabular-nums backdrop-blur-sm">
         {duration}
       </div>
     </div>
@@ -258,14 +258,14 @@ function TrackActionMenu({
 }) {
   return (
     <>
-      <div className="px-2 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] text-black/36">Actions</div>
+      <div className="px-2 py-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--v2-muted)]">Actions</div>
       {onReuseTrack && (
         <button
           type="button"
           onClick={() => { onReuseTrack(); closeMenu(); }}
-          className="mx-auto flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[13px] font-bold text-[#171313]/78 transition hover:bg-black/[0.05]"
+          className="mx-auto flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[13px] font-bold text-[var(--v2-text)] transition hover:bg-[var(--v2-raised)]"
         >
-          <Repeat className="h-4 w-4 shrink-0 text-black/35" />
+          <Repeat className="h-4 w-4 shrink-0 text-[var(--v2-muted)]" />
           Réutiliser les paramètres
         </button>
       )}
@@ -273,9 +273,9 @@ function TrackActionMenu({
         <button
           type="button"
           onClick={() => { onCopyLyrics(); closeMenu(); }}
-          className="mx-auto flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[13px] font-bold text-[#171313]/78 transition hover:bg-black/[0.05]"
+          className="mx-auto flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[13px] font-bold text-[var(--v2-text)] transition hover:bg-[var(--v2-raised)]"
         >
-          <Copy className="h-4 w-4 shrink-0 text-black/35" />
+          <Copy className="h-4 w-4 shrink-0 text-[var(--v2-muted)]" />
           Copier les paroles
         </button>
       )}
@@ -284,23 +284,23 @@ function TrackActionMenu({
           type="button"
           onClick={() => { onGenerateCoverVideo(); closeMenu(); }}
           disabled={isGeneratingCoverVideo}
-          className="mx-auto flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[13px] font-bold text-[#6d4bff] transition hover:bg-[#7c5cff]/10 disabled:cursor-wait disabled:opacity-60"
+          className="mx-auto flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[13px] font-bold text-[var(--v2-accent)] transition hover:bg-[var(--v2-accent)] disabled:cursor-wait disabled:opacity-60"
         >
-          <Video className="h-4 w-4 shrink-0 text-[#7c5cff]/70" />
+          <Video className="h-4 w-4 shrink-0 text-[var(--v2-accent)]" />
           {isGeneratingCoverVideo ? 'Génération clip...' : 'Créer clip vidéo Suno'}
         </button>
       )}
       <button
         type="button"
         onClick={() => { onSetSource(); closeMenu(); }}
-        className="mx-auto flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[13px] font-bold text-[#087b80] transition hover:bg-[#00c2cb]/10"
+        className="mx-auto flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-[13px] font-bold text-[var(--v2-accent)] transition hover:bg-[var(--v2-accent)]"
       >
-        <Wand2 className="h-4 w-4 shrink-0 text-[#00a6ad]/65" />
+        <Wand2 className="h-4 w-4 shrink-0 text-[var(--v2-accent)]" />
         Source remix
       </button>
       {onMoveToFolder && (
-        <div className="mx-2 my-1.5 rounded-xl border border-black/[0.08] bg-white p-2" onClick={(e) => e.stopPropagation()}>
-          <label className="mb-1.5 flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.14em] text-black/42">
+        <div className="mx-2 my-1.5 rounded-xl border border-[var(--v2-line)] bg-[var(--v2-raised)] p-2" onClick={(e) => e.stopPropagation()}>
+          <label className="mb-1.5 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--v2-muted)]">
             <MoveRight className="h-3.5 w-3.5" />
             Dossier
           </label>
@@ -311,13 +311,13 @@ function TrackActionMenu({
               if (e.key === 'Enter') commitFolderMove();
             }}
             placeholder="Nom du dossier"
-            className="h-8 w-full rounded-lg border border-black/[0.08] bg-[#fffaf2] px-2.5 text-[12px] font-bold text-[#171313] outline-none placeholder:text-black/28 focus:border-[#171313]"
+            className="h-8 w-full rounded-lg border border-[var(--v2-line)] bg-[var(--v2-surface)] px-2.5 text-[12px] font-bold text-[var(--v2-text)] outline-none placeholder:text-[var(--v2-muted)] focus:border-[var(--v2-line)]"
           />
           <div className="mt-1.5 flex gap-1.5">
             <button
               type="button"
               onClick={commitFolderMove}
-              className="flex-1 rounded-lg bg-[#171313] px-2 py-1.5 text-[11px] font-black text-white transition hover:scale-[1.01]"
+              className="flex-1 rounded-lg bg-[var(--v2-surface)] px-2 py-1.5 text-[11px] font-semibold text-white transition hover:scale-[1.01]"
             >
               Enregistrer
             </button>
@@ -325,7 +325,7 @@ function TrackActionMenu({
               <button
                 type="button"
                 onClick={() => { onMoveToFolder(null); closeMenu(); }}
-                className="rounded-lg border border-black/[0.08] bg-[#fffaf2] px-2 py-1.5 text-[11px] font-black text-black/48 transition hover:bg-black/[0.05] hover:text-black/72"
+                className="rounded-lg border border-[var(--v2-line)] bg-[var(--v2-surface)] px-2 py-1.5 text-[11px] font-semibold text-[var(--v2-muted)] transition hover:bg-[var(--v2-raised)] hover:text-[var(--v2-muted)]"
               >
                 Aucun
               </button>
@@ -335,7 +335,7 @@ function TrackActionMenu({
       )}
       {onTrash && (
         <>
-          <div className="my-1 mx-2 h-px bg-black/[0.07]" />
+          <div className="my-1 mx-2 h-px bg-[var(--v2-raised)]" />
           <button
             type="button"
             onClick={() => { onTrash(); closeMenu(); }}
@@ -429,22 +429,22 @@ function TrackRow({
 
   const badges = (
     <>
-      <span className="shrink-0 rounded-md bg-black/[0.06] px-1.5 py-px text-[9px] font-black uppercase tracking-wider text-black/45">
+      <span className="shrink-0 rounded-md bg-[var(--v2-raised)] px-1.5 py-px text-[9px] font-semibold uppercase tracking-wider text-[var(--v2-muted)]">
         {model}
       </span>
       {hasClip && (
-        <span className="shrink-0 rounded-md bg-[#7c5cff]/10 px-1.5 py-px text-[9px] font-black uppercase tracking-wider text-[#6d4bff]">
+        <span className="shrink-0 rounded-md bg-[var(--v2-accent)] px-1.5 py-px text-[9px] font-semibold uppercase tracking-wider text-[var(--v2-accent)]">
           clip
         </span>
       )}
-      {isLiked && <Heart className="h-3 w-3 shrink-0 fill-[#ff6f61] text-[#ff6f61]" />}
+      {isLiked && <Heart className="h-3 w-3 shrink-0 fill-[#ff6f61] text-[var(--v2-accent)]" />}
       {isPublished && (
-        <span className="flex shrink-0 items-center gap-0.5 rounded-md bg-emerald-500/10 px-1.5 py-px text-[9px] font-black uppercase tracking-wider text-emerald-700">
+        <span className="flex shrink-0 items-center gap-0.5 rounded-md bg-emerald-500/10 px-1.5 py-px text-[9px] font-semibold uppercase tracking-wider text-emerald-700">
           <Globe className="w-2.5 h-2.5" /> public
         </span>
       )}
       {isSource && (
-        <span className="shrink-0 rounded-md bg-[#00c2cb]/10 px-1.5 py-px text-[9px] font-black uppercase tracking-wider text-[#087b80]">
+        <span className="shrink-0 rounded-md bg-[var(--v2-accent)] px-1.5 py-px text-[9px] font-semibold uppercase tracking-wider text-[var(--v2-accent)]">
           source
         </span>
       )}
@@ -452,11 +452,11 @@ function TrackRow({
   );
 
   const meta = (
-    <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[11px] font-bold text-black/38">
+    <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[11px] font-bold text-[var(--v2-muted)]">
       {createdLabel ? <span className="shrink-0">{createdLabel}</span> : null}
       {folder ? (
         <>
-          <span className="shrink-0 text-black/20">·</span>
+          <span className="shrink-0 text-[var(--v2-muted)]">·</span>
           <span className="inline-flex min-w-0 items-center gap-1 truncate">
             <Folder className="h-3 w-3 shrink-0" />
             <span className="truncate">{folder}</span>
@@ -465,7 +465,7 @@ function TrackRow({
       ) : null}
       {status && status !== 'completed' ? (
         <>
-          <span className="shrink-0 text-black/20">·</span>
+          <span className="shrink-0 text-[var(--v2-muted)]">·</span>
           <span className="shrink-0 text-amber-700">{status}</span>
         </>
       ) : null}
@@ -475,11 +475,13 @@ function TrackRow({
   if (viewMode === 'grid') {
     return (
       <div
+        data-experience-version="grid"
+        data-selected={isSelected || isSource || undefined}
         className={cn(
-          'group relative min-w-0 overflow-hidden rounded-2xl border transition-all cursor-pointer before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_30%_0%,rgba(255,111,97,0.18),transparent_42%),radial-gradient(circle_at_90%_18%,rgba(0,194,203,0.16),transparent_40%),linear-gradient(135deg,rgba(255,250,242,0.92),rgba(234,255,251,0.74))] before:opacity-0 before:transition-opacity before:duration-200 hover:before:opacity-100 active:before:opacity-100',
+          'group relative min-w-0 overflow-hidden rounded-2xl border transition-all cursor-pointer before:pointer-events-none before:absolute before:inset-0 before:bg-[var(--v2-surface)] before:opacity-0 before:transition-opacity before:duration-200 hover:before:opacity-100 active:before:opacity-100',
           isSelected || isSource
-            ? 'border-[#00a6ad]/35 bg-[#eafffb] shadow-[0_18px_46px_rgba(0,166,173,0.14)] before:opacity-100'
-            : 'border-black/[0.07] bg-[var(--syn-surface)] shadow-[0_12px_30px_rgba(30,25,20,0.06)] hover:border-[#00a6ad]/22 hover:shadow-[0_18px_48px_rgba(0,166,173,0.12)]'
+            ? 'border-[var(--v2-line)] bg-[var(--v2-surface)] shadow-[0_18px_46px_rgba(0,166,173,0.14)] before:opacity-100'
+            : 'border-[var(--v2-line)] bg-[var(--syn-surface)] shadow-[0_12px_30px_rgba(30,25,20,0.06)] hover:border-[var(--v2-line)] hover:shadow-[0_18px_48px_rgba(0,166,173,0.12)]'
         )}
         onClick={onPick}
       >
@@ -488,18 +490,18 @@ function TrackRow({
           <button
             type="button"
             onClick={(e) => { e.stopPropagation(); onPlay(); }}
-            className="absolute inset-2 flex items-center justify-center rounded-xl bg-[#171313]/20 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100 sm:bg-[#171313]/38"
+            className="absolute inset-2 flex items-center justify-center rounded-xl bg-[var(--v2-surface)] opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100 sm:bg-[var(--v2-surface)]"
             aria-label="Lire"
           >
-            <span className="grid h-11 w-11 place-items-center rounded-full bg-[var(--syn-surface)] text-[#171313] shadow-xl">
+            <span className="grid h-11 w-11 place-items-center rounded-full bg-[var(--syn-surface)] text-[var(--v2-text)] shadow-xl">
               <Play className="h-4 w-4 fill-current" />
             </span>
           </button>
         </div>
         <div className="relative px-3 pb-3">
           <div className="flex min-w-0 items-center gap-1.5">
-            <span className="truncate text-[13px] font-black text-[#171313]">{title}</span>
-            {isSelected ? <Check className="h-3.5 w-3.5 shrink-0 text-[#00a6ad]" /> : null}
+            <span className="truncate text-[13px] font-semibold text-[var(--v2-text)]">{title}</span>
+            {isSelected ? <Check className="h-3.5 w-3.5 shrink-0 text-[var(--v2-accent)]" /> : null}
           </div>
           <div className="mt-1 flex min-w-0 flex-wrap items-center gap-1.5">{badges}</div>
           {meta}
@@ -507,7 +509,7 @@ function TrackRow({
             <button
               type="button"
               onClick={(e) => { e.stopPropagation(); onRemix(); }}
-              className="rounded-full border border-black/[0.08] bg-[var(--syn-surface)] px-2.5 py-1.5 text-[11px] font-black text-black/55 transition hover:bg-[#171313] hover:text-white"
+              className="rounded-full border border-[var(--v2-line)] bg-[var(--syn-surface)] px-2.5 py-1.5 text-[11px] font-semibold text-[var(--v2-muted)] transition hover:bg-[var(--v2-surface)] hover:text-white"
             >
               Remix
             </button>
@@ -516,7 +518,7 @@ function TrackRow({
                 <button
                   type="button"
                   onClick={(e) => { e.stopPropagation(); onToggleLike(); }}
-                  className={cn('grid h-8 w-8 place-items-center rounded-full transition', isLiked ? 'text-[#ff6f61]' : 'text-black/32 hover:bg-black/[0.06] hover:text-[#ff6f61]')}
+                  className={cn('grid h-8 w-8 place-items-center rounded-full transition', isLiked ? 'text-[var(--v2-accent)]' : 'text-[var(--v2-muted)] hover:bg-[var(--v2-raised)] hover:text-[var(--v2-accent)]')}
                   aria-label={isLiked ? 'Retirer des favoris' : 'Ajouter aux favoris'}
                 >
                   <Heart className={cn('h-4 w-4', isLiked && 'fill-current')} />
@@ -527,7 +529,7 @@ function TrackRow({
                 type="button"
                 aria-label="Plus d'options"
                 onClick={(e) => { e.stopPropagation(); setMenuOpen((v) => !v); }}
-                className="grid h-8 w-8 place-items-center rounded-full text-black/38 transition hover:bg-black/[0.06] hover:text-[#171313]"
+                className="grid h-8 w-8 place-items-center rounded-full text-[var(--v2-muted)] transition hover:bg-[var(--v2-raised)] hover:text-[var(--v2-text)]"
               >
                 <MoreHorizontal className="h-4 w-4" />
               </button>
@@ -557,11 +559,13 @@ function TrackRow({
 
   return (
     <div
+      data-experience-version="list"
+      data-selected={isSelected || isSource || undefined}
       className={cn(
-        'group relative flex items-center gap-3 overflow-hidden rounded-[1rem] border px-2.5 py-2 transition-all cursor-pointer before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_18%_0%,rgba(255,111,97,0.18),transparent_42%),radial-gradient(circle_at_86%_30%,rgba(0,194,203,0.16),transparent_38%),linear-gradient(135deg,rgba(255,250,242,0.94),rgba(234,255,251,0.70))] before:opacity-0 before:transition-opacity before:duration-200 hover:before:opacity-100 active:before:opacity-100',
+        'group relative flex items-center gap-3 overflow-hidden rounded-[1rem] border px-2.5 py-2 transition-all cursor-pointer before:pointer-events-none before:absolute before:inset-0 before:bg-[var(--v2-surface)] before:opacity-0 before:transition-opacity before:duration-200 hover:before:opacity-100 active:before:opacity-100',
         isSelected || isSource
-          ? 'border-[#00a6ad]/35 bg-[#eafffb] shadow-[0_14px_34px_rgba(0,166,173,0.12)] before:opacity-100'
-          : 'border-black/[0.07] bg-[var(--syn-surface)] hover:border-[#00a6ad]/22 hover:shadow-[0_14px_38px_rgba(0,166,173,0.10)]'
+          ? 'border-[var(--v2-line)] bg-[var(--v2-surface)] shadow-[0_14px_34px_rgba(0,166,173,0.12)] before:opacity-100'
+          : 'border-[var(--v2-line)] bg-[var(--syn-surface)] hover:border-[var(--v2-line)] hover:shadow-[0_14px_38px_rgba(0,166,173,0.10)]'
       )}
       onClick={onPick}
     >
@@ -571,7 +575,7 @@ function TrackRow({
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onPlay(); }}
-          className="absolute inset-0 flex items-center justify-center rounded-[14px] bg-[#171313]/30 transition-all touch-manipulation active:scale-95 sm:bg-transparent sm:group-hover:bg-[#171313]/40"
+          className="absolute inset-0 flex items-center justify-center rounded-[14px] bg-[var(--v2-surface)] transition-all touch-manipulation active:scale-95 sm:bg-transparent sm:group-hover:bg-[var(--v2-surface)]"
           aria-label="Play"
         >
           <Play className="w-5 h-5 fill-current text-white opacity-80 drop-shadow-lg transition-all sm:opacity-0 sm:group-hover:opacity-100" />
@@ -580,8 +584,8 @@ function TrackRow({
 
       <div className="relative min-w-0 flex-1">
         <div className="flex min-w-0 items-center gap-1.5">
-          <span className="truncate text-[13px] font-black text-[#171313]">{title}</span>
-          {isSelected ? <Check className="h-3.5 w-3.5 shrink-0 text-[#00a6ad]" /> : null}
+          <span className="truncate text-[13px] font-semibold text-[var(--v2-text)]">{title}</span>
+          {isSelected ? <Check className="h-3.5 w-3.5 shrink-0 text-[var(--v2-accent)]" /> : null}
           {badges}
         </div>
         {meta}
@@ -596,8 +600,8 @@ function TrackRow({
             className={cn(
               'w-9 h-9 sm:w-8 sm:h-8 flex items-center justify-center rounded-full transition-all touch-manipulation',
               isLiked
-                ? 'text-[#ff6f61] hover:text-[#e25549]'
-                : 'text-black/30 hover:bg-black/[0.06] hover:text-[#ff6f61] sm:opacity-0 sm:group-hover:opacity-100'
+                ? 'text-[var(--v2-accent)] hover:text-[#e25549]'
+                : 'text-[var(--v2-muted)] hover:bg-[var(--v2-raised)] hover:text-[var(--v2-accent)] sm:opacity-0 sm:group-hover:opacity-100'
             )}
             aria-label={isLiked ? 'Retirer des favoris' : 'Ajouter aux favoris'}
             title={isLiked ? 'Retirer des favoris' : 'Ajouter aux favoris'}
@@ -608,7 +612,7 @@ function TrackRow({
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); onRemix(); }}
-          className="hidden h-8 w-8 items-center justify-center rounded-full text-black/28 opacity-0 transition-all hover:bg-black/[0.06] hover:text-[#171313] group-hover:opacity-100 sm:flex"
+          className="hidden h-8 w-8 items-center justify-center rounded-full text-[var(--v2-muted)] opacity-0 transition-all hover:bg-[var(--v2-raised)] hover:text-[var(--v2-text)] group-hover:opacity-100 sm:flex"
           aria-label="Remix"
           title="Remix"
         >
@@ -623,8 +627,8 @@ function TrackRow({
           className={cn(
             'w-9 h-9 sm:w-8 sm:h-8 flex items-center justify-center rounded-full transition-all touch-manipulation',
             menuOpen
-              ? 'bg-black/[0.08] text-[#171313]'
-              : 'text-black/36 hover:bg-black/[0.06] hover:text-[#171313] sm:opacity-0 sm:group-hover:opacity-100'
+              ? 'bg-[var(--v2-raised)] text-[var(--v2-text)]'
+              : 'text-[var(--v2-muted)] hover:bg-[var(--v2-raised)] hover:text-[var(--v2-text)] sm:opacity-0 sm:group-hover:opacity-100'
           )}
         >
           <MoreHorizontal className="w-4 h-4" />
@@ -666,26 +670,26 @@ function LiveGenerationPanel({
   if (!live.visible) return null;
 
   return (
-    <div className="mb-3 overflow-hidden rounded-[1.25rem] border border-[#00a6ad]/20 bg-[#eafffb] shadow-[0_16px_42px_rgba(0,166,173,0.10)]">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#00a6ad]/10 bg-white/55 px-3 py-3">
+    <div className="mb-3 overflow-hidden rounded-[1.25rem] border border-[var(--v2-line)] bg-[var(--v2-surface)] shadow-[0_16px_42px_rgba(0,166,173,0.10)]">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--v2-line)] bg-[var(--v2-raised)] px-3 py-3">
         <div className="min-w-0">
-          <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#087b80]">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--v2-accent)]">
             {live.isRemix ? 'Remix en direct' : 'Génération en direct'}
           </p>
-          <h3 className="mt-0.5 truncate text-sm font-black text-[#171313]">{live.statusLabel}</h3>
+          <h3 className="mt-0.5 truncate text-sm font-semibold text-[var(--v2-text)]">{live.statusLabel}</h3>
         </div>
         <div className="flex shrink-0 items-center gap-2">
           {live.taskId ? (
-            <span className="rounded-full bg-[#171313]/[0.06] px-2.5 py-1 text-[10px] font-black text-black/45">
+            <span className="rounded-full bg-[var(--v2-surface)] px-2.5 py-1 text-[10px] font-semibold text-[var(--v2-muted)]">
               #{String(live.taskId).slice(-6)}
             </span>
           ) : null}
-          <span className="rounded-full bg-[#171313] px-2.5 py-1 text-[10px] font-black text-white">{progress}%</span>
+          <span className="rounded-full bg-[var(--v2-surface)] px-2.5 py-1 text-[10px] font-semibold text-white">{progress}%</span>
         </div>
       </div>
-      <div className="h-1.5 bg-[#00a6ad]/10">
+      <div className="h-1.5 bg-[var(--v2-accent)]">
         <div
-          className="h-full rounded-r-full bg-gradient-to-r from-[#ff6f61] via-[#ffd166] to-[#00c2cb] transition-[width] duration-500"
+          className="h-full rounded-r-full bg-[var(--v2-raised)] transition-[width] duration-500"
           style={{ width: `${progress}%` }}
         />
       </div>
@@ -707,12 +711,12 @@ function LiveGenerationPanel({
                 live.onSelectTrack?.(track);
               }}
               className={cn(
-                'relative min-w-0 overflow-hidden rounded-[1rem] border p-2.5 text-left transition before:pointer-events-none before:absolute before:inset-0 before:bg-[radial-gradient(circle_at_20%_0%,rgba(255,111,97,0.18),transparent_42%),radial-gradient(circle_at_90%_20%,rgba(0,194,203,0.16),transparent_40%),linear-gradient(135deg,rgba(255,255,255,0.92),rgba(234,255,251,0.72))] before:opacity-0 before:transition-opacity before:duration-200 hover:before:opacity-100 active:before:opacity-100 disabled:cursor-default',
+                'relative min-w-0 overflow-hidden rounded-[1rem] border p-2.5 text-left transition before:pointer-events-none before:absolute before:inset-0 before:bg-[var(--v2-surface)] before:opacity-0 before:transition-opacity before:duration-200 hover:before:opacity-100 active:before:opacity-100 disabled:cursor-default',
                 selected
-                  ? 'border-[#00a6ad] bg-white shadow-[0_14px_34px_rgba(0,166,173,0.14)] before:opacity-100'
+                  ? 'border-[var(--v2-line)] bg-[var(--v2-raised)] shadow-[0_14px_34px_rgba(0,166,173,0.14)] before:opacity-100'
                   : ready
-                    ? 'border-black/[0.08] bg-white/76 hover:border-[#00a6ad]/22 hover:shadow-[0_14px_34px_rgba(0,166,173,0.10)]'
-                    : 'border-dashed border-[#00a6ad]/22 bg-white/42'
+                    ? 'border-[var(--v2-line)] bg-[var(--v2-raised)] hover:border-[var(--v2-line)] hover:shadow-[0_14px_34px_rgba(0,166,173,0.10)]'
+                    : 'border-dashed border-[var(--v2-line)] bg-[var(--v2-raised)]'
               )}
             >
               <div className="relative flex min-w-0 items-center gap-3">
@@ -724,12 +728,12 @@ function LiveGenerationPanel({
                 />
                 <div className="min-w-0 flex-1">
                   <div className="flex min-w-0 items-center gap-1.5">
-                    <p className="truncate text-sm font-black text-[#171313]">
+                    <p className="truncate text-sm font-semibold text-[var(--v2-text)]">
                       {track?.title || `Version ${index + 1}`}
                     </p>
-                    {selected ? <Check className="h-3.5 w-3.5 shrink-0 text-[#00a6ad]" /> : null}
+                    {selected ? <Check className="h-3.5 w-3.5 shrink-0 text-[var(--v2-accent)]" /> : null}
                   </div>
-                  <p className="mt-0.5 truncate text-[11px] font-bold text-black/42">
+                  <p className="mt-0.5 truncate text-[11px] font-bold text-[var(--v2-muted)]">
                     {ready ? 'Preview prête' : 'Préparation du stream...'}
                   </p>
                 </div>
@@ -741,13 +745,13 @@ function LiveGenerationPanel({
                       e.stopPropagation();
                       live.onPlayTrack?.(track);
                     }}
-                    className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#171313] text-white shadow-[0_10px_24px_rgba(20,15,10,0.18)]"
+                    className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[var(--v2-surface)] text-white shadow-[0_10px_24px_rgba(20,15,10,0.18)]"
                     aria-label="Lire la preview"
                   >
                     <Play className="h-3.5 w-3.5 fill-current" />
                   </span>
                 ) : (
-                  <Sparkles className="h-4 w-4 shrink-0 animate-pulse text-[#00a6ad]/55" />
+                  <Sparkles className="h-4 w-4 shrink-0 animate-pulse text-[var(--v2-accent)]" />
                 )}
               </div>
             </button>
@@ -896,34 +900,36 @@ export function LibraryMiddlePanel({
   const normalizedSelectedTrackId = selectedTrackId ? String(selectedTrackId).replace(/^ai-/, '') : null;
 
   return (
-    <div className="flex h-full min-h-0 w-full flex-col bg-[var(--syn-surface)] text-[#171313]">
+    <div className="v2-ai-library-panel flex h-full min-h-0 w-full flex-col bg-[var(--v2-bg)] text-[var(--v2-text)]">
       {/* ── Toolbar ── */}
-      <div className="shrink-0 space-y-1.5 border-b border-black/[0.07] bg-[var(--syn-surface-muted)] px-2.5 pb-2 pt-2">
+      <div className="v2-ai-library-toolbar chambre-ai-collection-toolbar experience-library-tools shrink-0 space-y-3 border-b border-[var(--v2-line)] px-4 pb-4 pt-5">
         <div className="flex items-center justify-between gap-2 px-0.5">
           <div className="min-w-0">
+            <p className="v2-kicker mb-2">La collection</p>
             <div className="flex min-w-0 items-center gap-2">
-              <h2 className="truncate text-[13px] font-black tracking-[-0.02em] text-[#171313]">Bibliothèque IA</h2>
+              <h2 className="truncate text-[26px] font-medium tracking-[-0.055em] text-[var(--v2-text)]">Tes créations</h2>
               {selectedFolder !== 'all' ? (
-                <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-black/[0.08] bg-[var(--syn-surface)] px-2 py-0.5 text-[9px] font-black text-black/55">
+                <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[var(--v2-line)] bg-[var(--syn-surface)] px-2 py-0.5 text-[9px] font-semibold text-[var(--v2-muted)]">
                   <Folder className="h-3 w-3" />
                   {selectedFolder}
                 </span>
               ) : null}
             </div>
-            <p className="mt-0.5 truncate text-[10px] font-bold text-black/42">
+            <p className="mt-0.5 truncate text-[10px] font-bold text-[var(--v2-muted)]">
               {filtered.length} affichée{filtered.length > 1 ? 's' : ''} · {activeCount} active{activeCount > 1 ? 's' : ''} · {publicCount} publique{publicCount > 1 ? 's' : ''}
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
-            <div className="hidden rounded-full border border-black/[0.08] bg-[var(--syn-surface)] p-0.5 shadow-[0_8px_20px_rgba(30,25,20,0.06)] sm:flex">
+            <div className="hidden rounded-full border border-[var(--v2-line)] bg-[var(--syn-surface)] p-0.5 shadow-[0_8px_20px_rgba(30,25,20,0.06)] sm:flex">
               {(['list', 'grid'] as ViewMode[]).map((mode) => (
                 <button
                   key={mode}
                   type="button"
                   onClick={() => setViewMode(mode)}
+                  aria-pressed={viewMode === mode}
                   className={cn(
                     'rounded-lg px-2 py-1 text-[10px] font-bold transition',
-                    viewMode === mode ? 'bg-[#171313] text-white' : 'text-black/45 hover:text-black/75'
+                    viewMode === mode ? 'bg-[var(--v2-surface)] text-white' : 'text-[var(--v2-muted)] hover:text-[var(--v2-muted)]'
                   )}
                 >
                   {mode === 'list' ? 'Liste' : 'Grille'}
@@ -933,7 +939,7 @@ export function LibraryMiddlePanel({
             <button
               type="button"
               onClick={onRefresh}
-              className="grid h-8 w-8 place-items-center rounded-full border border-black/[0.08] bg-[var(--syn-surface)] text-black/45 shadow-[0_8px_20px_rgba(30,25,20,0.06)] transition hover:bg-[#171313] hover:text-white"
+              className="grid h-8 w-8 place-items-center rounded-full border border-[var(--v2-line)] bg-[var(--syn-surface)] text-[var(--v2-muted)] shadow-[0_8px_20px_rgba(30,25,20,0.06)] transition hover:bg-[var(--v2-surface)] hover:text-white"
               aria-label="Actualiser"
             >
               <RefreshCcw className="h-3.5 w-3.5" />
@@ -943,12 +949,12 @@ export function LibraryMiddlePanel({
 
         <div className="flex items-center gap-1.5">
           <div className="relative flex-1 min-w-0">
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-black/28" />
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--v2-muted)]" />
             <input
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
               placeholder="Rechercher une piste…"
-              className="h-8 w-full rounded-full border border-black/[0.08] bg-[var(--syn-surface)] pl-8 pr-3 text-xs font-bold text-[#171313] outline-none transition-all placeholder:text-black/28 focus:border-[#171313] focus:bg-white"
+              className="h-8 w-full rounded-full border border-[var(--v2-line)] bg-[var(--syn-surface)] pl-8 pr-3 text-xs font-bold text-[var(--v2-text)] outline-none transition-all placeholder:text-[var(--v2-muted)] focus:border-[var(--v2-line)] focus:bg-[var(--v2-raised)]"
               aria-label="Rechercher"
             />
           </div>
@@ -957,20 +963,20 @@ export function LibraryMiddlePanel({
             <button
               type="button"
               onClick={() => setSortOpen((v) => !v)}
-              className="flex h-8 items-center gap-1 rounded-full border border-black/[0.08] bg-[var(--syn-surface)] px-2.5 text-[11px] font-black text-black/58 transition-all hover:bg-white hover:text-[#171313]"
+              className="flex h-8 items-center gap-1 rounded-full border border-[var(--v2-line)] bg-[var(--syn-surface)] px-2.5 text-[11px] font-semibold text-[var(--v2-muted)] transition-all hover:bg-[var(--v2-raised)] hover:text-[var(--v2-text)]"
             >
               {sortBy === 'newest' ? 'Récent' : sortBy === 'oldest' ? 'Ancien' : 'A → Z'}
-              <ChevronDown className="h-3.5 w-3.5 text-black/40" />
+              <ChevronDown className="h-3.5 w-3.5 text-[var(--v2-muted)]" />
             </button>
             {sortOpen && (
-              <div className="absolute right-0 top-full z-50 mt-2 w-40 rounded-xl border border-black/[0.08] bg-[var(--syn-surface)] py-1.5 shadow-[0_16px_48px_rgba(30,25,20,.18)] backdrop-blur-2xl">
+              <div className="absolute right-0 top-full z-50 mt-2 w-40 rounded-xl border border-[var(--v2-line)] bg-[var(--syn-surface)] py-1.5 shadow-[0_16px_48px_rgba(30,25,20,.18)] backdrop-blur-2xl">
                 {(['newest', 'oldest', 'title'] as SortKey[]).map((k) => (
                   <button
                     key={k}
                     type="button"
                     className={cn(
                       'w-full px-3 py-2 text-left text-[13px] font-bold rounded-lg transition',
-                      sortBy === k ? 'bg-[#171313] text-white' : 'text-black/62 hover:bg-black/[0.05] hover:text-[#171313]'
+                      sortBy === k ? 'bg-[var(--v2-surface)] text-white' : 'text-[var(--v2-muted)] hover:bg-[var(--v2-raised)] hover:text-[var(--v2-text)]'
                     )}
                     onClick={() => { onSortByChange(k); setSortOpen(false); }}
                   >
@@ -988,34 +994,36 @@ export function LibraryMiddlePanel({
               key={c.key}
               type="button"
               onClick={() => onFilterByChange(c.key)}
+              aria-pressed={filterBy === c.key}
               className={cn(
-                'inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-black border transition-all',
+                'inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold border transition-all',
                 filterBy === c.key
-                  ? 'border-[#171313] bg-[#171313] text-white shadow-[0_10px_24px_rgba(20,15,10,0.14)]'
-                  : 'border-black/[0.08] bg-[var(--syn-surface)] text-black/50 hover:bg-white hover:text-[#171313]'
+                  ? 'border-[var(--v2-line)] bg-[var(--v2-surface)] text-white shadow-[0_10px_24px_rgba(20,15,10,0.14)]'
+                  : 'border-[var(--v2-line)] bg-[var(--syn-surface)] text-[var(--v2-muted)] hover:bg-[var(--v2-raised)] hover:text-[var(--v2-text)]'
               )}
             >
               {c.icon}
               {c.label}
               <span className={cn(
                 'ml-0.5 rounded-full px-1.5 py-0.5 text-[8px] tabular-nums',
-                filterBy === c.key ? 'bg-[var(--syn-surface)] text-white/78' : 'bg-black/[0.06] text-black/42'
+                filterBy === c.key ? 'bg-[var(--syn-surface)] text-white/78' : 'bg-[var(--v2-raised)] text-[var(--v2-muted)]'
               )}>
                 {filterCounts[c.key]}
               </span>
             </button>
           ))}
 
-          <div className="mx-0.5 h-4 w-px shrink-0 bg-black/[0.08]" />
+          <div className="mx-0.5 h-4 w-px shrink-0 bg-[var(--v2-raised)]" />
 
           <button
             type="button"
             onClick={onRemixModeToggle}
+            aria-pressed={remixMode}
             className={cn(
-              'inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-black border transition-all',
+              'inline-flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-semibold border transition-all',
               remixMode
-                ? 'border-[#00a6ad]/30 bg-[#eafffb] text-[#087b80] shadow-[0_10px_24px_rgba(0,166,173,0.10)]'
-                : 'border-black/[0.08] bg-[var(--syn-surface)] text-black/50 hover:bg-white hover:text-[#171313]'
+                ? 'border-[var(--v2-line)] bg-[var(--v2-surface)] text-[var(--v2-accent)] shadow-[0_10px_24px_rgba(0,166,173,0.10)]'
+                : 'border-[var(--v2-line)] bg-[var(--syn-surface)] text-[var(--v2-muted)] hover:bg-[var(--v2-raised)] hover:text-[var(--v2-text)]'
             )}
           >
             <Wand2 className="w-3 h-3" />
@@ -1026,14 +1034,14 @@ export function LibraryMiddlePanel({
             <button
               type="button"
               onClick={onClearRemixSource}
-              className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[#ff6f61]/25 bg-[#ff6f61]/10 px-2.5 py-1 text-[10px] font-black text-[#c7443a] transition-all hover:bg-[#ff6f61]/15"
+              className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[var(--v2-line)] bg-[var(--v2-accent)] px-2.5 py-1 text-[10px] font-semibold text-[#c7443a] transition-all hover:bg-[var(--v2-accent)]"
             >
               <X className="w-3 h-3" />
               {sourceTrack?.title?.slice(0, 20) || 'Source'}
             </button>
           )}
 
-          <div className="ml-auto flex rounded-full border border-black/[0.08] bg-[var(--syn-surface)] p-0.5 sm:hidden">
+          <div className="ml-auto flex rounded-full border border-[var(--v2-line)] bg-[var(--syn-surface)] p-0.5 sm:hidden">
             {(['list', 'grid'] as ViewMode[]).map((mode) => (
               <button
                 key={mode}
@@ -1041,7 +1049,7 @@ export function LibraryMiddlePanel({
                 onClick={() => setViewMode(mode)}
                 className={cn(
                   'rounded-md px-2 py-1 text-[10px] font-bold transition',
-                  viewMode === mode ? 'bg-[#171313] text-white' : 'text-black/45'
+                  viewMode === mode ? 'bg-[var(--v2-surface)] text-white' : 'text-[var(--v2-muted)]'
                 )}
               >
                 {mode === 'list' ? 'Liste' : 'Grille'}
@@ -1055,15 +1063,15 @@ export function LibraryMiddlePanel({
               type="button"
               onClick={() => setSelectedFolder('all')}
               className={cn(
-                'inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-1 text-[10px] font-black transition',
+                'inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-1 text-[10px] font-semibold transition',
                 selectedFolder === 'all'
-                  ? 'border-[#171313] bg-[#171313] text-white'
-                  : 'border-black/[0.08] bg-[var(--syn-surface)] text-black/52 hover:bg-white hover:text-[#171313]'
+                  ? 'border-[var(--v2-line)] bg-[var(--v2-surface)] text-white'
+                  : 'border-[var(--v2-line)] bg-[var(--syn-surface)] text-[var(--v2-muted)] hover:bg-[var(--v2-raised)] hover:text-[var(--v2-text)]'
               )}
             >
               <FolderOpen className="h-3 w-3 opacity-60" />
               Tout
-              <span className="rounded-full bg-black/[0.06] px-1.5 py-0.5 text-[8px]">{tracks.length - trashedCount}</span>
+              <span className="rounded-full bg-[var(--v2-raised)] px-1.5 py-0.5 text-[8px]">{tracks.length - trashedCount}</span>
             </button>
             {folderStats.map(([folder, count]) => (
               <button
@@ -1071,15 +1079,15 @@ export function LibraryMiddlePanel({
                 type="button"
                 onClick={() => setSelectedFolder(folder)}
                 className={cn(
-                  'inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-1 text-[10px] font-black transition',
+                  'inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-1 text-[10px] font-semibold transition',
                   selectedFolder === folder
-                    ? 'border-[#00a6ad]/30 bg-[#eafffb] text-[#087b80]'
-                    : 'border-black/[0.08] bg-[var(--syn-surface)] text-black/52 hover:bg-white hover:text-[#171313]'
+                    ? 'border-[var(--v2-line)] bg-[var(--v2-surface)] text-[var(--v2-accent)]'
+                    : 'border-[var(--v2-line)] bg-[var(--syn-surface)] text-[var(--v2-muted)] hover:bg-[var(--v2-raised)] hover:text-[var(--v2-text)]'
                 )}
               >
                 <Folder className="h-3 w-3 opacity-60" />
                 {folder}
-                <span className="rounded-full bg-black/[0.06] px-1.5 py-0.5 text-[8px]">{count}</span>
+                <span className="rounded-full bg-[var(--v2-raised)] px-1.5 py-0.5 text-[8px]">{count}</span>
               </button>
             ))}
         </div>
@@ -1092,19 +1100,19 @@ export function LibraryMiddlePanel({
         ) : null}
 
         {loading ? (
-          <div className="py-20 text-center">
-            <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-black/10 border-t-[#171313]" />
-            <span className="text-sm font-bold text-black/45">Chargement...</span>
+          <div className="experience-library-loading" role="status">
+            <div aria-hidden="true"><span /><span /><span /></div>
+            <span>On retrouve tes créations…</span>
           </div>
         ) : error ? (
-          <div className="py-20 text-center text-sm font-bold text-red-700">{error}</div>
+          <div className="experience-library-error" role="alert"><strong>La collection n’a pas pu s’ouvrir.</strong><p>{error}</p><small>Le bouton Actualiser, en haut de la collection, permet de réessayer.</small></div>
         ) : filtered.length === 0 ? (
-          <div className="py-20 text-center">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-[1.1rem] border border-black/[0.08] bg-[var(--syn-surface)] shadow-[0_12px_30px_rgba(30,25,20,0.08)]">
-              <Sparkles className="h-6 w-6 text-black/20" />
-            </div>
-            <p className="text-sm font-black text-[#171313]">Aucune piste</p>
-            <p className="mt-1 text-[11px] font-bold text-black/38">Change les filtres ou lance une nouvelle création.</p>
+          <div className="experience-library-empty" data-has-collection={tracks.length > 0 || undefined}>
+            <div className="experience-empty-material" aria-hidden="true"><img src="/brand/chambre/membrane-cobalt.png" alt="" loading="lazy" decoding="async" /><span>A</span><span>B</span></div>
+            <p className="v2-kicker">{tracks.length > 0 ? 'Affiner la recherche' : 'Une intention. Deux possibilités.'}</p>
+            <h3>{tracks.length > 0 ? 'Aucune piste dans cette sélection.' : liveGeneration?.visible ? 'Tes premières versions arrivent.' : 'Tout commence par une idée.'}</h3>
+            <p>{tracks.length > 0 ? 'Change les filtres, le dossier ou les mots de ta recherche pour retrouver tes versions.' : liveGeneration?.visible ? 'La session en cours apparaît au-dessus. Tu pourras écouter chaque rendu dès qu’il sera disponible.' : 'Décris le son que tu imagines dans l’éditeur, puis lance la génération. Chaque version prendra sa place ici.'}</p>
+            {tracks.length === 0 && !liveGeneration?.visible ? <div className="experience-empty-sequence"><span>01 Décrire</span><span>02 Générer</span><span>03 Écouter</span></div> : null}
           </div>
         ) : (
           <>
@@ -1151,12 +1159,12 @@ export function LibraryMiddlePanel({
                 <button
                   type="button"
                   onClick={() => setVisibleCount((v) => Math.min(v + PAGE_SIZE, filtered.length))}
-                  className="rounded-full border border-black/[0.08] bg-[var(--syn-surface)] px-5 py-2 text-[12px] font-black text-black/55 transition-all hover:bg-[#171313] hover:text-white"
+                  className="rounded-full border border-[var(--v2-line)] bg-[var(--syn-surface)] px-5 py-2 text-[12px] font-semibold text-[var(--v2-muted)] transition-all hover:bg-[var(--v2-surface)] hover:text-white"
                 >
                   Afficher plus ({Math.min(PAGE_SIZE, filtered.length - visibleCount)} sur {filtered.length - visibleCount} restantes)
                 </button>
               ) : null}
-              <span className="text-[10px] font-bold tabular-nums text-black/28">
+              <span className="text-[10px] font-bold tabular-nums text-[var(--v2-muted)]">
                 {visible.length} / {filtered.length} piste{filtered.length > 1 ? 's' : ''}
               </span>
             </div>

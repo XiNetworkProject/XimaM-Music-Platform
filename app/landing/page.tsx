@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import DiscoverSynaura from '@/components/discover/DiscoverSynaura';
+import PublicChamberEntry from '@/components/enter/PublicChamberEntry';
 
 export const metadata: Metadata = {
   title: 'Découvrir Synaura',
@@ -17,6 +17,5 @@ export const metadata: Metadata = {
 
 /** Route historique conservée pour les liens entrants, sans deuxième landing. */
 export default function LegacyLandingPage() {
-  return <DiscoverSynaura legacy />;
+  return <PublicChamberEntry legacy />;
 }
-

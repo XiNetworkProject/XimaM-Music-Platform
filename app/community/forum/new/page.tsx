@@ -195,7 +195,7 @@ function NewCommunityPostContent() {
       <SynauraRouteNav />
 
       <div className="space-y-5 pb-36 sm:pb-28">
-        <SynauraInkPanel className="p-4 sm:p-6 lg:p-7">
+        <SynauraInkPanel className="v2-community-hero">
           <Link href="/community" className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-xs font-black text-white/58 transition hover:bg-white/14 hover:text-white">
             <ArrowLeft className="h-3.5 w-3.5" />
             Retour Community
@@ -225,7 +225,7 @@ function NewCommunityPostContent() {
           </div>
         </SynauraInkPanel>
 
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="chambre-forum-compose grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
           <SynauraPanel className="p-4 sm:p-5">
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
               {CATEGORIES.map((item) => {

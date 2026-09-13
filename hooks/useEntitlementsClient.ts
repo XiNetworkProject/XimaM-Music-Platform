@@ -10,17 +10,22 @@ export type EntitlementsClientState = {
 };
 
 export function useEntitlementsClient(): EntitlementsClientState {
-  const { data: session } = useSession();
-  const [loading, setLoading] = useState(false);
+  const { data: session, status } = useSession();
+  const [loading, setLoading] = useState(true);
   const [plan, setPlan] = useState<PlanKey>('free');
 
   useEffect(() => {
     let mounted = true;
     const run = async () => {
+      if (status === 'loading') {
+        setLoading(true);
+        return;
+      }
       // Utilisateur non connecté => free
       if (!session?.user?.id) {
         if (!mounted) return;
         setPlan('free');
+        setLoading(false);
         return;
       }
       try {
@@ -44,7 +49,7 @@ export function useEntitlementsClient(): EntitlementsClientState {
     return () => {
       mounted = false;
     };
-  }, [session?.user?.id]);
+  }, [session?.user?.id, status]);
 
   const entitlements = useMemo(() => getEntitlements(plan), [plan]);
   const adFree = !!entitlements.features.adFree;

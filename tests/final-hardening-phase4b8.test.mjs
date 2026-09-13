@@ -8,10 +8,21 @@ test('mobile Notifications retains its action and a name independent of hidden t
   assert.match(source, /hidden sm:inline">Tout lire/);
 });
 
-test('confirmed small purple accents use existing theme tokens, not a new palette', async () => {
+test('les accents V2 remplacent les anciens mélanges et gardent le contraste AA', async () => {
+  const css = await readFile(new URL('../app/v2.css', import.meta.url), 'utf8');
+  const token = name => css.match(new RegExp(`--v2-${name}:(#[0-9a-f]{6})`))[1];
+  const luminance = color => {
+    const rgb = [1, 3, 5].map(i => parseInt(color.slice(i, i + 2), 16) / 255).map(v => v <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4);
+    return rgb[0] * .2126 + rgb[1] * .7152 + rgb[2] * .0722;
+  };
+  const ratio = (a, b) => { const x = luminance(a), y = luminance(b); return (Math.max(x, y) + .05) / (Math.min(x, y) + .05); };
+  for (const foreground of ['text', 'muted', 'faint', 'accent', 'blue', 'pink']) {
+    for (const background of ['bg', 'surface', 'raised']) assert.ok(ratio(token(foreground), token(background)) >= 4.5, `${foreground}/${background}`);
+  }
+  assert.ok(ratio('#ffffff', token('accent-fill')) >= 4.5);
   for (const file of ['components/profile/ProfilePeekSurface.tsx', 'components/comments/CommentsSurface.tsx', 'components/actions/ActionsSurface.tsx', 'app/profile/[username]/page.tsx', 'app/ai-generator/page.tsx', 'app/messages/page.tsx', 'components/create/CreateArrivalBanner.tsx']) {
     const source = await readFile(new URL('../' + file, import.meta.url), 'utf8');
-    assert.ok(source.includes('color-mix(in_srgb,var(--syn-accent)_65%,var(--syn-text-primary))'), file);
+    assert.match(source, /var\(--(?:syn|v2)-|v2-/, file);
   }
 });
 

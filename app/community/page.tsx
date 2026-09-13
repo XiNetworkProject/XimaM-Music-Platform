@@ -45,64 +45,56 @@ function formatDate(value?: string) {
   return new Date(value).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
 }
 
-function ClubCard({ club, aggregate, highlighted }: { club: ClubConfig; aggregate?: ClubAggregate; highlighted?: boolean }) {
+function ClubCard({ club, aggregate, highlighted, index }: { club: ClubConfig; aggregate?: ClubAggregate; highlighted?: boolean; index: number }) {
   const postsCount = aggregate?.postsCount || 0;
   const latestPost = aggregate?.latestPost;
 
   return (
-    <div
-      className="relative flex min-h-[300px] flex-col overflow-hidden rounded-[1.8rem] border bg-[#fffaf2]/90 p-5 shadow-[0_20px_60px_rgba(30,25,20,0.09)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_28px_80px_rgba(30,25,20,0.14)]"
-      style={{ borderColor: highlighted ? '#7357C6' : 'rgba(0,0,0,0.08)' }}
-    >
-      {highlighted ? (
-        <span className="absolute right-4 top-4 z-10 inline-flex items-center rounded-full bg-[#7357C6] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.12em] text-white">
-          Pour toi
-        </span>
-      ) : null}
-      <div className="absolute -right-12 -top-12 h-40 w-40 rounded-full opacity-16 blur-3xl" style={{ background: club.accent }} />
-      <div className="relative flex flex-1 flex-col">
-        <div className="grid h-11 w-11 place-items-center rounded-[1rem] text-white shadow-[0_14px_32px_rgba(30,25,20,0.16)]" style={{ background: club.accent }}>
-          <Music2 className="h-5 w-5" />
-        </div>
-        <h3 className="mt-4 text-2xl font-black tracking-[-0.03em] text-[#171313]">{club.name}</h3>
-        <p className="mt-1.5 text-sm font-semibold leading-6 text-black/50">{club.promise}</p>
+    <article className="v2-club chambre-club signature-club" data-highlighted={Boolean(highlighted)} data-club={club.slug}>
+      <div className="signature-club-field" aria-hidden="true"><span /><span /><span /></div>
+      <span className="v2-club-index" aria-hidden>{String(index + 1).padStart(2, '0')}</span>
+      <div className="signature-club-content min-w-0">
+        {highlighted ? <p className="v2-kicker signature-club-priority">Selon tes envies</p> : null}
+        <h3>{club.name}</h3>
+        <p className="signature-club-promise">{club.promise}</p>
 
-        <div className="mt-4 flex-1">
+        <div className="signature-club-conversation">
           {latestPost ? (
             <Link
               href={latestPost.id ? `/community/forum/${latestPost.id}` : `/community/${club.slug}`}
-              className="block rounded-[1.15rem] border border-black/[0.06] bg-white/70 p-3 transition hover:bg-white"
+              className="v2-club-latest signature-club-latest"
             >
+              <span className="signature-club-latest-label">Dernier écho</span>
               <div className="flex items-center gap-2.5">
                 <Avatar src={latestPost.author?.avatar} name={latestPost.author?.name || 'Créateur'} username={latestPost.author?.username} size="sm" />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-xs font-black text-[#171313]">{latestPost.title || 'Discussion'}</p>
-                  <p className="truncate text-[11px] font-semibold text-black/40">{latestPost.author?.name || 'Créateur Synaura'}</p>
+                  <p className="signature-club-latest-title">{latestPost.title || 'Discussion'}</p>
+                  <p className="signature-club-latest-author">{latestPost.author?.name || 'Créateur Synaura'}</p>
                 </div>
               </div>
             </Link>
           ) : (
-            <div className="rounded-[1.15rem] border border-dashed border-black/[0.12] p-3 text-center">
-              <p className="text-xs font-semibold text-black/38">Aucun post pour l'instant. Sois le premier.</p>
+            <div className="v2-club-empty">
+              <span className="signature-club-latest-label">Le prochain écho peut être le tien</span>
+              <p>La première discussion reste à écrire.</p>
             </div>
           )}
         </div>
 
-        <div className="mt-4 flex items-center justify-between gap-3">
+        <div className="v2-club-footer">
           <span className="text-xs font-black uppercase tracking-[0.1em] text-black/34">
-            {postsCount > 0 ? `${postsCount} post${postsCount > 1 ? 's' : ''}` : 'Nouveau'}
+            {postsCount} post{postsCount > 1 ? 's' : ''}
           </span>
           <Link
             href={`/community/${club.slug}`}
-            className="inline-flex h-10 items-center gap-1.5 rounded-full px-4 text-xs font-black text-white transition hover:scale-[1.03]"
-            style={{ background: club.accent }}
+            className="signature-club-enter"
           >
-            Entrer
+            Explorer le club
             <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         </div>
       </div>
-    </div>
+    </article>
   );
 }
 
@@ -164,7 +156,7 @@ export default function CommunityClubsLandingPage() {
   }, []);
 
   return (
-    <SynauraAppShell contentClassName="max-w-[1180px]">
+    <SynauraAppShell contentClassName="max-w-[1380px]">
       <SynauraTopBar
         searchHref="/community"
         searchLabel="Chercher un Club, un avis, un feat..."
@@ -173,30 +165,42 @@ export default function CommunityClubsLandingPage() {
       />
       <SynauraRouteNav />
 
-      <div className="space-y-6 pb-24">
-        <div>
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-black/34">Espace musical</p>
-          <h1 className="mt-2 text-3xl font-black tracking-[-0.04em] text-[#171313] sm:text-5xl">Clubs</h1>
-          <p className="mt-2 max-w-xl text-sm font-semibold leading-6 text-black/48 sm:text-base">
-            Trouve des personnes, des idées et des sons à faire évoluer.
-          </p>
-        </div>
+      <main className="chambre-signature-community pb-24">
+        <header className="v2-community-intro">
+          <div className="signature-community-heading">
+            <p className="v2-kicker mb-4">Communauté · Les clubs</p>
+            <h1>Le son.<br /><span className="chambre-type-accent">Le lien.</span></h1>
+          </div>
+          <div className="signature-community-context">
+            <p className="v2-intro mb-5">Un avis qui fait avancer. Une idée à partager. La personne avec qui créer la suite.</p>
+            <nav className="v2-community-links" aria-label="Explorer la communauté">
+              <Link href="/community/forum">Toutes les discussions <ArrowRight className="h-4 w-4" /></Link>
+              <Link href="/city">City & événements</Link>
+              <Link href="/community/faq">Questions fréquentes</Link>
+              <Link href="/posts">Posts des créateurs</Link>
+              <Link href="/partnerships">Collaborer avec Synaura</Link>
+            </nav>
+          </div>
+          <div className="signature-community-signal" aria-hidden="true"><span /><span /><span /><Music2 className="signature-community-signal-mark" /></div>
+        </header>
+
+        <div className="signature-community-section-heading"><p>Des idées qui se rencontrent.</p><span>Explore les clubs</span></div>
 
         {loading ? (
-          <SynauraPanel className="grid min-h-[300px] place-items-center p-8">
+          <SynauraPanel className="signature-community-loading grid min-h-[300px] place-items-center p-8" >
             <div className="text-center">
-              <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-black/12 border-t-[#171313]" />
-              <p className="mt-3 text-sm font-black text-black/42">Chargement des Clubs...</p>
+              <div className="signature-community-loading-orbit mx-auto h-10 w-10 animate-spin rounded-full border-2" />
+              <p className="mt-3 text-sm">Chargement des Clubs...</p>
             </div>
           </SynauraPanel>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            {orderedClubs.map((club) => (
-              <ClubCard key={club.slug} club={club} aggregate={aggregates[club.slug]} highlighted={highlightedSlugs.includes(club.slug)} />
+          <div className="v2-clubs signature-club-grid">
+            {orderedClubs.map((club, index) => (
+              <ClubCard key={club.slug} club={club} index={index} aggregate={aggregates[club.slug]} highlighted={highlightedSlugs.includes(club.slug)} />
             ))}
           </div>
         )}
-      </div>
+      </main>
     </SynauraAppShell>
   );
 }

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { AudioCore, AUDIO_SESSION_STORAGE_KEY } from '../lib/audio/AudioCore.ts';
+import { alignExpandedPlayerQueue } from '../lib/playerOpening.ts';
 
 class FakeScheduler {
   nowValue = 10_000;
@@ -119,6 +120,40 @@ function setup(options = {}) {
 }
 
 const flush = () => new Promise((resolve) => setImmediate(resolve));
+
+for (const playing of [false, true]) {
+  for (const changedQueue of [false, true]) {
+    test(`expanded opening preserves ${playing ? 'playing' : 'paused'} audio with ${changedQueue ? 'a changed feed' : 'an equivalent queue'}`, async () => {
+      const { core, audio } = setup();
+      try {
+        const initial = [track('a'), track('b')];
+        core.setQueue(initial, 0);
+        await core.playTrack(initial[0]);
+        core.seek(37);
+        if (!playing) core.pause();
+        const before = { source: audio.src, plays: audio.playCount, loads: audio.loadCount, generation: core.getSnapshot().generation };
+        let queueCalls = 0;
+        let playCalls = 0;
+        const next = changedQueue ? [track('a'), track('c')] : initial.map(item => ({ ...item }));
+        const outcome = alignExpandedPlayerQueue({ tracks: initial, currentTrackIndex: 0 }, next, 0, {
+          setQueueOnly: (items, index) => { queueCalls += 1; core.setQueue(items, index); },
+          setQueueAndPlay: (items, index) => { playCalls += 1; core.setQueueAndPlay(items, index); },
+        });
+        assert.equal(outcome, changedQueue ? 'queue-only' : 'preserved');
+        assert.equal(queueCalls, changedQueue ? 1 : 0);
+        assert.equal(playCalls, 0);
+        assert.equal(audio.playCount, before.plays);
+        assert.equal(audio.loadCount, before.loads);
+        assert.equal(audio.src, before.source);
+        assert.equal(audio.currentTime, 37);
+        assert.equal(core.getSnapshot().generation, before.generation);
+        assert.equal(core.getSnapshot().isPlaying, playing);
+        assert.equal(core.getSnapshot().currentTrack?._id, 'a');
+        assert.deepEqual(core.getSnapshot().queue.map(item => item._id), next.map(item => item._id));
+      } finally { core.destroy(); }
+    });
+  }
+}
 
 test('initialisation unique, commandes et nettoyage des listeners', async () => {
   const { core, audio } = setup();

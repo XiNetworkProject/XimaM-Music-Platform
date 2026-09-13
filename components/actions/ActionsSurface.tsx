@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { Check, ListMusic, Play, Trash2 } from 'lucide-react';
+import { Check, ListMusic, Play, Trash2, ChevronRight, ListEnd, ListPlus, AlignLeft, Share2, Info, Wand2, Film, Download } from 'lucide-react';
 import { useAudioPlayer } from '@/app/providers';
 import { getBrowserAudioCore } from '@/lib/audio/AudioCore';
 import { useContextSurfaceController, type ContextSurfaceRendererProps } from '@/components/context-surfaces/ContextSurfaceController';
@@ -13,9 +13,11 @@ import { canUseSoundClientSide } from '@/lib/clipPermissions';
 import { downloadAudioFile, generateFilename } from '@/hooks/useDownloadPermission';
 import { useTrackActions } from './useTrackActions';
 import FavoriteAction from './FavoriteAction';
+import { SynauraImage } from '@/components/ui/SynauraImage';
 
-const button = 'syn-interactive min-h-11 rounded-xl px-3 py-2 text-sm font-semibold hover:bg-[var(--syn-soft)] disabled:opacity-45';
-const primary = `${button} bg-[var(--syn-accent)] text-white`;
+const button = 'v2-context-action syn-interactive min-h-11 rounded-lg px-3 py-2 text-sm font-medium hover:bg-[var(--syn-soft)] disabled:opacity-45';
+const primary = `${button} bg-[var(--v2-accent-fill)] text-white`;
+const rowIcons: Record<string, typeof Play> = { 'playlist-picker': ListPlus, 'queue-next': Play, 'queue-end': ListEnd, queue: ListMusic, lyrics: AlignLeft, share: Share2, 'track-details': Info, 'track-remix': Wand2, 'track-clip': Film, download: Download };
 const time = (value: number) => `${Math.floor(value / 60)}:${String(Math.floor(value % 60)).padStart(2, '0')}`;
 const titles: Record<string, string> = { 'track-options': 'Options du morceau', 'playlist-picker': 'Ajouter à une playlist', queue: 'File d’attente', lyrics: 'Paroles', 'track-details': 'À propos du morceau', 'track-share': 'Partager', 'track-remix': 'Créer une variation', 'track-clip': 'Créer un clip' };
 
@@ -75,9 +77,11 @@ function ActionContent({ entry, closeSurface }: ContextSurfaceRendererProps) {
     ...(clipAllowed ? [{ id: 'track-clip', label: 'Créer un clip', action: () => open('track-clip') }] : []),
     ...(downloadAllowed ? [{ id: 'download', label: 'Télécharger', action: () => void run(async () => { await downloadAudioFile(track.audioUrl, generateFilename(track.title, track.artist.name)); setFeedback('Téléchargement terminé.'); }) }] : []),
   ];
-  return <section ref={root} data-organization-surface={entry.surface} data-organization-track={entry.entityId || ''} data-organization-state={ready ? 'loaded' : trackState.isError ? 'error' : 'loading'} className={`organization-surface flex flex-col ${entry.surface === 'track-options' || entry.surface === 'track-share' ? 'organization-compact' : ''}`}>
+  return <section ref={root} data-chambre-context="actions" data-organization-surface={entry.surface} data-organization-track={entry.entityId || ''} data-organization-state={ready ? 'loaded' : trackState.isError ? 'error' : 'loading'} className={`v2-actions-surface organization-surface flex flex-col ${entry.surface === 'track-options' || entry.surface === 'track-share' ? 'organization-compact' : ''}`}>
     <header ref={focus} tabIndex={-1} data-context-surface-initial-focus className="shrink-0 px-5 pb-4 pt-14 outline-none">
-      <SynauraOverlayTitle>{titles[entry.surface]}</SynauraOverlayTitle>
+      <p className="v2-context-kicker">{entry.surface === 'queue' ? 'Écoute / la suite vous appartient' : 'Autour du morceau'}</p>
+      {ready && entry.surface !== 'queue' && track.coverUrl ? <SynauraImage src={track.coverUrl} alt="" className="v2-context-record" /> : null}
+      <SynauraOverlayTitle className="v2-context-title">{titles[entry.surface]}</SynauraOverlayTitle>
       <SynauraOverlayDescription className="mt-2 break-words text-sm">{entry.surface === 'queue' ? 'La file du lecteur, sans interrompre le morceau.' : `${track.title} · ${track.artist.name}`}</SynauraOverlayDescription>
     </header>
     <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-6">
@@ -91,7 +95,7 @@ function ActionContent({ entry, closeSurface }: ContextSurfaceRendererProps) {
           const index = items.indexOf(document.activeElement as HTMLButtonElement);
           e.preventDefault(); const next = e.key === 'Home' ? 0 : e.key === 'End' ? items.length - 1 : (index + (e.key === 'ArrowUp' ? -1 : 1) + items.length) % items.length;
           items.forEach((item, i) => { item.tabIndex = i === next ? 0 : -1; }); items[next]?.focus();
-        }}>{menuRows.map((row, i) => <button key={row.id} role="menuitem" tabIndex={i ? -1 : 0} type="button" data-track-action={row.id} className={`${button} block w-full text-left`} disabled={busy || ((row.id === 'queue-next' || row.id === 'queue-end') && (!track.audioUrl || getBrowserAudioCore()?.getSnapshot().currentTrack?._id === track._id))} onClick={row.action}>{row.label}</button>)}</div>
+        }}>{menuRows.map((row, i) => { const Icon = rowIcons[row.id] || ListMusic; return <button key={row.id} role="menuitem" tabIndex={i ? -1 : 0} type="button" data-track-action={row.id} className={`${button} flex w-full items-center gap-3 text-left`} disabled={busy || ((row.id === 'queue-next' || row.id === 'queue-end') && (!track.audioUrl || getBrowserAudioCore()?.getSnapshot().currentTrack?._id === track._id))} onClick={row.action}><Icon className="h-4 w-4 shrink-0 text-[var(--v2-muted)]" aria-hidden="true" /><span className="flex-1">{row.label}</span><ChevronRight className="h-3.5 w-3.5 shrink-0 text-[var(--v2-faint)]" aria-hidden="true" /></button>; })}</div>
       </>}
       {ready && entry.surface === 'playlist-picker' && <PlaylistPicker track={track} />}
       {entry.surface === 'queue' && <QueueContent />}

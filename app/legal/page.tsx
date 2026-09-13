@@ -62,13 +62,13 @@ export default function LegalPage() {
   return (
     <div className="min-h-screen w-full px-2 sm:px-4 md:px-6 pt-6 sm:pt-10 pb-24 text-white">
       <div className="relative z-10 w-full p-0 sm:p-2">
-        <div className="max-w-4xl mx-auto">
+        <div className="v2-legal-index chambre-legal-directory">
           {/* Header */}
           <motion.div 
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            className="mb-8 text-center"
+            className="v2-legal-intro"
           >
             <div className="flex items-center justify-center mb-6">
               <div className="p-3 rounded-xl bg-white/[0.06] border border-white/[0.06]">
@@ -153,7 +153,7 @@ export default function LegalPage() {
           </motion.div>
 
           {/* Pages légales */}
-          <div className="space-y-4">
+          <div className="v2-legal-documents space-y-4">
             {legalPages.map((page, index) => (
               <motion.div
                 key={page.id}

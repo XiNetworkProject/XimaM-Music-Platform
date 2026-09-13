@@ -14,8 +14,9 @@ export default function MobileTabs() {
     return (
       <button
         type="button"
-        className={`flex-1 h-12 rounded-2xl border transition flex items-center justify-center gap-2 text-sm ${
-          active ? 'border-white/20 bg-white/10' : 'border-border-secondary bg-white/5 hover:bg-white/10'
+        aria-pressed={active}
+        className={`min-w-0 flex-1 min-h-12 rounded-lg transition flex flex-col items-center justify-center gap-1 text-[10px] ${
+          active ? 'bg-[var(--v2-raised)] text-[var(--v2-accent)]' : 'text-[var(--v2-muted)] hover:bg-[var(--v2-raised)]'
         }`}
         onClick={() => setUI({ mobileTab: id })}
       >
@@ -26,12 +27,12 @@ export default function MobileTabs() {
   };
 
   return (
-    <div className="fixed bottom-[max(env(safe-area-inset-bottom,0px),0.75rem)] left-3 right-3 z-[var(--syn-z-overlay)] lg:hidden">
-      <div className="panel-suno p-2 flex items-center gap-2">
-        {btn('generate', 'Generate', Wand2)}
-        {btn('library', 'Library', ListMusic)}
-        {btn('timeline', 'Timeline', LayoutGrid)}
-        {btn('inspector', 'Inspect', SlidersHorizontal)}
+    <div className="chambre-studio-mobile-tabs fixed bottom-[max(env(safe-area-inset-bottom,0px),0.75rem)] left-3 right-3 z-[var(--syn-z-overlay)] lg:hidden">
+      <div className="panel-suno p-1 flex items-center gap-1">
+        {btn('generate', 'Construire', Wand2)}
+        {btn('library', 'Créations', ListMusic)}
+        {btn('timeline', 'Activité', LayoutGrid)}
+        {btn('inspector', 'Inspecteur', SlidersHorizontal)}
       </div>
     </div>
   );

@@ -4,7 +4,7 @@ import TrackActionButton from '@/components/actions/TrackActionButton';
 
 import { Suspense, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Clock3, FileText, Library, Loader2, Music2, Search, TrendingUp, User, X } from 'lucide-react';
 import { SynauraAppShell, SynauraPanel, SynauraTopBar } from '@/components/synaura/SynauraShell';
 import { useProfilePeek } from '@/components/profile/useProfilePeek';
@@ -26,7 +26,7 @@ function getCreatorName(item: any) {
 
 function EmptyState({ query }: { query: string }) {
   return (
-    <SynauraPanel className="p-8 text-center">
+    <SynauraPanel className="chambre-signature-search-empty p-8 text-center">
       <div className="mx-auto grid h-14 w-14 place-items-center rounded-[12px] bg-[var(--syn-soft)] text-[var(--syn-text-secondary)]">
         <Search className="h-6 w-6" />
       </div>
@@ -39,8 +39,11 @@ function EmptyState({ query }: { query: string }) {
 }
 
 function SearchPageContent() {
+  const router = useRouter();
   const params = useSearchParams();
   const query = (params.get('q') || params.get('query') || '').trim();
+  const [queryInput, setQueryInput] = useState(query);
+  useEffect(() => setQueryInput(query), [query]);
   const [filter, setFilter] = useState<ResultKind>('all');
   const [results, setResults] = useState<any>({ tracks: [], posts: [], artists: [], playlists: [] });
   const [loading, setLoading] = useState(false);
@@ -131,31 +134,43 @@ function SearchPageContent() {
     <SynauraAppShell contentClassName="max-w-[1180px]">
       <SynauraTopBar searchLabel="Rechercher un son, un post, un profil..." />
 
-      <div className="space-y-4 pb-28">
-        <div className="flex flex-col gap-3 px-1 sm:flex-row sm:items-end sm:justify-between">
+      <div className="chambre-signature-search space-y-4 pb-28" data-search-state={query ? 'results' : 'explore'}>
+        <div className="v2-search-intro chambre-search-heading">
           <div>
             <p className="text-[11px] font-black uppercase text-[var(--syn-accent-blue)]">Recherche</p>
             <h1 className="mt-1 text-3xl font-black text-[var(--syn-text-primary)] sm:text-4xl">
-              {query ? `"${query}"` : 'Recherche'}
+              {query ? `« ${query} »` : 'Un son. Une piste. Un univers.'}
             </h1>
             <p className="mt-2 text-sm font-semibold leading-6 text-[var(--syn-text-secondary)]">
               Sons, artistes, playlists et communauté.
             </p>
           </div>
           {query ? (
-            <div className="rounded-[10px] border border-[var(--syn-border)] bg-[var(--syn-soft)] px-4 py-2 text-sm font-black text-[var(--syn-text-secondary)]">
+            <div className="chambre-signature-search-count rounded-[10px] border border-[var(--syn-border)] bg-[var(--syn-soft)] px-4 py-2 text-sm font-black text-[var(--syn-text-secondary)]">
               {loading ? 'Recherche...' : `${total} résultat(s)`}
             </div>
           ) : null}
+          <div className="chambre-signature-search-instrument" aria-hidden="true">
+            <span className="chambre-signature-search-aperture" />
+            <span className="chambre-signature-search-crosshair" />
+            <span className="chambre-signature-search-calibration">SYNAURA / EXPLORATION</span>
+          </div>
         </div>
 
+        <form className="v2-search-query chambre-search-command" role="search" onSubmit={(event) => { event.preventDefault(); router.push(`/search?q=${encodeURIComponent(queryInput.trim())}`); }}>
+          <Search className="h-5 w-5 shrink-0 text-[var(--v2-muted)]" aria-hidden />
+          <input aria-label="Rechercher dans Synaura" value={queryInput} onChange={(event) => setQueryInput(event.target.value)} placeholder="Morceau, artiste, playlist, mots…" type="search" />
+          <button type="submit" aria-label="Lancer la recherche" className="text-[var(--v2-text)]">→</button>
+        </form>
+
         {query ? (
-          <nav className="synaura-no-scrollbar flex gap-1 overflow-x-auto rounded-[12px] border border-[var(--syn-border)] bg-[var(--syn-surface-muted)] p-1" aria-label="Filtrer les résultats">
+          <nav className="chambre-signature-search-filters synaura-no-scrollbar flex gap-1 overflow-x-auto rounded-[12px] border border-[var(--syn-border)] bg-[var(--syn-surface-muted)] p-1" aria-label="Filtrer les résultats">
             {FILTERS.map((item) => (
               <button
                 key={item.key}
                 type="button"
                 onClick={() => setFilter(item.key)}
+                aria-pressed={filter === item.key}
                 className={`h-10 shrink-0 rounded-[9px] px-4 text-sm font-black transition ${
                   filter === item.key
                     ? 'bg-[var(--syn-surface)] text-[var(--syn-text-primary)] shadow-sm'
@@ -169,7 +184,13 @@ function SearchPageContent() {
         ) : null}
 
         {!query ? (
-          <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4">
+          <div className="v2-search-results chambre-search-discovery">
+            <nav className="chambre-signature-search-index" aria-label="D’autres chemins pour explorer Synaura">
+              <p className="v2-kicker">Une autre porte d’entrée</p>
+              <Link href="/discover" prefetch={false}><span>01</span><span>Découvrir les ambiances</span><span aria-hidden="true">↗</span></Link>
+              <Link href="/radar" prefetch={false}><span>02</span><span>Radar</span><span aria-hidden="true">↗</span></Link>
+              <Link href="/community" prefetch={false}><span>03</span><span>Les rencontres</span><span aria-hidden="true">↗</span></Link>
+            </nav>
             {suggestionsLoading ? (
               <div className="border-t border-[var(--syn-border)] px-1 pt-4">
                 <div className="h-5 w-28 animate-pulse rounded-[6px] bg-[var(--syn-soft)]" />
@@ -188,7 +209,7 @@ function SearchPageContent() {
             ) : null}
 
             {recent.length ? (
-              <section className="border-t border-[var(--syn-border)] px-1 pt-4">
+              <section className="chambre-signature-search-recent border-t border-[var(--syn-border)] px-1 pt-4">
                 <div className="flex items-center justify-between gap-3">
                   <h2 className="flex items-center gap-2 text-base font-black text-[var(--syn-text-primary)]">
                     <Clock3 className="h-4 w-4 text-[var(--syn-accent-blue)]" />
@@ -236,7 +257,7 @@ function SearchPageContent() {
             ) : null}
 
             {suggestions.tracks.length ? (
-              <section className="border-t border-[var(--syn-border)] px-1 pt-4">
+              <section className="chambre-signature-search-trends border-t border-[var(--syn-border)] px-1 pt-4">
                 <h2 className="flex items-center gap-2 text-base font-black text-[var(--syn-text-primary)]">
                   <TrendingUp className="h-4 w-4 text-[var(--syn-accent-coral)]" />
                   Tendances
@@ -260,7 +281,7 @@ function SearchPageContent() {
             ) : null}
 
             {suggestions.artists.length ? (
-              <section className="border-t border-[var(--syn-border)] px-1 pt-4">
+              <section className="chambre-signature-search-people border-t border-[var(--syn-border)] px-1 pt-4">
                 <h2 className="flex items-center gap-2 text-base font-black text-[var(--syn-text-primary)]">
                   <User className="h-4 w-4 text-[var(--syn-accent)]" />
                   Artistes à découvrir
@@ -298,9 +319,9 @@ function SearchPageContent() {
         ) : null}
 
         {!loading && total ? (
-          <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4">
+          <div className="v2-search-results chambre-search-matches" data-search-filter={filter}>
             {(filter === 'all' || filter === 'tracks') && results.tracks?.length ? (
-              <section className="border-t border-[var(--syn-border)] px-1 pt-4">
+              <section className="chambre-signature-search-tracks border-t border-[var(--syn-border)] px-1 pt-4">
                 <h2 className="flex items-center gap-2 text-lg font-black text-[var(--syn-text-primary)]"><Music2 className="h-5 w-5" /> Sons</h2>
                 <div className="mt-3 divide-y divide-[var(--syn-border)] sm:grid sm:grid-cols-2 sm:gap-x-4 sm:divide-y-0">
                   {results.tracks.map((track: any) => (
@@ -320,7 +341,7 @@ function SearchPageContent() {
             ) : null}
 
             {(filter === 'all' || filter === 'posts') && results.posts?.length ? (
-              <section className="border-t border-[var(--syn-border)] px-1 pt-4">
+              <section className="chambre-signature-search-posts border-t border-[var(--syn-border)] px-1 pt-4">
                 <h2 className="flex items-center gap-2 text-lg font-black text-[var(--syn-text-primary)]"><FileText className="h-5 w-5" /> Posts</h2>
                 <div className="mt-3 divide-y divide-[var(--syn-border)]">
                   {results.posts.map((post: any) => (
@@ -334,7 +355,7 @@ function SearchPageContent() {
             ) : null}
 
             {(filter === 'all' || filter === 'artists') && results.artists?.length ? (
-              <section className="border-t border-[var(--syn-border)] px-1 pt-4">
+              <section className="chambre-signature-search-artists border-t border-[var(--syn-border)] px-1 pt-4">
                 <h2 className="flex items-center gap-2 text-lg font-black text-[var(--syn-text-primary)]"><User className="h-5 w-5" /> Profils</h2>
                 <div className="mt-3 divide-y divide-[var(--syn-border)] sm:grid sm:grid-cols-2 sm:gap-x-4 sm:divide-y-0">
                   {results.artists.map((artist: any) => (
@@ -358,7 +379,7 @@ function SearchPageContent() {
             ) : null}
 
             {(filter === 'all' || filter === 'playlists') && results.playlists?.length ? (
-              <section className="border-t border-[var(--syn-border)] px-1 pt-4">
+              <section className="chambre-signature-search-playlists border-t border-[var(--syn-border)] px-1 pt-4">
                 <h2 className="flex items-center gap-2 text-lg font-black text-[var(--syn-text-primary)]"><Library className="h-5 w-5" /> Playlists</h2>
                 <div className="mt-3 divide-y divide-[var(--syn-border)] sm:grid sm:grid-cols-2 sm:gap-x-4 sm:divide-y-0">
                   {results.playlists.map((playlist: any) => (

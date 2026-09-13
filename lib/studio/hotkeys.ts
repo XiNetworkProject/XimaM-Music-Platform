@@ -13,13 +13,13 @@ function isTypingTarget(el: EventTarget | null): boolean {
   const node = el as HTMLElement | null;
   if (!node) return false;
   const tag = node.tagName?.toLowerCase();
-  if (tag === 'input' || tag === 'textarea' || tag === 'select') return true;
-  return node.isContentEditable;
+  if (tag === 'input' || tag === 'textarea' || tag === 'select' || tag === 'button' || tag === 'a' || tag === 'summary') return true;
+  return node.isContentEditable || !!node.closest?.('[contenteditable="true"], [role="button"], [role="slider"], [role="dialog"]');
 }
 
 export function handleStudioHotkeys(e: KeyboardEvent, h: StudioHotkeyHandlers) {
   // Don't steal keystrokes from inputs/textareas
-  if (isTypingTarget(e.target)) return;
+  if (e.defaultPrevented || e.repeat || isTypingTarget(e.target)) return;
 
   const key = e.key;
   const meta = e.metaKey || e.ctrlKey;
@@ -29,6 +29,9 @@ export function handleStudioHotkeys(e: KeyboardEvent, h: StudioHotkeyHandlers) {
     h.onFocusSearch?.();
     return;
   }
+
+  // Modified keys belong to browser / command-palette shortcuts, never playback.
+  if (meta || e.altKey || e.shiftKey) return;
 
   if (key === ' ') {
     e.preventDefault();

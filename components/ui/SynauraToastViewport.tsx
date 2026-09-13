@@ -1,14 +1,24 @@
 'use client';
 
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { AlertCircle, Check, Info, Music, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { notificationStore, type SynauraTransientNotification } from '@/lib/ui/notifications';
 
 function Toast({ notification }: { notification: SynauraTransientNotification }) {
+  const reduced = useReducedMotion();
   const Icon = notification.type === 'error' || notification.type === 'warning' ? AlertCircle : notification.type === 'success' ? Check : notification.type === 'music' ? Music : Info;
   const isError = notification.type === 'error';
-  return <motion.div role={isError ? 'alert' : 'status'} aria-atomic="true" initial={{ opacity: 0, y: -8, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: -6, scale: 0.98 }} transition={{ duration: 0.15 }} className={`relative flex w-full items-start gap-3 rounded-[var(--syn-radius-lg)] border p-4 shadow-[var(--syn-shadow-medium)] backdrop-blur-xl ${isError ? 'border-transparent bg-[var(--syn-destructive)] text-white' : 'border-[var(--syn-border)] bg-[var(--syn-surface-translucent)] text-[var(--syn-text-primary)]'}`}><span className={`grid h-9 w-9 shrink-0 place-items-center rounded-full ${isError ? 'bg-white/15' : 'bg-[var(--syn-soft)] text-[var(--syn-accent)]'}`}><Icon className="h-4 w-4" aria-hidden="true" /></span><span className="min-w-0 flex-1"><strong className="block text-sm font-black">{notification.title}</strong>{notification.message ? <span className={`mt-0.5 block text-xs leading-5 ${isError ? 'text-white/80' : 'text-[var(--syn-text-secondary)]'}`}>{notification.message}</span> : null}{notification.action ? <button type="button" onClick={() => { notification.action?.onClick(); notificationStore.remove(notification.id); }} className="mt-2 text-xs font-black underline">{notification.action.label}</button> : null}</span><button type="button" onClick={() => notificationStore.remove(notification.id)} aria-label="Fermer" className="syn-interactive grid h-9 w-9 shrink-0 place-items-center rounded-full hover:bg-black/10"><X className="h-4 w-4" /></button></motion.div>;
+  return <motion.div role={isError ? 'alert' : 'status'} aria-atomic="true"
+    initial={reduced ? false : { opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={reduced ? { opacity: 0 } : { opacity: 0, y: -6 }} transition={{ duration: reduced ? 0 : 0.15 }}
+    className={`relative flex w-full items-start gap-3 rounded-[var(--v2-radius)] border bg-[var(--v2-surface)] p-4 text-[var(--v2-text)] shadow-[var(--v2-shadow)] ${isError ? 'border-[var(--v2-danger)]' : 'border-[var(--v2-line)]'}`}>
+    <span className={`grid h-9 w-9 shrink-0 place-items-center ${isError ? 'text-[var(--v2-danger)]' : 'text-[var(--v2-accent)]'}`}><Icon className="h-4 w-4" aria-hidden="true" /></span>
+    <span className="min-w-0 flex-1"><strong className="block text-sm font-medium">{notification.title}</strong>
+      {notification.message ? <span className="mt-0.5 block text-xs leading-5 text-[var(--v2-muted)]">{notification.message}</span> : null}
+      {notification.action ? <button type="button" onClick={() => { notification.action?.onClick(); notificationStore.remove(notification.id); }} className="mt-1 min-h-11 text-xs font-medium underline">{notification.action.label}</button> : null}
+    </span>
+    <button type="button" onClick={() => notificationStore.remove(notification.id)} aria-label="Fermer" className="syn-interactive grid h-11 w-11 shrink-0 place-items-center rounded-[var(--v2-radius-sm)] hover:bg-[var(--v2-raised)]"><X className="h-4 w-4" /></button>
+  </motion.div>;
 }
 
 export function SynauraToastViewport() {

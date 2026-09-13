@@ -1,4 +1,6 @@
 'use client';
+
+import '@/components/v2/music-v2.css';
 import { SynauraImage } from '@/components/ui/SynauraImage';
 
 import { useEffect, useMemo, useState } from 'react';
@@ -259,7 +261,7 @@ export default function PublicPlaylistPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#171313] p-5 text-[#fffaf2]">
+      <div className="chambre-signature-collection-loading min-h-screen bg-[#171313] p-5 text-[#fffaf2]">
         <div className="mx-auto max-w-6xl space-y-4">
           <div className="h-80 animate-pulse rounded-[2.2rem] bg-white/10" />
           {Array.from({ length: 6 }).map((_, index) => <div key={index} className="h-20 animate-pulse rounded-[1.4rem] bg-white/10" />)}
@@ -270,7 +272,7 @@ export default function PublicPlaylistPage() {
 
   if (error || !data) {
     return (
-      <div className="grid min-h-screen place-items-center bg-[#171313] p-5 text-center text-[#fffaf2]">
+      <div className="chambre-signature-collection-unavailable grid min-h-screen place-items-center bg-[#171313] p-5 text-center text-[#fffaf2]">
         <div className="max-w-sm rounded-[2rem] border border-white/10 bg-white/8 p-8 backdrop-blur">
           <Music2 className="mx-auto mb-4 h-9 w-9 text-white/40" />
           <h1 className="text-2xl font-black">Playlist introuvable</h1>
@@ -285,7 +287,8 @@ export default function PublicPlaylistPage() {
 
   return (
     <div
-      className="relative min-h-screen overflow-hidden text-[#fffaf2]"
+      className="v2-playlist-page chambre-signature-playlist relative min-h-screen overflow-hidden text-[#fffaf2]"
+      data-chambre-music="playlist"
       style={{
         background: `radial-gradient(circle at 8% 0%, ${colors[0]}66, transparent 34%), radial-gradient(circle at 92% 8%, ${colors[1] || colors[0]}55, transparent 32%), linear-gradient(135deg, #171313 0%, ${colors[0]} 48%, ${colors[2] || colors[1] || colors[0]} 100%)`,
       }}
@@ -293,14 +296,14 @@ export default function PublicPlaylistPage() {
       <SynauraImage src={banner} alt="" className="pointer-events-none fixed inset-0 h-full w-full object-cover opacity-20 blur-3xl scale-110" />
       <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(180deg,rgba(23,19,19,0.38),rgba(23,19,19,0.90)_70%,rgba(23,19,19,0.96))]" />
 
-      <main className="relative mx-auto max-w-[1480px] px-4 pb-[var(--synaura-mobile-player-space,10rem)] pt-4 sm:px-6 lg:px-8">
+      <main className="v2-playlist-main">
         <div className="mb-5 flex items-center justify-between gap-3">
           <button type="button" onClick={() => router.back()} className="inline-flex h-11 items-center gap-2 rounded-full border border-white/12 bg-white/10 px-4 text-xs font-black text-white/80 backdrop-blur transition hover:bg-white/16">
             <ArrowLeft className="h-4 w-4" />
             Retour
           </button>
           <div className="flex items-center gap-2">
-            <button type="button" onClick={copyLink} className="grid h-11 w-11 place-items-center rounded-full border border-white/12 bg-white/10 text-white/80 backdrop-blur transition hover:bg-white/16">
+            <button type="button" onClick={copyLink} aria-label="Copier le lien de la playlist" className="grid h-11 w-11 place-items-center rounded-full border border-white/12 bg-white/10 text-white/80 backdrop-blur transition hover:bg-white/16">
               <Copy className="h-4 w-4" />
             </button>
             <button type="button" onClick={() => share()} className="inline-flex h-11 items-center gap-2 rounded-full border border-white/12 bg-white/10 px-4 text-xs font-black text-white/80 backdrop-blur transition hover:bg-white/16">
@@ -310,19 +313,19 @@ export default function PublicPlaylistPage() {
           </div>
         </div>
 
-        <section className="relative overflow-hidden rounded-[var(--syn-radius-xl)] border border-white/12 bg-white/10 shadow-[var(--syn-shadow-medium)]">
+        <section className="v2-playlist-identity">
           <SynauraImage src={banner} alt="" className="absolute inset-0 h-full w-full object-cover opacity-48 saturate-[1.08]" />
           <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(17,13,13,0.92),rgba(17,13,13,0.58),rgba(17,13,13,0.20))]" />
-          <div className="relative grid items-center gap-6 p-4 sm:grid-cols-[minmax(0,1fr)_minmax(180px,0.65fr)] sm:p-6 lg:p-8">
-            <div className="flex min-w-0 flex-col justify-center">
+          <div className="v2-playlist-identity-grid">
+            <div className="v2-playlist-copy">
               <p className="mb-3 inline-flex w-fit rounded-full bg-white/15 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-white/82 backdrop-blur">
                 {collection?.badge || 'Playlist Synaura'}
               </p>
-              <h1 className="max-w-4xl break-words text-3xl font-black leading-tight tracking-tight sm:text-4xl">
+              <h1 className="v2-heading">
                 {collection?.title || data.name}
               </h1>
               <p className="mt-5 max-w-2xl text-base font-bold leading-7 text-white/78 sm:text-lg">
-                {collection?.subtitle || data.description || 'Une selection musicale Synaura.'}
+                {collection?.subtitle || data.description || 'Une sélection musicale Synaura.'}
               </p>
               {collection?.description && collection.description !== collection.subtitle ? (
                 <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-white/56">{collection.description}</p>
@@ -334,22 +337,22 @@ export default function PublicPlaylistPage() {
                 </button>
                 <button type="button" onClick={shufflePlay} className="inline-flex h-12 items-center gap-2 rounded-full bg-white/14 px-5 text-sm font-black text-white backdrop-blur transition hover:bg-white/20">
                   <Shuffle className="h-4 w-4" />
-                  Aleatoire
+                  Aléatoire
                 </button>
                 <button type="button" onClick={() => visibleTracks[0] && queueTrack(visibleTracks[0])} className="inline-flex h-12 items-center gap-2 rounded-full bg-white/14 px-5 text-sm font-black text-white backdrop-blur transition hover:bg-white/20">
                   <ListPlus className="h-4 w-4" />
-                  Ajouter a la file
+                  Ajouter à la file
                 </button>
               </div>
             </div>
 
-            <div className="flex items-end justify-center lg:justify-end">
+            <div className="v2-playlist-cover">
               <div className="relative w-full max-w-[200px] sm:max-w-[360px]">
-                <div className="absolute -inset-8 rounded-[3rem] bg-white/18 blur-3xl" />
+                <div className="chambre-signature-playlist-sleeve" aria-hidden="true"><span>SYNAURA / SÉLECTION</span></div>
                 <SynauraImage src={cover} alt={data.name} className="relative aspect-square w-full rounded-[var(--syn-radius-lg)] border border-white/18 object-cover shadow-[var(--syn-shadow-medium)]" />
                 <div className="relative mt-3 grid grid-cols-3 gap-2 rounded-[var(--syn-radius-md)] border border-white/12 bg-[#171313]/74 p-2 backdrop-blur-sm">
                   <Stat label="Titres" value={String(data.tracks.length)} />
-                  <Stat label="Duree" value={formatDuration(totalDuration, true)} />
+                  <Stat label="Durée" value={formatDuration(totalDuration, true)} />
                   <Stat label="Likes" value={String(totalLikes)} />
                 </div>
               </div>
@@ -357,17 +360,18 @@ export default function PublicPlaylistPage() {
           </div>
         </section>
 
-        <section className="sticky top-2 z-20 my-5 rounded-[1.7rem] border border-white/12 bg-[#171313]/70 p-3 shadow-[0_20px_70px_rgba(0,0,0,0.22)] backdrop-blur-2xl">
+        <section className="v2-playlist-toolbar">
           <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto_auto] lg:items-center">
             <div className="flex h-12 items-center gap-3 rounded-full bg-white/10 px-4">
               <Search className="h-4 w-4 text-white/45" />
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
+                aria-label="Rechercher dans la collection"
                 placeholder="Rechercher dans la collection..."
                 className="w-full bg-transparent text-sm font-bold text-white outline-none placeholder:text-white/36"
               />
-              {query ? <button type="button" onClick={() => setQuery('')}><X className="h-4 w-4 text-white/45" /></button> : null}
+              {query ? <button type="button" aria-label="Effacer la recherche" onClick={() => setQuery('')}><X className="h-4 w-4 text-white/45" /></button> : null}
             </div>
             <div className="no-scrollbar flex gap-2 overflow-x-auto">
               {genres.map((item) => (
@@ -376,7 +380,7 @@ export default function PublicPlaylistPage() {
                 </button>
               ))}
             </div>
-            <select value={sort} onChange={(e) => setSort(e.target.value as any)} className="h-10 rounded-full border border-white/12 bg-white/10 px-4 text-xs font-black text-white outline-none">
+            <select aria-label="Trier les morceaux" value={sort} onChange={(e) => setSort(e.target.value as any)} className="h-10 rounded-full border border-white/12 bg-white/10 px-4 text-xs font-black text-white outline-none">
               <option value="position">Ordre officiel</option>
               <option value="title">Titre A-Z</option>
               <option value="duration">Les plus longs</option>
@@ -384,8 +388,13 @@ export default function PublicPlaylistPage() {
           </div>
         </section>
 
-        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="v2-playlist-content-grid">
           <section className="space-y-3">
+            <header className="chambre-signature-playlist-track-heading">
+              <p className="v2-kicker">Dans cette sélection</p>
+              <h2>Le fil musical.</h2>
+              <span>{visibleTracks.length} / {data.tracks.length} titres</span>
+            </header>
             {visibleTracks.map((track, idx) => {
               const active = player.audioState.tracks[player.audioState.currentTrackIndex]?._id === track._id;
               const isPlaying = active && player.audioState.isPlaying;
@@ -395,11 +404,11 @@ export default function PublicPlaylistPage() {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: Math.min(idx * 0.014, 0.22) }}
-                  className={`group grid gap-3 rounded-[1.55rem] border p-3 backdrop-blur-xl transition sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center ${
+                  className={`v2-playlist-track-row group ${
                     active ? 'border-white/38 bg-white/20 shadow-[0_18px_70px_rgba(255,255,255,0.10)]' : 'border-white/10 bg-white/9 hover:bg-white/13'
                   }`}
                 >
-                  <button type="button" onClick={() => playTrack(track)} className="relative grid h-16 w-16 place-items-center overflow-hidden rounded-[1.25rem] bg-white/10">
+                  <button type="button" onClick={() => playTrack(track)} aria-label={`Écouter ${track.title}`} className="relative grid h-16 w-16 place-items-center overflow-hidden rounded-[1.25rem] bg-white/10">
                     <SynauraImage src={imageUrl(track.coverUrl || cover)} alt="" className="absolute inset-0 h-full w-full object-cover" />
                     <span className="relative grid h-9 w-9 place-items-center rounded-full bg-[#171313]/78 text-white backdrop-blur">
                       {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="ml-0.5 h-4 w-4 fill-current" />}
@@ -425,18 +434,18 @@ export default function PublicPlaylistPage() {
                       {likesCount[track._id] || 0}
                     </button>
                     {collection?.commentsEnabled !== false ? (
-                      <button type="button" onClick={() => setCommentTrack(track)} className="grid h-10 w-10 place-items-center rounded-full bg-white/10 text-white/62 transition hover:text-white">
+                      <button type="button" onClick={() => setCommentTrack(track)} aria-label={`Commentaires de ${track.title}`} className="grid h-10 w-10 place-items-center rounded-full bg-white/10 text-white/62 transition hover:text-white">
                         <MessageCircle className="h-4 w-4" />
                       </button>
                     ) : null}
-                    <button type="button" onClick={() => queueTrack(track)} className="grid h-10 w-10 place-items-center rounded-full bg-white/10 text-white/62 transition hover:text-white">
+                    <button type="button" onClick={() => queueTrack(track)} aria-label={`Ajouter ${track.title} à la file`} className="grid h-10 w-10 place-items-center rounded-full bg-white/10 text-white/62 transition hover:text-white">
                       <ListPlus className="h-4 w-4" />
                     </button>
-                    <button type="button" onClick={() => share(track.title, `${window.location.origin}/track/${track._id}`)} className="grid h-10 w-10 place-items-center rounded-full bg-white/10 text-white/62 transition hover:text-white">
+                    <button type="button" onClick={() => share(track.title, `${window.location.origin}/track/${track._id}`)} aria-label={`Partager ${track.title}`} className="grid h-10 w-10 place-items-center rounded-full bg-white/10 text-white/62 transition hover:text-white">
                       <Share2 className="h-4 w-4" />
                     </button>
                     {collection?.downloadEnabled && track.audioUrl ? (
-                      <button type="button" onClick={() => downloadTrack(track)} className="grid h-10 w-10 place-items-center rounded-full bg-white/10 text-white/62 transition hover:text-white">
+                      <button type="button" onClick={() => downloadTrack(track)} aria-label={`Télécharger ${track.title}`} className="grid h-10 w-10 place-items-center rounded-full bg-white/10 text-white/62 transition hover:text-white">
                         <Download className="h-4 w-4" />
                       </button>
                     ) : null}

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ArrowRight, FileText, Library, Loader2, Play, Search, User, X } from 'lucide-react';
 import { useAudioPlayer } from '@/app/providers';
+import { SynauraImage } from '@/components/ui/SynauraImage';
 
 type SearchTrack = {
   id: string;
@@ -101,7 +102,7 @@ function normalizePost(raw: any): SearchPost | null {
 
 function AvatarMark({ value, image }: { value: string; image?: string | null }) {
   if (image) {
-    return <img src={image} alt="" className="h-10 w-10 rounded-full border border-[var(--syn-border)] object-cover" />;
+    return <SynauraImage src={image} fallbackSrc="/default-avatar.png" alt="" className="h-10 w-10 rounded-full border border-[var(--syn-border)] object-cover" />;
   }
 
   return (
@@ -126,6 +127,7 @@ export default function SynauraUniversalSearch({
   const [results, setResults] = useState<SearchResults>(emptyResults);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   const totalResults = results.tracks.length + results.posts.length + results.artists.length + results.playlists.length;
 
@@ -135,6 +137,7 @@ export default function SynauraUniversalSearch({
     setResults(emptyResults);
     setOpen(false);
     setLoading(false);
+    setFailed(false);
   }, []);
 
   const runSearch = useCallback(async (value: string) => {
@@ -151,6 +154,7 @@ export default function SynauraUniversalSearch({
     const controller = new AbortController();
     abortRef.current = controller;
     setLoading(true);
+    setFailed(false);
     setOpen(true);
 
     try {
@@ -159,6 +163,8 @@ export default function SynauraUniversalSearch({
         signal: controller.signal,
       });
       const json = await response.json().catch(() => null);
+      if (controller.signal.aborted) return;
+      if (!response.ok) throw new Error('Recherche indisponible');
       setResults({
         tracks: (Array.isArray(json?.tracks) ? json.tracks : []).map(normalizeTrack).filter(Boolean) as SearchTrack[],
         posts: (Array.isArray(json?.posts) ? json.posts : []).map(normalizePost).filter(Boolean) as SearchPost[],
@@ -166,9 +172,9 @@ export default function SynauraUniversalSearch({
         playlists: (Array.isArray(json?.playlists) ? json.playlists : []).map(normalizePlaylist).filter(Boolean) as SearchPlaylist[],
       });
     } catch (error: any) {
-      if (error?.name !== 'AbortError') setResults(emptyResults);
+      if (!controller.signal.aborted && error?.name !== 'AbortError') { setResults(emptyResults); setFailed(true); }
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) setLoading(false);
     }
   }, []);
 
@@ -193,7 +199,7 @@ export default function SynauraUniversalSearch({
   };
 
   return (
-    <div ref={rootRef} className={`relative ${compact ? 'min-w-0 flex-1' : 'hidden max-w-2xl flex-1 lg:block'}`}>
+    <div ref={rootRef} className="v2-universal-search relative min-w-0 flex-1">
       <div className="relative">
         <Search className={`pointer-events-none absolute top-1/2 -translate-y-1/2 text-[var(--syn-text-secondary)] ${compact ? 'left-2.5 h-3.5 w-3.5' : 'left-3 h-4 w-4 sm:left-4'}`} />
         <input
@@ -213,17 +219,14 @@ export default function SynauraUniversalSearch({
             }
           }}
           placeholder={placeholder}
-          className={compact
-            ? 'h-9 w-full rounded-[10px] border border-transparent bg-[var(--syn-soft)] pl-8 pr-9 text-[11px] font-semibold text-[var(--syn-text-primary)] outline-none placeholder:text-[var(--syn-text-secondary)] transition focus:border-[var(--syn-border)] focus:bg-[var(--syn-surface)]'
-            : 'h-10 w-full rounded-[12px] border border-transparent bg-[var(--syn-soft)] pl-9 pr-10 text-xs font-semibold text-[var(--syn-text-primary)] outline-none placeholder:text-[var(--syn-text-secondary)] transition focus:border-[var(--syn-border)] focus:bg-[var(--syn-surface)] sm:h-11 sm:pl-11 sm:text-sm'
-          }
+          className="h-11 w-full rounded-[var(--v2-radius-sm)] border border-[var(--v2-line)] bg-transparent pl-10 pr-11 text-base text-[var(--v2-text)] transition focus:bg-[var(--v2-surface)] sm:text-sm"
           aria-label="Recherche globale"
         />
         {query ? (
           <button
             type="button"
             onClick={clearSearch}
-            className="absolute right-2 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-full bg-[var(--syn-soft)] text-[var(--syn-text-secondary)] transition hover:bg-[var(--syn-contrast-bg)] hover:text-[var(--syn-contrast-text)]"
+            className="absolute right-0 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-[var(--v2-radius-sm)] text-[var(--syn-text-secondary)] transition hover:bg-[var(--syn-soft)]"
             aria-label="Effacer la recherche"
           >
             <X className="h-3.5 w-3.5" />
@@ -240,7 +243,8 @@ export default function SynauraUniversalSearch({
             {loading ? <Loader2 className="h-4 w-4 animate-spin text-[var(--syn-text-secondary)]" /> : null}
           </div>
 
-          {!loading && !totalResults ? (
+          {!loading && failed ? <p role="status" className="p-5 text-sm leading-6 text-[var(--v2-muted)]">La recherche est momentanément indisponible. Réessaie dans un instant.</p> : null}
+          {!loading && !failed && !totalResults ? (
             <div className="rounded-[10px] bg-[var(--syn-surface-muted)] p-5 text-center">
               <Search className="mx-auto h-7 w-7 text-[var(--syn-text-secondary)]" />
               <p className="mt-2 text-sm font-black text-[var(--syn-text-secondary)]">Aucun résultat pour "{query}"</p>
@@ -274,7 +278,7 @@ export default function SynauraUniversalSearch({
                   }}
                   className="flex w-full items-center gap-3 rounded-[10px] bg-[var(--syn-surface)] p-2 text-left transition hover:bg-[var(--syn-soft-strong)]"
                 >
-                  <img src={track.coverUrl || '/default-cover.svg'} alt="" className="h-11 w-11 rounded-[8px] object-cover" />
+                  <SynauraImage src={track.coverUrl || '/default-cover.svg'} alt="" className="h-11 w-11 rounded-[8px] object-cover" />
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-sm font-black text-[var(--syn-text-primary)]">{track.title}</span>
                     <span className="block truncate text-xs font-semibold text-[var(--syn-text-secondary)]">{track.artist}</span>

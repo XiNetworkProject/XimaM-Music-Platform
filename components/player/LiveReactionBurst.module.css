@@ -1,0 +1,21 @@
+.layer { position: fixed; inset: 0; z-index: 45; overflow: clip; pointer-events: none; user-select: none; }
+.picker { width: max-content; max-width: calc(100vw - 24px); }
+.picker > button { flex-shrink: 0; min-width: 44px; min-height: 44px; }
+.picker > button:hover { transform: translateY(-4px) scale(1.12); }
+.picker > button:focus-visible { outline: 2px solid var(--v2-accent); outline-offset: 2px; }
+.burst { position: absolute; left: 78%; bottom: calc(var(--synaura-primary-dock-space, 84px) + env(safe-area-inset-bottom, 0px) + 20px); }
+.emoji { position: absolute; bottom: 0; left: 0; font-size: var(--size); line-height: 1; opacity: 0; filter: drop-shadow(0 3px 8px #0005); animation: rise var(--flight) cubic-bezier(.22,.62,.36,1) var(--delay) both; }
+@keyframes rise {
+  0% { opacity: 0; transform: translate(0, 0) scale(.45) rotate(0deg); }
+  12% { opacity: 1; transform: translate(var(--sway), -5dvh) scale(1.15) rotate(var(--tilt)); }
+  45% { opacity: .95; transform: translate(var(--drift), -24dvh) scale(1) rotate(0deg); }
+  75% { opacity: .65; transform: translate(var(--sway), -43dvh) scale(.9) rotate(var(--tilt)); }
+  100% { opacity: 0; transform: translate(var(--drift), -62dvh) scale(.65) rotate(0deg); }
+}
+@media (max-width: 767px) { .burst { left: 65%; } }
+@media (prefers-reduced-motion: reduce) {
+  .picker > button:hover { transform: none; }
+  .emoji { animation: acknowledge 700ms ease-out both; }
+  .emoji:not(:first-child) { display: none; }
+  @keyframes acknowledge { 0%, 100% { opacity: 0; } 20%, 70% { opacity: 1; } }
+}

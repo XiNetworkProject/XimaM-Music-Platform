@@ -79,7 +79,7 @@ export default function PostsFeedPage() {
       />
       <SynauraRouteNav />
 
-      <section className="mb-4 overflow-hidden rounded-[1.75rem] border border-black/[0.08] bg-[#171313] p-4 text-white shadow-[0_28px_80px_rgba(20,15,10,0.22)] sm:p-5">
+      <section className="v2-post-intro mb-8 pt-8 text-white">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <button
@@ -90,9 +90,9 @@ export default function PostsFeedPage() {
               Retour
             </button>
             <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/46">Posts</p>
-            <h1 className="mt-2 text-3xl font-black leading-[0.95] tracking-[-0.06em] sm:text-5xl">Le fil des createurs.</h1>
+            <h1 className="mt-3">Entre <span className="chambre-type-accent">les sons.</span></h1>
             <p className="mt-3 max-w-xl text-sm font-semibold leading-6 text-white/55">
-              Tous les posts au meme endroit.
+              Notes, images et morceaux partagés par les créateurs.
             </p>
           </div>
           <button
@@ -105,7 +105,7 @@ export default function PostsFeedPage() {
         </div>
       </section>
 
-      <div className="mx-auto max-w-2xl pb-[calc(7rem+env(safe-area-inset-bottom,0px))]">
+      <div className="chambre-post-stream mx-auto max-w-2xl pb-[calc(7rem+env(safe-area-inset-bottom,0px))]">
         {session && (
           <div className="mb-5">
             <PostComposer onPostCreated={handlePostCreated} />

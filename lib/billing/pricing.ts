@@ -76,7 +76,7 @@ export const PLANS: Record<PlanKey, Plan> = {
       'Uploads limités',
       'Lecture et découverte de base',
       `${WELCOME_CREDITS} crédits de bienvenue (≈ ${Math.floor(WELCOME_CREDITS / CREDITS_PER_GENERATION)} gén.)`,
-      'Modèle IA V4.5',
+      'Modèle IA V6 Mini inclus',
     ],
     limits: {
       maxTracks: 10,
@@ -84,7 +84,7 @@ export const PLANS: Record<PlanKey, Plan> = {
       maxPlaylists: 5,
       maxFileMb: 80,
       audioQualityKbps: 128,
-      availableModels: ['V4_5'],
+      availableModels: ['V6_MINI'],
     },
     featureFlags: {
       messaging: false,
@@ -109,7 +109,7 @@ export const PLANS: Record<PlanKey, Plan> = {
     badge: 'Populaire',
     features: [
       '600 crédits / mois (≈ 50 gén.)',
-      'Modèles V4.5 et V4.5+',
+      'Tous les modèles V6, V6 Wild et V6 Mini',
       'Messagerie',
       'Sans publicité',
       'Statistiques de base',
@@ -121,7 +121,7 @@ export const PLANS: Record<PlanKey, Plan> = {
       maxPlaylists: 30,
       maxFileMb: 200,
       audioQualityKbps: 256,
-      availableModels: ['V4_5', 'V4_5PLUS'],
+      availableModels: ['V6', 'V6_WILD', 'V6_MINI'],
     },
     featureFlags: {
       messaging: true,
@@ -145,7 +145,7 @@ export const PLANS: Record<PlanKey, Plan> = {
     },
     features: [
       '2 400 crédits / mois (≈ 200 gén.)',
-      'Tous les modèles IA (V4.5, V4.5+, V5, V5.5)',
+      'Tous les modèles V6, V6 Wild et V6 Mini',
       'Messagerie',
       'Playlists collaboratives',
       'Analyses avancées',
@@ -157,7 +157,7 @@ export const PLANS: Record<PlanKey, Plan> = {
       maxPlaylists: -1,
       maxFileMb: 500,
       audioQualityKbps: 320,
-      availableModels: ['V4_5', 'V4_5PLUS', 'V5', 'V5_5'],
+      availableModels: ['V6', 'V6_WILD', 'V6_MINI'],
     },
     featureFlags: {
       messaging: true,

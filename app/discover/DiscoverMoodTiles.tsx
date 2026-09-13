@@ -32,26 +32,28 @@ export function MoodCard({
     <button
       type="button"
       onClick={onOpen}
-      className="group relative flex min-h-[152px] w-full flex-col justify-end overflow-hidden rounded-[14px] p-4 text-left shadow-[0_16px_42px_rgba(23,19,19,0.16)] transition duration-300 hover:-translate-y-0.5 hover:shadow-[0_24px_60px_rgba(23,19,19,0.22)] sm:min-h-[180px] sm:rounded-[16px] sm:p-5"
+      className="v2-mood-card experience-mood-card group"
+      data-mood={mood.id}
+      data-highlighted={highlighted}
+      aria-label={`Explorer l’ambiance ${mood.label} : ${mood.promise}`}
       style={{
-        background: `linear-gradient(150deg, ${mood.gradient[0]}, ${mood.gradient[1]})`,
-        boxShadow: highlighted ? '0 0 0 2px #7357C6, 0 20px 60px rgba(23,19,19,0.16)' : undefined,
+        boxShadow: highlighted ? 'inset 0 0 0 1px var(--v2-accent)' : undefined,
       }}
     >
       {highlighted ? (
-        <span className="absolute left-4 top-4 z-10 inline-flex items-center rounded-[8px] bg-[#7357C6] px-2.5 py-1 text-[10px] font-black uppercase text-white">
+        <span className="v2-mood-personal absolute left-4 top-4 z-10 inline-flex items-center rounded-[8px] bg-[var(--v2-accent-fill)] px-2.5 py-1 text-[10px] font-semibold uppercase text-white">
           Pour toi
         </span>
       ) : null}
       {covers.length ? (
-        <div className="absolute inset-0 grid grid-cols-2 opacity-40 saturate-[1.05]">
+        <div className="v2-mood-covers absolute inset-0 grid grid-cols-2" aria-hidden="true">
           {covers.slice(0, 4).map((cover, index) => (
             <SynauraImage key={`${cover}-${index}`} src={cover} alt="" className="h-full w-full object-cover" />
           ))}
         </div>
       ) : null}
-      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-black/20" />
-      <div className="relative">
+      <div className="v2-mood-shade absolute inset-0" aria-hidden="true" />
+      <div className="v2-mood-copy relative">
         <h3 className="text-xl font-black leading-tight text-white sm:text-2xl">{mood.label}</h3>
         <p className="mt-1.5 max-w-[90%] text-xs font-semibold leading-5 text-white/72 sm:text-sm">{mood.promise}</p>
         <span className="mt-3 inline-flex items-center gap-1.5 text-[10px] font-black uppercase text-white/85">
@@ -71,18 +73,18 @@ export function ArtistDiscoverCard({ artist }: { artist: DiscoverArtistCardLite 
   const openProfilePeek = useProfilePeek('discover');
 
   return (
-    <div className="min-w-[220px] max-w-[220px] shrink-0 overflow-hidden rounded-[14px] border border-[var(--syn-border)] bg-[var(--syn-surface)] p-4 shadow-[0_16px_45px_var(--syn-shadow)] sm:min-w-[240px] sm:max-w-[240px] sm:rounded-[16px]">
+<div className="v2-artist-discover">
       <button
         type="button"
         data-context-surface-trigger-key={`discover-profile-${artist._id}`}
         onClick={(event) => openProfilePeek(artist.username, event.currentTarget)}
-        className="flex min-h-14 w-full items-center gap-3 text-left"
+        className="chambre-discover-portrait-trigger flex min-h-14 w-full items-center gap-3 text-left"
         aria-label={`Aperçu du profil de ${artist.name}`}
       >
         {artist.avatar ? (
           <SynauraImage fallbackSrc="/default-avatar.png" src={artist.avatar} alt="" className="h-14 w-14 rounded-full object-cover" />
         ) : (
-          <div className="grid h-14 w-14 place-items-center rounded-full bg-gradient-to-br from-[#7357C6]/70 via-[#D96D63]/60 to-[#4A9EAA]/60 text-lg font-black text-white">
+          <div className="grid h-14 w-14 place-items-center rounded-full bg-[var(--v2-selected)] text-lg font-semibold text-[var(--v2-accent)]">
             {(artist.name || artist.username || '?').slice(0, 1).toUpperCase()}
           </div>
         )}
@@ -90,6 +92,7 @@ export function ArtistDiscoverCard({ artist }: { artist: DiscoverArtistCardLite 
           <p className="truncate text-sm font-black text-[var(--syn-text-primary)]">{artist.name}</p>
           {artist.style ? <p className="truncate text-xs font-bold text-[var(--syn-text-secondary)]">{artist.style}</p> : null}
         </div>
+        <span className="chambre-discover-portrait-peek" aria-hidden="true">Aperçu <ArrowRight size={14} /></span>
       </button>
 
       {artist.track ? (
@@ -103,7 +106,8 @@ export function ArtistDiscoverCard({ artist }: { artist: DiscoverArtistCardLite 
               playTrack(artist.track as any);
             }
           }}
-          className="mt-3 flex w-full items-center gap-2.5 rounded-[10px] bg-[var(--syn-soft)] p-2 text-left transition hover:bg-[var(--syn-soft-strong)]"
+          aria-label={`${isPlayingThis ? 'Mettre en pause' : 'Écouter'} ${artist.track.title}`}
+          className="chambre-discover-artist-listen mt-3 flex w-full items-center gap-2.5 rounded-[10px] bg-[var(--syn-soft)] p-2 text-left transition hover:bg-[var(--syn-soft-strong)]"
         >
           <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-[8px] bg-[var(--syn-surface-muted)]">
             {artist.track.coverUrl ? <SynauraImage src={artist.track.coverUrl} alt="" className="h-full w-full object-cover" /> : null}

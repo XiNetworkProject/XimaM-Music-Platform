@@ -1,9 +1,11 @@
 'use client';
 
+import '@/components/v2/music-v2.css';
+
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ChevronDown, ChevronUp, EyeOff, Info, ListMusic, MessageSquare, Pause, Play, Radio, Repeat2, Share2, SkipBack, SkipForward, SlidersHorizontal, Sparkles, ThumbsDown, ThumbsUp, Trash2, X } from 'lucide-react';
+import { ChevronDown, ChevronUp, EyeOff, Info, ListMusic, MessageSquare, MoreHorizontal, Pause, Play, Radio, Repeat2, Share2, SkipBack, SkipForward, SlidersHorizontal, Sparkles, ThumbsDown, ThumbsUp, Trash2, X } from 'lucide-react';
 import { useAudioPlayer, useAudioTime } from '@/app/providers';
 import TikTokPlayer from './TikTokPlayer';
 import TrackCover from './TrackCover';
@@ -249,8 +251,9 @@ export default function SynauraMiniPlayer() {
   useEffect(() => {
     if (showTikTok) return;
     const onKey = (event: KeyboardEvent) => {
+      if (event.defaultPrevented || event.repeat || event.isComposing || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
       const target = event.target as HTMLElement;
-      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+      if (target && (target.isContentEditable || target.closest('input, textarea, select, button, a, [role="button"], [role="slider"], [role="tab"], [role="textbox"], [role="combobox"]'))) return;
       if (event.code === 'Space') {
         event.preventDefault();
         void togglePlay();
@@ -280,7 +283,7 @@ export default function SynauraMiniPlayer() {
 
       {!showTikTok ? (
         <>
-          <div className="synaura-player-surface pointer-events-none fixed inset-x-0 bottom-[var(--synaura-primary-dock-space)] z-[60] sm:bottom-0">
+          <div className="v2-mini-player synaura-player-surface pointer-events-none fixed inset-x-0 bottom-[var(--synaura-primary-dock-space)] z-[60] lg:bottom-0" data-chambre-music="mini-player">
             <div className="pointer-events-auto px-0 pb-0 sm:px-4 sm:pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)]">
               {showQueue ? (
                 <QueueDialog isOpen={showQueue} onClose={() => setShowQueue(false)} />
@@ -295,7 +298,7 @@ export default function SynauraMiniPlayer() {
                   onClose={() => setShowTaste(false)}
                 />
               ) : null}
-              <div className="mx-auto max-w-[640px] overflow-hidden rounded-t-[14px] border border-b-0 border-white/15 bg-[rgba(28,28,28,0.98)] text-[#F7F6F3] shadow-[0_-10px_34px_rgba(0,0,0,0.24)] backdrop-blur-2xl sm:max-w-[980px] sm:rounded-[20px] sm:border sm:border-[var(--syn-border)] sm:bg-[var(--syn-surface-translucent)] sm:text-[var(--syn-text-primary)] sm:shadow-[0_22px_60px_var(--syn-shadow)]">
+              <div className="v2-mini-player-body">
                 <div
                   ref={progressRef}
                   onClick={onProgressClick}
@@ -316,7 +319,7 @@ export default function SynauraMiniPlayer() {
                   />
                 </div>
 
-                <div className="hidden items-center gap-3 px-3 py-2.5 sm:flex">
+                <div className="v2-mini-desktop">
                   <button type="button" className="flex min-w-0 flex-1 items-center gap-3 text-left" onClick={() => setShowTikTok(true)}>
                     <div className="relative shrink-0">
                       <TrackCover trackId={track.id} src={track.cover} videoSrc={track.coverVideo} posterSrc={track.coverVideoPoster} title={track.title} autoPlayVideo={audioState.isPlaying} className="h-11 w-11 ring-1 ring-black/[0.08]" rounded="rounded-[1rem]" objectFit="cover" />
@@ -342,7 +345,7 @@ export default function SynauraMiniPlayer() {
                     </div>
                   </button>
 
-                  <div className="flex items-center gap-1">
+                  <div className="v2-mini-transports flex items-center gap-1">
                     <button onClick={previousTrack} className="grid h-9 w-9 place-items-center rounded-full bg-black/[0.05] text-black/55 transition hover:bg-black/[0.1] hover:text-[#171313]" aria-label="Precedent">
                       <SkipBack className="w-4 h-4" />
                     </button>
@@ -359,13 +362,15 @@ export default function SynauraMiniPlayer() {
                     </button>
                   </div>
 
-                  <div className="hidden items-center gap-2 text-[10px] font-mono text-black/32 tabular-nums lg:flex">
+                  <div className="v2-mini-time items-center gap-2 text-[10px] font-mono text-black/32 tabular-nums">
                     <span>{toTime(currentTime || 0)}</span>
                     <span>/</span>
                     <span>{toTime(duration || 0)}</span>
                   </div>
 
-                  <div className="flex items-center gap-1">
+                  <details className="v2-mini-menu" onKeyDown={event => { if (event.key === ' ') event.stopPropagation(); if (event.key === 'Escape') { event.stopPropagation(); event.currentTarget.open = false; event.currentTarget.querySelector('summary')?.focus(); } }}>
+                    <summary className="v2-mini-more" aria-label="Toutes les actions du lecteur"><MoreHorizontal size={21} /><span>Actions</span></summary>
+                    <div className="v2-mini-menu-panel">
                     {artistUsername ? (
                       <Link
                         href={`/profile/${encodeURIComponent(artistUsername)}`}
@@ -406,12 +411,14 @@ export default function SynauraMiniPlayer() {
                       aria-label="Player complet"
                     >
                       <ListMusic className="w-3.5 h-3.5" />
-                      Feed
+                      Lecteur complet
                     </button>
                     <button
-                      onClick={() => {
+                      onClick={(event) => {
                         setShowTaste((value) => !value);
                         setShowQueue(false);
+                        const disclosure = event.currentTarget.closest('details');
+                        if (disclosure) { disclosure.open = false; disclosure.querySelector('summary')?.focus(); }
                       }}
                       className="inline-flex h-9 items-center gap-2 rounded-full bg-[var(--syn-soft)] px-3 text-xs font-black text-[var(--syn-text-secondary)] transition hover:bg-[var(--syn-soft-strong)] hover:text-[var(--syn-text-primary)]"
                       aria-label="Affiner le Flow"
@@ -444,7 +451,8 @@ export default function SynauraMiniPlayer() {
                       Défi
                     </Link>
                     <TrackCreateRemixActions track={currentTrack as any} compact className="hidden xl:flex" />
-                  </div>
+                    </div>
+                  </details>
                 </div>
 
                 {audioState.error ? (
@@ -457,7 +465,7 @@ export default function SynauraMiniPlayer() {
                   </div>
                 ) : null}
 
-                <div className="flex items-center gap-2 px-2 py-1.5 sm:hidden">
+                <div className="v2-mini-mobile">
                   <button type="button" className="flex min-w-0 flex-1 items-center gap-2 text-left" onClick={() => setShowTikTok(true)}>
                     <div className="relative shrink-0">
                       <TrackCover trackId={track.id} src={track.cover} videoSrc={track.coverVideo} posterSrc={track.coverVideoPoster} title={track.title} autoPlayVideo={audioState.isPlaying} className="h-8 w-8 ring-1 ring-black/[0.08]" rounded="rounded-[0.75rem]" objectFit="cover" />
@@ -478,18 +486,8 @@ export default function SynauraMiniPlayer() {
                     {audioState.isPlaying ? <Pause className="w-4 h-4" /> : <Play className="ml-0.5 w-4 h-4 fill-current" />}
                   </button>
                   <button
-                    onClick={() => {
-                      setShowTaste((value) => !value);
-                      setShowQueue(false);
-                    }}
-                    className="hidden h-9 w-9 shrink-0 place-items-center rounded-full bg-[var(--syn-soft)] text-[var(--syn-text-secondary)] sm:grid"
-                    aria-label="Affiner le Flow"
-                  >
-                    <SlidersHorizontal className="h-4 w-4" />
-                  </button>
-                  <button
-                    onClick={() => setShowTikTok(true)}
-                    className="relative hidden h-9 w-9 shrink-0 place-items-center rounded-full bg-black/[0.05] text-black/55 sm:grid"
+                    onClick={() => setShowQueue((value) => !value)}
+                    className="relative grid h-11 w-11 shrink-0 place-items-center rounded-full bg-black/[0.05] text-black/55"
                     aria-label="À suivre"
                   >
                     <ListMusic className="w-4 h-4" />

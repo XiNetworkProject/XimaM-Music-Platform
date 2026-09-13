@@ -20,6 +20,7 @@ import {
   Users,
 } from 'lucide-react';
 import AndroidDownloadCard from '@/components/mobile/AndroidDownloadCard';
+import SynauraLogo from '@/components/brand/SynauraLogo';
 import { SynauraAppShell, SynauraTopBar } from '@/components/synaura/SynauraShell';
 
 export const metadata: Metadata = {
@@ -79,59 +80,45 @@ function PhoneShot({
 
 export default function DownloadPage() {
   return (
-    <SynauraAppShell contentClassName="max-w-none px-0 py-0 pb-[var(--synaura-mobile-player-space)] sm:px-0 sm:py-0">
+    <SynauraAppShell className="v2-personal v2-personal--download" contentClassName="max-w-none px-0 py-0 pb-[var(--synaura-mobile-player-space)] sm:px-0 sm:py-0">
       <div className="mx-auto max-w-[1480px] px-2 pt-2.5 sm:px-5 sm:pt-3 lg:px-8 lg:pt-5">
         <SynauraTopBar compact />
       </div>
 
-      <main className="pb-10">
-        <section className="relative min-h-[690px] overflow-hidden bg-[#171313] text-[#fffaf2] sm:min-h-[760px]">
-          <div className="absolute inset-0 flex items-start justify-center gap-3 overflow-hidden px-3 pt-10 opacity-50 sm:gap-6 sm:pt-14">
-            <PhoneShot src="/mobile/android/home.webp" alt="" className="mt-20 w-[185px] -rotate-6 sm:w-[250px]" priority />
-            <PhoneShot src="/mobile/android/swipe.webp" alt="" className="w-[205px] rotate-3 sm:w-[285px]" priority />
-            <PhoneShot src="/mobile/android/player.webp" alt="" className="mt-28 hidden w-[250px] -rotate-2 sm:block" priority />
-            <PhoneShot src="/mobile/android/community.webp" alt="" className="mt-10 hidden w-[230px] rotate-6 lg:block" priority />
-          </div>
-          <div className="absolute inset-0 bg-black/64" />
-
-          <div className="relative mx-auto flex min-h-[690px] max-w-[1480px] flex-col justify-between px-5 py-6 sm:min-h-[760px] sm:px-8 sm:py-10 lg:px-14">
-            <Link href="/" className="inline-flex h-10 w-fit items-center gap-2 rounded-full bg-white/10 px-4 text-xs font-black text-white/72 backdrop-blur-xl transition hover:bg-white hover:text-[#171313]">
-              <ArrowLeft className="h-4 w-4" /> Retour à Synaura
-            </Link>
-
-            <div className="max-w-3xl py-12 sm:py-20">
-              <div className="flex items-center gap-3">
-                <Image src="/brand/2026/synaura-symbol-2026-white.png" alt="" width={72} height={72} className="h-14 w-14 object-contain sm:h-16 sm:w-16" priority unoptimized />
-                <Image src="/mobile/android/android-logo.png" alt="Android" width={196} height={30} className="h-5 w-auto brightness-0 invert sm:h-6" />
-              </div>
-              <p className="mt-8 text-[11px] font-black uppercase tracking-[0.2em] text-[#ff8d82]">L’application officielle est disponible</p>
-              <h1 className="mt-3 max-w-3xl text-5xl font-black leading-[0.94] text-[#fffaf2] sm:text-7xl lg:text-8xl">Synaura Android</h1>
-              <p className="mt-5 max-w-2xl text-sm font-bold leading-6 text-white/68 sm:text-lg sm:leading-8">
-                Écoute, découvre, publie et reste connecté à la communauté dans une application fidèle à Synaura, pensée pour continuer quand le navigateur s’arrête.
-              </p>
-              <div className="mt-7 flex flex-wrap gap-2">
-                <a href="#download" className="inline-flex h-12 items-center gap-2 rounded-full bg-[#fffaf2] px-5 text-sm font-black text-[#171313] transition hover:scale-[1.02]">
-                  <Download className="h-4 w-4" /> Télécharger l’APK
-                </a>
-                <a href="#screens" className="inline-flex h-12 items-center gap-2 rounded-full bg-white/10 px-5 text-sm font-black text-white backdrop-blur-xl transition hover:bg-white/16">
-                  Voir l’application <ArrowDown className="h-4 w-4" />
-                </a>
-              </div>
+      <main className="v2-download-main pb-10">
+        <section className="v2-download-hero">
+          <div className="v2-download-copy">
+            <Link href="/" className="v2-action w-fit"><ArrowLeft className="h-4 w-4" /> Retour à Synaura</Link>
+            <div className="mt-10 flex flex-wrap items-center gap-6">
+              <SynauraLogo variant="lockup" size={48} priority />
+              <Image src="/mobile/android/android-logo.png" alt="Android" width={196} height={30} className="h-5 w-auto brightness-0 invert" />
             </div>
-
-            <div className="grid gap-2 border-t border-white/12 pt-5 sm:grid-cols-3">
+            <p className="v2-kicker mt-10">Synaura Android · L’application officielle</p>
+            <h1 className="v2-heading mt-5">Le son.<br /><span className="chambre-type-accent">Partout.</span></h1>
+            <p className="v2-intro mt-6">
+              Écoute, découvre, publie et reste connecté à la communauté dans une application fidèle à Synaura, pensée pour continuer quand le navigateur s’arrête.
+            </p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <a href="#download" className="v2-action v2-action-primary"><Download className="h-4 w-4" /> Télécharger l’APK</a>
+              <a href="#screens" className="v2-action">Voir l’application <ArrowDown className="h-4 w-4" /></a>
+            </div>
+            <div className="v2-download-facts">
               {[
                 ['Android 7+', 'Compatible avec la majorité des téléphones'],
                 ['Audio système', 'Lecture en arrière-plan et écran verrouillé'],
                 ['Version 0.2.0', 'Mises à jour directes depuis Synaura'],
               ].map(([title, text]) => (
-                <div key={title} className="min-w-0">
-                  <p className="text-sm font-black text-white">{title}</p>
-                  <p className="mt-1 text-[11px] font-bold leading-5 text-white/44">{text}</p>
+                <div key={title}>
+                  <p className="text-sm text-[var(--v2-text)]">{title}</p>
+                  <p className="mt-2 text-xs leading-6 text-[var(--v2-muted)]">{text}</p>
                 </div>
               ))}
             </div>
           </div>
+          <figure className="v2-download-device">
+            <PhoneShot src="/mobile/android/player.webp" alt="Player complet Synaura Android" className="w-full" priority />
+            <figcaption>Le player Android, avec tes commandes et ta file.</figcaption>
+          </figure>
         </section>
 
         <section className="mx-auto max-w-[1480px] px-5 py-16 sm:px-8 sm:py-20 lg:px-14" id="screens">
@@ -201,7 +188,7 @@ export default function DownloadPage() {
           </div>
         </section>
 
-        <section className="border-y border-black/[0.08] bg-[#dff7f1]">
+        <section className="border-y border-[var(--v2-line)] bg-[var(--v2-surface)]">
           <div className="mx-auto grid max-w-[1480px] gap-10 px-5 py-16 sm:px-8 sm:py-20 lg:grid-cols-[0.9fr_minmax(0,1fr)] lg:items-center lg:px-14">
             <div className="flex items-end justify-center gap-3 sm:gap-5">
               <PhoneShot src="/mobile/android/community.webp" alt="Communauté Synaura Android" className="w-[44%] max-w-[255px] -rotate-3" />

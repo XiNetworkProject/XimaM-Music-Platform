@@ -142,8 +142,8 @@ export function LibraryClipsList({
                 } catch {}
               }
               const mediaFreshAt = links?.provider_urls_refreshed_at || links?.media_cached_at || t.created_at;
-              let cover = sanitizeCoverUrl(t.image_url, mediaFreshAt) || '/brand/2026/synaura-symbol-2026-white.png';
-              if ((!cover || cover === '/brand/2026/synaura-symbol-2026-white.png') && (t as any).source_links) {
+              let cover = sanitizeCoverUrl(t.image_url, mediaFreshAt) || '/default-cover.svg';
+              if ((!cover || cover === '/default-cover.svg') && (t as any).source_links) {
                 cover = sanitizeCoverUrl(
                   links?.image || links?.image_url || links?.imageUrl || links?.cover || links?.cover_url || links?.provider_image_url,
                   mediaFreshAt
@@ -170,7 +170,7 @@ export function LibraryClipsList({
                     onKeyDown={(e) => e.key === 'Enter' && onPlayTrack(t, gen)}
                     aria-label={`Lire ${title}`}
                   >
-                    {cover && cover !== '/brand/2026/synaura-symbol-2026-white.png' ? (
+                    {cover && cover !== '/default-cover.svg' ? (
                       <>
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
@@ -179,8 +179,8 @@ export function LibraryClipsList({
                           className="h-full w-full object-cover"
                           onError={(e) => {
                             const img = e.currentTarget;
-                            if (img.src.endsWith('/brand/2026/synaura-symbol-2026-white.png')) return;
-                            img.src = '/brand/2026/synaura-symbol-2026-white.png';
+                            if (img.src.endsWith('/default-cover.svg')) return;
+                            img.src = '/default-cover.svg';
                           }}
                         />
                         <div className="absolute inset-0 hidden items-center justify-center bg-black/50 group-hover:flex">

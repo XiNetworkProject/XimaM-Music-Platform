@@ -81,7 +81,7 @@ export function GenerationTimeline({
   const isEmpty = !generatedTracks.length;
 
   return (
-    <div className="space-y-3 sm:space-y-4">
+    <div className="chambre-generation-timeline space-y-3 sm:space-y-4">
       {/* Header statut */}
       <div className="sticky top-0 z-10 -mx-1 px-1 py-2 bg-transparent flex items-center justify-between gap-2 flex-wrap">
         <div className="flex items-center gap-2">
@@ -125,7 +125,7 @@ export function GenerationTimeline({
 
       {/* Empty state */}
       {isEmpty && !isPending && (
-        <div className="rounded-2xl border border-white/[0.06] bg-gradient-to-r from-white/[0.04] to-white/[0.02] px-6 py-10 text-center flex flex-col items-center gap-3">
+        <div className="chambre-generation-empty rounded-md border border-[var(--v2-line)] bg-[var(--v2-surface)] px-6 py-10 text-center flex flex-col items-center gap-3">
           <div className="w-12 h-12 rounded-full bg-white/[0.04] border border-white/[0.06] flex items-center justify-center">
             <Music className="w-5 h-5 text-foreground-tertiary" />
           </div>
@@ -134,7 +134,7 @@ export function GenerationTimeline({
               Aucune piste générée pour l&apos;instant.
             </p>
             <p className="text-xs text-foreground-tertiary max-w-xs mx-auto">
-              Configure ton prompt à gauche puis lance une génération pour voir les pistes s&apos;afficher ici.
+              Prépare ton intention dans le panneau de création, puis lance une génération pour retrouver tes pistes ici.
             </p>
           </div>
         </div>
@@ -189,8 +189,8 @@ export function GenerationTimeline({
                         className="w-full h-full object-cover"
                         onError={(e) => {
                           const img = e.currentTarget;
-                          if (img.src.endsWith('/brand/2026/synaura-symbol-2026-white.png')) return;
-                          img.src = '/brand/2026/synaura-symbol-2026-white.png';
+                          if (img.src.endsWith('/default-cover.svg')) return;
+                          img.src = '/default-cover.svg';
                         }}
                       />
                     ) : (

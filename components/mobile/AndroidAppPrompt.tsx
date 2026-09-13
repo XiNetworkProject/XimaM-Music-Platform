@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Image from 'next/image';
+import SynauraLogo from '@/components/brand/SynauraLogo';
 import Link from 'next/link';
 import { Download, X } from 'lucide-react';
 
@@ -55,7 +55,7 @@ export default function AndroidAppPrompt() {
     <aside className="fixed inset-x-2 bottom-[calc(env(safe-area-inset-bottom,0px)+5.5rem)] z-[80] mx-auto max-w-md rounded-[14px] border border-[var(--syn-border)] bg-[var(--syn-surface-translucent)] p-3 text-[var(--syn-text-primary)] shadow-[0_20px_60px_var(--syn-shadow)] backdrop-blur-2xl sm:bottom-5 sm:left-auto sm:right-5 sm:mx-0 sm:w-[390px]">
       <div className="flex items-center gap-3">
         <div className="grid h-12 w-12 shrink-0 place-items-center rounded-[12px] bg-[var(--syn-surface)] shadow-[0_8px_20px_var(--syn-shadow)]">
-          <Image src="/brand/2026/synaura-symbol-2026.png" alt="" width={42} height={42} className="h-10 w-10 object-contain" unoptimized />
+          <SynauraLogo size={40} decorative />
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-black text-[var(--syn-text-primary)]">Synaura existe aussi en app</p>

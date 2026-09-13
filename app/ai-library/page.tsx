@@ -10,6 +10,7 @@ import { AIGeneration, AITrack } from '@/lib/aiGenerationService';
 import { notify } from '@/components/NotificationCenter';
 import { SynauraAppShell, SynauraInkPanel, SynauraPanel, SynauraRouteNav, SynauraTopBar } from '@/components/synaura/SynauraShell';
 import TrackCover from '@/components/TrackCover';
+import { CURRENT_SUNO_MODELS, getSunoModelLabel } from '@/lib/sunoModels';
 
 interface PlayerTrack {
   _id: string;
@@ -42,7 +43,7 @@ export default function AILibrary() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filter, setFilter] = useState<'all' | 'favorites' | 'recent'>('all');
-  const [modelFilter, setModelFilter] = useState<'all' | 'V4_5' | 'V4_5PLUS' | 'V3_5' | 'V5' | 'V5_5'>('all');
+  const [modelFilter, setModelFilter] = useState<string>('all');
   const [stats, setStats] = useState({
     total: 0,
     favorites: 0,
@@ -129,6 +130,17 @@ export default function AILibrary() {
     return matchesSearch && matchesFilter && matchesModel;
   });
 
+  const filteredTracks = allTracks.filter((track) => {
+    const generation = (track as any).generation;
+    const matchesModel = modelFilter === 'all' || (track.model_name || generation?.model) === modelFilter;
+    const query = searchQuery.trim().toLowerCase();
+    const matchesSearch = !query || `${track.title || ''} ${track.prompt || ''} ${track.style || ''}`.toLowerCase().includes(query);
+    const matchesFilter = filter === 'all'
+      || (filter === 'favorites' && Boolean((track as any).is_favorite || (track as any).is_liked || generation?.is_favorite))
+      || (filter === 'recent' && new Date(track.created_at || generation?.created_at || 0).getTime() > Date.now() - 7 * 24 * 60 * 60 * 1000);
+    return matchesModel && matchesSearch && matchesFilter;
+  });
+
   const syntheticGenerationForTrack = (track: AITrack): AIGeneration => ({
     id: 'gen',
     user_id: (session?.user?.id as string) || '',
@@ -164,7 +176,7 @@ export default function AILibrary() {
       },
       duration: sourceTrack.duration,
       audioUrl: sourceTrack.audio_url,
-      coverUrl: sourceTrack.image_url || '/brand/2026/synaura-symbol-2026-white.png',
+      coverUrl: sourceTrack.image_url || '/default-cover.svg',
       coverVideoUrl: getTrackVideoMeta(sourceTrack).videoUrl,
       coverVideoPosterUrl: getTrackVideoMeta(sourceTrack).posterUrl,
       genre: ['IA', 'Généré'],
@@ -312,13 +324,14 @@ export default function AILibrary() {
 
   if (!session) {
     return (
-      <SynauraAppShell>
+      <SynauraAppShell contentClassName="v2-creation v2-ai-library">
         <SynauraRouteNav />
-        <SynauraPanel className="grid min-h-[420px] place-items-center p-8">
+        <SynauraPanel className="chambre-creation-access grid min-h-[420px] place-items-center p-8">
         <div className="text-center">
-          <Music className="w-16 h-16 mx-auto mb-4 text-green-400" />
+          <Music className="w-10 h-10 mx-auto mb-6 text-[var(--v2-accent)]" />
           <h2 className="text-2xl font-bold mb-2">Connexion requise</h2>
           <p className="text-gray-400">Connectez-vous pour accéder à votre bibliothèque IA</p>
+          <Link href="/auth/signin?callbackUrl=%2Fai-library" className="v2-create-primary mt-6">Se connecter</Link>
         </div>
         </SynauraPanel>
       </SynauraAppShell>
@@ -326,56 +339,35 @@ export default function AILibrary() {
   }
 
   return (
-    <SynauraAppShell contentClassName="max-w-[1180px]">
-      <SynauraTopBar searchHref="/ai-library" searchLabel="Chercher une piste IA..." primaryHref="/ai-generator" primaryLabel="Ouvrir Studio" />
+    <SynauraAppShell contentClassName="v2-creation v2-ai-library chambre-signature-library !max-w-[1560px]">
+      <SynauraTopBar searchHref="/ai-library" searchLabel="Chercher une piste IA..." primaryHref="/ai-generator" primaryLabel="AI Generator" />
       <SynauraRouteNav />
       <main className="pb-32">
         <div className="w-full overflow-hidden">
           {/* Header */}
-          <SynauraInkPanel className="mb-6 p-5 sm:p-7">
-            <div className="flex items-center justify-between mb-4">
-              <h1 className="text-3xl md:text-4xl font-black tracking-[-0.05em] text-white flex items-center gap-3">
-                <Music size={28} className="text-[#ffcf9f]" />
-                Bibliothèque IA
-              </h1>
-              <Link
-                href="/ai-generator"
-                className="flex items-center gap-2 rounded-full bg-[#fffaf2] px-4 py-2 font-black text-[#171313] transition-all shadow-lg hover:scale-[1.02]"
-              >
-                <Sparkles size={16} />
-                <span>Générer</span>
-              </Link>
+          <header className="v2-creative-header chambre-creation-cover chambre-library-cover">
+            <div className="chambre-signature-library-title">
+              <p className="v2-kicker">L’atelier / Ta collection</p>
+              <h1>TES IDÉES.<br /><span>EN MATIÈRE.</span></h1>
+              <p>Écoute, retrouve une version, prépare une publication ou repars d’une piste avec AI Generator.</p>
             </div>
-            <p className="text-white/50 text-lg">Retrouvez vos musiques générées par IA, rejouez-les, publiez-les ou relancez une variation dans le Studio.</p>
-          </SynauraInkPanel>
-
-          {/* Statistiques */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-6 mb-8">
-            <SynauraPanel className="p-6 text-center">
-              <Music className="w-8 h-8 mx-auto mb-2 text-[var(--color-primary)]" />
-              <h3 className="text-2xl font-bold">{stats.total}</h3>
-              <p className="text-[var(--text-muted)]">Générations</p>
-            </SynauraPanel>
-            <SynauraPanel className="p-6 text-center">
-              <Heart className="w-8 h-8 mx-auto mb-2 text-red-400" />
-              <h3 className="text-2xl font-bold">{stats.favorites}</h3>
-              <p className="text-[var(--text-muted)]">Favoris</p>
-            </SynauraPanel>
-            <SynauraPanel className="p-6 text-center">
-              <Clock className="w-8 h-8 mx-auto mb-2 text-blue-400" />
-              <h3 className="text-2xl font-bold">{Math.round(stats.totalDuration / 60)}</h3>
-              <p className="text-[var(--text-muted)]">Minutes</p>
-            </SynauraPanel>
-          </div>
+            <div className="chambre-signature-library-actions"><span className="v2-kicker">Le prochain son commence ici</span><Link href="/ai-generator" className="v2-create-primary"><Sparkles size={16} />Nouvelle création</Link></div>
+          <dl className="v2-library-stats chambre-signature-library-ledger">
+            <div><dd>{stats.total}</dd><dt>générations</dt></div>
+            <div><dd>{stats.favorites}</dd><dt>favoris</dt></div>
+            <div><dd>{Math.round(stats.totalDuration / 60)}</dd><dt>minutes</dt></div>
+          </dl>
+          </header>
 
           {/* Filtres et recherche */}
-          <SynauraPanel className="p-3 sm:p-6 mb-8">
+          <SynauraPanel className="v2-library-filters mb-8">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
               <div className="relative flex-1 max-w-xs sm:max-w-md">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[var(--text-muted)]" size={20} />
                 <input
                   type="text"
                   placeholder="Rechercher dans vos musiques IA..."
+                  aria-label="Rechercher dans mes créations IA"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full pl-10 pr-4 py-3 bg-[var(--bg)] rounded-xl border border-[var(--border)] focus:border-[var(--color-primary)] focus:outline-none text-[var(--text)] placeholder-[var(--text-muted)]"
@@ -396,23 +388,29 @@ export default function AILibrary() {
                   }}
                 >
                   <option value="all" className="bg-[var(--surface-2)] text-[var(--text)] py-2">Tous modèles</option>
+                  {CURRENT_SUNO_MODELS.map((model) => <option key={model.id} value={model.id} className="bg-[var(--surface-2)] text-[var(--text)] py-2">{model.label}</option>)}
                   <option value="V5_5" className="bg-[var(--surface-2)] text-cyan-400 font-semibold py-2">V5.5</option>
                   <option value="V5" className="bg-[var(--surface-2)] text-blue-400 font-semibold py-2">V5 (Beta)</option>
                   <option value="V4_5PLUS" className="bg-[var(--surface-2)] text-purple-400 font-semibold py-2">V4.5+</option>
                   <option value="V4_5" className="bg-[var(--surface-2)] text-[var(--text)] py-2">V4.5</option>
+                  <option value="V4_5ALL" className="bg-[var(--surface-2)] text-[var(--text)] py-2">V4.5 All</option>
+                  <option value="V4" className="bg-[var(--surface-2)] text-[var(--text)] py-2">V4</option>
                   <option value="V3_5" className="bg-[var(--surface-2)] text-[var(--text)] py-2">V3.5</option>
                 </select>
                 <div className="flex bg-[var(--surface-2)] rounded-lg p-1">
                   <button
                     onClick={() => setFilter('all')}
+                    aria-pressed={filter === 'all'}
                     className={`px-3 py-2 rounded-md text-sm ${filter === 'all' ? 'bg-[var(--color-primary)] text-white' : 'text-[var(--text-muted)] hover:text-[var(--text)]'}`}
                   >Tout</button>
                   <button
                     onClick={() => setFilter('favorites')}
+                    aria-pressed={filter === 'favorites'}
                     className={`px-3 py-2 rounded-md text-sm ${filter === 'favorites' ? 'bg-[var(--color-primary)] text-white' : 'text-[var(--text-muted)] hover:text-[var(--text)]'}`}
                   ><Heart className="w-4 h-4 inline mr-1" />Favoris</button>
                   <button
                     onClick={() => setFilter('recent')}
+                    aria-pressed={filter === 'recent'}
                     className={`px-3 py-2 rounded-md text-sm ${filter === 'recent' ? 'bg-[var(--color-primary)] text-white' : 'text-[var(--text-muted)] hover:text-[var(--text)]'}`}
                   ><Clock className="w-4 h-4 inline mr-1" />Récent</button>
                 </div>
@@ -438,30 +436,30 @@ export default function AILibrary() {
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-400 mx-auto"></div>
             <p className="text-[var(--text-muted)] mt-4">Chargement de votre bibliothèque...</p>
           </div>
-          ) : (generations.length === 0 && allTracks.length === 0) ? (
-            <SynauraPanel className="p-8 text-center">
-              <div className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-[1.3rem] bg-black/[0.055] text-black/28">
+          ) : (filteredGenerations.length === 0 && filteredTracks.length === 0) ? (
+            <SynauraPanel className="chambre-signature-library-empty p-8 text-center">
+              <div className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-[1.3rem] bg-[var(--v2-raised)] text-[var(--v2-muted)]">
                 <Music className="w-7 h-7" />
               </div>
-              <h3 className="text-xl font-black tracking-[-0.03em] text-[#171313]">Aucune génération IA pour le moment</h3>
-              <p className="mx-auto mt-2 max-w-md text-sm font-semibold leading-6 text-black/48">
-                {searchQuery ? 'Aucun résultat pour cette recherche. Essaie un titre, un style ou un prompt différent.' : 'Ouvre le Studio IA pour créer ta première piste, puis reviens ici pour la rejouer, publier ou remixer.'}
+              <h3 className="text-xl font-semibold tracking-[-0.03em] text-[var(--v2-text)]">{generations.length || allTracks.length ? 'Aucune création correspondante' : 'Aucune génération IA pour le moment'}</h3>
+              <p className="mx-auto mt-2 max-w-md text-sm font-semibold leading-6 text-[var(--v2-muted)]">
+                {searchQuery || modelFilter !== 'all' || filter !== 'all' ? 'Essaie une autre recherche ou sélectionne Tous modèles pour retrouver tes créations.' : 'Ouvre le Studio IA pour créer ta première piste, puis reviens ici pour la rejouer, publier ou remixer.'}
               </p>
-              <Link href="/ai-generator" className="mt-5 inline-flex h-11 items-center gap-2 rounded-full bg-[#171313] px-5 text-sm font-black text-white transition hover:scale-[1.02]">
+              <Link href="/ai-generator" className="mt-5 inline-flex h-11 items-center gap-2 rounded-full bg-[var(--v2-surface)] px-5 text-sm font-semibold text-white transition hover:scale-[1.02]">
                 <Sparkles className="h-4 w-4" />
                 Ouvrir le Studio IA
               </Link>
             </SynauraPanel>
           ) : (
-            <SynauraPanel className="p-3 sm:p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {generations.map((generation, index) => (
+            <SynauraPanel className="chambre-signature-library-collection p-3 sm:p-6">
+              <div className="chambre-signature-library-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredGenerations.map((generation, index) => (
               <motion.div
                 key={generation.id}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.1 }}
-                className="rounded-lg p-6 border border-[var(--border)] hover:bg-white/5 transition-colors"
+                className="chambre-signature-generation rounded-lg p-6 border border-[var(--border)] hover:bg-[var(--v2-raised)] transition-colors"
               >
                 {/* Header de la génération */}
                 <div className="flex items-start justify-between mb-4">
@@ -475,6 +473,7 @@ export default function AILibrary() {
                   </div>
                   <button
                     onClick={() => toggleFavorite(generation.id)}
+                    aria-label={generation.is_favorite ? 'Retirer cette génération des favoris' : 'Ajouter cette génération aux favoris'}
                     className={`p-2 rounded-full transition-colors ${
                       generation.is_favorite 
                         ? 'text-red-400 bg-red-400/10' 
@@ -486,48 +485,50 @@ export default function AILibrary() {
                 </div>
 
                 {/* Tracks */}
-                <div className="space-y-3 mb-4">
+                <div className="chambre-signature-generation-versions space-y-3 mb-4">
                   {generation.tracks?.map((track) => {
                     const videoMeta = getTrackVideoMeta(track);
                     const canGenerateVideo = Boolean(generation.task_id && track.suno_id);
                     return (
-                    <div key={track.id} className="flex items-center gap-3 p-3 bg-white/5 rounded-lg">
-                      <div className="w-12 h-12 rounded-lg overflow-hidden border border-[var(--border)] bg-[var(--surface-2)] flex items-center justify-center">
+                    <div key={track.id} className="chambre-signature-version-row flex items-center gap-3 p-3 bg-[var(--v2-raised)] rounded-lg">
+                      <div className="chambre-signature-version-art w-12 h-12 rounded-lg overflow-hidden border border-[var(--border)] bg-[var(--surface-2)] flex items-center justify-center">
                         <TrackCover src={track.image_url || null} videoSrc={videoMeta.videoUrl} posterSrc={videoMeta.posterUrl || track.image_url || null} title={track.title} className="h-full w-full" rounded="rounded-none" objectFit="cover" />
                       </div>
-                      <div className="flex-1 min-w-0">
+                      <div className="chambre-signature-version-identity flex-1 min-w-0">
                         <h4 className="font-medium truncate">{track.title}</h4>
                         <p className="text-[var(--text-muted)] text-sm">
                           {formatDuration(track.duration)}
                         </p>
                       </div>
-                      <div className="flex gap-2">
+                      <div className="chambre-signature-version-actions flex gap-2">
                         <button
                           onClick={() => playAITrack(track, generation)}
+                          aria-label={`Écouter ${track.title}`}
                           className="p-2 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] rounded-lg transition-colors"
                         >
                           <Play className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => downloadTrack(track)}
-                          className="p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"
+                          aria-label={`Télécharger ${track.title}`}
+                          className="p-2 bg-[var(--v2-raised)] hover:bg-[var(--v2-raised)] rounded-lg transition-colors"
                         >
                           <Download className="w-4 h-4" />
                         </button>
-                        <Link href={studioLinkForTrack(track, 'style')} className="p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors" title="Créer une variation">
+                        <Link href={studioLinkForTrack(track, 'style')} className="p-2 bg-[var(--v2-raised)] hover:bg-[var(--v2-raised)] rounded-lg transition-colors" title="Créer une variation">
                           <Sparkles className="w-4 h-4" />
                         </Link>
-                        <Link href={studioLinkForTrack(track, 'remix')} className="p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors" title="Remixer">
+                        <Link href={studioLinkForTrack(track, 'remix')} className="p-2 bg-[var(--v2-raised)] hover:bg-[var(--v2-raised)] rounded-lg transition-colors" title="Remixer">
                           <Repeat2 className="w-4 h-4" />
                         </Link>
-                        <button onClick={() => publishTrack(track)} className="p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors" title="Publier">
+                        <button onClick={() => publishTrack(track)} className="p-2 bg-[var(--v2-raised)] hover:bg-[var(--v2-raised)] rounded-lg transition-colors" title="Publier">
                           <UploadCloud className="w-4 h-4" />
                         </button>
                         {canGenerateVideo ? (
                           <button
                             onClick={() => generateCoverVideo(track, generation)}
                             disabled={generatingVideoTrackId === track.id}
-                            className="p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors disabled:opacity-40"
+                            className="p-2 bg-[var(--v2-raised)] hover:bg-[var(--v2-raised)] rounded-lg transition-colors disabled:opacity-40"
                             title={videoMeta.videoUrl ? 'Regenerer une cover video (100 credits)' : 'Generer une cover video (100 credits)'}
                           >
                             {generatingVideoTrackId === track.id ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Video className="w-4 h-4" />}
@@ -538,7 +539,7 @@ export default function AILibrary() {
                     );
                   })}
                   {(!generation.tracks || generation.tracks.length === 0) && (
-                    <div className="p-3 bg-white/5 rounded-lg flex items-center justify-between">
+                    <div className="p-3 bg-[var(--v2-raised)] rounded-lg flex items-center justify-between">
                       <span className="text-[var(--text)] text-sm">Aucune piste encore enregistrée pour cette génération.</span>
                       {generation.task_id && (
                         <button onClick={() => resyncGeneration(generation)} className="px-3 py-2 bg-[var(--surface-2)] hover:bg-[var(--surface-3)] rounded-lg text-sm flex items-center gap-2">
@@ -557,14 +558,15 @@ export default function AILibrary() {
                   </div>
                   <button
                     onClick={() => shareGeneration(generation)}
-                    className="p-2 hover:bg-white/10 rounded-lg transition-colors"
+                    aria-label="Partager cette génération"
+                    className="p-2 hover:bg-[var(--v2-raised)] rounded-lg transition-colors"
                   >
                     <Share2 className="w-4 h-4" />
                   </button>
                 </div>
                 <div className="mt-3 flex items-center justify-end">
-                  <Link href="/ai-generator" className="text-[var(--color-primary)] hover:opacity-90 text-sm inline-flex items-center gap-2">
-                    <LinkIcon className="w-4 h-4" /> Ouvrir dans le Studio
+                    <Link href="/ai-generator" className="text-[var(--v2-accent)] hover:opacity-90 text-sm inline-flex items-center gap-2">
+                    <LinkIcon className="w-4 h-4" /> Ouvrir AI Generator
                   </Link>
                 </div>
               </motion.div>
@@ -574,42 +576,42 @@ export default function AILibrary() {
           )}
 
           {/* Liste globale des pistes IA */}
-          {allTracks.length > 0 && (
-            <SynauraPanel className="mt-8 p-3 sm:p-6">
+          {filteredTracks.length > 0 && (
+            <SynauraPanel className="chambre-signature-library-all mt-8 p-3 sm:p-6">
               <h2 className="text-xl font-semibold mb-4">Toutes mes pistes IA</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {allTracks.map((track) => {
+              <div className="chambre-signature-library-all-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredTracks.map((track) => {
                 const generation = (track as any).generation || syntheticGenerationForTrack(track);
                 const taskId = generation?.task_id || (track as any).generationTaskId || '';
                 const videoMeta = getTrackVideoMeta(track);
                 const canGenerateVideo = Boolean(taskId && track.suno_id);
                 return (
-                <div key={track.id} className="flex items-center gap-3 p-3 bg-gray-800 rounded-lg border border-gray-700">
-                  <div className="w-12 h-12 rounded-lg overflow-hidden border border-gray-600 bg-[var(--surface-2)] flex items-center justify-center">
+                <div key={track.id} className="chambre-signature-version-row flex items-center gap-3 py-4 border-b border-[var(--v2-line)]">
+                  <div className="chambre-signature-version-art w-12 h-12 rounded-lg overflow-hidden bg-[var(--v2-raised)] flex items-center justify-center">
                     <TrackCover src={track.image_url || null} videoSrc={videoMeta.videoUrl} posterSrc={videoMeta.posterUrl || track.image_url || null} title={track.title} className="h-full w-full" rounded="rounded-none" objectFit="cover" />
                   </div>
-                  <div className="flex-1 min-w-0">
+                  <div className="chambre-signature-version-identity flex-1 min-w-0">
                     <h4 className="font-medium truncate">{track.title}</h4>
-                    <p className="text-[var(--text-muted)] text-sm">{formatDuration(track.duration)}</p>
+                    <p className="text-[var(--text-muted)] text-sm">{formatDuration(track.duration)} · {getSunoModelLabel(track.model_name || generation.model)}</p>
                   </div>
-                  <div className="flex gap-2">
-                    <button onClick={() => playAITrack(track as any, generation)} className="p-2 bg-green-600 hover:bg-green-700 rounded-lg transition-colors">
+                  <div className="chambre-signature-version-actions flex gap-2">
+                    <button aria-label={`Écouter ${track.title}`} onClick={() => playAITrack(track as any, generation)} className="min-h-10 min-w-10 grid place-items-center bg-[var(--v2-raised)] hover:bg-[var(--v2-selected)] rounded-lg transition-colors">
                       <Play className="w-4 h-4" />
                     </button>
-                    <button onClick={() => downloadTrack(track)} className="p-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors">
+                    <button aria-label={`Télécharger ${track.title}`} onClick={() => downloadTrack(track)} className="min-h-10 min-w-10 grid place-items-center bg-[var(--v2-raised)] hover:bg-[var(--v2-selected)] rounded-lg transition-colors">
                       <Download className="w-4 h-4" />
                     </button>
-                    <Link href={studioLinkForTrack(track, 'style')} className="p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors">
+                    <Link href={studioLinkForTrack(track, 'style')} aria-label={`Créer une variation de ${track.title}`} className="p-2 bg-[var(--v2-raised)] hover:bg-[var(--v2-raised)] rounded-lg transition-colors">
                       <Sparkles className="w-4 h-4" />
                     </Link>
-                    <Link href={studioLinkForTrack(track, 'remix')} className="p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors">
+                    <Link href={studioLinkForTrack(track, 'remix')} aria-label={`Remixer ${track.title}`} className="p-2 bg-[var(--v2-raised)] hover:bg-[var(--v2-raised)] rounded-lg transition-colors">
                       <Repeat2 className="w-4 h-4" />
                     </Link>
                     {canGenerateVideo ? (
                       <button
                         onClick={() => generateCoverVideo(track, { ...generation, task_id: taskId } as AIGeneration)}
                         disabled={generatingVideoTrackId === track.id}
-                        className="p-2 bg-white/10 hover:bg-white/20 rounded-lg transition-colors disabled:opacity-40"
+                        className="p-2 bg-[var(--v2-raised)] hover:bg-[var(--v2-raised)] rounded-lg transition-colors disabled:opacity-40"
                         title={videoMeta.videoUrl ? 'Regenerer une cover video (100 credits)' : 'Generer une cover video (100 credits)'}
                       >
                         {generatingVideoTrackId === track.id ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Video className="w-4 h-4" />}

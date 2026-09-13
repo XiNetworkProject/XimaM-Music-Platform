@@ -154,7 +154,7 @@ export default function TopSearchBar() {
   const isHighlighted = (kind: string, id: string) => activeIdx >= 0 && flat[activeIdx]?.kind === kind && flat[activeIdx]?.id === id;
 
   return (
-    <div className="sticky top-0 z-40 bg-syn-surface border-b border-syn-border">
+    <div className="v2-service-search sticky top-0 z-40 bg-syn-surface border-b border-syn-border">
       <div className="px-3 md:px-4 py-3">
         <div className="flex items-start gap-2">
         <div className="relative search-root flex-1">

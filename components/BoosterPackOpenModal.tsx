@@ -95,7 +95,10 @@ export default function BoosterPackOpenModal({
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          className="fixed inset-0 z-[200] bg-black/70 backdrop-blur-md flex items-center justify-center"
+          className="chambre-reward-overlay chambre-pack-overlay chambre-reward-stage fixed inset-0 z-[200]"
+          role="dialog"
+          aria-label="Ouverture du pack de boosters"
+          data-reward-phase={phase}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -108,7 +111,7 @@ export default function BoosterPackOpenModal({
               <motion.div
                 key={i}
                 className="absolute w-1 h-1 rounded-full"
-                style={{ background: packColor, opacity: 0.3 }}
+                style={{ background: 'var(--v2-accent)', opacity: 0.3 }}
                 initial={{ x: Math.random() * (typeof window !== 'undefined' ? window.innerWidth : 800), y: Math.random() * (typeof window !== 'undefined' ? window.innerHeight : 600), scale: 0 }}
                 animate={{ y: [null, -100], scale: [0, 1, 0], opacity: [0, 0.5, 0] }}
                 transition={{ duration: 3 + Math.random() * 2, repeat: Infinity, delay: Math.random() * 3 }}
@@ -118,47 +121,48 @@ export default function BoosterPackOpenModal({
 
           <div className="absolute inset-0" onClick={onClose} />
 
-          <button onClick={onClose} className="absolute top-6 right-6 z-40 text-white/40 hover:text-white transition" aria-label="Fermer">
-            <X className="w-7 h-7" />
+          <button onClick={onClose} className="chambre-reward-close" aria-label="Fermer">
+            <X className="w-5 h-5" />
           </button>
 
           {/* ═══ PACK PHASE — 3D pack visual ═══ */}
           {(phase === 'pack' || phase === 'tearing') && (
             <motion.div
-              className="relative z-10"
+              className="chambre-pack-opening relative z-10"
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ type: 'spring', stiffness: 200 }}
               style={phase === 'tearing' ? { animation: 'pack-tear 1.2s ease-in-out forwards' } : undefined}
             >
+              <div className="chambre-pack-preview">
               {/* Glow behind pack */}
               <div className="absolute -inset-16 rounded-3xl pointer-events-none" style={{
-                background: `radial-gradient(ellipse, ${packColor}30 0%, transparent 60%)`,
+                background: 'radial-gradient(ellipse, var(--v2-selected) 0%, transparent 60%)',
                 filter: 'blur(40px)',
               }} />
 
               {/* Pack body */}
-              <div className="relative w-[200px] sm:w-[240px] aspect-[3/4] rounded-2xl overflow-hidden"
+              <div className="chambre-pack-sealed relative aspect-[3/4] overflow-hidden"
                 style={{
-                  border: `2px solid ${packColor}40`,
-                  background: `linear-gradient(135deg, ${packColor}15 0%, rgba(10,10,21,0.95) 100%)`,
-                  boxShadow: `0 20px 60px ${packColor}20`,
+                  border: '1px solid var(--v2-line)',
+                  background: 'linear-gradient(135deg, var(--v2-raised), var(--v2-bg))',
+                  boxShadow: '0 20px 60px var(--v2-selected)',
                   transform: 'perspective(800px) rotateY(-5deg)',
                 }}>
                 {/* Top bar */}
-                <div className="absolute top-0 left-0 right-0 h-10 flex items-center justify-center" style={{ background: `${packColor}30`, borderBottom: `1px solid ${packColor}30` }}>
-                  <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: packColor }}>Synaura</span>
+                <div className="chambre-booster-seal-header" style={{ background: 'var(--v2-raised)', borderBottom: '1px solid var(--v2-line)' }}>
+                  <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: 'var(--v2-accent)' }}>Synaura</span>
                 </div>
 
                 {/* Center icon */}
                 <div className="h-full flex items-center justify-center">
-                  <Package className="w-16 h-16" style={{ color: `${packColor}60` }} />
+                  <Package className="w-16 h-16" style={{ color: 'var(--v2-accent)' }} />
                 </div>
 
                 {/* Title */}
                 <div className="absolute bottom-4 left-0 right-0 text-center">
-                  <div className="text-sm font-black text-white/80">{title}</div>
-                  <div className="text-[10px] text-white/30">{received.length} boosters</div>
+                  <div className="chambre-pack-preview-title">{title}</div>
+                  <div className="chambre-reward-muted text-xs">{received.length} boosters</div>
                 </div>
 
                 {/* Foil sweep */}
@@ -169,50 +173,56 @@ export default function BoosterPackOpenModal({
                 {/* Tear lines during tearing */}
                 {phase === 'tearing' && (
                   <div className="absolute inset-0 pointer-events-none">
-                    <div className="absolute top-1/2 left-0 right-0 h-1" style={{ background: `linear-gradient(90deg, transparent, ${packColor}, transparent)`, filter: `blur(1px) drop-shadow(0 0 4px ${packColor})` }} />
+                    <div className="absolute top-1/2 left-0 right-0 h-1" style={{ background: 'linear-gradient(90deg, transparent, var(--v2-accent), transparent)', filter: 'blur(1px) drop-shadow(0 0 4px var(--v2-accent))' }} />
                   </div>
                 )}
               </div>
+              </div>
 
+              <section className="chambre-pack-opening-copy">
+                <p className="chambre-reward-eyebrow">Votre collection s’agrandit</p>
+                <h2>Plus d’élan.<br /><span>À révéler.</span></h2>
+                <p className="chambre-reward-intro">Découvrez les boosters reçus, puis retrouvez leurs effets et leur durée dans votre inventaire.</p>
               {/* Open button */}
               {phase === 'pack' && (
                 <motion.button
                   onClick={startTear}
-                  className="mt-6 w-full h-12 rounded-xl font-bold text-white text-sm transition-all"
-                  style={{ background: `linear-gradient(135deg, ${packColor}, ${packColor}cc)`, boxShadow: `0 4px 20px ${packColor}40` }}
+                  className="chambre-reward-primary chambre-booster-open-button"
+                  style={{ background: 'var(--v2-accent-fill)', boxShadow: '0 4px 24px var(--v2-selected)' }}
                   whileHover={{ scale: 1.03 }}
                   whileTap={{ scale: 0.97 }}
                 >
                   Ouvrir le pack
                 </motion.button>
               )}
+              </section>
             </motion.div>
           )}
 
           {/* ═══ CARDS PHASE — reveal one by one ═══ */}
           {phase === 'cards' && (
             <motion.div
-              className="relative z-10 w-[95vw] max-w-[860px]"
+              className="chambre-pack-result relative z-10"
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ type: 'spring', stiffness: 180 }}
             >
-              <div className="rounded-2xl border border-white/10 overflow-hidden" style={{ background: 'linear-gradient(180deg, #0f0a20 0%, #0a0a15 100%)' }}>
+              <div className="chambre-pack-result-panel" style={{ background: 'var(--v2-surface)' }}>
                 {/* Header */}
-                <div className="p-4 border-b border-white/5 flex items-center justify-between gap-4">
+                <div className="chambre-pack-result-header">
                   <div className="min-w-0">
-                    <div className="text-base font-black text-white">{title}</div>
-                    <div className="text-[11px] text-white/30">{Math.min(revealed, sortedReceived.length)}/{sortedReceived.length} revele{sortedReceived.length > 1 ? 's' : ''}</div>
+                    <h2>{title}</h2>
+                    <div className="chambre-reward-muted text-xs">{Math.min(revealed, sortedReceived.length)}/{sortedReceived.length} revele{sortedReceived.length > 1 ? 's' : ''}</div>
                   </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button type="button" onClick={() => { setAuto(false); setRevealed(sortedReceived.length); }} className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white text-[11px] font-semibold border border-white/10 transition">Tout reveler</button>
-                    <button type="button" onClick={() => setAuto(v => !v)} className="px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-white text-[11px] font-semibold border border-white/10 transition">{auto ? 'Auto: ON' : 'Auto: OFF'}</button>
+                  <div className="chambre-pack-tools">
+                    <button type="button" onClick={() => { setAuto(false); setRevealed(sortedReceived.length); }} className="chambre-reward-secondary">Tout révéler</button>
+                    <button type="button" onClick={() => setAuto(v => !v)} className="chambre-reward-secondary" aria-pressed={auto} aria-label="Révélation automatique">{auto ? 'Auto: ON' : 'Auto: OFF'}</button>
                   </div>
                 </div>
 
                 {/* Cards grid */}
-                <div className="p-4">
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+                <div className="chambre-pack-result-body">
+                  <div className="chambre-pack-cards">
                     {sortedReceived.map((it, idx) => {
                       const isRevealed = idx < revealed;
                       const cfg = RARITY_CFG[it.booster.rarity];
@@ -223,14 +233,14 @@ export default function BoosterPackOpenModal({
                       return (
                         <motion.div
                           key={it.inventory_id}
-                          className="relative aspect-[3/4]"
+                          className="chambre-pack-card relative"
                           initial={{ opacity: 0, y: 15, scale: 0.9 }}
                           animate={{ opacity: 1, y: 0, scale: 1 }}
                           transition={{ duration: 0.3, delay: Math.min(0.8, idx * 0.05) }}
                         >
-                          <div className="absolute inset-0 rounded-xl overflow-hidden" style={{ border: `1px solid ${isRevealed ? cfg.color + '40' : 'rgba(255,255,255,0.05)'}` }}>
+                          <div className="chambre-pack-card-frame" style={{ border: `1px solid ${isRevealed ? 'var(--v2-accent)' : 'var(--v2-line)'}` }}>
                             {/* Background */}
-                            <div className="absolute inset-0" style={{ background: isRevealed ? `linear-gradient(135deg, ${cfg.color}10, rgba(10,10,21,0.9))` : 'rgba(10,10,21,0.9)' }} />
+                            <div className="absolute inset-0" style={{ background: isRevealed ? 'linear-gradient(135deg, var(--v2-raised), var(--v2-bg))' : 'var(--v2-bg)' }} />
 
                             {/* Flash on reveal for epic/legendary */}
                             {isRevealed && isHighRarity && (
@@ -238,13 +248,13 @@ export default function BoosterPackOpenModal({
                             )}
 
                             {!isRevealed ? (
-                              <div className="relative w-full h-full flex flex-col items-center justify-center">
-                                <div className="text-2xl font-black text-white/10">?</div>
-                                <div className="text-[9px] text-white/15 mt-1">en attente</div>
+                              <div className="chambre-pack-card-waiting relative">
+                                <div className="chambre-pack-question">?</div>
+                                <div className="chambre-reward-muted text-xs">En attente</div>
                               </div>
                             ) : (
                               <motion.div
-                                className="relative w-full h-full p-2.5 flex flex-col"
+                                className="chambre-pack-card-content relative"
                                 initial={{ rotateY: 90 }}
                                 animate={{ rotateY: 0 }}
                                 transition={{ duration: 0.3, type: 'spring' }}
@@ -252,15 +262,15 @@ export default function BoosterPackOpenModal({
                               >
                                 {/* Top badge */}
                                 <div className="flex items-center justify-between">
-                                  <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-white/5 border border-white/5">
+                                  <div className="chambre-pack-rarity">
                                     <Icon className="w-2.5 h-2.5" style={{ color: cfg.color }} />
-                                    <span className="text-[9px] font-bold" style={{ color: cfg.color }}>{cfg.label}</span>
+                                    <span style={{ color: 'var(--v2-text)' }}>{cfg.label}</span>
                                   </div>
                                   <div className="w-2 h-2 rounded-full" style={{ background: cfg.color, boxShadow: `0 0 6px ${cfg.color}` }} />
                                 </div>
 
                                 {/* Center icon */}
-                                <div className="flex-1 flex items-center justify-center">
+                                <div className="chambre-pack-card-symbol">
                                   <div className="relative">
                                     <div className="absolute inset-0 rounded-full blur-lg" style={{ background: cfg.glow, transform: 'scale(2)' }} />
                                     <Icon className="relative w-7 h-7" style={{ color: cfg.color }} />
@@ -268,13 +278,13 @@ export default function BoosterPackOpenModal({
                                 </div>
 
                                 {/* Info */}
-                                <div className="space-y-1">
-                                  <div className="text-[10px] font-bold text-white leading-tight line-clamp-2">{it.booster.name}</div>
-                                  <div className="flex items-center justify-between text-[9px]">
-                                    <span className="text-white/30">{it.booster.type === 'track' ? 'Piste' : 'Artiste'}</span>
-                                    <span className="text-emerald-400 font-bold">x{Number(it.booster.multiplier).toFixed(2)}</span>
+                                <div className="chambre-pack-card-info">
+                                  <h3>{it.booster.name}</h3>
+                                  <div className="chambre-pack-card-metrics">
+                                    <span className="chambre-reward-muted">{it.booster.type === 'track' ? 'Piste' : 'Artiste'}</span>
+                                    <span className="chambre-pack-multiplier">x{Number(it.booster.multiplier).toFixed(2)}</span>
                                   </div>
-                                  <div className="text-[9px] text-white/20">{it.booster.duration_hours}h</div>
+                                  <div className="chambre-reward-muted text-xs">{it.booster.duration_hours}h</div>
                                 </div>
 
                                 {/* Foil for rare+ */}
@@ -290,22 +300,22 @@ export default function BoosterPackOpenModal({
                       );
                     })}
                   </div>
+                </div>
 
                   {/* Actions */}
-                  <div className="mt-4 flex items-center justify-end gap-2">
+                  <div className="chambre-pack-result-footer">
                     {revealed < sortedReceived.length && (
                       <button type="button" onClick={() => { setAuto(false); setRevealed(r => Math.min(sortedReceived.length, r + 1)); }}
-                        className="px-4 py-2 rounded-lg text-sm font-bold text-white transition-all"
-                        style={{ background: `linear-gradient(135deg, ${packColor}, ${packColor}cc)` }}
+                        className="chambre-reward-primary"
+                        style={{ background: 'var(--v2-accent-fill)' }}
                       >
                         Suivant
                       </button>
                     )}
-                    <UButton variant="secondary" size="md" onClick={onClose}>
+                    <UButton variant="secondary" size="md" onClick={onClose} className="chambre-reward-secondary">
                       Fermer
                     </UButton>
                   </div>
-                </div>
               </div>
             </motion.div>
           )}

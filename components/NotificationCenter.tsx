@@ -113,9 +113,9 @@ function NotificationIcon({ type }: { type: string }) {
   const Icon = NOTIF_ICONS[type] || Info;
   const color = NOTIF_COLORS[type] || NOTIF_COLORS.general;
   return (
-    <div className={`p-2 rounded-xl border ${color} flex-shrink-0`}>
+    <span className={`chambre-notification-icon p-2 rounded-xl border ${color} flex-shrink-0`}>
       <Icon className="w-4 h-4" />
-    </div>
+    </span>
   );
 }
 
@@ -210,38 +210,39 @@ function DBNotifItem({
     <motion.div
       initial={{ opacity: 0, y: 4 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`group relative cursor-pointer rounded-[1rem] border p-3 transition ${
-        n.is_read
-          ? 'border-[#dccfbb] bg-[#fff8ee] hover:bg-[#fff3e4]'
-          : 'border-[#7c5cff]/18 bg-[#7c5cff]/8 hover:bg-[#7c5cff]/12'
-      }`}
-      onClick={() => {
-        if (!n.is_read) onMarkRead(n.id);
-        if (n.action_url) router.push(n.action_url, { scroll: false });
-      }}
+      className="chambre-notification-item"
+      data-read={n.is_read}
+      data-notification-type={n.type}
     >
-      <div className="flex items-start gap-2.5">
+      <button
+        type="button"
+        className="chambre-notification-open"
+        onClick={() => {
+          if (!n.is_read) onMarkRead(n.id);
+          if (n.action_url) router.push(n.action_url, { scroll: false });
+        }}
+      >
         <NotificationIcon type={n.type} />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2">
-            <span className={`text-[13px] font-black ${n.is_read ? 'text-[#5f5650]' : 'text-[#171313]'}`}>
+        <span className="chambre-notification-copy">
+          <span className="chambre-notification-title-row">
+            <span className="chambre-notification-title">
               {n.title}
             </span>
-            {!n.is_read && <div className="w-1.5 h-1.5 rounded-full bg-[#7c5cff] flex-shrink-0" />}
-          </div>
-          <p className={`text-xs mt-0.5 line-clamp-2 font-semibold ${n.is_read ? 'text-black/42' : 'text-black/58'}`}>
+            {!n.is_read && <span className="chambre-notification-unread" aria-label="Non lue" />}
+          </span>
+          <span className="chambre-notification-message">
             {n.message}
-          </p>
-          <span className="text-[11px] text-black/34 mt-1 block font-black uppercase tracking-[0.08em]">{timeAgo(n.created_at)}</span>
-        </div>
+          </span>
+          <span className="chambre-notification-time">{timeAgo(n.created_at)}</span>
+        </span>
+      </button>
         <button
           onClick={(e) => { e.stopPropagation(); onDelete(n.id); }}
-          className="p-1 rounded-lg opacity-0 group-hover:opacity-100 hover:bg-black/[0.06] transition-all flex-shrink-0"
+          className="chambre-notification-dismiss"
           aria-label="Supprimer"
         >
-          <X className="w-3.5 h-3.5 text-black/38" />
+          <X className="w-4 h-4" />
         </button>
-      </div>
     </motion.div>
   );
 }
@@ -400,6 +401,8 @@ export default function NotificationCenter({ className = '' }: NotificationCente
       <div className="relative" ref={panelRef}>
         <button
           aria-label="Notifications"
+          aria-expanded={showPanel}
+          aria-controls="chambre-notification-panel"
           onClick={() => setShowPanel(!showPanel)}
           className={`flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-full hover:bg-[var(--surface-2)] transition-all duration-200 relative ${className} ${showPanel ? 'bg-[var(--surface-2)]' : ''}`}
         >
@@ -408,7 +411,7 @@ export default function NotificationCenter({ className = '' }: NotificationCente
             <motion.div
               initial={{ scale: 0 }}
               animate={{ scale: 1 }}
-              className="absolute -top-0.5 -right-0.5 min-w-[20px] h-[20px] px-1.5 bg-violet-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center shadow-lg shadow-violet-500/30"
+              className="chambre-notification-badge absolute -top-0.5 -right-0.5 min-w-[20px] h-[20px] px-1.5 bg-[var(--v2-accent-fill)] text-white text-[10px] font-bold rounded-full flex items-center justify-center"
             >
               {unreadCount > 99 ? '99+' : unreadCount}
             </motion.div>
@@ -423,29 +426,35 @@ export default function NotificationCenter({ className = '' }: NotificationCente
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 8, scale: 0.96 }}
               transition={{ duration: 0.15 }}
-              className="fixed left-3 right-3 top-[5.25rem] z-[1000] flex max-h-[min(72vh,650px)] flex-col overflow-hidden rounded-[1.6rem] border border-[#d8cbb8] bg-[#fff7ec] shadow-[0_28px_90px_rgba(30,25,20,0.28)] sm:left-auto sm:right-4 sm:w-[440px]"
+              className="chambre-notifications"
+              id="chambre-notification-panel"
+              role="region"
+              aria-labelledby="chambre-notification-heading"
             >
               {/* Header */}
-              <div className="flex items-center justify-between border-b border-[#e2d6c4] bg-[#fffaf2] px-4 py-3">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-[15px] font-black text-[#171313]">Notifications</h3>
+              <div className="chambre-notification-header">
+                <div className="chambre-notification-heading">
+                  <p className="chambre-notification-eyebrow">Votre activité</p>
+                  <h3 id="chambre-notification-heading">Notifications</h3>
                   {unreadCount > 0 && (
-                    <span className="px-2 py-0.5 text-[11px] font-black bg-[#7c5cff]/12 text-[#7c5cff] rounded-full">
+                    <span className="chambre-notification-count" aria-label={`${unreadCount} non lues`}>
                       {unreadCount}
                     </span>
                   )}
                 </div>
-                <div className="flex items-center gap-1">
+                <div className="chambre-notification-tools">
                   {unreadCount > 0 && (
                     <button onClick={markAllRead}
-                      className="p-1.5 rounded-lg text-black/38 transition hover:bg-black/[0.06] hover:text-[#171313]"
+                      className="chambre-notification-tool"
+                      aria-label="Tout marquer comme lu"
                       title="Tout marquer comme lu">
                       <CheckCheck className="w-4 h-4" />
                     </button>
                   )}
                   {dbNotifs.length > 0 && (
                     <button onClick={clearAll}
-                      className="p-1.5 rounded-lg text-black/38 transition hover:bg-[#ff6f61]/10 hover:text-[#8f3d34]"
+                      className="chambre-notification-tool chambre-notification-tool--delete"
+                      aria-label="Tout supprimer"
                       title="Tout supprimer">
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -453,15 +462,17 @@ export default function NotificationCenter({ className = '' }: NotificationCente
                 </div>
               </div>
 
+              <div className="chambre-notification-scroll">
               {/* Push notification opt-in banner */}
               {isAuthenticated && pushStatus === 'unknown' && (
-                <div className="mx-3 mt-3 px-3 py-2.5 rounded-[1rem] bg-[#7c5cff]/8 border border-[#7c5cff]/18 flex items-center gap-2.5">
-                  <BellRing className="w-4 h-4 text-[#7c5cff] flex-shrink-0" />
-                  <p className="text-[12px] font-semibold text-[#4d3aa0] flex-1">Activer les notifs même hors du site</p>
+                <div className="chambre-notification-push">
+                  <BellRing className="w-4 h-4 flex-shrink-0" />
+                  <p>Activer les notifs même hors du site</p>
                   <button
                     onClick={handleEnablePush}
                     disabled={pushLoading}
-                    className="px-3 py-1 text-[11px] font-black bg-[#171313] hover:scale-[1.02] text-white rounded-full transition flex-shrink-0"
+                    className="chambre-notification-enable"
+                    aria-label="Activer les notifications navigateur"
                   >
                     {pushLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Activer'}
                   </button>
@@ -469,34 +480,31 @@ export default function NotificationCenter({ className = '' }: NotificationCente
               )}
 
               {isAuthenticated && pushStatus === 'denied' && (
-                <div className="mx-3 mt-3 px-3 py-2 rounded-[1rem] bg-amber-50 border border-amber-200 flex items-center gap-2">
-                  <BellOff className="w-4 h-4 text-amber-700 flex-shrink-0" />
-                  <p className="text-[11px] font-semibold text-amber-800 flex-1">
+                <div className="chambre-notification-push chambre-notification-push--warning">
+                  <BellOff className="w-4 h-4 flex-shrink-0" />
+                  <p>
                     Notifs bloquées — autoriser dans les réglages du navigateur
                   </p>
                 </div>
               )}
 
               {isAuthenticated && pushStatus === 'unavailable' && (
-                <div className="mx-3 mt-3 px-3 py-2 rounded-[1rem] bg-amber-50 border border-amber-200 flex items-center gap-2">
-                  <BellOff className="w-4 h-4 text-amber-700 flex-shrink-0" />
-                  <p className="text-[11px] font-semibold text-amber-800 flex-1">
+                <div className="chambre-notification-push chambre-notification-push--warning">
+                  <BellOff className="w-4 h-4 flex-shrink-0" />
+                  <p>
                     Service push indisponible sur ce navigateur pour le moment.
                   </p>
                 </div>
               )}
 
               {/* Category filter */}
-              <div className="flex gap-1 px-3 py-2 border-b border-[#e2d6c4] overflow-x-auto scrollbar-hide mt-1">
+              <div className="chambre-notification-filters" role="group" aria-label="Catégories de notifications">
                 {CATEGORIES.map(c => (
                   <button
                     key={c.key}
                     onClick={() => setCategory(c.key)}
-                    className={`px-3 py-1.5 text-[12px] font-black rounded-full whitespace-nowrap transition ${
-                      category === c.key
-                        ? 'bg-[#171313] text-white'
-                        : 'bg-[#efe4d4] text-[#5f5650] hover:bg-[#e7dac8] hover:text-[#171313]'
-                    }`}
+                    className="chambre-notification-filter"
+                    aria-pressed={category === c.key}
                   >
                     {c.label}
                   </button>
@@ -504,21 +512,21 @@ export default function NotificationCenter({ className = '' }: NotificationCente
               </div>
 
               {/* Content */}
-              <div className="flex-1 overflow-y-auto overscroll-contain">
+              <div className="chambre-notification-content">
                 {loading ? (
-                  <div className="flex items-center justify-center py-12">
-                    <Loader2 className="w-5 h-5 text-black/35 animate-spin" />
+                  <div className="chambre-notification-empty" role="status" aria-label="Chargement des notifications">
+                    <Loader2 className="w-5 h-5 animate-spin" />
                   </div>
                 ) : dbNotifs.length === 0 ? (
-                  <div className="text-center py-12 px-4">
-                    <div className="w-12 h-12 rounded-2xl bg-[#efe4d4] flex items-center justify-center mx-auto mb-3">
-                      <Bell className="w-6 h-6 text-black/24" />
+                  <div className="chambre-notification-empty">
+                    <div className="chambre-notification-empty-icon">
+                      <Bell className="w-6 h-6" />
                     </div>
-                    <p className="text-sm font-black text-black/45">Aucune notification</p>
-                    <p className="text-xs font-semibold text-black/28 mt-1">Les notifications apparaîtront ici</p>
+                    <p className="chambre-notification-empty-title">Aucune notification</p>
+                    <p>Les notifications apparaîtront ici</p>
                   </div>
                 ) : (
-                  <div className="p-3 space-y-2">
+                  <div className="chambre-notification-list">
                     {dbNotifs.map(n => (
                       <DBNotifItem
                         key={n.id}
@@ -530,20 +538,21 @@ export default function NotificationCenter({ className = '' }: NotificationCente
                   </div>
                 )}
               </div>
+              </div>
 
               {/* Footer */}
-              <div className="flex items-center justify-between gap-3 border-t border-[#e2d6c4] bg-[#fffaf2] px-4 py-3">
+              <div className="chambre-notification-footer">
                 <Link
                   href="/notifications"
                   onClick={() => setShowPanel(false)}
-                  className="text-xs font-black text-[#171313] transition hover:text-[#7c5cff]"
+                  className="chambre-notification-all"
                 >
                   Voir toutes
                 </Link>
                 <Link
                   href="/settings?tab=preferences"
                   onClick={() => setShowPanel(false)}
-                  className="text-xs font-semibold text-black/40 transition hover:text-[#7c5cff]"
+                  className="chambre-notification-preferences"
                 >
                   Préférences
                 </Link>

@@ -1,0 +1,15 @@
+# Chambre Sonore: discovery station and personal collection
+
+This local presentation redesign gives Discover a short index followed by an asymmetric editorial feature using the actual lead track cover. A compact listening map retains all eight real mood paths and preference highlighting. The release journal, hidden tracks, popular records, artist portraits, collections, community and events preserve their actual source data and existing controls.
+
+Library becomes a practical record workspace: a short masthead, search, all five collection counts, recent-track resume, sorting and genre filters. Dossiers use cover sleeves in the grid and a compact list alternative. Favorites, history and folders distinguish genuinely empty collections from empty filtered results. Small-screen track rows retain real cover art underneath a visible 44 px playback control; favorite and more actions remain visible beside the title.
+
+The new scoped layer is `components/v2/experience-collection.css`; it must load after the existing personal and music styles. It includes 767 px and 359 px layouts and reduced-motion rules. Existing dialogue layouts and audio ownership remain in their current components.
+
+Source snapshots were preserved without overwriting older copies in `artifacts/chambre-experience/before/collection/`. The focused test parses the actual TSX and CSS, compares all non-JSX logic and exact event attributes with those snapshots, renders the actual library masthead and folder component with controlled data, and checks queue identity and native callbacks.
+
+Two prior presentation freezes are intentionally superseded by this request: the old Discover heading assertion in `chambre-music-redesign.test.mjs`, and the full lead/opening JSX SHA assertions in `chambre-discover-continuation.test.mjs`. They now check the new hierarchy, early listening paths, actual cover identity and existing playback component. The separate historical logic, data-order, TrackTile and CSS-prefix hashes remain intact. No baselines were reset.
+
+Validation is local and source focused. Connected desktop/mobile inspection is coordinated by the parent task; this subtask did not start a server, build, contact a provider, perform authenticated mutations or create a commit.
+
+The focused collection, Discover continuation, music redesign and V2 personal run passes 36/36 tests. Historical Library comparisons also pass after an explicitly approved Library-only presentation adapter in `behaviorFingerprint`: it recognizes five exact displayed counts, seven exact empty/filter labels, two constant icon sizes and the exact decorative privacy icon branch, then restores the former dossier-count pluralizer in the historical display stream. Each rule has an asserted occurrence count. Other files, imports, non-JSX logic, keys, callbacks and forwarded data keep the strict comparison; no stored fingerprint was replaced. The actual rendered counts and callbacks are separately exercised in the new tests. The final broader subtask run passed 68/71 tests, with one unrelated Settings fingerprint failure imported three times and reported to that page's owner.

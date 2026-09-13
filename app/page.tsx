@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { getServerSession } from 'next-auth';
-import DiscoverSynaura from '@/components/discover/DiscoverSynaura';
+import PublicChamberEntry from '@/components/enter/PublicChamberEntry';
 import { authOptions } from '@/lib/authOptions';
 import { memberHasCompletedOnboarding } from '@/lib/server/memberEntry';
 
@@ -30,7 +30,7 @@ export default async function HomePage() {
   const session = await getServerSession(authOptions).catch(() => null);
   const userId = session?.user?.id;
 
-  if (!userId) return <DiscoverSynaura />;
+  if (!userId) return <PublicChamberEntry />;
 
   const onboardingCompleted = await memberHasCompletedOnboarding(userId);
   if (onboardingCompleted === false) redirect('/onboarding?callbackUrl=%2Flive');

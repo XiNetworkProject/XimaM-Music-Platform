@@ -194,10 +194,10 @@ function InspectorContent({
           <div className="absolute top-2 left-1/2 -translate-x-1/2 w-10 h-1 rounded-full bg-white/20" />
         )}
         <div className="min-w-0 flex-1">
-          <p className="text-[10px] uppercase tracking-[0.2em] text-white/35 font-semibold">
-              Détails de la piste
+          <p className="v2-kicker">
+              03 / Détails de la piste
             </p>
-          <h2 className="text-sm font-semibold text-white/90 truncate max-w-[260px]">
+          <h2 className="mt-2 text-lg font-medium tracking-[-0.04em] text-[var(--v2-text)] truncate max-w-[260px]">
               {track.title || 'Piste générée'}
             </h2>
           </div>
@@ -221,8 +221,8 @@ function InspectorContent({
                 className="w-full h-full object-cover"
                 onError={(e) => {
                   const img = e.currentTarget;
-                  if (img.src.endsWith('/brand/2026/synaura-symbol-2026-white.png')) return;
-                  img.src = '/brand/2026/synaura-symbol-2026-white.png';
+                  if (img.src.endsWith('/default-cover.svg')) return;
+                  img.src = '/default-cover.svg';
                 }}
               />
             ) : (
@@ -351,7 +351,7 @@ export function TrackInspector(props: TrackInspectorProps) {
     if (!isOpen || !track) return null;
     return (
       <motion.div
-        className="h-full w-full bg-[#0c0c14]/98 border-l border-white/[0.06] backdrop-blur-2xl shadow-[0_0_60px_rgba(0,0,0,0.5)] flex flex-col"
+        className="v2-creation chambre-track-inspector h-full w-full bg-[var(--v2-surface)] border-l border-[var(--v2-line)] flex flex-col"
         initial={{ x: 24, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
         exit={{ x: 24, opacity: 0 }}
@@ -374,7 +374,7 @@ export function TrackInspector(props: TrackInspectorProps) {
         >
           {/* Mobile: bottom sheet */}
           <motion.div
-            className="sm:hidden absolute inset-x-0 bottom-0 max-h-[88dvh] bg-[#0c0c14]/98 border-t border-white/[0.08] backdrop-blur-2xl shadow-[0_-20px_60px_rgba(0,0,0,0.6)] flex flex-col rounded-t-[20px] overflow-hidden"
+            className="v2-creation chambre-track-inspector sm:hidden absolute inset-x-0 bottom-0 max-h-[88dvh] bg-[var(--v2-surface)] border-t border-[var(--v2-line)] shadow-2xl flex flex-col rounded-t-[16px] overflow-hidden"
             initial={{ y: '100%' }}
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
@@ -387,7 +387,7 @@ export function TrackInspector(props: TrackInspectorProps) {
 
           {/* Desktop/Tablet: right slide panel */}
           <motion.div
-            className="hidden sm:flex h-full w-full max-w-md bg-[#0c0c14]/98 border-l border-white/[0.06] backdrop-blur-2xl shadow-[0_0_60px_rgba(0,0,0,0.5)] flex-col ml-auto"
+            className="v2-creation chambre-track-inspector hidden sm:flex h-full w-full max-w-md bg-[var(--v2-surface)] border-l border-[var(--v2-line)] flex-col ml-auto"
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
             exit={{ x: '100%' }}

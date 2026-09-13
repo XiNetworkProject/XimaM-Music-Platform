@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useCallback } from 'react';
+import { SynauraImage } from '@/components/ui/SynauraImage';
 import { useParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
@@ -200,11 +201,11 @@ export default function PostPage() {
           Retour
         </button>
 
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }} className="space-y-4">
-          <SynauraInkPanel className="overflow-hidden">
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }} className="chambre-post-detail space-y-4">
+          <SynauraInkPanel className="v2-post-intro overflow-hidden">
             {coverSrc ? (
               <div className="absolute inset-0">
-                <img src={coverSrc} alt="" className="h-full w-full object-cover opacity-18 blur-[18px] scale-110" />
+                <SynauraImage src={coverSrc} alt="" className="h-full w-full object-cover opacity-18 blur-[18px] scale-110" />
                 <div className="absolute inset-0 bg-gradient-to-br from-[#171313]/68 via-[#171313]/82 to-[#171313]" />
               </div>
             ) : null}
@@ -256,12 +257,14 @@ export default function PostPage() {
                   </button>
                   <button
                     onClick={handleShare}
+                    aria-label="Partager ce post"
                     className="grid h-10 w-10 place-items-center rounded-full bg-black/[0.055] text-black/52 transition hover:bg-black/[0.1] hover:text-black"
                   >
                     <Share2 className="h-4 w-4" />
                   </button>
                   {isOwn ? (
                     <button
+                      aria-label="Supprimer ce post"
                       onClick={async () => {
                         if (!confirm('Supprimer ce post ?')) return;
                         const res = await fetch(`/api/posts/${post.id}`, { method: 'DELETE' });
@@ -281,8 +284,8 @@ export default function PostPage() {
               </div>
 
               {post.content ? (
-                <div className="rounded-[1.35rem] bg-black/[0.03] p-4">
-                  <p className="text-[15px] leading-7 text-black/72 whitespace-pre-wrap break-words">{post.content}</p>
+                <div className="py-5">
+                  <p className="text-[clamp(1.1rem,2vw,1.5rem)] leading-relaxed text-[var(--v2-text)] whitespace-pre-wrap break-words">{post.content}</p>
                 </div>
               ) : null}
 
@@ -350,7 +353,7 @@ export default function PostPage() {
                     ) : null}
 
                     {!post.original_post.track && post.original_post.image_url ? (
-                      <img src={getCdnUrl(post.original_post.image_url) || post.original_post.image_url} alt="" className="max-h-[640px] w-full object-cover border-t border-black/[0.08]" />
+                      <SynauraImage src={getCdnUrl(post.original_post.image_url) || post.original_post.image_url} alt="" className="max-h-[640px] w-full object-cover border-t border-black/[0.08]" />
                     ) : null}
                   </div>
                 ) : (

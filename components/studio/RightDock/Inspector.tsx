@@ -45,7 +45,7 @@ export default function Inspector({
           artist: { _id: 'ai', name: track.artistName, username: track.artistName },
           duration: track.durationSec || 120,
           audioUrl: track.audioUrl || '',
-          coverUrl: track.coverUrl || '/brand/2026/synaura-symbol-2026-white.png',
+          coverUrl: track.coverUrl || '/default-cover.svg',
           genre: ['IA', 'Généré'],
           plays: 0,
           likes: [],
@@ -176,20 +176,25 @@ export default function Inspector({
   };
 
   return (
-    <div className="panel-suno h-full min-h-0 flex flex-col overflow-hidden">
+    <div className="panel-suno experience-track-inspector h-full min-h-0 flex flex-col overflow-hidden">
       <div className="p-3 border-b border-border-secondary">
-        <div className="text-[11px] text-foreground-tertiary">RIGHT DOCK</div>
-        <div className="text-sm font-semibold text-foreground-primary">Inspector</div>
+        <div className="v2-kicker">03 / Affiner</div>
+        <h2 className="text-sm font-semibold text-foreground-primary">Le détail fait le son.</h2>
       </div>
 
       {!t ? (
-        <div className="p-4 text-sm text-foreground-tertiary">Sélectionne une track.</div>
+        <div className="experience-inspector-empty">
+          <div className="experience-inspector-sleeve" aria-hidden="true"><span /><span /><span /></div>
+          <strong>Approche-toi d’une version.</strong>
+          <p>Sélectionne une piste pour retrouver sa direction musicale, ses paroles et ses actions.</p>
+          <ol><li><span>01</span> Examiner le rendu</li><li><span>02</span> Comparer deux versions</li><li><span>03</span> Exporter ou partager</li></ol>
+        </div>
       ) : (
         <>
           <div className="p-3 border-b border-border-secondary flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl border border-border-secondary bg-white/5 overflow-hidden shrink-0">
+            <div className="w-12 h-12 rounded-2xl border border-border-secondary bg-[var(--v2-raised)] overflow-hidden shrink-0">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={t.coverUrl || '/brand/2026/synaura-symbol-2026-white.png'} alt={t.title} className="w-full h-full object-cover" />
+              <img src={t.coverUrl || '/default-cover.svg'} alt={t.title} className="w-full h-full object-cover" />
             </div>
             <div className="min-w-0 flex-1">
               <div className="text-[13px] font-semibold text-foreground-primary truncate">{t.title}</div>
@@ -197,7 +202,7 @@ export default function Inspector({
             </div>
             <button
               type="button"
-              className="h-9 w-9 rounded-xl border border-border-secondary bg-white/5 hover:bg-white/10 transition flex items-center justify-center"
+              className="h-9 w-9 rounded-xl border border-border-secondary bg-[var(--v2-raised)] hover:bg-[var(--v2-raised)] transition flex items-center justify-center"
               onClick={playSelectedTrack}
               title={isPlayingSelected ? 'Pause' : 'Play'}
             >
@@ -205,7 +210,7 @@ export default function Inspector({
             </button>
             <button
               type="button"
-              className="h-9 w-9 rounded-xl border border-border-secondary bg-white/5 hover:bg-white/10 transition flex items-center justify-center"
+              className="h-9 w-9 rounded-xl border border-border-secondary bg-[var(--v2-raised)] hover:bg-[var(--v2-raised)] transition flex items-center justify-center"
               onClick={toggleFavorite}
               title="Favorite"
             >
@@ -217,40 +222,44 @@ export default function Inspector({
             </button>
           </div>
 
-          <div className="px-3 pt-3 flex items-center gap-2">
+          <div className="experience-inspector-tabs px-3 pt-3 flex items-center gap-2" role="group" aria-label="Informations de la version">
             <button
               type="button"
               className={`h-8 px-3 rounded-xl border text-xs transition ${
-                tab === 'details' ? 'border-white/20 bg-white/10' : 'border-border-secondary bg-white/5 hover:bg-white/10'
+                tab === 'details' ? 'border-white/20 bg-[var(--v2-raised)]' : 'border-border-secondary bg-[var(--v2-raised)] hover:bg-[var(--v2-raised)]'
               }`}
               onClick={() => setTab('details')}
+              aria-pressed={tab === 'details'}
             >
-              Details
+              Détails
             </button>
             <button
               type="button"
               className={`h-8 px-3 rounded-xl border text-xs transition ${
-                tab === 'prompt' ? 'border-white/20 bg-white/10' : 'border-border-secondary bg-white/5 hover:bg-white/10'
+                tab === 'prompt' ? 'border-white/20 bg-[var(--v2-raised)]' : 'border-border-secondary bg-[var(--v2-raised)] hover:bg-[var(--v2-raised)]'
               }`}
               onClick={() => setTab('prompt')}
+              aria-pressed={tab === 'prompt'}
             >
               Prompt
             </button>
             <button
               type="button"
               className={`h-8 px-3 rounded-xl border text-xs transition ${
-                tab === 'lyrics' ? 'border-white/20 bg-white/10' : 'border-border-secondary bg-white/5 hover:bg-white/10'
+                tab === 'lyrics' ? 'border-white/20 bg-[var(--v2-raised)]' : 'border-border-secondary bg-[var(--v2-raised)] hover:bg-[var(--v2-raised)]'
               }`}
               onClick={() => setTab('lyrics')}
+              aria-pressed={tab === 'lyrics'}
             >
-              Lyrics
+              Paroles
             </button>
             <button
               type="button"
               className={`h-8 px-3 rounded-xl border text-xs transition ${
-                tab === 'ab' ? 'border-white/20 bg-white/10' : 'border-border-secondary bg-white/5 hover:bg-white/10'
+                tab === 'ab' ? 'border-white/20 bg-[var(--v2-raised)]' : 'border-border-secondary bg-[var(--v2-raised)] hover:bg-[var(--v2-raised)]'
               }`}
               onClick={() => setTab('ab')}
+              aria-pressed={tab === 'ab'}
             >
               A/B
             </button>
@@ -259,7 +268,7 @@ export default function Inspector({
           <div className="min-h-0 overflow-y-auto p-3">
             {tab === 'details' ? (
               <div className="grid gap-3 text-sm">
-                <div className="rounded-2xl border border-border-secondary bg-white/[0.04] p-3">
+                <div className="rounded-2xl border border-border-secondary bg-[var(--v2-raised)] p-3">
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <div className="text-[11px] text-foreground-tertiary">Actions rapides</div>
@@ -268,7 +277,7 @@ export default function Inspector({
                       </div>
                     </div>
                     <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-semibold ${
-                      t.isPublic ? 'bg-emerald-400/15 text-emerald-200' : 'bg-white/10 text-white/45'
+                      t.isPublic ? 'bg-emerald-400/15 text-emerald-200' : 'bg-[var(--v2-raised)] text-[var(--v2-muted)]'
                     }`}>
                       {t.isPublic ? <Globe2 className="h-3 w-3" /> : <Lock className="h-3 w-3" />}
                       {t.isPublic ? 'Public' : 'Prive'}
@@ -277,7 +286,7 @@ export default function Inspector({
                   <div className="mt-3 grid grid-cols-2 gap-2">
                     <button
                       type="button"
-                      className="h-9 rounded-xl border border-border-secondary bg-white/5 px-3 text-xs font-semibold transition hover:bg-white/10 inline-flex items-center justify-center gap-2"
+                      className="h-9 rounded-xl border border-border-secondary bg-[var(--v2-raised)] px-3 text-xs font-semibold transition hover:bg-[var(--v2-raised)] inline-flex items-center justify-center gap-2"
                       onClick={() => onGenerateVariantFromTrack(t.id)}
                     >
                       <Repeat2 className="w-4 h-4" />
@@ -286,7 +295,7 @@ export default function Inspector({
                     <button
                       type="button"
                       disabled={busyAction === 'publish'}
-                      className="h-9 rounded-xl border border-border-secondary bg-white/5 px-3 text-xs font-semibold transition hover:bg-white/10 disabled:opacity-50 inline-flex items-center justify-center gap-2"
+                      className="h-9 rounded-xl border border-border-secondary bg-[var(--v2-raised)] px-3 text-xs font-semibold transition hover:bg-[var(--v2-raised)] disabled:opacity-50 inline-flex items-center justify-center gap-2"
                       onClick={toggleVisibility}
                     >
                       {busyAction === 'publish' ? <Loader2 className="w-4 h-4 animate-spin" /> : t.isPublic ? <Lock className="w-4 h-4" /> : <Globe2 className="w-4 h-4" />}
@@ -295,7 +304,7 @@ export default function Inspector({
                     <button
                       type="button"
                       disabled={busyAction === 'download'}
-                      className="h-9 rounded-xl border border-border-secondary bg-white/5 px-3 text-xs font-semibold transition hover:bg-white/10 disabled:opacity-50 inline-flex items-center justify-center gap-2"
+                      className="h-9 rounded-xl border border-border-secondary bg-[var(--v2-raised)] px-3 text-xs font-semibold transition hover:bg-[var(--v2-raised)] disabled:opacity-50 inline-flex items-center justify-center gap-2"
                       onClick={downloadTrack}
                     >
                       {busyAction === 'download' ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
@@ -303,7 +312,7 @@ export default function Inspector({
                     </button>
                     <button
                       type="button"
-                      className="h-9 rounded-xl border border-border-secondary bg-white/5 px-3 text-xs font-semibold transition hover:bg-white/10 inline-flex items-center justify-center gap-2"
+                      className="h-9 rounded-xl border border-border-secondary bg-[var(--v2-raised)] px-3 text-xs font-semibold transition hover:bg-[var(--v2-raised)] inline-flex items-center justify-center gap-2"
                       onClick={shareTrack}
                     >
                       <Share2 className="w-4 h-4" />
@@ -321,23 +330,23 @@ export default function Inspector({
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  <div className="rounded-xl border border-border-secondary bg-white/5 p-3">
+                  <div className="rounded-xl border border-border-secondary bg-[var(--v2-raised)] p-3">
                     <div className="text-[11px] text-foreground-tertiary">Created</div>
                     <div className="text-foreground-secondary">{new Date(t.createdAt).toLocaleString()}</div>
                   </div>
-                  <div className="rounded-xl border border-border-secondary bg-white/5 p-3">
+                  <div className="rounded-xl border border-border-secondary bg-[var(--v2-raised)] p-3">
                     <div className="text-[11px] text-foreground-tertiary">Duration</div>
                     <div className="text-foreground-secondary">{t.durationSec ? `${t.durationSec}s` : '—'}</div>
                   </div>
                 </div>
-                <div className="rounded-xl border border-border-secondary bg-white/5 p-3">
+                <div className="rounded-xl border border-border-secondary bg-[var(--v2-raised)] p-3">
                   <div className="text-[11px] text-foreground-tertiary">Tags</div>
                   <div className="text-foreground-secondary">{(t.tags || []).join(', ') || '—'}</div>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
-                    className="h-9 px-3 rounded-xl border border-border-secondary bg-white/5 hover:bg-white/10 transition text-sm flex items-center gap-2"
+                    className="h-9 px-3 rounded-xl border border-border-secondary bg-[var(--v2-raised)] hover:bg-[var(--v2-raised)] transition text-sm flex items-center gap-2"
                     onClick={() => copyText(t.prompt || '')}
                   >
                     <Copy className="w-4 h-4" />
@@ -345,7 +354,7 @@ export default function Inspector({
                   </button>
                   <button
                     type="button"
-                    className="h-9 px-3 rounded-xl border border-border-secondary bg-white/5 hover:bg-white/10 transition text-sm flex items-center gap-2"
+                    className="h-9 px-3 rounded-xl border border-border-secondary bg-[var(--v2-raised)] hover:bg-[var(--v2-raised)] transition text-sm flex items-center gap-2"
                     onClick={() => {
                       loadTrackIntoForm(t.id);
                     }}
@@ -358,32 +367,32 @@ export default function Inspector({
             ) : null}
 
             {tab === 'prompt' ? (
-              <div className="rounded-xl border border-border-secondary bg-white/5 p-3 text-sm whitespace-pre-wrap">
+              <div className="rounded-xl border border-border-secondary bg-[var(--v2-raised)] p-3 text-sm whitespace-pre-wrap">
                 {t.prompt || '—'}
               </div>
             ) : null}
 
             {tab === 'lyrics' ? (
-              <div className="rounded-xl border border-border-secondary bg-white/5 p-3 text-sm whitespace-pre-wrap">
+              <div className="rounded-xl border border-border-secondary bg-[var(--v2-raised)] p-3 text-sm whitespace-pre-wrap">
                 {t.lyrics || '—'}
               </div>
             ) : null}
 
             {tab === 'ab' ? (
               <div className="grid gap-3">
-                <div className="rounded-xl border border-border-secondary bg-white/5 p-3 text-sm">
+                <div className="rounded-xl border border-border-secondary bg-[var(--v2-raised)] p-3 text-sm">
                   <div className="text-[11px] text-foreground-tertiary mb-2">Pick A/B</div>
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
-                      className="h-9 px-3 rounded-xl border border-border-secondary bg-white/5 hover:bg-white/10 transition text-sm"
+                      className="h-9 px-3 rounded-xl border border-border-secondary bg-[var(--v2-raised)] hover:bg-[var(--v2-raised)] transition text-sm"
                       onClick={() => setAB(t.id, null)}
                     >
                       Set as A
                     </button>
                     <button
                       type="button"
-                      className="h-9 px-3 rounded-xl border border-border-secondary bg-white/5 hover:bg-white/10 transition text-sm"
+                      className="h-9 px-3 rounded-xl border border-border-secondary bg-[var(--v2-raised)] hover:bg-[var(--v2-raised)] transition text-sm"
                       onClick={() => setAB(null, t.id)}
                     >
                       Set as B
@@ -399,4 +408,3 @@ export default function Inspector({
     </div>
   );
 }
-

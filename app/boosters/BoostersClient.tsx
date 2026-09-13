@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { SynauraImage } from '@/components/ui/SynauraImage';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
@@ -197,7 +198,7 @@ function BoosterCard({
 
   return (
     <motion.div
-      className="group relative"
+      className="chambre-booster-card group relative"
       initial={{ opacity: 0, y: 20, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ duration: 0.3 }}
@@ -467,73 +468,42 @@ export default function BoostersClient() {
   const activeCount = activeTrackBoosts.length + activeArtistBoosts.length;
 
   return (
-    <div className="min-h-screen text-white" style={{ background: '#050510' }}>
+    <div className="min-h-screen bg-[var(--v2-bg)] text-[var(--v2-text)]">
       <style>{KEYFRAMES}</style>
 
-      {/* Animated background blobs */}
-      <div className="pointer-events-none fixed inset-0 overflow-hidden z-0" aria-hidden="true">
-        <div className="absolute top-[-20%] left-[-15%] w-[55%] h-[55%] rounded-full opacity-20" style={{ background: 'radial-gradient(circle, rgba(124,58,237,0.6) 0%, transparent 70%)', filter: 'blur(80px)', animation: 'blob-drift 20s ease-in-out infinite' }} />
-        <div className="absolute bottom-[-10%] right-[-10%] w-[45%] h-[45%] rounded-full opacity-15" style={{ background: 'radial-gradient(circle, rgba(236,72,153,0.6) 0%, transparent 70%)', filter: 'blur(80px)', animation: 'blob-drift 25s ease-in-out infinite reverse' }} />
-        <div className="absolute top-[30%] right-[10%] w-[30%] h-[30%] rounded-full opacity-10" style={{ background: 'radial-gradient(circle, rgba(245,158,11,0.5) 0%, transparent 70%)', filter: 'blur(60px)', animation: 'blob-drift 18s ease-in-out infinite 5s' }} />
-                  </div>
 
       <div className="relative z-10">
         {/* ══════════════════════════════════════
             HERO SECTION
         ══════════════════════════════════════ */}
-        <section className="relative overflow-hidden px-4 pt-8 pb-6">
+        <section className="v2-boosters-intro relative px-5 pt-10 pb-8">
           <div className="max-w-5xl mx-auto">
             <div className="flex flex-col lg:flex-row items-center gap-8">
-              {/* Left: floating booster visual */}
-              <div className="relative w-40 h-52 shrink-0 hidden sm:block" style={{ animation: 'booster-float 6s ease-in-out infinite', perspective: '800px' }}>
-                {/* Glow behind card */}
-                <div className="absolute inset-0 rounded-2xl" style={{ background: 'radial-gradient(ellipse, rgba(124,58,237,0.4) 0%, transparent 70%)', filter: 'blur(30px)', animation: 'booster-glow-pulse 3s ease-in-out infinite' }} />
-                {/* Card */}
-                <div className="relative w-full h-full rounded-2xl border border-violet-500/30 bg-gradient-to-br from-[#0f0a20] to-[#1a0a2e] overflow-hidden shadow-2xl shadow-violet-500/20">
-                  <div className="absolute inset-0 bg-gradient-to-br from-violet-600/10 to-pink-600/10" />
-                  <div className="absolute top-0 left-0 right-0 h-8 bg-gradient-to-r from-violet-600/40 to-pink-600/40 flex items-center justify-center">
-                    <span className="text-[9px] font-bold text-white/80 uppercase tracking-widest">Synaura Booster</span>
-                  </div>
-                  <div className="h-full flex items-center justify-center">
-                    <Zap className="w-14 h-14 text-violet-400/60" />
-                  </div>
-                  <div className="absolute bottom-2 left-0 right-0 text-center">
-                    <span className="text-[10px] text-white/40 font-medium">Mystere</span>
-                  </div>
-                  {/* Foil sweep */}
-                  <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                    <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.08) 45%, rgba(255,255,255,0.15) 50%, rgba(255,255,255,0.08) 55%, transparent 60%)', animation: 'foil-sweep 3s ease-in-out infinite' }} />
-                  </div>
-                </div>
-              </div>
 
               {/* Center: main CTA */}
               <div className="flex-1 min-w-0 text-center lg:text-left">
-                <div className="inline-flex items-center gap-2 rounded-full border border-violet-500/20 bg-violet-500/10 px-3 py-1 mb-3">
-                  <Zap className="w-3 h-3 text-violet-400" />
-                  <span className="text-[11px] font-bold text-violet-400 uppercase tracking-widest">Boosters Synaura</span>
+                <div className="chambre-reward-eyebrow inline-flex items-center gap-2 mb-3">
+                  <Zap className="w-3 h-3" />
+                  <span>Boosters Synaura</span>
                 </div>
 
                 <h1 className="text-3xl sm:text-4xl font-black leading-tight mb-2">
-                  <span className="text-white">Ouvre, collectionne,</span><br />
-                  <span className="bg-clip-text text-transparent" style={{ backgroundImage: 'linear-gradient(90deg, #a78bfa, #ec4899, #f59e0b)' }}>
-                    domine le classement.
-                  </span>
+                  Amplifie<br /><span className="chambre-type-accent">le mouvement.</span>
                 </h1>
                 <p className="text-sm text-white/40 max-w-md mx-auto lg:mx-0 mb-5">
-                  Chaque booster augmente la visibilite de tes pistes et de ton profil. Ouvre ton booster quotidien, tourne la roue, complete des missions.
+                  Retrouve tes boosters, leurs effets et leur durée. Utilise-les sur les morceaux que tu veux faire découvrir.
                 </p>
 
-                <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3">
+                <div className="chambre-rewards-entry-actions">
                 <button
                   type="button"
                   onClick={() => setShowDailyModal(true)}
                   disabled={!canOpen || boostersLoading}
                   className={cx(
-                      'h-12 px-6 rounded-2xl font-bold text-sm transition-all',
+                      'chambre-reward-primary',
                     canOpen
-                        ? 'bg-gradient-to-r from-violet-600 to-pink-600 text-white hover:scale-[1.03] active:scale-[0.98] shadow-lg shadow-violet-500/30'
-                        : 'border border-white/10 bg-white/5 text-white/40',
+                        ? 'chambre-reward-primary--available'
+                        : 'chambre-reward-primary--unavailable',
                     )}
                   >
                     {canOpen ? (
@@ -546,7 +516,7 @@ export default function BoostersClient() {
                   <button
                     type="button"
                     onClick={() => setShowSpinModal(true)}
-                    className="h-12 px-6 rounded-2xl font-bold text-sm border border-amber-500/30 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 transition-all"
+                    className="chambre-reward-secondary"
                   >
                     <span className="flex items-center gap-2"><Gift className="w-4 h-4" />Roue quotidienne</span>
                   </button>
@@ -594,7 +564,7 @@ export default function BoostersClient() {
         {/* ══════════════════════════════════════
             NAVIGATION
         ══════════════════════════════════════ */}
-        <nav className="sticky top-0 z-20 border-y border-white/5 backdrop-blur-xl" style={{ background: 'rgba(5,5,16,0.8)' }}>
+        <nav className="chambre-boosters-controls sticky top-0 z-20 border-y border-white/5" aria-label="Collection de boosters">
           <div className="max-w-5xl mx-auto px-4 flex items-center gap-1 overflow-x-auto py-2 scrollbar-none">
             {tabs.map((t) => {
               const Icon = t.icon;
@@ -603,6 +573,7 @@ export default function BoostersClient() {
                   key={t.id}
                                 type="button"
                   onClick={() => setTab(t.id)}
+                  aria-pressed={tab === t.id}
                                 className={cx(
                     'flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-semibold transition-all whitespace-nowrap',
                     tab === t.id
@@ -619,10 +590,10 @@ export default function BoostersClient() {
             <div className="ml-auto flex items-center gap-2 shrink-0">
               <div className="relative">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white/30" />
-                <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher..."
+                <input value={q} onChange={(e) => setQ(e.target.value)} aria-label="Rechercher un booster" placeholder="Rechercher..."
                   className="h-9 pl-8 pr-3 w-32 sm:w-40 rounded-xl border border-white/10 bg-white/5 text-xs text-white placeholder:text-white/20 outline-none focus:border-violet-500/50 transition" />
                   </div>
-              <button type="button" onClick={() => setShowFilters(true)} className="h-9 w-9 rounded-xl border border-white/10 bg-white/5 grid place-items-center text-white/40 hover:text-white hover:bg-white/10 transition">
+              <button type="button" onClick={() => setShowFilters(true)} aria-label="Filtrer les boosters" className="h-9 w-9 rounded-xl border border-white/10 bg-white/5 grid place-items-center text-white/40 hover:text-white hover:bg-white/10 transition">
                 <Filter className="h-3.5 w-3.5" />
               </button>
                   </div>
@@ -652,7 +623,7 @@ export default function BoostersClient() {
                           const msLeft = new Date(b.expires_at).getTime() - nowTs;
                           return (
                           <div key={`t-${idx}`} className="flex items-center gap-3 p-2 rounded-xl bg-white/5 border border-white/5">
-                            {t?.coverUrl && <img src={t.coverUrl} alt="" className="w-8 h-8 rounded-lg object-cover" />}
+                            {t?.coverUrl && <SynauraImage src={t.coverUrl} alt="" className="w-8 h-8 rounded-lg object-cover" />}
                               <div className="min-w-0 flex-1">
                               <div className="text-xs font-semibold text-white truncate">{t?.title || 'Piste'}</div>
                               <div className="text-[10px] text-white/40">x{Number(b.multiplier).toFixed(2)} · {formatRemaining(msLeft)}</div>
@@ -690,7 +661,7 @@ export default function BoostersClient() {
                 </div>
 
                 {/* Card grid */}
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
+                <div className="chambre-booster-grid grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
                   {filteredInventory.map((item, idx) => (
                     <BoosterCard
                       key={item.id}
@@ -822,28 +793,28 @@ export default function BoostersClient() {
                 </div>
 
                 {/* Packs */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="chambre-reward-shop-packs">
                   {/* Starter Pack */}
-                  <div className="group relative rounded-2xl border border-violet-500/20 overflow-hidden transition-all hover:border-violet-500/40 hover:shadow-lg hover:shadow-violet-500/10">
-                    <div className="absolute inset-0 bg-gradient-to-br from-violet-900/30 to-purple-900/20" />
-                    <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-violet-500/50 to-transparent" />
-                    <div className="relative p-5">
+                  <div className="chambre-reward-shop-pack relative">
+                    <div className="chambre-reward-shop-material absolute inset-0" />
+                    <div className="chambre-reward-topline" />
+                    <div className="chambre-reward-shop-pack-content relative">
                       <div className="flex items-start justify-between gap-3 mb-4">
                         <div>
                           <div className="flex items-center gap-2 mb-1">
-                            <Package className="w-5 h-5 text-violet-400" />
-                            <span className="text-base font-black text-white">Pack Starter</span>
+                            <Package className="chambre-reward-shop-symbol w-5 h-5" />
+                            <span className="chambre-reward-shop-title">Pack Starter</span>
                           </div>
                           <div className="text-xs text-white/40">3 boosters · 1 rare garanti · Hebdo</div>
                         </div>
-                        <div className="px-2 py-1 rounded-lg border border-blue-500/30 bg-blue-500/10 text-[10px] font-bold text-blue-400 uppercase">Rare+</div>
+                        <div className="chambre-reward-shop-label">Rare+</div>
                       </div>
                       <div className="text-[11px] text-white/25 mb-3">{packs?.starter_weekly ? `${packs.starter_weekly.claimed}/${packs.starter_weekly.perWeek} cette semaine` : '---'}</div>
                     <button
                       type="button"
                         onClick={() => claimPack('starter_weekly')}
                         disabled={plan === 'free' || (packs?.starter_weekly ? packs.starter_weekly.claimed >= packs.starter_weekly.perWeek : false)}
-                        className="w-full h-11 rounded-xl font-bold text-sm text-white bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-500 hover:to-purple-500 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                        className="chambre-reward-primary w-full"
                     >
                         Ouvrir le pack
                     </button>
@@ -851,26 +822,26 @@ export default function BoostersClient() {
                 </div>
 
                   {/* Pro Pack */}
-                  <div className="group relative rounded-2xl border border-amber-500/20 overflow-hidden transition-all hover:border-amber-500/40 hover:shadow-lg hover:shadow-amber-500/10">
-                    <div className="absolute inset-0 bg-gradient-to-br from-amber-900/20 to-orange-900/15" />
-                    <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-amber-500/50 to-transparent" />
-                    <div className="relative p-5">
+                  <div className="chambre-reward-shop-pack relative">
+                    <div className="chambre-reward-shop-material absolute inset-0" />
+                    <div className="chambre-reward-topline" />
+                    <div className="chambre-reward-shop-pack-content relative">
                       <div className="flex items-start justify-between gap-3 mb-4">
                         <div>
                           <div className="flex items-center gap-2 mb-1">
-                            <Crown className="w-5 h-5 text-amber-400" />
-                            <span className="text-base font-black text-white">Pack Pro</span>
+                            <Crown className="chambre-reward-shop-symbol w-5 h-5" />
+                            <span className="chambre-reward-shop-title">Pack Pro</span>
                     </div>
                           <div className="text-xs text-white/40">5 boosters · 1 rare garanti · 2/sem</div>
                     </div>
-                        <div className="px-2 py-1 rounded-lg border border-amber-500/30 bg-amber-500/10 text-[10px] font-bold text-amber-400 uppercase">Premium</div>
+                        <div className="chambre-reward-shop-label">Premium</div>
                     </div>
                       <div className="text-[11px] text-white/25 mb-3">{packs?.pro_weekly ? `${packs.pro_weekly.claimed}/${packs.pro_weekly.perWeek} cette semaine` : '---'}</div>
                       <button
                         type="button"
                     onClick={() => claimPack('pro_weekly')}
                         disabled={(plan !== 'pro' && plan !== 'enterprise') || (packs?.pro_weekly ? packs.pro_weekly.claimed >= packs.pro_weekly.perWeek : false)}
-                        className="w-full h-11 rounded-xl font-bold text-sm text-white bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                        className="chambre-reward-primary w-full"
                       >
                         Ouvrir le pack
                       </button>

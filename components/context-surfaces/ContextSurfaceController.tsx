@@ -97,7 +97,7 @@ function MissingSurface({ closeSurface }: Pick<ContextSurfaceRendererProps, 'clo
       <button
         type="button"
         onClick={closeSurface}
-        className="syn-interactive syn-touch-target mt-6 rounded-full bg-[var(--syn-accent)] px-5 text-sm font-black text-white"
+        className="syn-interactive syn-touch-target mt-6 rounded-[var(--v2-radius-sm)] bg-[var(--v2-accent-fill)] px-5 text-sm font-medium text-white"
       >
         Revenir
       </button>

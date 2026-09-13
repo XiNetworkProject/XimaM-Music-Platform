@@ -1,0 +1,504 @@
+'use client';
+
+import '@/components/v2/music-v2.css';
+
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { ChevronDown, ChevronUp, EyeOff, Info, ListMusic, MessageSquare, MoreHorizontal, Pause, Play, Radio, Repeat2, Share2, SkipBack, SkipForward, SlidersHorizontal, Sparkles, ThumbsDown, ThumbsUp, Trash2, X } from 'lucide-react';
+import { useAudioPlayer, useAudioTime } from '@/app/providers';
+import TikTokPlayer from './TikTokPlayer';
+import TrackCover from './TrackCover';
+import TrackCreateRemixActions from './TrackCreateRemixActions';
+import { useTrackActions } from './actions/useTrackActions';
+import QueueDialog from './QueueDialog';
+import { recommendationReasonLabel } from '@/lib/recommendation/reasonLabels';
+import { shouldRenderGlobalMiniPlayer } from '@/lib/routeChrome';
+
+function toTime(seconds: number) {
+  const safe = Math.max(0, Math.floor(seconds || 0));
+  const minutes = Math.floor(safe / 60);
+  const secs = safe % 60;
+  return `${minutes}:${String(secs).padStart(2, '0')}`;
+}
+
+function trackArtist(track: any) {
+  if (!track) return 'Artiste inconnu';
+  if (typeof track.artist === 'string') return track.artist;
+  return track.artist?.artistName || track.artist?.name || track.artist?.username || 'Artiste inconnu';
+}
+
+function TastePanel({
+  explanation,
+  canHideArtist,
+  busy,
+  feedback,
+  onAction,
+  onClose,
+}: {
+  explanation: string;
+  canHideArtist: boolean;
+  busy: 'more' | 'less' | 'hide_artist' | null;
+  feedback: string;
+  onAction: (action: 'more' | 'less' | 'hide_artist') => void;
+  onClose: () => void;
+}) {
+  const actions = [
+    { action: 'more' as const, label: 'Plus comme ça', icon: ThumbsUp, disabled: false },
+    { action: 'less' as const, label: 'Moins comme ça', icon: ThumbsDown, disabled: false },
+    { action: 'hide_artist' as const, label: 'Masquer cet artiste', icon: EyeOff, disabled: !canHideArtist },
+  ];
+  return (
+    <div className="mx-auto mb-2 max-w-[980px] rounded-[1.25rem] border border-[var(--syn-border)] bg-[var(--syn-surface-translucent)] p-3 text-[var(--syn-text-primary)] shadow-[0_22px_60px_var(--syn-shadow)] backdrop-blur-2xl">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#4A9EAA]">Affiner ton Flow</p>
+          {explanation ? (
+            <div className="mt-2 flex items-center gap-2 text-xs font-semibold text-[var(--syn-text-secondary)]">
+              <Info className="h-4 w-4 shrink-0 text-[#4A9EAA]" />
+              <span><strong className="text-[var(--syn-text-primary)]">Pourquoi ce morceau ?</strong> {explanation}</span>
+            </div>
+          ) : null}
+        </div>
+        <button type="button" onClick={onClose} className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[var(--syn-soft)] text-[var(--syn-text-secondary)]" aria-label="Fermer">
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+      <div className="mt-3 grid gap-2 sm:grid-cols-3">
+        {actions.map(({ action, label, icon: Icon, disabled }) => (
+          <button
+            key={action}
+            type="button"
+            disabled={disabled || Boolean(busy)}
+            onClick={() => onAction(action)}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[var(--syn-border)] bg-[var(--syn-soft)] px-3 text-xs font-black transition hover:bg-[var(--syn-soft-strong)] disabled:opacity-40"
+          >
+            <Icon className="h-4 w-4" />
+            {busy === action ? 'Enregistrement...' : label}
+          </button>
+        ))}
+      </div>
+      {feedback ? <p className="mt-2 text-xs font-bold text-[#4A9EAA]">{feedback}</p> : null}
+    </div>
+  );
+}
+
+export default function SynauraMiniPlayer() {
+  const pathname = usePathname();
+  const {
+    audioState,
+    albumContext,
+    playTrack,
+    play,
+    pause,
+    nextTrack,
+    previousTrack,
+    seek,
+    upNextTracks,
+    removeFromUpNext,
+    clearUpNext,
+    moveUpNext,
+    addToUpNext,
+  } = useAudioPlayer();
+  const { currentTime, duration } = useAudioTime();
+
+  const progressRef = useRef<HTMLDivElement>(null);
+  const [showTikTok, setShowTikTok] = useState(false);
+  const [showQueue, setShowQueue] = useState(false);
+  const trackActions = useTrackActions();
+  const [showTaste, setShowTaste] = useState(false);
+  const [tasteBusy, setTasteBusy] = useState<'more' | 'less' | 'hide_artist' | null>(null);
+  const [tasteFeedback, setTasteFeedback] = useState('');
+  const [relatedTracks, setRelatedTracks] = useState<any[]>([]);
+  const [relatedLabel, setRelatedLabel] = useState('');
+
+  const currentTrack = audioState.tracks[audioState.currentTrackIndex] || null;
+  const currentTrackId = String(currentTrack?._id || (currentTrack as any)?.id || '');
+  const track = useMemo(
+    () => ({
+      id: currentTrack?._id || '',
+      title: currentTrack?.title || 'Titre inconnu',
+      artist: currentTrack?.artist?.name || currentTrack?.artist?.username || 'Artiste inconnu',
+      cover: currentTrack?.coverUrl || null,
+      coverVideo: (currentTrack as any)?.coverVideoUrl || (currentTrack as any)?.cover_video_url || null,
+      coverVideoPoster: (currentTrack as any)?.coverVideoPosterUrl || (currentTrack as any)?.cover_video_poster_url || currentTrack?.coverUrl || null,
+      src: currentTrack?.audioUrl || '',
+    }),
+    [currentTrack],
+  );
+
+  const isHls = useMemo(() => Boolean(track.src?.toLowerCase?.().endsWith?.('.m3u8')), [track.src]);
+  const isLive = useMemo(() => isHls || /\blive\b|radio|stream/i.test(track.title || ''), [isHls, track.title]);
+  const isAI = useMemo(
+    () => !isLive && ((currentTrack as any)?.isAI || String(currentTrack?._id || '').startsWith('ai-') || String(currentTrack?._id || '').startsWith('gen-')),
+    [currentTrack, isLive],
+  );
+
+  const progressPct = duration ? ((currentTime || 0) / duration) * 100 : 0;
+  const artistUsername = (currentTrack as any)?.artist?.username;
+  const artistId = String((currentTrack as any)?.artist?._id || '');
+  const tasteExplanation = recommendationReasonLabel((currentTrack as any)?.recommendationReasons, relatedLabel);
+  const nextQueueTracks = audioState.tracks.slice(Math.max(0, audioState.currentTrackIndex + 1), audioState.currentTrackIndex + 6);
+
+  useEffect(() => {
+    const id = currentTrackId;
+    if (!id || id.startsWith('radio-') || id.startsWith('ai-') || id.startsWith('gen-')) {
+      setRelatedTracks([]);
+      setRelatedLabel('');
+      return;
+    }
+    const controller = new AbortController();
+    fetch(`/api/tracks/similar?trackId=${encodeURIComponent(id)}&limit=10`, {
+      cache: 'no-store',
+      signal: controller.signal,
+    })
+      .then((response) => response.ok ? response.json() : null)
+      .then((payload) => {
+        if (!payload) return;
+        setRelatedTracks((Array.isArray(payload.tracks) ? payload.tracks : []).filter((item: any) => String(item?._id || item?.id || '') !== id));
+        setRelatedLabel(typeof payload.contextLabel === 'string' ? payload.contextLabel : '');
+      })
+      .catch((error) => {
+        if (error?.name === 'AbortError') return;
+        setRelatedTracks([]);
+        setRelatedLabel('');
+      });
+    return () => controller.abort();
+  }, [currentTrackId]);
+
+  const togglePlay = async () => {
+    if (audioState.isPlaying) pause();
+    else await play();
+  };
+
+  const seekTo = (fraction: number) => {
+    if (!duration) return;
+    seek(Math.max(0, Math.min(duration, fraction * duration)));
+  };
+
+  const onProgressClick = (event: React.MouseEvent) => {
+    const bar = progressRef.current;
+    if (!bar) return;
+    const rect = bar.getBoundingClientRect();
+    seekTo((event.clientX - rect.left) / rect.width);
+  };
+
+  const onProgressKeyDown = (event: React.KeyboardEvent) => {
+    if (!duration) return;
+    let next: number | null = null;
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowDown') next = Math.max(0, currentTime - 5);
+    if (event.key === 'ArrowRight' || event.key === 'ArrowUp') next = Math.min(duration, currentTime + 5);
+    if (event.key === 'Home') next = 0;
+    if (event.key === 'End') next = duration;
+    if (next === null) return;
+    event.preventDefault();
+    seek(next);
+  };
+
+  const handleShare = async () => {
+    if (!currentTrack) return;
+    const url = albumContext
+      ? `${window.location.origin}/album/${albumContext.id}`
+      : `${window.location.origin}/track/${currentTrack._id}`;
+    const title = albumContext ? albumContext.name : track.title;
+    try {
+      if ((navigator as any).share) {
+        await (navigator as any).share({ title, text: `Ecoute ${title} sur Synaura`, url });
+      } else {
+        await navigator.clipboard.writeText(url);
+      }
+      fetch('/api/recommendations/impressions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contentType: 'track', contentId: currentTrack._id, source: 'global-player', eventType: 'share' }),
+        keepalive: true,
+      }).catch(() => {});
+    } catch {}
+  };
+
+  const applyTaste = async (action: 'more' | 'less' | 'hide_artist') => {
+    if (!currentTrackId || tasteBusy) return;
+    setTasteBusy(action);
+    setTasteFeedback('');
+    try {
+      const response = await fetch('/api/recommendations/taste', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, trackId: currentTrackId, artistId: artistId || undefined, source: 'web-global-player' }),
+      });
+      if (!response.ok) throw new Error();
+      setTasteFeedback(action === 'more'
+        ? 'Compris, Synaura cherchera davantage cette aura.'
+        : action === 'less'
+          ? 'Compris, ce type de son sera moins présent.'
+          : 'Cet artiste ne sera plus proposé dans ton Flow.');
+      if (action !== 'more') {
+        setShowTaste(false);
+        nextTrack();
+      }
+    } catch {
+      setTasteFeedback('Connecte-toi pour personnaliser durablement ton Flow.');
+    } finally {
+      setTasteBusy(null);
+    }
+  };
+
+  useEffect(() => {
+    setTasteFeedback('');
+    setTasteBusy(null);
+  }, [currentTrackId]);
+
+  useEffect(() => {
+    if (showTikTok) return;
+    const onKey = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement;
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+      if (event.code === 'Space') {
+        event.preventDefault();
+        void togglePlay();
+      }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [showTikTok, audioState.isPlaying]);
+
+  useEffect(() => {
+    const open = () => setShowTikTok(true);
+    window.addEventListener('synaura:open-full-player', open);
+    return () => window.removeEventListener('synaura:open-full-player', open);
+  }, []);
+
+  if (!currentTrack || !audioState.showPlayer || !shouldRenderGlobalMiniPlayer(pathname)) return null;
+
+  return (
+    <>
+      {showTikTok ? (
+        <TikTokPlayer
+          isOpen={showTikTok}
+          onClose={() => setShowTikTok(false)}
+          initialTrackId={currentTrack?._id || (currentTrack as any)?.id}
+        />
+      ) : null}
+
+      {!showTikTok ? (
+        <>
+          <div className="v2-mini-player synaura-player-surface pointer-events-none fixed inset-x-0 bottom-[var(--synaura-primary-dock-space)] z-[60] lg:bottom-0" data-chambre-music="mini-player">
+            <div className="pointer-events-auto px-0 pb-0 sm:px-4 sm:pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)]">
+              {showQueue ? (
+                <QueueDialog isOpen={showQueue} onClose={() => setShowQueue(false)} />
+              ) : null}
+              {showTaste ? (
+                <TastePanel
+                  explanation={tasteExplanation}
+                  canHideArtist={Boolean(artistId)}
+                  busy={tasteBusy}
+                  feedback={tasteFeedback}
+                  onAction={(action) => void applyTaste(action)}
+                  onClose={() => setShowTaste(false)}
+                />
+              ) : null}
+              <div className="v2-mini-player-body">
+                <div
+                  ref={progressRef}
+                  onClick={onProgressClick}
+                  onKeyDown={onProgressKeyDown}
+                  className="relative h-1.5 cursor-pointer bg-black/[0.06] outline-none focus-visible:ring-2 focus-visible:ring-[#7357C6] focus-visible:ring-offset-2"
+                  role="slider"
+                  tabIndex={duration ? 0 : -1}
+                  aria-label="Position dans le morceau"
+                  aria-valuemin={0}
+                  aria-valuemax={duration || 0}
+                  aria-valuenow={currentTime || 0}
+                  aria-valuetext={`${toTime(currentTime || 0)} sur ${toTime(duration || 0)}`}
+                  aria-disabled={!duration}
+                >
+                  <div
+                    className="absolute left-0 top-0 h-full bg-[#7357C6] transition-[width] duration-150"
+                    style={{ width: `${progressPct}%` }}
+                  />
+                </div>
+
+                <div className="v2-mini-desktop">
+                  <button type="button" className="flex min-w-0 flex-1 items-center gap-3 text-left" onClick={() => setShowTikTok(true)}>
+                    <div className="relative shrink-0">
+                      <TrackCover trackId={track.id} src={track.cover} videoSrc={track.coverVideo} posterSrc={track.coverVideoPoster} title={track.title} autoPlayVideo={audioState.isPlaying} className="h-11 w-11 ring-1 ring-black/[0.08]" rounded="rounded-[1rem]" objectFit="cover" />
+                      {isLive ? (
+                        <span className="absolute -top-1 -right-1 inline-flex items-center gap-1 rounded-full bg-red-500 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wide text-white">
+                          <Radio className="h-2.5 w-2.5" />
+                          Live
+                        </span>
+                      ) : null}
+                      {isAI ? (
+                        <span className="absolute -top-1 -right-1 inline-flex items-center gap-1 rounded-full bg-[#7357C6] px-1.5 py-0.5 text-[8px] font-black text-white">
+                          <Sparkles className="h-2.5 w-2.5" />
+                          IA
+                        </span>
+                      ) : null}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate text-[13px] font-black leading-tight">{track.title}</p>
+                      <p className="truncate text-[11px] leading-tight text-black/42">
+                        {track.artist}
+                        {albumContext ? <span className="text-black/26"> · {albumContext.name}</span> : null}
+                      </p>
+                    </div>
+                  </button>
+
+                  <div className="v2-mini-transports flex items-center gap-1">
+                    <button onClick={previousTrack} className="grid h-9 w-9 place-items-center rounded-full bg-black/[0.05] text-black/55 transition hover:bg-black/[0.1] hover:text-[#171313]" aria-label="Precedent">
+                      <SkipBack className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={togglePlay}
+                      disabled={audioState.isLoading}
+                      className="grid h-10 w-10 place-items-center rounded-full bg-[#171313] text-[#fffaf2] transition hover:scale-[1.03]"
+                      aria-label={audioState.isPlaying ? 'Pause' : 'Play'}
+                    >
+                      {audioState.isPlaying ? <Pause className="w-4 h-4" /> : <Play className="ml-0.5 w-4 h-4 fill-current" />}
+                    </button>
+                    <button onClick={nextTrack} className="grid h-9 w-9 place-items-center rounded-full bg-black/[0.05] text-black/55 transition hover:bg-black/[0.1] hover:text-[#171313]" aria-label="Suivant">
+                      <SkipForward className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <div className="v2-mini-time items-center gap-2 text-[10px] font-mono text-black/32 tabular-nums">
+                    <span>{toTime(currentTime || 0)}</span>
+                    <span>/</span>
+                    <span>{toTime(duration || 0)}</span>
+                  </div>
+
+                  <details className="v2-mini-menu" onKeyDown={event => { if (event.key === ' ') event.stopPropagation(); if (event.key === 'Escape') { event.stopPropagation(); event.currentTarget.open = false; event.currentTarget.querySelector('summary')?.focus(); } }}>
+                    <summary className="v2-mini-more" aria-label="Toutes les actions du lecteur"><MoreHorizontal size={21} /><span>Actions</span></summary>
+                    <div className="v2-mini-menu-panel">
+                    {artistUsername ? (
+                      <Link
+                        href={`/profile/${encodeURIComponent(artistUsername)}`}
+                        className="hidden h-9 items-center gap-2 rounded-full bg-black/[0.05] px-3 text-xs font-black text-black/58 transition hover:bg-black/[0.1] hover:text-[#171313] lg:inline-flex"
+                        onClick={() => {
+                          fetch('/api/recommendations/impressions', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ contentType: 'track', contentId: currentTrack._id, source: 'global-player', eventType: 'open_artist' }),
+                            keepalive: true,
+                          }).catch(() => {});
+                        }}
+                      >
+                        Artiste
+                      </Link>
+                    ) : null}
+                    <button
+                      onClick={() => addToUpNext(currentTrack as any, 'end')}
+                      className="hidden h-9 items-center gap-2 rounded-full bg-black/[0.05] px-3 text-xs font-black text-black/58 transition hover:bg-black/[0.1] hover:text-[#171313] lg:inline-flex"
+                      aria-label="Ajouter à la file"
+                    >
+                      + File
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (albumContext || isLive || String(currentTrack?._id || '').startsWith('radio-')) void handleShare();
+                        else void trackActions.share(currentTrack);
+                      }}
+                      className="inline-flex h-9 items-center gap-2 rounded-full bg-black/[0.05] px-3 text-xs font-black text-black/58 transition hover:bg-black/[0.1] hover:text-[#171313]"
+                      aria-label="Partager"
+                    >
+                      <Share2 className="w-3.5 h-3.5" />
+                      Partager
+                    </button>
+                    <button
+                      onClick={() => setShowTikTok(true)}
+                      className="inline-flex h-9 items-center gap-2 rounded-full bg-black/[0.05] px-3 text-xs font-black text-black/58 transition hover:bg-black/[0.1] hover:text-[#171313]"
+                      aria-label="Player complet"
+                    >
+                      <ListMusic className="w-3.5 h-3.5" />
+                      Lecteur complet
+                    </button>
+                    <button
+                      onClick={(event) => {
+                        setShowTaste((value) => !value);
+                        setShowQueue(false);
+                        const disclosure = event.currentTarget.closest('details');
+                        if (disclosure) { disclosure.open = false; disclosure.querySelector('summary')?.focus(); }
+                      }}
+                      className="inline-flex h-9 items-center gap-2 rounded-full bg-[var(--syn-soft)] px-3 text-xs font-black text-[var(--syn-text-secondary)] transition hover:bg-[var(--syn-soft-strong)] hover:text-[var(--syn-text-primary)]"
+                      aria-label="Affiner le Flow"
+                      title="Affiner le Flow"
+                    >
+                      <SlidersHorizontal className="h-3.5 w-3.5" />
+                      Affiner
+                    </button>
+                    <button
+                      onClick={() => setShowQueue((value) => !value)}
+                      className="inline-flex h-9 items-center gap-2 rounded-full bg-black/[0.05] px-3 text-xs font-black text-black/58 transition hover:bg-black/[0.1] hover:text-[#171313]"
+                      aria-label="À suivre"
+                    >
+                      <ListMusic className="w-3.5 h-3.5" />
+                      À suivre
+                      {upNextTracks.length ? <span className="rounded-full bg-[#171313] px-1.5 py-0.5 text-[9px] text-white">{upNextTracks.length}</span> : null}
+                    </button>
+                    <Link
+                      href={`/community/forum/new?category=feedback&trackId=${encodeURIComponent(String(currentTrack._id))}&title=${encodeURIComponent(String(currentTrack.title || ''))}&source=player`}
+                      className="hidden h-9 items-center gap-2 rounded-full bg-black/[0.05] px-3 text-xs font-black text-black/58 transition hover:bg-black/[0.1] hover:text-[#171313] 2xl:inline-flex"
+                    >
+                      <MessageSquare className="w-3.5 h-3.5" />
+                      Avis
+                    </Link>
+                    <Link
+                      href={`/community/forum/new?category=remix&trackId=${encodeURIComponent(String(currentTrack._id))}&title=${encodeURIComponent(String(currentTrack.title || ''))}&source=player`}
+                      className="hidden h-9 items-center gap-2 rounded-full bg-black/[0.05] px-3 text-xs font-black text-black/58 transition hover:bg-black/[0.1] hover:text-[#171313] 2xl:inline-flex"
+                    >
+                      <Repeat2 className="w-3.5 h-3.5" />
+                      Défi
+                    </Link>
+                    <TrackCreateRemixActions track={currentTrack as any} compact className="hidden xl:flex" />
+                    </div>
+                  </details>
+                </div>
+
+                {audioState.error ? (
+                  <div className="mx-3 mb-2 flex flex-wrap items-center justify-between gap-2 rounded-[1rem] bg-red-500/10 px-3 py-2 text-xs font-bold text-red-700">
+                    <span className="line-clamp-1">Lecture impossible : {audioState.error}</span>
+                    <div className="flex gap-2">
+                      <button type="button" onClick={() => void play()} className="rounded-full bg-red-600 px-3 py-1 text-white">Réessayer</button>
+                      {isAI ? <Link href="/ai-generator" className="rounded-full bg-white px-3 py-1 text-red-700">Studio</Link> : null}
+                    </div>
+                  </div>
+                ) : null}
+
+                <div className="v2-mini-mobile">
+                  <button type="button" className="flex min-w-0 flex-1 items-center gap-2 text-left" onClick={() => setShowTikTok(true)}>
+                    <div className="relative shrink-0">
+                      <TrackCover trackId={track.id} src={track.cover} videoSrc={track.coverVideo} posterSrc={track.coverVideoPoster} title={track.title} autoPlayVideo={audioState.isPlaying} className="h-8 w-8 ring-1 ring-black/[0.08]" rounded="rounded-[0.75rem]" objectFit="cover" />
+                      {isLive ? <span className="absolute -top-1 -right-1 rounded-full bg-red-500 px-1 py-0.5 text-[7px] font-black uppercase text-white">LIVE</span> : null}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate text-[12px] font-black leading-tight">{track.title}</p>
+                      <p className="truncate text-[9px] leading-tight text-black/42">{track.artist}</p>
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={togglePlay}
+                    disabled={audioState.isLoading}
+                    className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#171313] text-[#fffaf2]"
+                    aria-label={audioState.isPlaying ? 'Pause' : 'Play'}
+                  >
+                    {audioState.isPlaying ? <Pause className="w-4 h-4" /> : <Play className="ml-0.5 w-4 h-4 fill-current" />}
+                  </button>
+                  <button
+                    onClick={() => setShowQueue((value) => !value)}
+                    className="relative grid h-11 w-11 shrink-0 place-items-center rounded-full bg-black/[0.05] text-black/55"
+                    aria-label="À suivre"
+                  >
+                    <ListMusic className="w-4 h-4" />
+                    {upNextTracks.length ? <span className="absolute -right-1 -top-1 rounded-full bg-[#171313] px-1.5 py-0.5 text-[8px] font-black text-white">{upNextTracks.length}</span> : null}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </>
+      ) : null}
+    </>
+  );
+}

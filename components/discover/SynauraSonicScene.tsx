@@ -6,7 +6,7 @@ import gsap from 'gsap';
 import { BlendFunction, KernelSize, ToneMappingMode } from 'postprocessing';
 import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
-import { SYNAURA_BRAND } from '@/lib/brand';
+import { SYNAURA_V2_REFERENCE } from '@/lib/brandV2';
 import {
   SONIC_SCENE,
   SONIC_TIMELINE,
@@ -119,7 +119,7 @@ function SynauraRealtimeScene({
   onComplete,
   onMetrics,
 }: SceneProps) {
-  const logoTexture = useLoader(THREE.TextureLoader, SYNAURA_BRAND.symbol);
+  const logoTexture = useLoader(THREE.TextureLoader, SYNAURA_V2_REFERENCE);
   const { camera, gl } = useThree();
   const targetRef = useRef<THREE.Object3D>(null);
   const sourceRef = useRef<THREE.Mesh>(null);
@@ -174,7 +174,7 @@ function SynauraRealtimeScene({
   }), [gl, quality.dpr, sourcePosition]);
   const logoUniforms = useMemo(() => ({
     uMap: { value: logoTexture },
-    uTexel: { value: new THREE.Vector2(1 / 1024, 1 / 1024) },
+    uTexel: { value: new THREE.Vector2(1 / 125, 1 / 35) },
     uDepth: { value: SONIC_SCENE.logo.relief },
     uLightX: { value: 0.72 },
     uLightY: { value: 0.57 },
@@ -627,12 +627,8 @@ function SynauraRealtimeScene({
       </points>
 
       <group ref={logoGroupRef} position={[0, 0, SONIC_SCENE.logo.z]} rotation={[0.015, -0.045, -0.008]}>
-        <mesh position={[0, 0, -0.055]} scale={[1.008, 1.008, 1.008]} renderOrder={2}>
-          <planeGeometry args={[logoSize, logoSize]} />
-          <meshBasicMaterial map={logoTexture} color="#010102" transparent opacity={0.035} alphaTest={0.018} depthWrite />
-        </mesh>
         <mesh renderOrder={3}>
-          <planeGeometry args={[logoSize, logoSize, quality.name === 'HIGH' ? 96 : 64, quality.name === 'HIGH' ? 96 : 64]} />
+          <planeGeometry args={[logoSize * 1.4, logoSize * 1.4 * 35 / 125, quality.name === 'HIGH' ? 96 : 64, quality.name === 'HIGH' ? 96 : 64]} />
           <shaderMaterial
             ref={logoMaterialRef}
             vertexShader={LOGO_VERTEX_SHADER}

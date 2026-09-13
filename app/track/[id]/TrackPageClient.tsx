@@ -1,4 +1,5 @@
 'use client';
+import '@/components/v2/music-v2.css';
 import { SynauraImage } from '@/components/ui/SynauraImage';
 
 import { useEffect, useState } from 'react';
@@ -18,6 +19,9 @@ import { useCommentsSurface } from '@/components/comments/useCommentsSurface';
 import CommentCount from '@/components/comments/CommentCount';
 import TrackActionButton from '@/components/actions/TrackActionButton';
 import FavoriteAction from '@/components/actions/FavoriteAction';
+import Waveform from '@/components/player/Waveform';
+import { useTrackWaveform } from '@/hooks/useTrackWaveform';
+import { useMomentComments } from '@/hooks/useMomentComments';
 
 interface TrackData {
   id: string;
@@ -74,15 +78,19 @@ export default function TrackPageClient({ track }: { track: TrackData | null }) 
   const { data: session } = useSession();
   const router = useRouter();
   const openComments = useCommentsSurface('other');
-  const { playTrack, audioState, play, pause, setShowPlayer, setIsMinimized } = useAudioPlayer();
+  const { playTrack, audioState, play, pause, seek, getAudioElement, setShowPlayer, setIsMinimized } = useAudioPlayer();
 
   const currentTrack = audioState.tracks?.[audioState.currentTrackIndex];
   const isCurrentTrack = currentTrack?._id === track?.id;
   const isPlaying = isCurrentTrack && audioState.isPlaying;
+  // The route observes the one global current track; inactive destinations issue no waveform/moment query.
+  const waveformTrackId = isCurrentTrack && track && !track.isAI ? track.id : undefined;
+  const waveform = useTrackWaveform(waveformTrackId, waveformTrackId ? track?.audioUrl : undefined, track?.duration);
+  const moments = useMomentComments(waveformTrackId);
 
   if (!track) {
     return (
-      <SynauraAppShell contentClassName="max-w-[1100px]">
+      <SynauraAppShell contentClassName="v2-music-shell v2-track-shell">
         <SynauraTopBar searchHref="/discover" searchLabel="Rechercher un son, un post ou un createur..." />
         <SynauraPanel className="px-6 py-14 text-center sm:px-8">
           <Music className="mx-auto h-14 w-14 text-black/16" />
@@ -128,10 +136,10 @@ export default function TrackPageClient({ track }: { track: TrackData | null }) 
   const coverSrc = track.coverUrl || null;
 
   return (
-    <SynauraAppShell contentClassName="max-w-[1180px]">
+    <SynauraAppShell contentClassName="v2-music-shell v2-track-shell">
       <SynauraTopBar searchHref="/discover" searchLabel="Rechercher un son, un post ou un createur..." />
 
-      <div className="space-y-4 pb-24">
+      <div className="v2-track-page" data-chambre-music="track">
         <button
           onClick={() => router.back()}
           className="inline-flex h-11 items-center gap-2 rounded-full border border-black/[0.08] bg-[#fffaf2]/88 px-4 text-sm font-black text-black/56 shadow-[0_14px_36px_rgba(30,25,20,0.08)] transition hover:bg-[#171313] hover:text-white"
@@ -140,16 +148,16 @@ export default function TrackPageClient({ track }: { track: TrackData | null }) 
           Retour
         </button>
 
-        <SynauraInkPanel className="overflow-hidden">
+        <SynauraInkPanel className="v2-track-hero">
           {coverSrc ? (
             <div className="absolute inset-0">
               <SynauraImage src={coverSrc} alt="" className="h-full w-full object-cover opacity-18 blur-[18px] scale-110" />
               <div className="absolute inset-0 bg-gradient-to-br from-[#171313]/70 via-[#171313]/80 to-[#171313]" />
             </div>
           ) : null}
-          <div className="relative px-5 py-6 sm:px-7 sm:py-8">
-            <div className="flex items-center gap-4 sm:gap-6">
-              <div className="relative h-28 w-28 shrink-0 overflow-hidden rounded-[var(--syn-radius-lg)] bg-white/10 shadow-[0_24px_80px_rgba(0,0,0,0.35)] sm:h-52 sm:w-52 lg:h-72 lg:w-72">
+          <div className="v2-track-identity">
+            <div className="v2-track-identity-grid">
+              <div className="v2-track-artwork">
                 {coverSrc ? (
                   <TrackCover
                     src={coverSrc}
@@ -167,17 +175,18 @@ export default function TrackPageClient({ track }: { track: TrackData | null }) 
                 )}
               </div>
 
-              <div className="min-w-0 flex-1">
+              <div className="v2-track-intro">
+                <p className="v2-kicker">Écouter / entrer dans le morceau</p>
                 {track.isAI ? (
                   <span className="inline-flex items-center gap-1 rounded-full border border-white/12 bg-white/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-white/72">
                     <Sparkles className="h-3 w-3" />
                     Creation IA
                   </span>
                 ) : null}
-                <h1 className="mt-3 break-words text-2xl font-black leading-tight tracking-tight text-white sm:text-4xl">
+                <h1 className="v2-heading">
                   {track.title}
                 </h1>
-                <div className="mt-4 flex flex-wrap items-center gap-3">
+                <div className="v2-track-artist mt-4 flex flex-wrap items-center gap-3">
                   <ArtistAvatar name={track.artist} username={track.artistUsername} avatar={track.artistAvatar} />
                   <div className="min-w-0">
                     {track.artistUsername ? (
@@ -195,21 +204,43 @@ export default function TrackPageClient({ track }: { track: TrackData | null }) 
                     </div>
                   </div>
                 </div>
-              </div>
-            </div>
-          </div>
-        </SynauraInkPanel>
-
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1.3fr)_360px]">
-          <SynauraPanel className="p-5 sm:p-6">
             <div data-track-actions-row className="flex flex-wrap items-center gap-2">
               <button onClick={handlePlay} className="syn-interactive inline-flex min-h-12 items-center gap-2 rounded-full bg-[#171313] px-5 text-sm font-black text-white">
-                {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}{isPlaying ? 'Pause' : 'Ecouter'}
+                {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}{isPlaying ? 'Pause' : 'Écouter'}
               </button>
               <FavoriteAction track={track} label className="bg-black/[0.055] px-4 text-sm font-black text-black/60" />
               {!track.isAI && <button type="button" data-context-surface-trigger-key={`track-comments-${track.id}`} onClick={event => openComments({ type: 'track', id: track.id, title: track.title, artist: track.artist, creatorId: track.creatorId || undefined, audioUrl: track.audioUrl, coverUrl: track.coverUrl, duration: track.duration }, event.currentTarget)} className="syn-interactive inline-flex min-h-12 items-center gap-2 rounded-full bg-black/[0.055] px-4 text-sm font-black text-black/60"><MessageSquare className="h-4 w-4" />Commentaires <CommentCount type="track" id={track.id} /></button>}
               <TrackActionButton track={track} className="bg-black/[0.055]" />
             </div>
+
+                <button type="button" disabled={!currentTrack} title={currentTrack ? 'Ouvrir le lecteur du morceau en cours' : 'Écoute un morceau pour ouvrir le lecteur'} onClick={() => { setShowPlayer(true); setIsMinimized(false); window.dispatchEvent(new Event('synaura:open-full-player')); }} className="v2-track-player-link">
+                  <Headphones size={15} /> Ouvrir le lecteur Synaura
+                </button>
+                {!track.isAI ? (
+                  <div className="v2-track-waveform">
+                    {isCurrentTrack ? (
+                      <Waveform
+                        peaks={waveform.peaks}
+                        loading={waveform.loading}
+                        duration={audioState.duration || waveform.duration || track.duration}
+                        getAudioElement={getAudioElement}
+                        onSeek={seek}
+                        markers={moments.markers}
+                        onMarkerSeek={marker => openComments({ type: 'track', id: track.id, title: track.title, artist: track.artist, creatorId: track.creatorId || undefined, audioUrl: track.audioUrl, coverUrl: track.coverUrl, duration: track.duration }, document.activeElement as HTMLElement, undefined, marker.id)}
+                        variant="dark"
+                      />
+                    ) : <p className="v2-metadata">Écoute ce morceau pour suivre sa waveform et ses moments.</p>}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        </SynauraInkPanel>
+
+        <div className="v2-track-context-grid">
+          <SynauraPanel className="v2-track-connections">
+            <p className="v2-kicker">Prolonger ce morceau</p>
+            <h2 className="v2-track-section-title">De l’écoute à la création.</h2>
             <div className="mt-2 flex flex-wrap gap-2">
               <Link href={`/community/forum/new?category=feedback&trackId=${encodeURIComponent(track.id)}&title=${encodeURIComponent(track.title)}&source=track`} className="syn-interactive inline-flex min-h-11 items-center rounded-full px-3 text-xs text-black/60">Demander un avis</Link>
               <Link href={`/community/forum/new?category=remix&trackId=${encodeURIComponent(track.id)}&title=${encodeURIComponent(track.title)}&source=track`} className="syn-interactive inline-flex min-h-11 items-center rounded-full px-3 text-xs text-black/60">Défi remix</Link>
@@ -242,16 +273,10 @@ export default function TrackPageClient({ track }: { track: TrackData | null }) 
               </Link>
             ) : null}
 
-            <div className="mt-4 rounded-[1.35rem] border border-black/[0.08] bg-black/[0.03] p-4">
-              <p className="mb-2 text-xs font-black uppercase tracking-[0.16em] text-black/38">Lecteur audio</p>
-              <button type="button" onClick={handlePlay} className="syn-interactive flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-[#171313] px-4 text-sm font-bold text-white">
-                {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
-                {isPlaying ? 'Mettre en pause' : 'Écouter avec le lecteur Synaura'}
-              </button>
-            </div>
+
           </SynauraPanel>
 
-          <div className="space-y-4">
+          <div className="v2-track-facts">
             <SynauraPanel className="p-5 sm:p-6">
               <p className="text-xs font-black uppercase tracking-[0.18em] text-black/38">Infos</p>
               <div className="mt-4 grid gap-3 text-sm font-semibold text-black/58">

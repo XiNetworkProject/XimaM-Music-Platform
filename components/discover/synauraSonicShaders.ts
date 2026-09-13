@@ -97,14 +97,24 @@ export const BEAM_SHEET_FRAGMENT_SHADER = /* glsl */ `
   }
 `;
 
+// The supplied bitmap is the identity master for this local candidate. No S is drawn.
+// Luminance removes its dark photographic background while retaining its exact strokes.
+const REFERENCE_LOGO_SAMPLE = /* glsl */ `
+  vec4 referenceLogo(vec2 point) {
+    vec4 raster = texture2D(uMap, point);
+    float stroke = smoothstep(0.12, 0.45, dot(raster.rgb, vec3(0.2126, 0.7152, 0.0722)));
+    return vec4(vec3(0.9, 0.94, 1.0), stroke);
+  }
+`;
 export const LOGO_VERTEX_SHADER = /* glsl */ `
   uniform sampler2D uMap;
   uniform float uDepth;
   varying vec2 vUv;
   varying vec3 vViewPosition;
+  ${REFERENCE_LOGO_SAMPLE}
   void main() {
     vUv = uv;
-    float alpha = texture2D(uMap, uv).a;
+    float alpha = referenceLogo(uv).a;
     vec3 sculpted = position + normal * alpha * uDepth;
     vec4 viewPosition = modelViewMatrix * vec4(sculpted, 1.0);
     vViewPosition = viewPosition.xyz;
@@ -125,17 +135,18 @@ export const LOGO_FRAGMENT_SHADER = /* glsl */ `
   uniform float uTime;
   varying vec2 vUv;
   varying vec3 vViewPosition;
+  ${REFERENCE_LOGO_SAMPLE}
   void main() {
-    vec4 mark = texture2D(uMap, vUv);
+    vec4 mark = referenceLogo(vUv);
     if (mark.a < 0.012) discard;
-    float aL = texture2D(uMap, vUv - vec2(uTexel.x, 0.0)).a;
-    float aR = texture2D(uMap, vUv + vec2(uTexel.x, 0.0)).a;
-    float aD = texture2D(uMap, vUv - vec2(0.0, uTexel.y)).a;
-    float aU = texture2D(uMap, vUv + vec2(0.0, uTexel.y)).a;
-    float aL2 = texture2D(uMap, vUv - vec2(uTexel.x * 2.2, 0.0)).a;
-    float aR2 = texture2D(uMap, vUv + vec2(uTexel.x * 2.2, 0.0)).a;
-    float aD2 = texture2D(uMap, vUv - vec2(0.0, uTexel.y * 2.2)).a;
-    float aU2 = texture2D(uMap, vUv + vec2(0.0, uTexel.y * 2.2)).a;
+    float aL = referenceLogo(vUv - vec2(uTexel.x, 0.0)).a;
+    float aR = referenceLogo(vUv + vec2(uTexel.x, 0.0)).a;
+    float aD = referenceLogo(vUv - vec2(0.0, uTexel.y)).a;
+    float aU = referenceLogo(vUv + vec2(0.0, uTexel.y)).a;
+    float aL2 = referenceLogo(vUv - vec2(uTexel.x * 2.2, 0.0)).a;
+    float aR2 = referenceLogo(vUv + vec2(uTexel.x * 2.2, 0.0)).a;
+    float aD2 = referenceLogo(vUv - vec2(0.0, uTexel.y * 2.2)).a;
+    float aU2 = referenceLogo(vUv + vec2(0.0, uTexel.y * 2.2)).a;
     vec2 gradient = vec2((aL - aR) * 0.64 + (aL2 - aR2) * 0.36, (aD - aU) * 0.64 + (aD2 - aU2) * 0.36);
     float edge = smoothstep(0.012, 0.24, length(gradient));
     vec3 normal = normalize(vec3(gradient * 4.6, 0.94));
@@ -190,21 +201,21 @@ export const LOGO_FRAGMENT_SHADER = /* glsl */ `
     vec3 brand = pow(mark.rgb, vec3(1.08));
     float localLight = broadFront * (0.1 + diffuse * 0.44 + specular * 0.56) * uHighlight;
     vec3 surface = darkMaterial + brand * (irregularReveal * 0.68 + localLight * 0.42);
-    surface *= 1.0 - barMask * 0.82 + barReveal * 0.82;
+    // Legacy waveform-shaped logo mask removed; the reference wordmark stays intact.
     vec2 edgeDirection = normalize(gradient + vec2(0.0001));
     vec2 planarLight = normalize(vec2(uLightX, uLightY) - vUv + vec2(0.0001));
     float directionalRim = edge * pow(max(dot(edgeDirection, planarLight), 0.0), 1.8);
     float fresnel = pow(1.0 - max(dot(normal, viewDirection), 0.0), 3.5);
-    vec3 refraction = vec3(1.0, 0.25, 0.18) * coralFringe * 0.34;
+    vec3 refraction = vec3(0.65, 0.72, 1.0) * coralFringe * 0.34;
     refraction += vec3(0.48, 0.2, 0.9) * violetFringe * 0.42;
     refraction += vec3(0.12, 0.66, 0.88) * cyanFringe * 0.3;
     refraction *= (0.24 + edge * 0.76) * uHighlight;
     float whiteCore = sharpFront * (0.14 + directionalRim * 0.38 + specular * 0.32) * uHighlight;
-    vec3 signature = vec3(1.0, 0.86, 0.7) * whiteCore * 1.48 + refraction;
+    vec3 signature = vec3(0.9, 0.95, 1.0) * whiteCore * 1.48 + refraction;
     vec3 internalEnergy = mix(vec3(0.92, 0.24, 0.19), vec3(0.24, 0.76, 0.94), vUv.x);
     vec3 waveEnergy = mix(internalEnergy, vec3(0.48, 0.18, 0.86), 0.46);
     vec3 arcEnergy = mix(pow(max(brand, vec3(0.0)), vec3(1.32)), vec3(0.38, 0.06, 0.9), 0.18);
-    signature += waveEnergy * waveSequence * 1.65;
+    // No decorative waveform is drawn into the canonical mark.
     signature += arcEnergy * arcPropagation * 1.7;
     vec3 materialResponse = vec3(0.32, 0.2, 0.46) * directionalRim * (0.025 + uHighlight * 0.1);
     materialResponse += brand * fresnel * (0.018 + irregularReveal * 0.035);

@@ -85,7 +85,7 @@ function notificationGroup(dateStr: string) {
 function NotificationIcon({ type }: { type: string }) {
   const Icon = ICONS[type] || Bell;
   return (
-    <div className="grid h-11 w-11 shrink-0 place-items-center rounded-[12px] border border-[var(--syn-border)] bg-[var(--syn-soft)] text-[var(--syn-accent)]">
+    <div className="signature-activity-icon grid h-11 w-11 shrink-0 place-items-center rounded-[12px] border border-[var(--syn-border)] bg-[var(--syn-soft)] text-[var(--syn-accent)]">
       <Icon className="h-5 w-5" />
     </div>
   );
@@ -221,20 +221,20 @@ export default function NotificationsPage() {
 
   if (sessionStatus === 'unauthenticated') {
     return (
-      <SynauraAppShell contentClassName="max-w-[720px]">
+      <SynauraAppShell contentClassName="max-w-[1180px]">
         <SynauraTopBar searchLabel="Rechercher un son, un post, un profil..." />
-        <main className="grid min-h-[58dvh] place-items-center px-3 py-10">
-          <div className="w-full max-w-md text-center">
-            <div className="mx-auto grid h-14 w-14 place-items-center rounded-[14px] bg-[var(--syn-soft)] text-[var(--syn-accent)]">
-              <Bell className="h-6 w-6" />
+        <main className="signature-activity-guest">
+          <div className="signature-activity-guest-signal" aria-hidden="true"><span /><span /><span /><Bell className="signature-activity-guest-bell" /></div>
+          <div className="signature-activity-guest-copy">
+            <p className="signature-personal-eyebrow">Activité / Ce qui te rejoint</p>
+            <h1>Tes échos.<br /><span>Au même endroit.</span></h1>
+            <div className="signature-activity-guest-intro">
+              <Bell className="h-5 w-5" aria-hidden="true" />
+              <p>Connecte-toi pour voir les réactions, messages et nouveaux abonnements.</p>
             </div>
-            <h1 className="mt-5 text-2xl font-black text-[var(--syn-text-primary)]">Retrouve ton activité</h1>
-            <p className="mt-2 text-sm font-semibold leading-6 text-[var(--syn-text-secondary)]">
-              Connecte-toi pour voir les réactions, messages et nouveaux abonnements.
-            </p>
             <Link
               href="/auth/signin?callbackUrl=%2Fnotifications"
-              className="mt-6 inline-flex h-11 items-center gap-2 rounded-[10px] bg-[var(--syn-contrast-bg)] px-5 text-sm font-black text-[var(--syn-contrast-text)]"
+              className="signature-personal-primary"
             >
               <LogIn className="h-4 w-4" />
               Se connecter
@@ -249,15 +249,16 @@ export default function NotificationsPage() {
     <SynauraAppShell contentClassName="!max-w-[1120px]">
       <SynauraTopBar searchLabel="Rechercher un son, un post, un profil..." />
 
-      <main className="pb-6">
-        <header className="flex flex-col gap-4 px-1 pb-5 pt-2 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h1 className="text-3xl font-black text-[var(--syn-text-primary)] sm:text-4xl">Activité</h1>
-            <p className="mt-1 text-sm font-semibold text-[var(--syn-text-secondary)]">
+      <main className="v2-activity-layout chambre-activity signature-activity">
+        <header className="v2-activity-heading signature-activity-heading">
+          <div className="signature-activity-heading-copy">
+            <p className="v2-kicker mb-3">Activité / Ce qui résonne</p>
+            <h1>Tout ce qui<br /><span>résonne.</span></h1>
+            <p className="signature-activity-status">
               {unread > 0 ? `${unread} notification${unread > 1 ? 's' : ''} non lue${unread > 1 ? 's' : ''}` : 'Tu es à jour'}
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="signature-activity-tools">
             <button
               type="button"
               onClick={markAllRead}
@@ -279,11 +280,13 @@ export default function NotificationsPage() {
               <Trash2 className="h-4 w-4" />
             </button>
           </div>
+          <div className="signature-activity-field" aria-hidden="true"><span /><span /><span /></div>
         </header>
 
-        <div className="-mx-1 overflow-x-auto px-1 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div className="v2-activity-filters signature-activity-index">
+          <p className="signature-personal-eyebrow">Le fil, à ta façon</p>
           <div
-            className="flex min-w-max gap-1 rounded-[12px] border border-[var(--syn-border)] bg-[var(--syn-soft)] p-1"
+            className="signature-activity-tabs"
             role="tablist"
             aria-label="Filtrer les notifications"
           >
@@ -310,7 +313,7 @@ export default function NotificationsPage() {
               aria-selected={unreadOnly}
               className={`rounded-[8px] px-3 py-2 text-sm font-black transition ${
                 unreadOnly
-                  ? 'bg-[var(--syn-accent)] text-white shadow-sm'
+                  ? 'bg-[var(--v2-accent-fill)] text-white shadow-sm'
                   : 'text-[var(--syn-text-secondary)] hover:text-[var(--syn-text-primary)]'
               }`}
             >
@@ -319,41 +322,41 @@ export default function NotificationsPage() {
           </div>
         </div>
 
-        <section className="mt-4 border-t border-[var(--syn-border)]">
+        <section className="v2-activity-content signature-activity-journal">
           {loading ? (
             <div className="flex items-center justify-center gap-2 py-16 text-sm font-semibold text-[var(--syn-text-secondary)]">
               <Loader2 className="h-5 w-5 animate-spin" />
               Chargement...
             </div>
           ) : items.length === 0 ? (
-            <div className="py-16 text-center">
-              <div className="mx-auto grid h-14 w-14 place-items-center rounded-[14px] bg-[var(--syn-soft)] text-[var(--syn-text-secondary)] opacity-70">
+            <div className="signature-activity-empty">
+              <div className="signature-activity-empty-signal" aria-hidden="true">
                 <Bell className="h-6 w-6" />
               </div>
-              <p className="mt-4 text-sm font-black text-[var(--syn-text-primary)]">Aucune notification</p>
-              <p className="mt-1 text-xs font-semibold text-[var(--syn-text-secondary)]">Les nouvelles activités apparaîtront ici.</p>
+              <p className="signature-activity-empty-title">Aucune notification</p>
+              <p>Les nouvelles activités apparaîtront ici.</p>
             </div>
           ) : (
             <div>
               {groupedItems.map((group) => (
-                <section key={group.label} className="pt-5">
-                  <h2 className="px-1 pb-2 text-xs font-black uppercase text-[var(--syn-text-secondary)]">{group.label}</h2>
-                  <div className="divide-y divide-[var(--syn-border)]">
+                <section key={group.label} className="chambre-activity-day signature-activity-day">
+                  <h2 className="signature-activity-date">{group.label}</h2>
+                  <div className="signature-activity-day-items">
                     {group.items.map((item) => {
                       const content = (
-                        <div className={`flex items-start gap-3 px-1 py-3 transition sm:px-2 ${
+                        <div className={`signature-activity-item flex items-start gap-3 px-1 py-3 transition sm:px-2 ${
                           item.is_read
                             ? 'bg-transparent'
                             : 'bg-[color-mix(in_srgb,var(--syn-accent)_7%,transparent)]'
-                        }`}>
+                        }`} data-read={item.is_read}>
                           <NotificationIcon type={item.type} />
                           <div className="min-w-0 flex-1">
                             <div className="flex flex-wrap items-center gap-2">
-                              <div className="text-sm font-black text-[var(--syn-text-primary)]">{item.title}</div>
-                              {!item.is_read ? <span className="h-2 w-2 rounded-full bg-[var(--syn-accent)]" /> : null}
+                              <div className="signature-activity-item-title">{item.title}</div>
+                              {!item.is_read ? <span className="h-2 w-2 rounded-full bg-[var(--syn-accent)]" aria-label="Non lue" /> : null}
                             </div>
-                            <div className="mt-1 text-sm font-semibold leading-6 text-[var(--syn-text-secondary)]">{item.message}</div>
-                            <div className="mt-1 text-xs font-bold text-[var(--syn-text-secondary)] opacity-70">{timeAgo(item.created_at)}</div>
+                            <div className="signature-activity-item-message">{item.message}</div>
+                            <div className="signature-activity-item-time">{timeAgo(item.created_at)}</div>
                           </div>
                           <button
                             type="button"
@@ -362,7 +365,7 @@ export default function NotificationsPage() {
                               event.stopPropagation();
                               void deleteNotification(item.id);
                             }}
-                            className="grid h-11 w-11 shrink-0 place-items-center rounded-[var(--syn-radius-sm)] text-[var(--syn-text-secondary)] opacity-70 transition hover:bg-[var(--syn-soft)] hover:text-[var(--syn-text-primary)] hover:opacity-100"
+                            className="signature-activity-delete grid h-11 w-11 shrink-0 place-items-center"
                             aria-label="Supprimer"
                             title="Supprimer"
                           >
@@ -378,7 +381,7 @@ export default function NotificationsPage() {
                             if (!item.is_read) void markRead(item.id);
                             if (item.action_url) router.push(item.action_url, { scroll: false });
                           }}
-                          className="block w-full cursor-pointer text-left"
+                          className="signature-activity-entry block w-full cursor-pointer text-left"
                           role="button"
                           tabIndex={0}
                           onKeyDown={(event) => {

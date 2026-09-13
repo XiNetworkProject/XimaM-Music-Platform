@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Crown, Gem, Gift, Sparkles, Star, X, Zap } from 'lucide-react';
-import Image from 'next/image';
+import SynauraLogo from '@/components/brand/SynauraLogo';
 import { UButton } from '@/components/ui/UnifiedUI';
 
 type Props = {
@@ -253,7 +253,7 @@ export default function DailySpinModal({ isOpen, onClose }: Props) {
   return createPortal(
     <AnimatePresence>
       <motion.div
-        className="fixed inset-0 z-[200] bg-black/70 backdrop-blur-md flex items-center justify-center p-4"
+        className="chambre-spin-overlay fixed inset-0 z-[200]"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
@@ -288,48 +288,52 @@ export default function DailySpinModal({ isOpen, onClose }: Props) {
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.9 }}
           transition={{ type: 'spring', stiffness: 200, damping: 20 }}
-          className="relative w-[92vw] max-w-[480px] rounded-2xl border border-white/[0.08] bg-[#0c0c14]/98 backdrop-blur-2xl overflow-hidden"
+          className="chambre-spin-dialog relative"
           onClick={(e: React.MouseEvent) => e.stopPropagation()}
+          role="dialog"
+          aria-labelledby="chambre-spin-title"
         >
           {/* Golden top accent */}
-          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-amber-500/60 to-transparent" />
+          <div className="chambre-reward-topline" />
 
           {/* Header */}
-          <div className="p-4 flex items-center justify-between gap-3">
+          <div className="chambre-spin-header">
             <div className="flex items-center gap-3 min-w-0">
-              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 border border-amber-500/20 grid place-items-center">
-                <Gift className="h-5 w-5 text-amber-400" />
+              <div className="chambre-spin-symbol">
+                <Gift className="h-5 w-5" />
               </div>
               <div className="min-w-0">
-                <div className="text-sm font-bold text-white">Roue quotidienne</div>
-                <div className="text-[11px] text-white/30">1 spin par jour · boosters & credits</div>
+                <p className="chambre-reward-eyebrow">Le rendez-vous quotidien</p>
+                <h2 id="chambre-spin-title">Roue quotidienne</h2>
+                <p className="chambre-reward-muted text-xs">1 tour par jour · boosters & crédits</p>
               </div>
             </div>
-            <button onClick={onClose} className="h-8 w-8 rounded-lg bg-white/5 border border-white/10 grid place-items-center text-white/40 hover:text-white transition" aria-label="Fermer">
+            <button onClick={onClose} className="chambre-reward-icon-button" aria-label="Fermer">
               <X className="h-4 w-4" />
             </button>
           </div>
 
+          <div className="chambre-spin-body">
           {/* Streak + availability */}
-          <div className="px-4 pb-2 flex items-center justify-between text-[11px]">
-            <div className="flex items-center gap-1.5 text-white/40">
-              Streak: <span className="text-amber-400 font-bold">{status?.streak ?? 0}</span>
+          <div className="chambre-spin-status">
+            <div className="chambre-spin-streak">
+              Série : <span>{status?.streak ?? 0}</span>
             </div>
-            <div className="text-white/40">
+            <div className="chambre-spin-availability">
               {status?.canSpin
-                ? <span className="text-emerald-400 font-bold">Disponible</span>
-                : nextAt ? <span>Prochain: <span className="text-white/60 font-semibold">{formatCountdown(msLeft)}</span></span> : null}
+                ? <span className="chambre-spin-available">Disponible</span>
+                : nextAt ? <span>Prochain: <span className="chambre-spin-countdown">{formatCountdown(msLeft)}</span></span> : null}
             </div>
           </div>
 
           {/* Wheel section */}
-          <div className="px-4 py-4 flex items-center justify-center">
-            <div className="relative" style={{ width: 310, height: 310 }}>
+          <div className="chambre-spin-visual">
+            <div className="chambre-spin-wheel relative">
               {/* Outer glow ring */}
-              <div className="absolute inset-0 rounded-full" style={{ animation: 'ds-spin-glow 3s ease-in-out infinite' }} />
+              <div className="chambre-spin-halo absolute inset-0 rounded-full" style={{ animation: 'ds-spin-glow 3s ease-in-out infinite' }} />
 
               {/* Golden outer ring */}
-              <div className="absolute inset-0 rounded-full" style={{ border: '3px solid rgba(245,158,11,0.3)', boxShadow: '0 0 20px rgba(245,158,11,0.1)' }} />
+              <div className="absolute inset-0 rounded-full" style={{ border: '3px solid var(--v2-line)', boxShadow: '0 0 24px var(--v2-selected)' }} />
 
               {/* Pointer (top) */}
               <div className="absolute -top-3 left-1/2 z-10" style={{ animation: spinning ? undefined : 'ds-pointer-bounce 1.5s ease-in-out infinite' }}>
@@ -337,9 +341,9 @@ export default function DailySpinModal({ isOpen, onClose }: Props) {
                   width: 0, height: 0,
                   borderLeft: '12px solid transparent',
                   borderRight: '12px solid transparent',
-                  borderTop: '20px solid #f59e0b',
+                  borderTop: '20px solid var(--v2-accent)',
                   transform: 'translateX(-50%)',
-                  filter: 'drop-shadow(0 2px 6px rgba(245,158,11,0.5))',
+                  filter: 'drop-shadow(0 2px 6px var(--v2-accent-fill))',
                 }} />
               </div>
 
@@ -356,54 +360,56 @@ export default function DailySpinModal({ isOpen, onClose }: Props) {
                   width={600}
                   height={600}
                   className="w-full h-full"
+                  aria-hidden="true"
                 />
               </div>
 
               {/* Center cap */}
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div className="h-16 w-16 rounded-full border-2 border-amber-500/30 bg-[#0f0a20] grid place-items-center shadow-lg shadow-amber-500/10">
-                  <Image src="/brand/2026/synaura-symbol-2026.png" alt="" width={30} height={30} className="h-7 w-7 object-contain opacity-80" unoptimized />
+                <div className="chambre-spin-cap">
+                  <SynauraLogo size={28} className="opacity-80" decorative />
                 </div>
               </div>
             </div>
           </div>
 
           {/* Segments legend */}
-          <div className="px-4 pb-3">
-            <div className="grid grid-cols-4 sm:grid-cols-7 gap-1.5">
+          <section className="chambre-spin-legend" aria-label="Récompenses de la roue">
+            <h3>Sur la roue</h3>
+            <div className="chambre-spin-segments">
               {SEGMENTS.map(s => {
                 const Icon = s.icon;
                 const isSpecial = s.key === 'legendary_booster' || s.key === 'epic_booster';
                 return (
-                  <div key={s.key} className="flex flex-col items-center gap-0.5 py-1.5 px-1 rounded-lg border border-white/5 bg-white/[0.02]" style={isSpecial ? { animation: 'ds-pulse-glow 3s ease-in-out infinite' } : undefined}>
-                    <Icon className="w-3 h-3" style={{ color: s.textColor }} />
-                    <span className="text-[9px] font-semibold text-center leading-tight" style={{ color: s.textColor }}>{s.label}</span>
+                  <div key={s.key} className="chambre-spin-segment" style={isSpecial ? { animation: 'ds-pulse-glow 3s ease-in-out infinite' } : undefined}>
+                    <Icon className="w-4 h-4" style={{ color: s.textColor }} />
+                    <span style={{ color: 'var(--v2-text)' }}>{s.label}</span>
                   </div>
                 );
               })}
             </div>
-          </div>
+          </section>
 
           {/* Result */}
           {result && (
-            <div className="px-4 pb-3">
+            <div className="chambre-spin-result" role="status">
               <motion.div
                 initial={{ opacity: 0, y: 10, scale: 0.95 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 transition={{ type: 'spring', stiffness: 200 }}
-                className="rounded-xl border p-3"
+                className="chambre-spin-result-card"
                 style={{
-                  borderColor: isWin ? resultSegment?.borderColor + '40' : 'rgba(255,255,255,0.05)',
-                  background: isWin ? resultSegment?.color : 'rgba(255,255,255,0.02)',
+                  borderColor: isWin ? 'var(--v2-accent)' : 'var(--v2-line)',
+                  background: 'var(--v2-raised)',
                 }}
               >
                 <div className="flex items-center gap-3">
                   {resultSegment && React.createElement(resultSegment.icon, { className: 'w-6 h-6 shrink-0', style: { color: resultSegment.textColor } })}
                   <div className="min-w-0">
-                    <div className="text-sm font-bold text-white">
+                    <div className="chambre-spin-result-title">
                       {isWin ? result.reward.label : 'Perdu... rien cette fois'}
                     </div>
-                    <div className="text-[10px] text-white/30 mt-0.5">
+                    <div className="chambre-spin-result-note">
                       {isWin ? 'Recompense ajoutee automatiquement.' : 'Reviens demain pour retenter ta chance !'}
                     </div>
                   </div>
@@ -411,20 +417,21 @@ export default function DailySpinModal({ isOpen, onClose }: Props) {
               </motion.div>
             </div>
           )}
+          </div>
 
           {/* Spin button */}
-          <div className="p-4 border-t border-white/5">
+          <div className="chambre-spin-footer">
             <button
               type="button"
               onClick={spin}
               disabled={loading || spinning || !status?.canSpin}
-              className="w-full h-12 rounded-xl font-bold text-sm transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+              className="chambre-reward-primary chambre-spin-button"
               style={{
                 background: status?.canSpin
-                  ? 'linear-gradient(135deg, #f59e0b, #ec4899)'
-                  : 'rgba(255,255,255,0.05)',
-                color: status?.canSpin ? 'white' : 'rgba(255,255,255,0.3)',
-                boxShadow: status?.canSpin ? '0 4px 20px rgba(245,158,11,0.3)' : 'none',
+                  ? 'var(--v2-accent-fill)'
+                  : 'var(--v2-raised)',
+                color: status?.canSpin ? 'white' : 'var(--v2-muted)',
+                boxShadow: status?.canSpin ? '0 4px 24px var(--v2-selected)' : 'none',
               }}
             >
               {spinning ? 'La roue tourne...' : status?.canSpin ? 'Tourner la roue' : 'Indisponible'}

@@ -1,9 +1,11 @@
 'use client';
 
+import '@/components/v2/music-v2.css';
+import SynauraLogo from '@/components/brand/SynauraLogo';
+
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import Image from 'next/image';
 import Link from '@/components/navigation/HandoffLink';
 import { withCurrentHandoff } from '@/lib/creationHandoffClient';
 import { signOut, useSession } from 'next-auth/react';
@@ -111,7 +113,7 @@ const STRATEGY_BY_FILTER: Partial<Record<FeedFilter, string>> = {
   new: 'fresh',
 };
 
-const FALLBACK_COVER = '/brand/2026/synaura-symbol-2026-white.png';
+const FALLBACK_COVER = '/default-cover.svg';
 
 /** Moteur de scroll repris de components/TikTokPlayer.tsx : détection de position
  * par wheel/touch/clavier + repli scroll natif, plutôt qu'un IntersectionObserver
@@ -1359,8 +1361,9 @@ export default function SynauraScroll() {
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_18%,rgba(115,87,198,0.16),transparent_46%)]" />
           </div>
 
-          <div className="live-track-scene">
+          <div className="live-track-scene v2-live-track-scene experience-listening-scene" data-playing={isPlayingThis}>
           <div className="live-track-artwork">
+            <div className="experience-record-halo" aria-hidden="true"><span /><i /></div>
             <button
               type="button"
               onClick={() => {
@@ -1380,7 +1383,7 @@ export default function SynauraScroll() {
                 }}
               />
               <div className="absolute inset-0 bg-black/10 transition group-hover:bg-black/0" />
-              <div className="absolute inset-0 grid place-items-center">
+              <div className="v2-live-artwork-transport absolute inset-0 grid place-items-center">
                 <span className="grid h-20 w-20 place-items-center rounded-full border border-white/18 bg-[#171313]/56 text-white shadow-xl backdrop-blur-xl transition group-hover:scale-105">
                   {isPlayingThis ? <Pause className="h-8 w-8" /> : <Play className="ml-1 h-8 w-8 fill-current" />}
                 </span>
@@ -1438,7 +1441,8 @@ export default function SynauraScroll() {
           </aside>
 
           <div className="live-track-metadata relative z-30 min-w-0">
-            <div className="rounded-[var(--syn-radius-xl)] border border-white/12 bg-[#fffaf2]/95 p-4 text-[#171313] shadow-[0_24px_80px_rgba(0,0,0,0.28)] backdrop-blur-xl">
+            <div className="v2-live-track-copy">
+              <p className="v2-kicker v2-live-caption"><span className="experience-signal-dot" aria-hidden="true" />Live / le son prend corps</p>
               <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-1.5">
@@ -1491,7 +1495,7 @@ export default function SynauraScroll() {
                 {index === activeIndex && currentId === track._id ? (
                   <>
                     <Waveform
-                      variant="light"
+                      variant="dark"
                       peaks={trackWaveform.peaks}
                       duration={duration}
                       loading={trackWaveform.loading}
@@ -1501,7 +1505,7 @@ export default function SynauraScroll() {
                       onMarkerSeek={marker => { openComments(commentsTrack(track), document.activeElement as HTMLElement, undefined, marker.id); }}
                       reactionClusters={momentReactions.clusters}
                     />
-                    <div className="mt-2 flex items-center gap-2">
+                    <div className="live-moment-actions relative mt-2 flex items-center gap-2">
                       <button
                         type="button"
                         onClick={() => {
@@ -1522,13 +1526,14 @@ export default function SynauraScroll() {
                           Réagir
                         </button>
                         <ReactionPicker
+                          celebrate
                           open={reactionPickerOpen}
                           onClose={() => setReactionPickerOpen(false)}
                           onPick={(type) => {
                             submitMomentReaction(type, getAudioElement()?.currentTime || 0);
                             setReactionPickerOpen(false);
                           }}
-                          variant="light"
+                          variant="dark"
                           className="bottom-full mb-2 right-0"
                         />
                       </div>
@@ -1540,8 +1545,8 @@ export default function SynauraScroll() {
                     <span>{fmtTime(duration)}</span>
                   </div>
                 )}
-                <p className="mt-1.5 text-right text-[11px] font-bold text-black/38">
-                  {index + 1}/{feedItems.length}
+                <p className="experience-track-position mt-1.5 text-right text-[11px] font-bold text-black/38">
+                  <span>Dans ton fil</span><span>{index + 1}/{feedItems.length}</span>
                 </p>
               </div>
             </div>
@@ -1784,7 +1789,7 @@ export default function SynauraScroll() {
   }
 
   return (
-    <div className="fixed inset-0 z-[100] overflow-hidden bg-[#171313] text-white">
+    <div className="v2-live experience-live fixed inset-0 z-[100] overflow-hidden text-white" data-chambre-music="live">
       <HomeFlowPrelude
         open={homePreludeOpen && filter === 'foryou'}
         tracks={baseTracks}
@@ -1805,7 +1810,7 @@ export default function SynauraScroll() {
       />
       <SynauraMobileDock appearance="immersive" showDesktop />
       <ClipUploadIndicator />
-      <div className="absolute left-0 right-0 top-0 z-40 px-3 pt-[max(env(safe-area-inset-top),0.75rem)] sm:px-4">
+      <div className="v2-live-header absolute left-0 right-0 top-0 z-40 px-3 pt-[max(env(safe-area-inset-top),0.75rem)] sm:px-4">
         <div className="flex items-center justify-between gap-2">
           <button
             type="button"
@@ -1816,18 +1821,7 @@ export default function SynauraScroll() {
             className="flex min-w-0 items-center gap-2"
             aria-label="Revenir à l'accueil Synaura"
           >
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#fffaf2] shadow-[0_8px_20px_rgba(0,0,0,0.3)]">
-              <Image
-                src="/brand/2026/synaura-symbol-2026.png"
-                alt="Synaura"
-                width={22}
-                height={22}
-                className="h-5 w-5 object-contain"
-                unoptimized
-                priority
-              />
-            </span>
-            <span className="hidden truncate text-sm font-black tracking-tight text-white sm:block">Synaura</span>
+            <SynauraLogo variant="wordmark" size={34} decorative priority />
           </button>
 
           <div className="flex items-center gap-2">
@@ -1898,7 +1892,7 @@ export default function SynauraScroll() {
             <SynauraUniversalSearch compact />
           </div>
         ) : (
-          <div className="synaura-no-scrollbar mt-2.5 flex gap-1.5 overflow-x-auto">
+          <div className="v2-live-filters synaura-no-scrollbar mt-2.5 flex gap-1.5 overflow-x-auto">
             {FILTER_ORDER.map((key) => {
               const meta = FILTER_META[key];
               const active = key === filter;
@@ -1924,7 +1918,7 @@ export default function SynauraScroll() {
         <button
           type="button"
           onClick={() => navigateFromLive('/city')}
-          className="absolute left-4 top-[6.5rem] z-30 hidden max-w-[280px] rounded-[var(--syn-radius-md)] border border-[var(--syn-border)] bg-[var(--syn-surface)] p-3 text-left text-[var(--syn-text-primary)] shadow-[var(--syn-shadow-low)] md:block"
+          className="experience-live-pulse absolute left-4 top-[6.5rem] z-30 hidden max-w-[280px] rounded-[var(--syn-radius-md)] border border-[var(--syn-border)] bg-[var(--syn-surface)] p-3 text-left text-[var(--syn-text-primary)] shadow-[var(--syn-shadow-low)] md:block"
         >
           <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#FF6F61]">Events · Synaura Pulse</p>
           <p className="mt-1 line-clamp-1 text-sm font-black">{cityPulse.event}</p>

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { DEFAULT_SUNO_MODEL, normalizeGenerationModel, SUNO_GENERATION_LIMITS } from '@/lib/sunoModels';
 import type {
   GenerationJob,
   StudioProject,
@@ -36,6 +37,7 @@ type StudioFormState = {
   weirdness: number; // 0-100
   audioWeight: number; // 0-100
   variations: number;
+  duration: number | null;
 };
 
 export type StudioState = {
@@ -99,7 +101,7 @@ function makeId(prefix: string) {
 
 const DEFAULT_FORM: StudioFormState = {
   customMode: false,
-  model: 'V4_5',
+  model: DEFAULT_SUNO_MODEL,
   instrumental: false,
   title: '',
   style: '',
@@ -112,7 +114,25 @@ const DEFAULT_FORM: StudioFormState = {
   weirdness: 50,
   audioWeight: 50,
   variations: 2,
+  duration: null,
 };
+
+export function normalizeStudioForm(form: Partial<StudioFormState> | undefined): StudioFormState {
+  const next = { ...DEFAULT_FORM, ...form };
+  const duration = next.duration;
+  return {
+    ...next,
+    model: normalizeGenerationModel(next.model),
+    duration: typeof duration === 'number' && Number.isInteger(duration) &&
+      duration >= SUNO_GENERATION_LIMITS.minDuration && duration <= SUNO_GENERATION_LIMITS.maxDuration
+      ? duration : null,
+  };
+}
+
+/** Only normalize drafts and new submissions; keep completed work's original metadata. */
+export function normalizeStudioRequestModel(paramsSnapshot: any) {
+  return { ...paramsSnapshot, model: normalizeGenerationModel(paramsSnapshot?.model) };
+}
 
 const DEFAULT_UI: StudioUIState = {
   search: '',
@@ -139,7 +159,7 @@ function ensureDefaultProject(projects: StudioProject[]) {
       createdAt: t,
       updatedAt: t,
       pinnedTags: [],
-      defaultModel: 'V4_5',
+      defaultModel: DEFAULT_SUNO_MODEL,
     },
   ];
 }
@@ -293,7 +313,7 @@ export const useStudioStore = create<StudioState>()(
           projectId: projectId || 'project_default',
           createdAt: nowIso(),
           status: 'pending',
-          paramsSnapshot,
+          paramsSnapshot: normalizeStudioRequestModel(paramsSnapshot),
         };
         set((s) => ({ queueItems: [item, ...(s.queueItems || [])] }));
         return id;
@@ -315,14 +335,14 @@ export const useStudioStore = create<StudioState>()(
           projectId: src.projectId,
           createdAt: nowIso(),
           status: 'pending',
-          paramsSnapshot: src.paramsSnapshot,
+          paramsSnapshot: normalizeStudioRequestModel(src.paramsSnapshot),
         };
         set((s) => ({ queueItems: [item, ...(s.queueItems || [])] }));
         return newId;
       },
 
       setUI: (patch) => set((s) => ({ ui: { ...s.ui, ...patch } })),
-      setForm: (patch) => set((s) => ({ form: { ...s.form, ...patch } })),
+      setForm: (patch) => set((s) => ({ form: { ...s.form, ...patch, model: normalizeGenerationModel(patch.model ?? s.form.model) } })),
 
       loadTrackIntoForm: (trackId) => {
         const t = get().tracks.find((x) => x.id === trackId);
@@ -331,16 +351,31 @@ export const useStudioStore = create<StudioState>()(
           form: {
             ...s.form,
             customMode: true,
-            model: t.model || s.form.model,
+            model: normalizeGenerationModel(t.model || s.form.model),
+            instrumental: t.hasVocals === false || !(t.lyrics || t.prompt || '').trim(),
             title: t.title || s.form.title,
             style: (t.tags || []).join(', ') || s.form.style,
-            lyrics: t.lyrics || t.prompt || s.form.lyrics,
+            lyrics: t.lyrics || t.prompt || '',
+            duration: null,
           },
         }));
       },
     }),
     {
       name: 'studio.store.v2',
+      merge: (persistedState, currentState) => {
+        const saved = (persistedState || {}) as Partial<StudioState>;
+        return {
+          ...currentState,
+          ...saved,
+          form: normalizeStudioForm(saved.form),
+          ui: { ...DEFAULT_UI, ...saved.ui },
+          queueConfig: { ...DEFAULT_QUEUE_CONFIG, ...saved.queueConfig },
+          queueItems: (saved.queueItems || []).map((item) => item.status === 'pending'
+            ? { ...item, paramsSnapshot: normalizeStudioRequestModel(item.paramsSnapshot) }
+            : item),
+        };
+      },
       partialize: (s) => ({
         projects: ensureDefaultProject(s.projects || []),
         activeProjectId: s.activeProjectId,
@@ -364,4 +399,3 @@ export const useStudioStore = create<StudioState>()(
     }
   )
 );
-

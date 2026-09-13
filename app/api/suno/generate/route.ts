@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { generateCustomMusic, createProductionPrompt } from "@/lib/suno";
+import { generateCustomMusic, generateMusic, SunoProviderRejectedError } from "@/lib/suno";
+import { DEFAULT_SUNO_MODEL, normalizeGenerationModel } from '@/lib/sunoModels';
 import { getApiSession } from '@/lib/getApiSession';
 import { dbAdmin } from '@/lib/database';
 import { CREDITS_PER_GENERATION } from '@/lib/credits';
@@ -9,8 +10,6 @@ import { assertCanCreateAiVariation } from '@/lib/remixServer';
 import { sanitizeRemixPrompt, sanitizeRemixPromptVisibility, sanitizeRemixType } from '@/lib/remixOptions';
 import { buildSunoCallbackUrl } from '@/lib/sunoWebhook';
 import { enforceRequestRateLimit, readLimitedJson, rejectUntrustedMutationOrigin } from '@/lib/security/requestSecurity';
-
-const BASE = "https://api.sunoapi.org";
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -22,6 +21,7 @@ type Body = {
   prompt?: string;
   instrumental: boolean;
   model?: string;
+  duration?: number;
   negativeTags?: string;
   vocalGender?: "m" | "f";
   styleWeight?: number;
@@ -58,15 +58,29 @@ export async function POST(req: NextRequest) {
   const apiKey = process.env.SUNO_API_KEY;
   if (!apiKey) return NextResponse.json({ error: 'Service IA indisponible' }, { status: 503 });
 
-  try {
-    const mapProviderStatus = (providerCode: number | undefined, fallback: number) => {
-      if (typeof providerCode === 'number' && providerCode >= 400 && providerCode <= 599) return providerCode;
-      return fallback;
-    };
+  let debited = false;
+  let refundAttempted = false;
+  const refundRejectedRequest = async () => {
+    if (!debited || refundAttempted) return;
+    refundAttempted = true;
+    try {
+      const { error } = await (dbAdmin as any).rpc('ai_add_credits', {
+        p_user_id: session.user.id, p_amount: CREDITS_PER_GENERATION,
+        p_source: 'refund', p_description: 'Remboursement refus API Suno',
+      });
+      if (error) console.error('[suno/generate] remboursement impossible');
+    } catch {
+      console.error('[suno/generate] remboursement impossible');
+    }
+  };
 
+  try {
     const parsed = await readLimitedJson<Body>(req, 64 * 1024);
     if (!parsed.ok) return parsed.response;
     const body = parsed.value;
+    if (!body || typeof body !== 'object' || Array.isArray(body) || (body.customMode != null && typeof body.customMode !== 'boolean')) {
+      return NextResponse.json({ error: 'Paramètres de génération invalides' }, { status: 400 });
+    }
     const remixSource = body.remixSource?.sourceTrackId
       ? await assertCanCreateAiVariation({
           sourceTrackId: body.remixSource.sourceTrackId,
@@ -84,45 +98,11 @@ export async function POST(req: NextRequest) {
     const entitlements = getEntitlements(plan);
     
     // Vérifier que le modèle demandé est autorisé par le plan, sinon fallback contrôlé
-    const allowedModels = entitlements.ai.availableModels || ["V4_5"];
-    const requestedModel = body.model || "V4_5";
-    const effectiveModel = allowedModels.includes(requestedModel) ? requestedModel : (allowedModels.includes("V4_5") ? "V4_5" : allowedModels[0]);
+    const allowedModels = entitlements.ai.availableModels || [DEFAULT_SUNO_MODEL];
+    const requestedModel = typeof body.model === 'string' && body.model.trim() ? body.model.trim() : DEFAULT_SUNO_MODEL;
+    const effectiveModel = normalizeGenerationModel(requestedModel, allowedModels);
     const modelAdjusted = requestedModel !== effectiveModel;
     
-    // Vérifier le solde de crédits et débiter avant l'appel Suno
-    const { data: balanceRow } = await dbAdmin
-      .from('ai_credit_balances')
-      .select('balance')
-      .eq('user_id', session.user.id)
-      .maybeSingle();
-
-    const currentBalance: number = balanceRow?.balance ?? 0;
-    if (currentBalance < CREDITS_PER_GENERATION) {
-      return NextResponse.json({
-        error: 'Crédits insuffisants',
-        insufficientCredits: true,
-        required: CREDITS_PER_GENERATION,
-        balance: currentBalance,
-      }, { status: 402 });
-    }
-
-    // Débit des crédits (sécurisé en SQL, avec ledger)
-    const { data: debitOk, error: debitError } = await (dbAdmin as any)
-      .rpc('ai_debit_credits', {
-        p_user_id: session.user.id,
-        p_amount: CREDITS_PER_GENERATION,
-        p_source: 'action_spend',
-        p_description: `Génération musicale (${effectiveModel})`,
-      });
-    if (debitError || debitOk !== true) {
-      return NextResponse.json({
-        error: 'Impossible de débiter les crédits',
-        insufficientCredits: true,
-        required: CREDITS_PER_GENERATION,
-        balance: currentBalance,
-      }, { status: 402 });
-    }
-
     // Déterminer le mode : si customMode est explicitement false, on est en mode Simple
     const isCustomMode = body.customMode !== false; // Par défaut Custom (true)
 
@@ -142,6 +122,7 @@ export async function POST(req: NextRequest) {
       prompt: body.prompt,
       style: body.style,
       title: body.title,
+      duration: body.duration,
     });
     if (!validated.ok) {
       return NextResponse.json({ error: validated.error }, { status: 400 });
@@ -151,20 +132,15 @@ export async function POST(req: NextRequest) {
       weirdnessConstraint: body.weirdnessConstraint,
       audioWeight: body.audioWeight,
       vocalGender: body.vocalGender,
+      negativeTags: body.negativeTags,
     });
     if (!tuningValidated.ok) {
       return NextResponse.json({ error: tuningValidated.error }, { status: 400 });
     }
 
-    // Créer le prompt avec les hints de production si fournis (mode Custom uniquement)
-    let finalPrompt = body.prompt;
-    if (isCustomMode && !body.instrumental && (body.bpm || body.key || body.durationHint)) {
-      finalPrompt = createProductionPrompt(body.prompt || "", {
-        bpm: body.bpm,
-        key: body.key,
-        durationHint: body.durationHint,
-      });
-    }
+    // Lyrics are user content. Legacy production hints must never be appended to them.
+    // BPM/key instructions belong in the style supplied by the composer.
+    const finalPrompt = body.prompt;
 
     // Construction du payload selon le mode
     const payload: any = {
@@ -176,7 +152,7 @@ export async function POST(req: NextRequest) {
 
     if (isCustomMode) {
       // Mode Custom : title, style, prompt (lyrics)
-      payload.title = body.title || undefined; // undefined = Suno génère
+      payload.title = body.title;
       payload.style = body.style;
       payload.prompt = body.instrumental ? undefined : finalPrompt; // Lyrics si non-instrumental
       payload.negativeTags = body.negativeTags;
@@ -184,60 +160,31 @@ export async function POST(req: NextRequest) {
       payload.styleWeight = body.styleWeight ?? 0.65;
       payload.weirdnessConstraint = body.weirdnessConstraint ?? 0.5;
       payload.audioWeight = body.audioWeight ?? 0.65;
+      payload.duration = body.duration;
     } else {
       // Mode Simple : seulement prompt (description)
       payload.prompt = body.prompt;
       // En mode Simple, title/style doivent rester vides selon la doc
     }
 
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 20_000);
-    let response: Response;
-    try {
-      response = await fetch(`${BASE}/api/v1/generate`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-        signal: controller.signal,
-      });
-    } finally {
-      clearTimeout(timeout);
+    // Prepare and validate the complete request, including callback configuration, before billing.
+    const { data: balanceRow } = await dbAdmin.from('ai_credit_balances').select('balance').eq('user_id', session.user.id).maybeSingle();
+    const currentBalance: number = balanceRow?.balance ?? 0;
+    if (currentBalance < CREDITS_PER_GENERATION) {
+      return NextResponse.json({ error: 'Crédits insuffisants', insufficientCredits: true, required: CREDITS_PER_GENERATION, balance: currentBalance }, { status: 402 });
     }
-
-    const json = await response.json().catch(() => ({}));
-
-    if (!response.ok || json?.code !== 200) {
-      try {
-        await (dbAdmin as any).rpc('ai_add_credits', {
-          p_user_id: session.user.id, p_amount: CREDITS_PER_GENERATION,
-          p_source: 'refund', p_description: 'Remboursement échec API Suno',
-        });
-      } catch {}
-      const providerCode = Number(json?.code);
-      const mappedStatus = mapProviderStatus(Number.isFinite(providerCode) ? providerCode : undefined, response.status);
-      return NextResponse.json(
-        { error: 'Service IA temporairement indisponible' },
-        { status: mappedStatus }
-      );
+    const { data: debitOk, error: debitError } = await (dbAdmin as any).rpc('ai_debit_credits', {
+      p_user_id: session.user.id, p_amount: CREDITS_PER_GENERATION,
+      p_source: 'action_spend', p_description: `Génération musicale (${effectiveModel})`,
+    });
+    if (debitError || debitOk !== true) {
+      return NextResponse.json({ error: 'Impossible de débiter les crédits', insufficientCredits: true, required: CREDITS_PER_GENERATION, balance: currentBalance }, { status: 402 });
     }
+    debited = true;
+    const json = isCustomMode ? await generateCustomMusic(payload) : await generateMusic(payload);
 
     // Enregistrer la génération en base (status: pending)
-    const taskId = json?.data?.taskId || json?.taskId;
-    if (!taskId) {
-      try {
-        await (dbAdmin as any).rpc('ai_add_credits', {
-          p_user_id: session.user.id, p_amount: CREDITS_PER_GENERATION,
-          p_source: 'refund', p_description: 'Remboursement taskId manquant',
-        });
-      } catch {}
-      return NextResponse.json(
-        { error: 'Reponse du service IA invalide' },
-        { status: 502 }
-      );
-    }
+    const taskId = json.data.taskId;
     if (taskId) {
       const generationData: any = {
         id: crypto.randomUUID(),
@@ -257,6 +204,7 @@ export async function POST(req: NextRequest) {
           style: body.style || '', // Style musical
           instrumental: body.instrumental,
           customMode: true,
+          ...(body.duration != null ? { duration: body.duration } : {}),
           ...(remixSource?.ok ? { remixSource: remixSource.source } : {}),
           ...(remixMetadata ? remixMetadata : {}),
           ...(challengeId ? { challengeId } : {}),
@@ -282,7 +230,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Retourner un schéma compatible frontend: taskId à la racine
-    const rootTaskId = json?.data?.taskId || json?.taskId || taskId;
+    const rootTaskId = taskId;
     const { data: newBalanceRow } = await dbAdmin
       .from('ai_credit_balances')
       .select('balance')
@@ -306,11 +254,14 @@ export async function POST(req: NextRequest) {
         balance: newBalanceRow?.balance ?? (currentBalance - CREDITS_PER_GENERATION)
       }
     });
-  } catch {
+  } catch (error) {
+    if (error instanceof SunoProviderRejectedError) await refundRejectedRequest();
+    // A timeout or malformed acceptance can still have created a paid provider task.
+    // It requires reconciliation; do not issue an unconditional credit refund here.
     console.error('[suno/generate] generation impossible');
     return NextResponse.json(
-      { error: "Erreur interne du serveur" }, 
-      { status: 500 }
+      { error: 'Service IA temporairement indisponible' },
+      { status: 502 }
     );
   }
 }

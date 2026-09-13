@@ -1,65 +1,22 @@
-import Image from 'next/image';
 import type { CSSProperties } from 'react';
-import { SYNAURA_BRAND, SYNAURA_BRAND_SAFE_ZONE } from '@/lib/brand';
+import { SYNAURA_V2_REFERENCE, SYNAURA_V2_REFERENCE_RATIO } from '@/lib/brandV2';
 
-type SynauraLogoVariant = 'symbol' | 'wordmark' | 'lockup';
-
-export default function SynauraLogo({
-  variant = 'symbol',
-  size = 48,
-  className = '',
-  markClassName = '',
-  wordmarkClassName = '',
-  priority = false,
-  decorative = false,
-}: {
-  variant?: SynauraLogoVariant;
-  size?: number;
-  className?: string;
-  markClassName?: string;
-  wordmarkClassName?: string;
-  priority?: boolean;
-  decorative?: boolean;
+/** Approved Chambre wordmark; the existing S symbol remains unchanged. */
+export default function SynauraLogo({ variant = 'symbol', size = 48, className = '', markClassName = '', wordmarkClassName = '', priority = false, decorative = false }: {
+  variant?: 'symbol' | 'wordmark' | 'lockup'; size?: number; className?: string;
+  markClassName?: string; wordmarkClassName?: string; priority?: boolean; decorative?: boolean;
 }) {
-  const label = decorative ? undefined : SYNAURA_BRAND.name;
-  const mark = (
-    <span
-      className={`relative inline-grid shrink-0 place-items-center overflow-visible ${markClassName}`}
-      style={{
-        width: size,
-        height: size,
-      } as CSSProperties}
-      data-synaura-logo-safe-zone
-    >
-      <span className="absolute" style={{ inset: `${SYNAURA_BRAND_SAFE_ZONE * 100}%` }}>
-        <Image
-          src={SYNAURA_BRAND.symbol}
-          alt=""
-          fill
-          sizes={`${size}px`}
-          className="object-contain"
-          unoptimized
-          priority={priority}
-        />
-      </span>
-    </span>
-  );
-
-  if (variant === 'symbol') {
-    return (
-      <span className={`inline-grid place-items-center overflow-visible ${className}`} aria-label={label} role={label ? 'img' : undefined} data-synaura-logo="symbol">
-        {mark}
-      </span>
-    );
-  }
-
-  return (
-    <span className={`inline-flex items-center overflow-visible ${variant === 'lockup' ? 'gap-[0.72em]' : 'gap-[0.56em]'} ${className}`} aria-label={label} role={label ? 'img' : undefined} data-synaura-logo={variant}>
-      {mark}
-      <span className="inline-flex min-w-0 flex-col text-left">
-        <span className={`font-black leading-none tracking-[-0.055em] ${wordmarkClassName}`}>Synaura</span>
-        {variant === 'lockup' ? <span className="mt-[0.36em] whitespace-nowrap text-[0.34em] font-black uppercase tracking-[0.16em] opacity-60">Share sound, connect creations.</span> : null}
-      </span>
-    </span>
-  );
+  const symbol = variant === 'symbol';
+  const height = symbol ? size : size * .8;
+  if (!symbol) return <span data-synaura-logo={variant} data-synaura-logo-safe-zone data-chambre-wordmark
+    className={`inline-flex shrink-0 items-center ${className} ${wordmarkClassName}`}
+    role={decorative ? undefined : 'img'} aria-label={decorative ? undefined : 'Synaura'} aria-hidden={decorative || undefined}
+    style={{ height, fontFamily: 'Arial, Helvetica, sans-serif', fontSize: size * .63, fontWeight: 800, letterSpacing: '-.067em', lineHeight: 1, verticalAlign: 'middle' }}>SYNAURA</span>;
+  return <span data-synaura-logo={variant} data-synaura-logo-safe-zone data-v2-reference-logo
+    className={`inline-flex shrink-0 items-center ${className}`}
+    role={decorative ? undefined : 'img'} aria-label={decorative ? undefined : 'Synaura'} aria-hidden={decorative || undefined}
+    style={{ width: symbol ? size : height * SYNAURA_V2_REFERENCE_RATIO, height, verticalAlign: 'middle' }}>
+    {symbol ? <span className={markClassName} style={{ display:'block',width:size,height:size,backgroundImage:`url("${SYNAURA_V2_REFERENCE}")`,backgroundRepeat:'no-repeat',backgroundPosition:'left center',backgroundSize:`${size * SYNAURA_V2_REFERENCE_RATIO}px ${size}px`,mixBlendMode:'screen' } as CSSProperties} />
+      : <img src={SYNAURA_V2_REFERENCE} width={125} height={35} alt="" loading={priority ? 'eager' : 'lazy'} className={wordmarkClassName} style={{ width:'100%',height:'100%',objectFit:'contain',mixBlendMode:'screen' }} />}
+  </span>;
 }

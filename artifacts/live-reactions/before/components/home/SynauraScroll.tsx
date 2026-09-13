@@ -1,0 +1,2013 @@
+'use client';
+
+import '@/components/v2/music-v2.css';
+import SynauraLogo from '@/components/brand/SynauraLogo';
+
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'next/navigation';
+import Link from '@/components/navigation/HandoffLink';
+import { withCurrentHandoff } from '@/lib/creationHandoffClient';
+import { signOut, useSession } from 'next-auth/react';
+import { useAudioPlayer } from '@/app/providers';
+import { applyCdnToTracks } from '@/lib/cdnHelpers';
+import FollowButton from '@/components/FollowButton';
+import NotificationCenter, { notify } from '@/components/NotificationCenter';
+import MessageInboxButton from '@/components/messaging/MessageInboxButton';
+import { isAiVariationAvailable } from '@/lib/remixPermissions';
+import { canUseSoundClientSide } from '@/lib/clipPermissions';
+import { recordClipFunnelEvent } from '@/lib/analyticsClient';
+import { getRecommendationSessionId } from '@/lib/recommendation/clientSession';
+import SynauraUniversalSearch from '@/components/synaura/SynauraUniversalSearch';
+import { useTrackActions } from '@/components/actions/useTrackActions';
+import TrackActionButton from '@/components/actions/TrackActionButton';
+import FavoriteAction from '@/components/actions/FavoriteAction';
+import { useTrackWaveform } from '@/hooks/useTrackWaveform';
+import { useMomentComments } from '@/hooks/useMomentComments';
+import { useMomentReactions } from '@/hooks/useMomentReactions';
+import { type MomentReactionType } from '@/lib/momentReactions';
+import Waveform from '@/components/player/Waveform';
+import ReactionPicker from '@/components/player/ReactionPicker';
+import ClipUploadIndicator from '@/components/clips/ClipUploadIndicator';
+import HomeFlowPrelude from '@/components/home/HomeFlowPrelude';
+import ScrollPostSlide from '@/components/home/ScrollPostSlide';
+import { SynauraMobileDock } from '@/components/synaura/SynauraShell';
+import { useCommentsSurface } from '@/components/comments/useCommentsSurface';
+import CommentCount from '@/components/comments/CommentCount';
+import { useContextSurfaceController } from '@/components/context-surfaces/ContextSurfaceController';
+import { useProfilePeek } from '@/components/profile/useProfilePeek';
+import {
+  buildAnnouncementItem,
+  buildArtistSpotlightItems,
+  buildChallengeItem,
+  buildChallengesFilterFeed,
+  buildCollectionItems,
+  buildCreatorsFilterFeed,
+  buildMusicChallengeItem,
+  composeScrollFeed,
+  normalizeScrollPosts,
+  trackFromScrollPost,
+  type ScrollClip,
+  type ScrollFeedItem,
+  type ScrollPost,
+  type ScrollTrack,
+} from '@/lib/scrollFeed';
+import {
+  attachLiveSnapshotToHistory,
+  createLiveSnapshotId,
+  liveDraftStorageKey,
+  loadLiveDraft,
+  loadLiveNavigationContext,
+  makeLiveNavigationSnapshot,
+  mergeLiveFeedOrder,
+  reportLiveRestore,
+  saveLiveDraft,
+  saveLiveNavigationContext,
+  type LiveNavigationSnapshot,
+} from '@/lib/liveContinuity';
+import {
+  ArrowRight,
+  BadgeCheck,
+  Bookmark,
+  ChevronDown,
+  ChevronUp,
+  Compass,
+  CreditCard,
+  Download,
+  Film,
+  Heart,
+  Library,
+  ListMusic,
+  LogOut,
+  Loader2,
+  Megaphone,
+  MessageCircle,
+  Pause,
+  Play,
+  Search,
+  Settings,
+  Share2,
+  SmilePlus,
+  Sparkles,
+  Trophy,
+  User,
+  Users,
+  Wand2,
+  X,
+} from 'lucide-react';
+
+type FeedFilter = 'foryou' | 'new' | 'clips' | 'creators' | 'challenges';
+
+const FILTER_ORDER: FeedFilter[] = ['foryou', 'new', 'clips', 'creators', 'challenges'];
+
+const FILTER_META: Record<FeedFilter, { label: string; comingSoon?: boolean }> = {
+  foryou: { label: 'Pour toi' },
+  new: { label: 'Nouveau' },
+  clips: { label: 'Clips' },
+  creators: { label: 'Créateurs' },
+  challenges: { label: 'Défis' },
+};
+
+const STRATEGY_BY_FILTER: Partial<Record<FeedFilter, string>> = {
+  foryou: 'reco',
+  new: 'fresh',
+};
+
+const FALLBACK_COVER = '/default-cover.svg';
+
+/** Moteur de scroll repris de components/TikTokPlayer.tsx : détection de position
+ * par wheel/touch/clavier + repli scroll natif, plutôt qu'un IntersectionObserver
+ * (classe de bug déjà rencontrée : l'observer ne se relance pas de façon fiable
+ * après un changement de filtre ou pendant l'état de chargement). */
+const RENDER_BUFFER = 5;
+const WHEEL_LOCK_MS = 260;
+const SNAP_SETTLE_MS = 90;
+const AUTOPLAY_DELAY_MS = 110;
+const INITIAL_TRACK_LIMIT = 12;
+const MORE_TRACK_LIMIT = 40;
+const FEED_CACHE_MAX_AGE_MS = 12 * 60 * 60 * 1000;
+
+type CachedScrollFeed = {
+  savedAt: number;
+  tracks: ScrollTrack[];
+  nextCursor: number;
+  hasMore: boolean;
+};
+
+function readScrollFeedCache(key: string): CachedScrollFeed | null {
+  try {
+    const parsed = JSON.parse(window.localStorage.getItem(key) || 'null') as CachedScrollFeed | null;
+    if (!parsed?.savedAt || Date.now() - parsed.savedAt > FEED_CACHE_MAX_AGE_MS || !parsed.tracks?.length) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function writeScrollFeedCache(key: string, value: CachedScrollFeed) {
+  try {
+    window.localStorage.setItem(key, JSON.stringify(value));
+  } catch {}
+}
+
+const clamp = (v: number, lo: number, hi: number) => Math.min(Math.max(v, lo), hi);
+
+const fmtTime = (s: number) => {
+  if (!Number.isFinite(s) || s < 0) return '0:00';
+  const m = Math.floor(s / 60);
+  const ss = Math.floor(s % 60);
+  return `${m}:${String(ss).padStart(2, '0')}`;
+};
+
+const fmtCount = (n: number) => {
+  if (!Number.isFinite(n) || n < 0) return '0';
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}K`;
+  return String(n);
+};
+
+function countOf(value: unknown) {
+  if (Array.isArray(value)) return value.length;
+  if (typeof value === 'number') return value;
+  return 0;
+}
+
+/** Vidéo d'un Clip : lecture pilotée par ref (play/pause impératifs) plutôt que par
+ * l'attribut HTML autoPlay, qui ne se redéclenche pas quand le scroll change l'item
+ * actif. Reprend le pattern de MusicVideoLayer dans components/TikTokPlayer.tsx. */
+function ClipVideoLayer({ src, poster, active }: { src: string; poster?: string | null; active: boolean }) {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    if (active) {
+      if (video.currentTime > 0) video.currentTime = 0;
+      video.play().catch(() => {});
+    } else {
+      video.pause();
+    }
+  }, [active]);
+
+  return (
+    <video
+      ref={videoRef}
+      src={src}
+      poster={poster || undefined}
+      className="absolute inset-0 h-full w-full object-cover"
+      muted
+      loop
+      playsInline
+      preload={active ? 'auto' : 'metadata'}
+    />
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   HOOK: useFeedScrollSnap — wheel, keyboard, touch, scroll fallback
+   Adapté de useScrollSnap (components/TikTokPlayer.tsx) : la home est une
+   page permanente (pas un overlay), donc pas de isOpen/onClose/locked-close.
+   ═══════════════════════════════════════════════════════════════ */
+
+interface FeedScrollSnapOpts {
+  itemCount: number;
+  activeIndex: number;
+  locked: boolean;
+  ready: boolean;
+  onNavigate: (index: number, source: string) => void;
+  onTogglePlay: () => void;
+  onReturnHome?: () => void;
+}
+
+function useFeedScrollSnap(opts: FeedScrollSnapOpts) {
+  const { itemCount, activeIndex, locked, ready, onNavigate, onTogglePlay, onReturnHome } = opts;
+
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const itemRefs = useRef<(HTMLElement | null)[]>([]);
+  const wheelLockRef = useRef(false);
+  const isTouchingRef = useRef(false);
+  const programmaticRef = useRef(false);
+  const snapTimerRef = useRef<ReturnType<typeof setTimeout>>();
+
+  const getItemTop = useCallback((idx: number) => {
+    const el = itemRefs.current[idx];
+    if (el) return el.offsetTop;
+    const c = containerRef.current;
+    return idx * Math.max(1, c?.clientHeight || window.innerHeight);
+  }, []);
+
+  const scrollTo = useCallback((idx: number, behavior: ScrollBehavior = 'smooth') => {
+    const el = containerRef.current;
+    if (!el) return;
+    const i = clamp(idx, 0, Math.max(0, itemCount - 1));
+    const top = getItemTop(i);
+    if (Math.abs(el.scrollTop - top) < 2) return;
+    programmaticRef.current = true;
+    el.scrollTo({ top, behavior });
+    setTimeout(() => { programmaticRef.current = false; }, behavior === 'smooth' ? 500 : 100);
+  }, [getItemTop, itemCount]);
+
+  const visibleIndex = useCallback(() => {
+    const el = containerRef.current;
+    if (!el || el.clientHeight <= 0) return activeIndex;
+    return clamp(Math.round(el.scrollTop / el.clientHeight), 0, Math.max(0, itemCount - 1));
+  }, [activeIndex, itemCount]);
+
+  // Wheel (desktop) — un item par geste, listener natif pour garantir preventDefault
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const handler = (e: WheelEvent) => {
+      if (locked) return;
+      e.preventDefault();
+      if (wheelLockRef.current) return;
+      if (Math.abs(e.deltaY) < 8) return;
+      const dir = e.deltaY > 0 ? 1 : -1;
+      if (dir < 0 && activeIndex === 0 && onReturnHome) {
+        wheelLockRef.current = true;
+        onReturnHome();
+        setTimeout(() => { wheelLockRef.current = false; }, WHEEL_LOCK_MS);
+        return;
+      }
+      const next = clamp(activeIndex + dir, 0, itemCount - 1);
+      if (next === activeIndex) return;
+      wheelLockRef.current = true;
+      scrollTo(next, 'smooth');
+      onNavigate(next, 'scroll-wheel');
+      setTimeout(() => { wheelLockRef.current = false; }, WHEEL_LOCK_MS);
+    };
+    el.addEventListener('wheel', handler, { passive: false });
+    return () => el.removeEventListener('wheel', handler);
+  }, [ready, activeIndex, itemCount, locked, scrollTo, onNavigate, onReturnHome]);
+
+  // Clavier
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+      if (locked) return;
+      switch (e.key) {
+        case 'ArrowDown':
+        case 'PageDown': {
+          e.preventDefault();
+          const next = Math.min(itemCount - 1, activeIndex + 1);
+          scrollTo(next, 'smooth');
+          onNavigate(next, 'scroll-key');
+          break;
+        }
+        case 'ArrowUp':
+        case 'PageUp': {
+          e.preventDefault();
+          if (activeIndex === 0 && onReturnHome) {
+            onReturnHome();
+            break;
+          }
+          const prev = Math.max(0, activeIndex - 1);
+          scrollTo(prev, 'smooth');
+          onNavigate(prev, 'scroll-key');
+          break;
+        }
+        case ' ':
+        case 'Spacebar':
+          e.preventDefault();
+          onTogglePlay();
+          break;
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [activeIndex, itemCount, locked, scrollTo, onNavigate, onReturnHome, onTogglePlay]);
+
+  const onTouchStart = useCallback(() => {
+    isTouchingRef.current = true;
+    clearTimeout(snapTimerRef.current);
+  }, []);
+
+  const onTouchEnd = useCallback(() => {
+    if (locked) return;
+    isTouchingRef.current = false;
+    clearTimeout(snapTimerRef.current);
+    snapTimerRef.current = setTimeout(() => {
+      onNavigate(visibleIndex(), 'scroll-touch');
+    }, SNAP_SETTLE_MS);
+  }, [locked, visibleIndex, onNavigate]);
+
+  // Repli scroll natif (trackpad continu, ou navigateurs sans event wheel discret)
+  const onScroll = useCallback(() => {
+    if (locked) return;
+    if (programmaticRef.current || isTouchingRef.current || wheelLockRef.current) return;
+    clearTimeout(snapTimerRef.current);
+    snapTimerRef.current = setTimeout(() => {
+      const idx = visibleIndex();
+      if (idx !== activeIndex) onNavigate(idx, 'scroll-fallback');
+    }, 60);
+  }, [locked, visibleIndex, activeIndex, onNavigate]);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || !('onscrollend' in window)) return;
+    const handler = () => {
+      if (locked) return;
+      const idx = visibleIndex();
+      if (idx !== activeIndex) onNavigate(idx, 'scroll-end');
+    };
+    el.addEventListener('scrollend', handler);
+    return () => el.removeEventListener('scrollend', handler);
+  }, [ready, activeIndex, locked, onNavigate, visibleIndex]);
+
+  useEffect(() => () => clearTimeout(snapTimerRef.current), []);
+
+  return { containerRef, itemRefs, scrollTo, onTouchStart, onTouchEnd, onScroll };
+}
+
+export default function SynauraScroll() {
+  const router = useRouter();
+  const { data: session } = useSession();
+  const { audioState, setQueueAndPlay, playTrack, play, pause, seek, getAudioElement, handleLike } = useAudioPlayer();
+  const trackActions = useTrackActions('live');
+
+  const [filter, setFilter] = useState<FeedFilter>(() => {
+    if (typeof window === 'undefined') return 'foryou';
+    const params = new URLSearchParams(window.location.search);
+    return params.get('filter') === 'clips' || params.get('sourceTrackId') || params.get('clipId') ? 'clips' : 'foryou';
+  });
+  const [sourceTrackFilter, setSourceTrackFilter] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    return new URLSearchParams(window.location.search).get('sourceTrackId') || '';
+  });
+  const [clipIdFilter, setClipIdFilter] = useState(() => {
+    if (typeof window === 'undefined') return '';
+    return new URLSearchParams(window.location.search).get('clipId') || '';
+  });
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [homePreludeOpen, setHomePreludeOpen] = useState(() => {
+    if (typeof window === 'undefined') return true;
+    const params = new URLSearchParams(window.location.search);
+    return !params.get('sourceTrackId') && !params.get('clipId') && params.get('filter') !== 'clips';
+  });
+
+  const [loading, setLoading] = useState(true);
+  const [baseTracks, setBaseTracks] = useState<ScrollTrack[]>([]);
+  const [trackCursor, setTrackCursor] = useState(0);
+  const [trackHasMore, setTrackHasMore] = useState(true);
+  const [baseClips, setBaseClips] = useState<ScrollClip[]>([]);
+  const [basePosts, setBasePosts] = useState<ScrollPost[]>([]);
+  const [popularUsersRaw, setPopularUsersRaw] = useState<any[]>([]);
+  const [collectionsRaw, setCollectionsRaw] = useState<any[]>([]);
+  const [cityEventsRaw, setCityEventsRaw] = useState<any[]>([]);
+  const [musicChallengesRaw, setMusicChallengesRaw] = useState<any[]>([]);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
+  const [cityPulse, setCityPulse] = useState<{ title: string; event: string; pulse: number; votes: number } | null>(null);
+  const [launchingCollectionId, setLaunchingCollectionId] = useState<string | null>(null);
+  const commentsClient = useQueryClient();
+
+  const [continuityReady, setContinuityReady] = useState(false);
+  const [continuitySettled, setContinuitySettled] = useState(false);
+  const [restoredSnapshot, setRestoredSnapshot] = useState<LiveNavigationSnapshot | null>(null);
+  const [restoredFeedItems, setRestoredFeedItems] = useState<ScrollFeedItem[]>([]);
+
+  const accountRef = useRef<HTMLDivElement | null>(null);
+  const clipOffsetSeekedRef = useRef<string | null>(null);
+  // Garde-fous anti-race (repris de loadRequestRef dans components/TikTokPlayer.tsx) :
+  // un changement de filtre rapide (foryou -> new -> foryou) ne doit pas laisser une
+  // réponse réseau périmée écraser un chargement plus récent.
+  const trackLoadRequestRef = useRef(0);
+  const clipLoadRequestRef = useRef(0);
+  const postLoadRequestRef = useRef(0);
+  const loadingMoreTracksRef = useRef(false);
+  const impressionSeenRef = useRef<Set<string>>(new Set());
+  const liveRerankTimerRef = useRef<number | null>(null);
+  const liveRerankCountRef = useRef(0);
+  const snapshotIdRef = useRef('');
+  const continuityInitRef = useRef(false);
+  const suppressRestoredAutoplayRef = useRef(false);
+  const persistBeforeNavigationRef = useRef<() => void>(() => {});
+
+  const currentTrack = audioState.tracks[audioState.currentTrackIndex];
+  const currentId = currentTrack?._id;
+  const username = (session?.user as any)?.username;
+  const currentUserId = (session?.user as any)?.id;
+  const needsTrackFetch = filter === 'foryou' || filter === 'new';
+  const openProfilePeek = useProfilePeek('live');
+  const openComments = useCommentsSurface('live');
+  const { depth: contextDepth } = useContextSurfaceController();
+  const commentsTrack = (track: ScrollTrack) => ({ type: 'track' as const, id: track._id, title: track.title, artist: track.artist.name, creatorId: track.artist._id, audioUrl: track.audioUrl, coverUrl: track.coverUrl, duration: track.duration, count: countOf(track.comments) });
+  const navigateFromLive = useCallback((href: string) => {
+    persistBeforeNavigationRef.current();
+    router.push(withCurrentHandoff(href), { scroll: false });
+  }, [router]);
+  const useThisSound = useCallback((track: ScrollTrack) => {
+    void recordClipFunnelEvent(track._id, 'clip_use_sound_started');
+    const trackType = track._id.startsWith('ai-') ? 'ai_track' : 'track';
+    navigateFromLive(`/clips/new?trackId=${encodeURIComponent(track._id)}&trackType=${trackType}`);
+  }, [navigateFromLive]);
+  useLayoutEffect(() => {
+    if (continuityInitRef.current) return;
+    continuityInitRef.current = true;
+    const restore = loadLiveNavigationContext(window.history.state, window.sessionStorage);
+    const snapshotId = restore.snapshot?.snapshotId || createLiveSnapshotId();
+    snapshotIdRef.current = snapshotId;
+    attachLiveSnapshotToHistory(window.history, snapshotId);
+
+    if (restore.snapshot) {
+      const items = restore.feed?.items || [];
+      const anchorIndex = Math.max(0, items.findIndex((item) => item.id === restore.snapshot?.activeItemId));
+      setRestoredSnapshot(restore.snapshot);
+      setRestoredFeedItems(items);
+      setFilter(restore.snapshot.filter);
+      setSourceTrackFilter(restore.snapshot.source.sourceTrackId || '');
+      setClipIdFilter(restore.snapshot.source.clipId || '');
+      setTrackCursor(restore.snapshot.cursors.tracks);
+      setTrackHasMore(restore.snapshot.hasMore.tracks);
+      setActiveIndex(anchorIndex);
+      setHomePreludeOpen(restore.snapshot.contextSurface === 'prelude');
+      setLoading(restore.status === 'partial' || items.length === 0);
+      for (const item of items.slice(0, restore.snapshot.frozenSeenBoundary + 1)) {
+        if (item.type === 'track') impressionSeenRef.current.add(`track:${item.track._id}`);
+        if (item.type === 'clip') impressionSeenRef.current.add(`clip:${item.clip.id}`);
+        if (item.type === 'post') impressionSeenRef.current.add(`post:${item.post.id}`);
+      }
+      liveRerankCountRef.current = impressionSeenRef.current.size;
+      suppressRestoredAutoplayRef.current = true;
+      reportLiveRestore(restore.status === 'success' ? 'restore-success' : 'restore-partial', restore.reason);
+    } else {
+      setContinuitySettled(true);
+      reportLiveRestore('restore-miss', restore.reason);
+    }
+    setContinuityReady(true);
+  }, []);
+
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, []);
+
+  useEffect(() => {
+    const refreshClips = () => setReloadKey((value) => value + 1);
+    window.addEventListener('synaura:clip-upload-completed', refreshClips);
+    return () => window.removeEventListener('synaura:clip-upload-completed', refreshClips);
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        if (!username) return;
+        const res = await fetch(`/api/users/${encodeURIComponent(username)}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        const c = data?.user?.avatar || data?.user?.image || data?.avatar || data?.image;
+        if (c && typeof c === 'string') setAvatarUrl(c);
+      } catch {}
+    })();
+  }, [username]);
+
+  useEffect(() => {
+    const onPointerDown = (e: MouseEvent) => {
+      if (accountRef.current && !accountRef.current.contains(e.target as Node)) setAccountOpen(false);
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    return () => document.removeEventListener('mousedown', onPointerDown);
+  }, []);
+
+  // Morceaux : trame principale du feed (Pour toi / Nouveau). Créateurs et Défis
+  // réutilisent le pool déjà chargé plutôt que de relancer un appel réseau.
+  useEffect(() => {
+    if (!continuityReady) return;
+    if (!needsTrackFetch) {
+      setLoading(false);
+      return;
+    }
+
+    let mounted = true;
+    const requestId = ++trackLoadRequestRef.current;
+    if (!restoredSnapshot) setActiveIndex(0);
+
+    (async () => {
+      const strategy = STRATEGY_BY_FILTER[filter] || 'reco';
+      const cacheKey = `synaura.scroll.feed.v2:${username || 'anonymous'}:${strategy}`;
+      const cached = readScrollFeedCache(cacheKey);
+      let cacheWasShown = false;
+      if (cached?.tracks.length) {
+        setBaseTracks(cached.tracks);
+        setTrackCursor(cached.nextCursor);
+        setTrackHasMore(cached.hasMore);
+        setLoading(false);
+        cacheWasShown = true;
+      }
+      try {
+        if (!cacheWasShown) setLoading(true);
+        setError(null);
+        const feedParams = new URLSearchParams({
+          limit: String(INITIAL_TRACK_LIMIT),
+          ai: '1',
+          strategy,
+          session: getRecommendationSessionId(),
+        });
+        const res = await fetch(`/api/ranking/feed?${feedParams.toString()}`, { cache: 'no-store' });
+        if (!res.ok) throw new Error('Chargement impossible');
+        const json = await res.json();
+        const list = applyCdnToTracks((Array.isArray(json?.tracks) ? json.tracks : []) as any) as ScrollTrack[];
+        if (!mounted || requestId !== trackLoadRequestRef.current) return;
+        setBaseTracks(list);
+        const nextCursor = typeof json?.nextCursor === 'number' ? json.nextCursor : list.length;
+        const hasMore = Boolean(json?.hasMore);
+        setTrackCursor(nextCursor);
+        setTrackHasMore(hasMore);
+        writeScrollFeedCache(cacheKey, { savedAt: Date.now(), tracks: list, nextCursor, hasMore });
+      } catch (e: any) {
+        if (mounted && requestId === trackLoadRequestRef.current && !cacheWasShown) setError(e?.message || 'Impossible de charger le scroll');
+      } finally {
+        if (mounted && requestId === trackLoadRequestRef.current) setLoading(false);
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, [continuityReady, filter, needsTrackFetch, reloadKey, restoredSnapshot, username]);
+
+  useEffect(() => {
+    if (!continuityReady) return;
+    if (!(filter === 'clips' || filter === 'foryou' || filter === 'new')) return;
+    let mounted = true;
+    const requestId = ++clipLoadRequestRef.current;
+    if (filter === 'clips' && !restoredSnapshot) {
+      setActiveIndex(0);
+      setLoading(true);
+    }
+    const params = new URLSearchParams({ limit: String(filter === 'clips' ? 16 : 12) });
+    params.set('session', getRecommendationSessionId());
+    if (filter === 'clips' && sourceTrackFilter) params.set('sourceTrackId', sourceTrackFilter);
+    if (filter === 'clips' && clipIdFilter) params.set('clipId', clipIdFilter);
+    fetch(`/api/music-clips?${params.toString()}`, { cache: 'no-store' })
+      .then((response) => response.json().then((json) => ({ ok: response.ok, json })))
+      .then(({ ok, json }) => {
+        if (!mounted || requestId !== clipLoadRequestRef.current) return;
+        if (!ok) throw new Error(json?.error || 'Impossible de charger les clips');
+        setBaseClips(Array.isArray(json?.clips) ? json.clips : []);
+        if (filter === 'clips') setError(null);
+      })
+      .catch((e) => {
+        if (mounted && filter === 'clips' && requestId === clipLoadRequestRef.current) setError(e?.message || 'Impossible de charger les clips');
+      })
+      .finally(() => {
+        if (mounted && filter === 'clips' && requestId === clipLoadRequestRef.current) setLoading(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [clipIdFilter, continuityReady, filter, reloadKey, restoredSnapshot, sourceTrackFilter]);
+
+  useEffect(() => {
+    if (!continuityReady) return;
+    if (filter !== 'foryou') return;
+    let mounted = true;
+    const requestId = ++postLoadRequestRef.current;
+    const params = new URLSearchParams({ limit: '8', session: getRecommendationSessionId() });
+    fetch(`/api/recommendations/mixed?${params.toString()}`, { cache: 'no-store' })
+      .then((response) => response.json().then((json) => ({ ok: response.ok, json })))
+      .then(({ ok, json }) => {
+        if (!mounted || requestId !== postLoadRequestRef.current || !ok) return;
+        setBasePosts(normalizeScrollPosts(Array.isArray(json?.posts) ? json.posts : []));
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, [continuityReady, filter, reloadKey]);
+
+  useEffect(() => {
+    if (filter !== 'foryou') setHomePreludeOpen(false);
+  }, [filter]);
+
+  // Artistes populaires + collections éditoriales : chargés une fois, réutilisés pour
+  // composer le feed mixte et pour le filtre Créateurs.
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const [usersRes, collectionsRes] = await Promise.all([
+          fetch('/api/users/popular?limit=20', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+          fetch('/api/editorial-collections/featured', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+        ]);
+        if (!mounted) return;
+        if (Array.isArray(usersRes?.users)) setPopularUsersRaw(usersRes.users);
+        if (Array.isArray(collectionsRes?.collections)) setCollectionsRaw(collectionsRes.collections);
+      } catch {}
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  // Synaura Pulse (events réels) : alimente la pastille "Events", le défi et l'annonce éditoriale.
+  useEffect(() => {
+    let mounted = true;
+    fetch('/api/city', { cache: 'no-store' })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((city) => {
+        if (!mounted || !city?.dayKey) return;
+        const events = Array.isArray(city.events) ? city.events : [];
+        setCityEventsRaw(events);
+        const liveEvent = events.find((event: any) => event.kind === 'battle' && event.isLive)
+          || events.find((event: any) => event.isLive)
+          || events[0];
+        setCityPulse({
+          title: city.cityMood?.title || 'Synaura Pulse',
+          event: liveEvent?.title || 'Event live',
+          pulse: city.pulse?.[0]?.pulse || 0,
+          votes: liveEvent?.totalVotes || 0,
+        });
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  // Défis musicaux V1 (réels, éditoriaux) : prennent le pas sur le challenge algorithmique
+  // de Synaura Pulse dans le Scroll quand un défi est actif.
+  useEffect(() => {
+    let mounted = true;
+    fetch('/api/challenges?status=active', { cache: 'no-store' })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((json) => {
+        if (mounted && Array.isArray(json?.challenges)) setMusicChallengesRaw(json.challenges);
+      })
+      .catch(() => {});
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  // Composition du feed mixte : la trame reste les morceaux (>=75%), les cartes non
+  // musicales (artiste, collection, défi, annonce) sont réparties avec parcimonie.
+  const freshFeedItems = useMemo<ScrollFeedItem[]>(() => {
+    if (filter === 'clips') {
+      return baseClips
+        .filter((clip) => clip?.id && clip.videoUrl && clip.sourceTrack?.audioUrl)
+        .map((clip) => ({ id: `clip-${clip.id}`, type: 'clip' as const, clip, track: clip.sourceTrack }));
+    }
+    if (filter === 'creators') return buildCreatorsFilterFeed(popularUsersRaw, baseTracks);
+    if (filter === 'challenges') return buildChallengesFilterFeed(musicChallengesRaw, cityEventsRaw);
+
+    const artistItems = buildArtistSpotlightItems(popularUsersRaw, baseTracks, 3);
+    const collectionItems = buildCollectionItems(collectionsRaw, 2);
+    const challenge = buildMusicChallengeItem(musicChallengesRaw) || buildChallengeItem(cityEventsRaw);
+    const announcement = buildAnnouncementItem(cityEventsRaw);
+    return composeScrollFeed({
+      tracks: baseTracks,
+      clips: baseClips,
+      posts: filter === 'foryou' ? basePosts : [],
+      artistSpotlights: artistItems,
+      collections: collectionItems,
+      challenge: challenge?.item || null,
+      announcement: announcement?.item || null,
+    });
+  }, [filter, baseTracks, baseClips, basePosts, popularUsersRaw, collectionsRaw, cityEventsRaw, musicChallengesRaw]);
+
+  const feedItems = useMemo(
+    () => mergeLiveFeedOrder(restoredSnapshot, restoredFeedItems, freshFeedItems),
+    [freshFeedItems, restoredFeedItems, restoredSnapshot],
+  );
+
+  useEffect(() => {
+    if (loading || !continuitySettled) return;
+    const item = feedItems[activeIndex];
+    if (!item || (item.type !== 'track' && item.type !== 'clip' && item.type !== 'post')) return;
+    const contentType = item.type === 'clip' ? 'clip' : item.type === 'post' ? 'post' : 'track';
+    const contentId = item.type === 'clip' ? item.clip.id : item.type === 'post' ? item.post.id : item.track._id;
+    const key = `${contentType}:${contentId}`;
+    if (!contentId || impressionSeenRef.current.has(key)) return;
+    const timer = window.setTimeout(() => {
+      if (impressionSeenRef.current.has(key)) return;
+      impressionSeenRef.current.add(key);
+      const entity = item.type === 'clip' ? item.clip : item.type === 'post' ? item.post : item.track;
+      void fetch('/api/recommendations/impressions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        keepalive: true,
+        body: JSON.stringify({
+          sessionId: getRecommendationSessionId(),
+          impressions: [{
+            contentType,
+            contentId,
+            source: 'scroll-web',
+            rank: activeIndex,
+            score: Number((entity as any).recommendationScore || 0),
+            reasons: (entity as any).recommendationReasons || [],
+          }],
+        }),
+      }).catch(() => {
+        impressionSeenRef.current.delete(key);
+      });
+    }, 650);
+    return () => window.clearTimeout(timer);
+  }, [activeIndex, continuitySettled, feedItems, loading]);
+
+  // Le contenu deja parcouru reste immobile. Toutes les trois impressions,
+  // seule la suite encore invisible est regeneree avec les signaux tout juste
+  // enregistres (ecoute, skip, completion, like et exposition de session).
+  useEffect(() => {
+    if (!continuitySettled || filter !== 'foryou' || loading || loadingMoreTracksRef.current) return;
+    const seenCount = impressionSeenRef.current.size;
+    if (seenCount - liveRerankCountRef.current < 3) return;
+    const activeItem = feedItems[activeIndex];
+    if (!activeItem || activeItem.type !== 'track') return;
+    const activeTrackIndex = baseTracks.findIndex((track) => track._id === activeItem.track._id);
+    if (activeTrackIndex < 0) return;
+    liveRerankCountRef.current = seenCount;
+    if (liveRerankTimerRef.current) window.clearTimeout(liveRerankTimerRef.current);
+    liveRerankTimerRef.current = window.setTimeout(() => {
+      const params = new URLSearchParams({
+        limit: String(MORE_TRACK_LIMIT),
+        ai: '1',
+        strategy: 'reco',
+        cursor: '0',
+        session: getRecommendationSessionId(),
+      });
+      const excluded = baseTracks.map((track) => track._id).filter(Boolean).slice(-120);
+      if (excluded.length) params.set('exclude', excluded.join(','));
+      void fetch(`/api/ranking/feed?${params.toString()}`, { cache: 'no-store' })
+        .then((response) => response.ok ? response.json() : null)
+        .then((json) => {
+          if (!json) return;
+          const incoming = applyCdnToTracks((Array.isArray(json?.tracks) ? json.tracks : []) as any) as ScrollTrack[];
+          const preserved = baseTracks.slice(0, activeTrackIndex + 1);
+          const seen = new Set(preserved.map((track) => track._id));
+          setBaseTracks([...preserved, ...incoming.filter((track) => !seen.has(track._id))]);
+          setTrackCursor(typeof json?.nextCursor === 'number' ? json.nextCursor : incoming.length);
+          setTrackHasMore(Boolean(json?.hasMore));
+        })
+        .catch(() => {});
+    }, 1400);
+    return () => {
+      if (liveRerankTimerRef.current) window.clearTimeout(liveRerankTimerRef.current);
+    };
+  }, [activeIndex, baseTracks, continuitySettled, feedItems, filter, loading]);
+
+  // Le premier rendu reste petit et rapide; la suite arrive avant que l'auditeur
+  // atteigne la fin, sans reconstruire les cartes deja visibles.
+  useEffect(() => {
+    if (!continuitySettled || !needsTrackFetch || loading || loadingMoreTracksRef.current || !trackHasMore || !feedItems.length) return;
+    if (activeIndex < feedItems.length - 8) return;
+    let mounted = true;
+    const strategy = STRATEGY_BY_FILTER[filter] || 'reco';
+    loadingMoreTracksRef.current = true;
+    const params = new URLSearchParams({
+      limit: String(MORE_TRACK_LIMIT),
+      ai: '1',
+      strategy,
+      cursor: '0',
+      session: getRecommendationSessionId(),
+    });
+    const excluded = baseTracks.map((track) => track._id).filter(Boolean).slice(-120);
+    if (excluded.length) params.set('exclude', excluded.join(','));
+    fetch(`/api/ranking/feed?${params.toString()}`, { cache: 'no-store' })
+      .then((response) => response.json().then((json) => ({ ok: response.ok, json })))
+      .then(({ ok, json }) => {
+        if (!mounted || !ok) return;
+        const incoming = applyCdnToTracks((Array.isArray(json?.tracks) ? json.tracks : []) as any) as ScrollTrack[];
+        setBaseTracks((current) => {
+          const seen = new Set(current.map((track) => track._id));
+          return [...current, ...incoming.filter((track) => !seen.has(track._id))];
+        });
+        setTrackCursor(typeof json?.nextCursor === 'number' ? json.nextCursor : trackCursor + incoming.length);
+        setTrackHasMore(Boolean(json?.hasMore));
+      })
+      .catch(() => {})
+      .finally(() => {
+        loadingMoreTracksRef.current = false;
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [activeIndex, baseTracks, continuitySettled, feedItems.length, filter, loading, needsTrackFetch, trackCursor, trackHasMore]);
+
+  // File de lecture : uniquement les entrées réellement jouables (morceau ou artiste en vedette),
+  // dans le même ordre que le feed affiché, pour que suivant/précédent restent cohérents.
+  // Les sources du feed (tracks/clips/artistes/collections/défis) arrivent par appels réseau
+  // indépendants et redonnent chacune une nouvelle référence à `feedItems` : on ne renvoie une
+  // nouvelle référence de `queueByPosition` que si la séquence d'ids a réellement changé, pour
+  // que l'effet d'autoplay ci-dessous ne se redéclenche pas en rafale sur des morceaux identiques
+  // pendant que le feed finit de se composer (cause du spam réseau/lecture observé au changement
+  // de filtre).
+  const queueByPositionRef = useRef<Array<ScrollTrack | null>>([]);
+  const queueByPosition = useMemo(() => {
+    const next = feedItems.map((item): ScrollTrack | null => {
+      const track = item.type === 'track' || item.type === 'clip'
+        ? item.track
+        : item.type === 'artist_spotlight'
+          ? item.track
+          : item.type === 'post'
+            ? trackFromScrollPost(item.post)
+            : null;
+      if (!track) return null;
+      return { ...track, coverUrl: track.coverUrl || FALLBACK_COVER };
+    });
+    const prev = queueByPositionRef.current;
+    const unchanged = prev.length === next.length && prev.every((t, i) => (t?._id || null) === (next[i]?._id || null));
+    if (unchanged) return prev;
+    queueByPositionRef.current = next;
+    return next;
+  }, [feedItems]);
+
+  const playableQueue = useMemo(() => queueByPosition.filter((t): t is ScrollTrack => Boolean(t)).map((t) => ({ ...t, source: 'scroll' })), [queueByPosition]);
+
+  const feedIndexToQueueIndex = useMemo(() => {
+    const map = new Map<number, number>();
+    let qi = 0;
+    queueByPosition.forEach((track, idx) => {
+      if (track) {
+        map.set(idx, qi);
+        qi += 1;
+      }
+    });
+    return map;
+  }, [queueByPosition]);
+
+  const playIndex = useCallback(
+    (index: number) => {
+      const track = queueByPosition[index];
+      const queueIndex = feedIndexToQueueIndex.get(index);
+      if (!track || queueIndex === undefined) return;
+      setQueueAndPlay(playableQueue as any, queueIndex);
+    },
+    [feedIndexToQueueIndex, playableQueue, queueByPosition, setQueueAndPlay],
+  );
+
+  const navigateTo = useCallback((index: number) => {
+    suppressRestoredAutoplayRef.current = false;
+    setActiveIndex((current) => (current === index ? current : index));
+  }, []);
+
+  const returnToHome = useCallback(() => {
+    if (filter !== 'foryou') return;
+    setHomePreludeOpen(true);
+  }, [filter]);
+
+  const scrollSnap = useFeedScrollSnap({
+    itemCount: feedItems.length,
+    activeIndex,
+    locked: contextDepth > 0,
+    ready: !loading,
+    onNavigate: navigateTo,
+    onTogglePlay: useCallback(() => { audioState.isPlaying ? pause() : play(); }, [audioState.isPlaying, pause, play]),
+    onReturnHome: returnToHome,
+  });
+
+  useLayoutEffect(() => {
+    if (!continuityReady || continuitySettled || !restoredSnapshot) return;
+    if (!feedItems.length) {
+      if (!loading) {
+        suppressRestoredAutoplayRef.current = false;
+        setContinuitySettled(true);
+        reportLiveRestore('restore-partial', 'empty-feed-fallback');
+      }
+      return;
+    }
+    const anchorIndex = feedItems.findIndex((item) => item.id === restoredSnapshot.activeItemId);
+    if (anchorIndex < 0) {
+      suppressRestoredAutoplayRef.current = false;
+      setActiveIndex(0);
+      setContinuitySettled(true);
+      reportLiveRestore('restore-partial', 'active-item-missing');
+      return;
+    }
+
+    setActiveIndex(anchorIndex);
+    setHomePreludeOpen(restoredSnapshot.contextSurface === 'prelude');
+    const activeItem = feedItems[anchorIndex];
+    if (activeItem?.type === 'clip') clipOffsetSeekedRef.current = activeItem.clip.id;
+    requestAnimationFrame(() => {
+      scrollSnap.scrollTo(anchorIndex, 'auto');
+      const container = scrollSnap.containerRef.current;
+      const anchor = scrollSnap.itemRefs.current[anchorIndex];
+      if (container && anchor && restoredSnapshot.scrollOffsetWithinItem) {
+        container.scrollTop = anchor.offsetTop + restoredSnapshot.scrollOffsetWithinItem;
+      }
+      container?.focus({ preventScroll: true });
+      requestAnimationFrame(() => setContinuitySettled(true));
+    });
+  }, [continuityReady, continuitySettled, feedItems, loading, restoredSnapshot, scrollSnap.containerRef, scrollSnap.itemRefs, scrollSnap.scrollTo]);
+
+  useEffect(() => {
+    if (!restoredSnapshot || !currentUserId || !feedItems.length || !restoredSnapshot.draftRefs.length) return;
+    const draft = restoredSnapshot.draftRefs
+      .map((key) => loadLiveDraft(window.sessionStorage, key, currentUserId))
+      .find(Boolean);
+    if (!draft || draft.entityType !== 'track') return;
+    const track = queueByPosition.find((candidate) => candidate?._id === draft.entityId);
+    if (!track) return;
+    const key = ['comment-draft', 'track', track._id, currentUserId];
+    if (!commentsClient.getQueryData(key)) commentsClient.setQueryData(key, { text: draft.text, timestamp: draft.timestampSeconds ?? null });
+  }, [commentsClient, currentUserId, feedItems.length, queueByPosition, restoredSnapshot]);
+
+  const persistLiveSnapshot = useCallback(() => {
+    if (!continuityReady || !snapshotIdRef.current || !feedItems.length) return;
+    const activeItem = feedItems[activeIndex] || feedItems[0];
+    if (!activeItem) return;
+    const container = scrollSnap.containerRef.current;
+    const anchor = scrollSnap.itemRefs.current[activeIndex];
+    const draftRefs: string[] = [];
+    if (currentUserId) {
+      for (const query of commentsClient.getQueryCache().findAll({ queryKey: ['comment-draft'] })) {
+        const [, entityType, entityId, viewer] = query.queryKey;
+        const draft = query.state.data as { text?: string; timestamp?: number | null } | undefined;
+        if (viewer !== currentUserId || !draft?.text?.trim() || !['track', 'post', 'clip'].includes(String(entityType))) continue;
+        const type = entityType as 'track' | 'post' | 'clip';
+        const key = liveDraftStorageKey(currentUserId, type, String(entityId));
+        saveLiveDraft(window.sessionStorage, { version: 1, savedAt: Date.now(), userId: currentUserId, entityType: type, entityId: String(entityId), text: draft.text, timestampSeconds: draft.timestamp ?? undefined });
+        draftRefs.push(key);
+      }
+    }
+    const historyKey = typeof window.history.state?.key === 'string'
+      ? window.history.state.key
+      : snapshotIdRef.current;
+    const snapshot = makeLiveNavigationSnapshot({
+      snapshotId: snapshotIdRef.current,
+      historyKey,
+      feedMode: 'synaura-scroll',
+      filter,
+      exactItemOrder: feedItems.map((item) => item.id),
+      activeItemId: activeItem.id,
+      scrollOffsetWithinItem: container && anchor ? container.scrollTop - anchor.offsetTop : 0,
+      cursors: { tracks: trackCursor },
+      hasMore: { tracks: trackHasMore },
+      frozenSeenBoundary: Math.max(restoredSnapshot?.frozenSeenBoundary || 0, activeIndex),
+      source: {
+        sourceTrackId: sourceTrackFilter || undefined,
+        clipId: clipIdFilter || undefined,
+      },
+      draftRefs,
+      contextSurface: homePreludeOpen ? 'prelude' : 'feed',
+    });
+    saveLiveNavigationContext(window.sessionStorage, snapshot, feedItems);
+    attachLiveSnapshotToHistory(window.history, snapshot.snapshotId);
+  }, [activeIndex, clipIdFilter, continuityReady, currentUserId, feedItems, filter, homePreludeOpen, commentsClient, restoredSnapshot, scrollSnap.containerRef, scrollSnap.itemRefs, sourceTrackFilter, trackCursor, trackHasMore]);
+
+  useLayoutEffect(() => {
+    persistBeforeNavigationRef.current = persistLiveSnapshot;
+  }, [persistLiveSnapshot]);
+
+  useEffect(() => {
+    if (!continuityReady || !feedItems.length) return;
+    const timer = window.setTimeout(persistLiveSnapshot, 80);
+    const persistOnPageHide = () => persistLiveSnapshot();
+    const persistOnNavigationIntent = (event: MouseEvent) => {
+      const target = event.target instanceof Element ? event.target : null;
+      if (target?.closest('[data-context-surface-trigger-key]')) return;
+      if (target?.closest('[data-context-surface]') && !target.closest('a[href], [data-live-route-intent], [data-profile-peek-full-profile]')) return;
+      persistLiveSnapshot();
+    };
+    window.addEventListener('pagehide', persistOnPageHide);
+    document.addEventListener('click', persistOnNavigationIntent, true);
+    return () => {
+      window.clearTimeout(timer);
+      window.removeEventListener('pagehide', persistOnPageHide);
+      document.removeEventListener('click', persistOnNavigationIntent, true);
+    };
+  }, [continuityReady, feedItems.length, persistLiveSnapshot]);
+
+  const jump = useCallback((index: number) => {
+    const clamped = clamp(index, 0, feedItems.length - 1);
+    scrollSnap.scrollTo(clamped, 'smooth');
+    navigateTo(clamped);
+  }, [feedItems.length, navigateTo, scrollSnap.scrollTo]);
+
+  const selectFilter = useCallback((nextFilter: FeedFilter) => {
+    if (nextFilter === filter) return;
+    persistLiveSnapshot();
+    suppressRestoredAutoplayRef.current = false;
+    setRestoredSnapshot(null);
+    setRestoredFeedItems([]);
+    setContinuitySettled(true);
+    setHomePreludeOpen(false);
+    setActiveIndex(0);
+    setFilter(nextFilter);
+  }, [filter, persistLiveSnapshot]);
+
+  const enterFlow = useCallback(() => {
+    setHomePreludeOpen(false);
+  }, []);
+
+  const playPreludeTrack = useCallback((track: ScrollTrack) => {
+    if (currentId === track._id) {
+      if (audioState.isPlaying) pause();
+      else void play();
+      return;
+    }
+    playTrack(track as any);
+  }, [audioState.isPlaying, currentId, pause, play, playTrack]);
+
+  const openPreludeTrack = useCallback((track: ScrollTrack) => {
+    const index = feedItems.findIndex((item) => {
+      if (item.type === 'track' || item.type === 'clip' || item.type === 'artist_spotlight') return item.track._id === track._id;
+      return item.type === 'post' && item.post.track?.id === track._id;
+    });
+    setHomePreludeOpen(false);
+    if (index < 0) {
+      playTrack(track as any);
+      return;
+    }
+    requestAnimationFrame(() => {
+      scrollSnap.scrollTo(index, 'auto');
+      navigateTo(index);
+      if (currentId !== track._id) playIndex(index);
+    });
+  }, [currentId, feedItems, navigateTo, playIndex, playTrack, scrollSnap.scrollTo]);
+
+  // Déclenche la lecture quand l'item actif change (geste de scroll, clic sur une
+  // carte, ou repositionnement après chargement/changement de filtre) : une seule
+  // source de vérité, pas de double-déclenchement à traquer.
+  // Garde d'idempotence stricte : `lastAutoplayRequestRef` retient le dernier morceau
+  // réellement demandé pour la position active, pour ne jamais rappeler setQueueAndPlay
+  // une seconde fois sur le même morceau tant que le contexte player n'a pas eu le temps
+  // de mettre `currentId` à jour (évite la rafale de lecture/réseau si l'effet se
+  // redéclenche plusieurs fois rapprochées pour un même morceau).
+  const lastAutoplayRequestRef = useRef<string | null>(null);
+  useEffect(() => {
+    lastAutoplayRequestRef.current = null;
+  }, [activeIndex]);
+  useEffect(() => {
+    const track = queueByPosition[activeIndex];
+    if (!continuitySettled || suppressRestoredAutoplayRef.current || !track || homePreludeOpen) return;
+    const timer = window.setTimeout(() => {
+      if (currentId === track._id) return;
+      if (lastAutoplayRequestRef.current === track._id) return;
+      lastAutoplayRequestRef.current = track._id;
+      playIndex(activeIndex);
+    }, AUTOPLAY_DELAY_MS);
+    return () => window.clearTimeout(timer);
+  }, [activeIndex, continuitySettled, currentId, homePreludeOpen, playIndex, queueByPosition]);
+
+  // Un Clip a un point de départ choisi par son créateur à la publication
+  // (sourceTrackOffsetSeconds) : une fois le son du morceau original chargé, on
+  // le positionne à cet instant pour rester synchro avec la vidéo (ref unique par
+  // clip pour ne recaler qu'une seule fois, jamais si l'auditeur navigue lui-même).
+  useEffect(() => {
+    if (!continuitySettled) return;
+    const item = feedItems[activeIndex];
+    if (!item || item.type !== 'clip') return;
+    const offset = item.clip.sourceTrackOffsetSeconds || 0;
+    if (offset <= 0) return;
+    if (currentId !== item.track._id) return;
+    if (!audioState.duration) return;
+    if (clipOffsetSeekedRef.current === item.clip.id) return;
+    clipOffsetSeekedRef.current = item.clip.id;
+    seek(Math.min(offset, Math.max(0, audioState.duration - 0.5)));
+  }, [activeIndex, continuitySettled, feedItems, currentId, audioState.duration, seek]);
+
+  const shareClip = useCallback(async (clip: ScrollClip) => {
+    const sourceUrl = `${window.location.origin}${(clip.sourceTrack as any).trackUrl || `/track/${clip.sourceTrack._id}`}`;
+    try {
+      if ((navigator as any).share) {
+        await (navigator as any).share({ title: clip.sourceTrack.title, text: clip.caption || 'Clip musical Synaura', url: sourceUrl });
+      } else {
+        await navigator.clipboard.writeText(sourceUrl);
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const sharePost = useCallback(async (post: ScrollPost) => {
+    const url = `${window.location.origin}/posts/${encodeURIComponent(post.id)}`;
+    const author = post.creator.name || post.creator.username || 'Membre Synaura';
+    try {
+      if ((navigator as any).share) {
+        await (navigator as any).share({ title: `Post de ${author}`, text: post.content || 'Publication Synaura', url });
+      } else {
+        await navigator.clipboard.writeText(url);
+        notify.success('', 'Lien du post copié');
+      }
+    } catch {
+      // Le partage natif peut être annulé volontairement.
+    }
+  }, []);
+
+  const launchCollection = useCallback(async (collectionId: string, slug: string) => {
+    setLaunchingCollectionId(collectionId);
+    try {
+      const res = await fetch(`/api/playlists/${encodeURIComponent(slug)}`, { cache: 'no-store' });
+      const json = await res.json().catch(() => null);
+      const tracks = Array.isArray(json?.tracks) ? json.tracks : [];
+      if (tracks.length) setQueueAndPlay(tracks as any, 0);
+    } catch {
+      // ignore
+    } finally {
+      setLaunchingCollectionId(null);
+    }
+  }, [setQueueAndPlay]);
+
+  // Waveform réelle + commentaires horodatés : uniquement quand la carte active
+  // est un vrai morceau (pas un clip/artiste/collection/défi/annonce).
+  const activeFeedItem = feedItems[activeIndex] || null;
+  const waveformTrack = activeFeedItem?.type === 'track' ? activeFeedItem.track : null;
+  const trackWaveform = useTrackWaveform(waveformTrack?._id, waveformTrack?.audioUrl, waveformTrack?.duration);
+  const momentComments = useMomentComments(waveformTrack?._id);
+  const momentReactions = useMomentReactions(waveformTrack?._id);
+  const [reactionPickerOpen, setReactionPickerOpen] = useState(false);
+
+  const submitMomentReaction = useCallback(async (reactionType: MomentReactionType, rawTimestamp: number) => {
+    if (!waveformTrack?._id) return;
+    const timestampSeconds = Math.max(0, Math.round(rawTimestamp));
+    try {
+      const response = await fetch(`/api/tracks/${encodeURIComponent(waveformTrack._id)}/reactions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reactionType, timestampSeconds }),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(payload?.error || "Impossible d'enregistrer la réaction");
+      momentReactions.addOptimistic({
+        id: String(payload?.reaction?.id || `local-${Date.now()}`),
+        reactionType,
+        timestampSeconds,
+      });
+    } catch (error: any) {
+      notify.error('Erreur', error?.message || "Impossible d'enregistrer la réaction");
+    }
+  }, [waveformTrack, momentReactions]);
+
+  const profileHref = username ? `/profile/${username}` : '/auth/signin';
+
+  const accountLinks = [
+    { href: '/messages', label: 'Messages', icon: MessageCircle },
+    { href: '/clips/new', label: 'Publier un clip', icon: Film },
+    { href: profileHref, label: 'Mon profil', icon: User },
+    { href: '/discover', label: 'Découvrir', icon: Compass },
+    { href: '/library', label: 'Bibliothèque', icon: Library },
+    { href: '/community', label: 'Clubs', icon: Users },
+    { href: '/ai-generator', label: 'Créer avec l’IA', icon: Sparkles },
+    { href: '/settings', label: 'Paramètres', icon: Settings },
+    { href: '/subscriptions', label: 'Abonnement', icon: CreditCard },
+  ];
+
+  const showEmptyState = !loading && !error && feedItems.length === 0;
+  const renderRange = {
+    lo: Math.max(0, activeIndex - RENDER_BUFFER),
+    hi: Math.min(feedItems.length - 1, activeIndex + RENDER_BUFFER),
+  };
+
+  function renderItemBody(item: ScrollFeedItem, index: number) {
+    if (item.type === 'clip') {
+      const { clip, track } = item;
+      const isPlayingThis = currentId === track._id && audioState.isPlaying;
+      const sourceHref = (clip.sourceTrack as any).trackUrl || `/track/${track._id}`;
+      const isOwnSource = Boolean(currentUserId) && track.artist?._id === currentUserId;
+      const canUseSound = canUseSoundClientSide({
+        isOwner: isOwnSource,
+        allowClips: Boolean((track as any).allowClips),
+        remixVisibility: (track as any).remixVisibility || 'disabled',
+      });
+      return (
+        <>
+          <div className="absolute inset-0 bg-[#171313]" />
+          {clip.videoUrl ? (
+            <ClipVideoLayer key={clip.id} src={clip.videoUrl} poster={clip.posterUrl} active={index === activeIndex} />
+          ) : null}
+          <div className="absolute inset-0 bg-gradient-to-b from-black/45 via-transparent via-45% to-black/85" />
+
+          <aside className="absolute right-4 top-1/2 z-30 flex -translate-y-1/2 flex-col gap-2.5">
+            <button type="button" className="grid min-h-14 w-14 place-items-center rounded-full border border-white/12 bg-white/10 text-white backdrop-blur-xl transition hover:bg-white/16">
+              <Heart className="h-5 w-5" />
+              <span className="text-[10px] font-black">{fmtCount(clip.likesCount)}</span>
+            </button>
+            <button type="button" data-context-surface-trigger-key={`live-clip-comments-${clip.id}`} aria-label="Commentaires du clip" onClick={event => openComments({ type: 'clip', id: clip.id, title: clip.caption || 'Clip Synaura', artist: clip.creator.name, creatorId: clip.creator.id, count: clip.commentsCount, sourceTrackId: track._id }, event.currentTarget)} className="grid min-h-14 w-14 place-items-center rounded-full border border-white/12 bg-white/10 text-white backdrop-blur-xl transition hover:bg-white/16">
+              <MessageCircle className="h-5 w-5" />
+              <span className="text-[10px] font-black"><CommentCount type="clip" id={clip.id} fallback={clip.commentsCount} /></span>
+            </button>
+            <button onClick={() => shareClip(clip)} className="grid h-14 w-14 place-items-center rounded-full border border-white/12 bg-white/10 text-white backdrop-blur-xl transition hover:bg-white/16">
+              <Share2 className="h-5 w-5" />
+            </button>
+          </aside>
+
+          <div className="absolute bottom-0 left-0 right-0 z-30 px-4 pb-[calc(env(safe-area-inset-bottom,0px)+5.35rem)] lg:pb-[max(env(safe-area-inset-bottom),1rem)]">
+            <div className="mx-auto max-w-5xl space-y-3">
+              <div className="max-w-xl text-white drop-shadow">
+                <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-[#4A9EAA]/20 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-[#8fd3dc]">
+                  <Film className="h-3 w-3" />
+                  Clip Synaura
+                </div>
+                <button
+                  type="button"
+                  data-context-surface-trigger-key={`live-clip-profile-${clip.id}`}
+                  onClick={(event) => openProfilePeek(clip.creator.username, event.currentTarget)}
+                  className="flex min-h-11 items-center gap-2 rounded-full pr-3 text-left"
+                  aria-label={`Aperçu du profil de ${clip.creator.name || clip.creator.username}`}
+                >
+                  {clip.creator.avatar ? <img src={clip.creator.avatar} alt="" className="h-9 w-9 rounded-full object-cover" /> : <span className="grid h-9 w-9 place-items-center rounded-full bg-white/18 text-xs font-black">{(clip.creator.name || 'S').slice(0, 1).toUpperCase()}</span>}
+                  <span className="text-sm font-black">@{clip.creator.username || clip.creator.name || 'synaura'}</span>
+                </button>
+                {clip.caption ? <p className="mt-3 text-base font-bold leading-6">{clip.caption}</p> : null}
+                {clip.tags?.length ? (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {clip.tags.slice(0, 5).map((tag) => <span key={tag} className="rounded-full bg-white/14 px-2.5 py-1 text-xs font-black">#{tag}</span>)}
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="rounded-[1.8rem] border border-white/12 bg-[#fffaf2]/95 p-4 text-[#171313] shadow-[0_24px_80px_rgba(0,0,0,0.28)] backdrop-blur-xl">
+                <div className="flex flex-wrap items-center gap-3">
+                  <img src={track.coverUrl || FALLBACK_COVER} alt="" className="h-16 w-16 rounded-2xl object-cover" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#4A9EAA]">Son original</p>
+                    <h2 className="mt-0.5 truncate text-lg font-black">{track.title}</h2>
+                    <p className="truncate text-sm font-bold text-black/48">{track.artist?.name || track.artist?.username || 'Artiste Synaura'}</p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      if (currentId !== track._id) playIndex(index);
+                      else if (audioState.isPlaying) pause();
+                      else void play();
+                    }}
+                    className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#111111] text-white"
+                  >
+                    {isPlayingThis ? <Pause className="h-4 w-4" /> : <Play className="ml-0.5 h-4 w-4 fill-current" />}
+                  </button>
+                  <Link href={sourceHref} className="hidden h-11 shrink-0 items-center rounded-full bg-black/[0.06] px-4 text-xs font-black text-[#111111] transition hover:bg-[#111111] hover:text-white sm:inline-flex">
+                    Voir le morceau
+                  </Link>
+                  {canUseSound ? (
+                    <button
+                      type="button"
+                      onClick={() => useThisSound(track)}
+                      className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-full bg-[#7357C6] px-4 text-xs font-black text-white transition hover:bg-[#5f45a8]"
+                    >
+                      <Film className="h-3.5 w-3.5" />
+                      {isOwnSource ? 'Créer un clip officiel' : 'Utiliser ce son'}
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          </div>
+        </>
+      );
+    }
+
+    if (item.type === 'post') {
+      const attachedTrack = trackFromScrollPost(item.post);
+      const isPlayingThis = Boolean(attachedTrack && currentId === attachedTrack._id && audioState.isPlaying);
+      return (
+        <ScrollPostSlide
+          post={item.post}
+          active={index === activeIndex}
+          playing={isPlayingThis}
+          onOpenPost={() => navigateFromLive(`/posts/${encodeURIComponent(item.post.id)}`)}
+          onOpenProfile={(trigger) => {
+            if (item.post.creator.username) openProfilePeek(item.post.creator.username, trigger);
+            else navigateFromLive(`/posts/${encodeURIComponent(item.post.id)}`);
+          }}
+          onPlayTrack={() => {
+            if (!attachedTrack) return;
+            if (currentId !== attachedTrack._id) playIndex(index);
+            else if (audioState.isPlaying) pause();
+            else void play();
+          }}
+          onOpenTrack={(track) => navigateFromLive(`/track/${encodeURIComponent(track._id)}`)}
+          getAudioElement={getAudioElement}
+          onSeek={(seconds) => {
+            if (!attachedTrack) return;
+            if (currentId !== attachedTrack._id) {
+              playIndex(index);
+              window.setTimeout(() => seek(seconds), 120);
+            } else {
+              seek(seconds);
+            }
+          }}
+          onShare={() => void sharePost(item.post)}
+        />
+      );
+    }
+
+    if (item.type === 'track') {
+      const track = item.track;
+      const isPlayingThis = currentId === track._id && audioState.isPlaying;
+      const duration = currentId === track._id ? audioState.duration || track.duration || 0 : track.duration || 0;
+      const likesCount = countOf(track.likes);
+      const commentsCount = countOf(track.comments);
+      const canRemixAiVariation = Boolean((track as any).canRemixAiVariation) && isAiVariationAvailable({
+        allowAiVariation: Boolean((track as any).allowAiVariation),
+        remixVisibility: (track as any).remixVisibility || 'disabled',
+      });
+      const isOwnTrack = Boolean(currentUserId) && track.artist?._id === currentUserId;
+      const canUseSound = canUseSoundClientSide({
+        isOwner: isOwnTrack,
+        allowClips: Boolean((track as any).allowClips),
+        remixVisibility: (track as any).remixVisibility || 'disabled',
+      });
+
+      return (
+        <>
+          <div className="absolute inset-0">
+            <img
+              src={track.coverUrl || FALLBACK_COVER}
+              alt=""
+              className="h-full w-full scale-125 object-cover opacity-42 blur-3xl saturate-150"
+              onError={(event) => {
+                event.currentTarget.src = FALLBACK_COVER;
+              }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-b from-[#171313]/90 via-[#171313]/32 to-[#171313]/94" />
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_18%,rgba(115,87,198,0.16),transparent_46%)]" />
+          </div>
+
+          <div className="live-track-scene v2-live-track-scene experience-listening-scene" data-playing={isPlayingThis}>
+          <div className="live-track-artwork">
+            <div className="experience-record-halo" aria-hidden="true"><span /><i /></div>
+            <button
+              type="button"
+              onClick={() => {
+                if (currentId !== track._id) playIndex(index);
+                else if (audioState.isPlaying) pause();
+                else void play();
+              }}
+              aria-label={`${isPlayingThis ? 'Mettre en pause' : 'Écouter'} ${track.title}`}
+              className="group relative overflow-hidden rounded-[var(--syn-radius-xl)] border border-white/12 bg-white/8 shadow-[0_34px_100px_rgba(0,0,0,0.38)] backdrop-blur"
+            >
+              <img
+                src={track.coverUrl || FALLBACK_COVER}
+                alt={track.title}
+                className="aspect-square w-full object-cover"
+                onError={(event) => {
+                  event.currentTarget.src = FALLBACK_COVER;
+                }}
+              />
+              <div className="absolute inset-0 bg-black/10 transition group-hover:bg-black/0" />
+              <div className="v2-live-artwork-transport absolute inset-0 grid place-items-center">
+                <span className="grid h-20 w-20 place-items-center rounded-full border border-white/18 bg-[#171313]/56 text-white shadow-xl backdrop-blur-xl transition group-hover:scale-105">
+                  {isPlayingThis ? <Pause className="h-8 w-8" /> : <Play className="ml-1 h-8 w-8 fill-current" />}
+                </span>
+              </div>
+            </button>
+          </div>
+
+          <aside className="live-track-actions absolute right-4 top-1/2 z-40 flex -translate-y-1/2 flex-col gap-2.5">
+            <FavoriteAction track={track} resolveStatus={index === activeIndex} className="grid min-h-14 w-14 place-items-center rounded-full border border-white/12 bg-white/10 text-white backdrop-blur-xl transition hover:bg-white/16" />
+            <button data-context-surface-trigger-key={`live-track-comments-${track._id}`} onClick={event => openComments(commentsTrack(track), event.currentTarget)} aria-label={`Commentaires de ${track.title}`} className="grid min-h-14 w-14 place-items-center rounded-full border border-white/12 bg-white/10 text-white backdrop-blur-xl transition hover:bg-white/16">
+              <MessageCircle className="h-5 w-5" />
+              <span className="text-[10px] font-black">{<CommentCount type="track" id={track._id} fallback={commentsCount} />}</span>
+            </button>
+            <button aria-label="Partager le morceau" onClick={event => void trackActions.share(track, event.currentTarget)} className="grid h-14 w-14 place-items-center rounded-full border border-white/12 bg-white/10 text-white backdrop-blur-xl transition hover:bg-white/16">
+              <Share2 className="h-5 w-5" />
+            </button>
+            <button
+              onClick={event => trackActions.open(track, 'playlist-picker', event.currentTarget)}
+              aria-label="Ajouter à une playlist"
+              disabled={track._id.startsWith('ai-')}
+              className="grid h-14 w-14 place-items-center rounded-full border border-white/12 bg-white/10 text-white backdrop-blur-xl transition hover:bg-white/16"
+            >
+              <Bookmark className="h-5 w-5" />
+            </button>
+            {canRemixAiVariation ? (
+              <button
+                type="button"
+                onClick={event => trackActions.open(track, 'track-remix', event.currentTarget)}
+                aria-label="Remixer"
+                title="Remixer"
+                className="grid h-14 w-14 place-items-center rounded-full border border-white/12 bg-white/10 text-white backdrop-blur-xl transition hover:bg-white/16"
+              >
+                <Wand2 className="h-5 w-5" />
+              </button>) : null}
+            {canUseSound ? (
+              <button
+                type="button"
+                onClick={event => trackActions.open(track, 'track-clip', event.currentTarget)}
+                aria-label={isOwnTrack ? 'Créer un clip officiel' : 'Utiliser ce son'}
+                title={isOwnTrack ? 'Créer un clip officiel' : 'Utiliser ce son'}
+                className="grid h-14 w-14 place-items-center rounded-full border border-white/12 bg-white/10 text-white backdrop-blur-xl transition hover:bg-white/16"
+              >
+                <Film className="h-5 w-5" />
+              </button>
+            ) : null}
+            <TrackActionButton track={track} origin="live" className="h-14 w-14 border border-white/12 bg-white/10 !text-white backdrop-blur-xl" />
+            <div className="hidden shrink-0 flex-col gap-2 border-t border-white/20 pt-2 md:flex">
+              <button onClick={() => jump(activeIndex - 1)} aria-label="Item précédent" className="grid h-11 w-11 place-items-center rounded-full border border-white/20 bg-black/50 text-white transition hover:bg-black/70">
+                <ChevronUp className="h-5 w-5" />
+              </button>
+              <button onClick={() => jump(activeIndex + 1)} aria-label="Item suivant" className="grid h-11 w-11 place-items-center rounded-full border border-white/20 bg-black/50 text-white transition hover:bg-black/70">
+                <ChevronDown className="h-5 w-5" />
+              </button>
+            </div>
+          </aside>
+
+          <div className="live-track-metadata relative z-30 min-w-0">
+            <div className="v2-live-track-copy">
+              <p className="v2-kicker v2-live-caption"><span className="experience-signal-dot" aria-hidden="true" />Live / le son prend corps</p>
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {(track.genre?.length ? track.genre.slice(0, 3) : ['Synaura']).map((tag) => (
+                      <span key={tag} className="rounded-full bg-black/[0.05] px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.1em] text-black/40">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                  <h2 className="mt-1.5 break-words text-xl font-black leading-tight tracking-tight sm:text-2xl lg:text-4xl">{track.title}</h2>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    {track.artist?.username ? (
+                      <button
+                        type="button"
+                        data-context-surface-trigger-key={`live-track-profile-${track._id}`}
+                        onClick={(event) => openProfilePeek(track.artist.username, event.currentTarget)}
+                        className="min-h-11 rounded-full text-left text-sm font-bold text-black/56 underline-offset-4 hover:underline"
+                      >
+                        {track.artist?.name || track.artist.username}
+                      </button>
+                    ) : <p className="text-sm font-bold text-black/56">Artiste</p>}
+                    {index === activeIndex && track.artist?._id ? (
+                      <FollowButton artistId={track.artist._id} artistUsername={track.artist.username} size="sm" className="rounded-full px-3 py-1 text-xs" />
+                    ) : null}
+                  </div>
+                  {(track as any).remixAttribution ? (
+                    <Link href={(track as any).remixAttribution.trackUrl || `/track/${(track as any).remixAttribution.sourceTrackId}`} className="mt-2 inline-flex max-w-full items-center gap-2 rounded-full bg-[#7357C6]/10 px-3 py-1 text-xs font-black text-[#7357C6]">
+                      <Sparkles className="h-3.5 w-3.5" />
+                      <span className="truncate">Inspiré de {(track as any).remixAttribution.title}</span>
+                    </Link>
+                  ) : null}
+                  {Number((track as any).variationsCount || 0) > 0 ? (
+                    <p className="mt-2 text-xs font-black text-[#4A9EAA]">{fmtCount(Number((track as any).variationsCount || 0))} Variations</p>
+                  ) : null}
+                </div>
+                <button
+                  onClick={() => {
+                    if (currentId !== track._id) playIndex(index);
+                    else if (audioState.isPlaying) pause();
+                    else void play();
+                  }}
+                  aria-label={`${isPlayingThis ? 'Mettre en pause' : 'Écouter'} ${track.title}`}
+                  className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-[#171313] text-white transition hover:scale-105"
+                >
+                  {isPlayingThis ? <Pause className="h-5 w-5" /> : <Play className="ml-0.5 h-5 w-5 fill-current" />}
+                </button>
+              </div>
+
+              <div className="mt-4">
+                {index === activeIndex && currentId === track._id ? (
+                  <>
+                    <Waveform
+                      variant="dark"
+                      peaks={trackWaveform.peaks}
+                      duration={duration}
+                      loading={trackWaveform.loading}
+                      getAudioElement={getAudioElement}
+                      onSeek={seek}
+                      markers={momentComments.markers}
+                      onMarkerSeek={marker => { openComments(commentsTrack(track), document.activeElement as HTMLElement, undefined, marker.id); }}
+                      reactionClusters={momentReactions.clusters}
+                    />
+                    <div className="mt-2 flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          openComments(commentsTrack(track), document.activeElement as HTMLElement, Math.max(0, getAudioElement()?.currentTime || 0));
+                        }}
+                        className="inline-flex items-center gap-1.5 rounded-full bg-black/[0.05] px-3 py-1.5 text-[11px] font-black text-black/56 transition hover:bg-[#171313] hover:text-white"
+                      >
+                        <MessageCircle className="h-3 w-3" />
+                        Commenter ce moment
+                      </button>
+                      <div className="relative">
+                        <button
+                          type="button"
+                          onClick={() => setReactionPickerOpen((v) => !v)}
+                          className="inline-flex items-center gap-1.5 rounded-full bg-black/[0.05] px-3 py-1.5 text-[11px] font-black text-black/56 transition hover:bg-[#171313] hover:text-white"
+                        >
+                          <SmilePlus className="h-3 w-3" />
+                          Réagir
+                        </button>
+                        <ReactionPicker
+                          open={reactionPickerOpen}
+                          onClose={() => setReactionPickerOpen(false)}
+                          onPick={(type) => {
+                            submitMomentReaction(type, getAudioElement()?.currentTime || 0);
+                            setReactionPickerOpen(false);
+                          }}
+                          variant="dark"
+                          className="bottom-full mb-2 right-0"
+                        />
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex items-center justify-between text-xs font-bold tabular-nums text-black/42">
+                    <span>0:00</span>
+                    <span>{fmtTime(duration)}</span>
+                  </div>
+                )}
+                <p className="experience-track-position mt-1.5 text-right text-[11px] font-bold text-black/38">
+                  <span>Dans ton fil</span><span>{index + 1}/{feedItems.length}</span>
+                </p>
+              </div>
+            </div>
+          </div>
+
+          </div>
+
+        </>
+      );
+    }
+
+    if (item.type === 'artist_spotlight') {
+      const { artist, track } = item;
+      const isPlayingThis = currentId === track._id && audioState.isPlaying;
+
+      return (
+        <>
+          <div className="absolute inset-0">
+            <img
+              src={track.coverUrl || FALLBACK_COVER}
+              alt=""
+              className="h-full w-full scale-125 object-cover opacity-35 blur-3xl saturate-150"
+              onError={(event) => {
+                event.currentTarget.src = FALLBACK_COVER;
+              }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-b from-[#171313]/92 via-[#221a2c]/60 to-[#171313]/94" />
+          </div>
+
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-5 px-6 text-center">
+            <button
+              type="button"
+              data-context-surface-trigger-key={`live-spotlight-profile-${artist.id}`}
+              onClick={(event) => openProfilePeek(artist.username, event.currentTarget)}
+              aria-label={`Aperçu du profil de ${artist.name}`}
+              className="group relative h-48 w-48 overflow-hidden rounded-full border border-white/14 bg-white/8 shadow-[0_28px_90px_rgba(0,0,0,0.4)]"
+            >
+              {artist.avatar ? (
+                <img src={artist.avatar} alt={artist.name} className="h-full w-full object-cover" />
+              ) : (
+                <div className="grid h-full w-full place-items-center bg-[#7357C6]/40 text-5xl font-black text-white">
+                  {artist.name.slice(0, 1).toUpperCase()}
+                </div>
+              )}
+              <div className="absolute inset-0 grid place-items-center bg-black/25 opacity-0 transition group-hover:opacity-100"><User className="h-9 w-9 text-white" /></div>
+            </button>
+
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-[#c9a8ff]">Mise en avant</p>
+              <div className="mt-1.5 flex items-center justify-center gap-1.5">
+                <h2 className="text-2xl font-black tracking-tight text-white">{artist.name}</h2>
+                {artist.isVerified ? <BadgeCheck className="h-5 w-5 text-[#4A9EAA]" /> : null}
+              </div>
+              {track.genre?.[0] ? (
+                <p className="mt-1.5 text-xs font-black uppercase tracking-[0.14em] text-[#4A9EAA]">{track.genre[0]}</p>
+              ) : null}
+              {artist.bio ? (
+                <p className="mx-auto mt-2 max-w-xs text-sm font-semibold leading-6 text-white/60">{artist.bio}</p>
+              ) : null}
+              <p className="mt-3 text-xs font-bold uppercase tracking-[0.14em] text-white/40">
+                En vedette · {track.title}
+              </p>
+            </div>
+          </div>
+
+          <div className="absolute bottom-0 left-0 right-0 z-30 px-4 pb-[calc(env(safe-area-inset-bottom,0px)+5.35rem)] lg:pb-[max(env(safe-area-inset-bottom),1rem)]">
+            <div className="mx-auto flex max-w-5xl items-center justify-between gap-3 rounded-[1.8rem] border border-white/12 bg-[#fffaf2]/95 p-4 text-[#171313] shadow-[0_24px_80px_rgba(0,0,0,0.28)] backdrop-blur-xl">
+              <div className="min-w-0">
+                <button type="button" data-context-surface-trigger-key={`live-spotlight-name-${artist.id}`} onClick={(event) => openProfilePeek(artist.username, event.currentTarget)} className="block min-h-11 truncate text-left text-sm font-black">{artist.name}</button>
+                <p className="truncate text-xs font-bold text-black/48">@{artist.username || 'synaura'}</p>
+              </div>
+              <div className="flex shrink-0 items-center gap-2">
+                {index === activeIndex && artist.username ? (
+                  <FollowButton artistId={artist.id} artistUsername={artist.username} size="sm" className="rounded-full px-3 py-1.5 text-xs" />
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (currentId !== track._id) playIndex(index);
+                    else if (audioState.isPlaying) pause();
+                    else void play();
+                  }}
+                  aria-label={`Écouter ${track.title}`}
+                  className="grid h-11 w-11 place-items-center rounded-full bg-black/[0.06]"
+                >
+                  {isPlayingThis ? <Pause className="h-4 w-4" /> : <Play className="ml-0.5 h-4 w-4 fill-current" />}
+                </button>
+                <button
+                  type="button"
+                  data-context-surface-trigger-key={`live-spotlight-cta-${artist.id}`}
+                  onClick={(event) => openProfilePeek(artist.username, event.currentTarget)}
+                  className="inline-flex h-9 items-center gap-1.5 rounded-full bg-[#171313] px-4 text-xs font-black text-white transition hover:scale-[1.02]"
+                >
+                  Découvrir son univers
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      );
+    }
+
+    if (item.type === 'collection') {
+      const { collection } = item;
+      const launching = launchingCollectionId === collection.id;
+      const gradient = collection.themeColors && collection.themeColors.length >= 2
+        ? `linear-gradient(135deg, ${collection.themeColors.join(', ')})`
+        : 'linear-gradient(135deg, #7357C6, #4A9EAA)';
+
+      return (
+        <>
+          <div className="absolute inset-0" style={{ background: gradient, opacity: 0.9 }} />
+          <div className="absolute inset-0 bg-[#171313]/38" />
+
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-5 px-6 text-center">
+            <div className="h-48 w-48 overflow-hidden rounded-[1.4rem] border-[3px] border-white/20 bg-white/10 shadow-[0_28px_90px_rgba(0,0,0,0.45)] ring-1 ring-black/20">
+              <img
+                src={collection.coverUrl || collection.bannerUrl || FALLBACK_COVER}
+                alt={collection.title}
+                className="h-full w-full object-cover"
+                onError={(event) => {
+                  event.currentTarget.src = FALLBACK_COVER;
+                }}
+              />
+            </div>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/70">{collection.badge || 'Collection'}</p>
+              <h2 className="mt-1.5 max-w-sm text-2xl font-black tracking-tight text-white">{collection.title}</h2>
+              {collection.subtitle ? (
+                <p className="mx-auto mt-2 max-w-xs text-sm font-semibold leading-6 text-white/65">{collection.subtitle}</p>
+              ) : null}
+              <p className="mt-3 text-xs font-bold uppercase tracking-[0.14em] text-white/50">
+                {collection.trackCount} morceau{collection.trackCount > 1 ? 'x' : ''}
+              </p>
+            </div>
+          </div>
+
+          <div className="absolute bottom-0 left-0 right-0 z-30 px-4 pb-[calc(env(safe-area-inset-bottom,0px)+5.35rem)] lg:pb-[max(env(safe-area-inset-bottom),1rem)]">
+            <div className="mx-auto flex max-w-5xl flex-wrap items-center justify-center gap-2.5 rounded-[1.8rem] border border-white/12 bg-[#fffaf2]/95 p-4 shadow-[0_24px_80px_rgba(0,0,0,0.28)] backdrop-blur-xl">
+              <button
+                type="button"
+                disabled={launching}
+                onClick={() => launchCollection(collection.id, collection.slug)}
+                className="inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-full bg-[#171313] px-5 text-sm font-black text-white transition hover:scale-[1.02] disabled:opacity-60"
+              >
+                {launching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4 fill-current" />}
+                Lancer la collection
+              </button>
+              <Link
+                href={collection.href}
+                className="inline-flex h-11 items-center justify-center gap-1.5 rounded-full bg-black/[0.06] px-5 text-sm font-black text-[#171313] transition hover:bg-black hover:text-white"
+              >
+                Voir la sélection
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </div>
+          </div>
+        </>
+      );
+    }
+
+    if (item.type === 'challenge') {
+      const { challenge } = item;
+      return (
+        <>
+          <div className="absolute inset-0 bg-gradient-to-br from-[#D96D63] via-[#171313] to-[#171313]" />
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 px-6 text-center">
+            <span className="grid h-16 w-16 place-items-center rounded-full bg-white/12 backdrop-blur-xl">
+              <Trophy className="h-7 w-7 text-white" />
+            </span>
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/60">Défi Synaura Pulse</p>
+              <h2 className="mt-1.5 max-w-sm text-2xl font-black tracking-tight text-white">{challenge.title}</h2>
+              {challenge.description ? (
+                <p className="mx-auto mt-2 max-w-xs text-sm font-semibold leading-6 text-white/65">{challenge.description}</p>
+              ) : null}
+              <div className="mt-4 flex flex-wrap items-center justify-center gap-2 text-xs font-bold text-white/55">
+                <span className="rounded-full bg-white/10 px-3 py-1.5">{challenge.tracksCount} morceaux inscrits</span>
+                {typeof challenge.totalVotes === 'number' ? (
+                  <span className="rounded-full bg-white/10 px-3 py-1.5">{challenge.totalVotes} votes</span>
+                ) : null}
+                {typeof challenge.participationCount === 'number' ? (
+                  <span className="rounded-full bg-white/10 px-3 py-1.5">{challenge.participationCount} participants</span>
+                ) : null}
+              </div>
+            </div>
+          </div>
+          <div className="absolute bottom-0 left-0 right-0 z-30 px-4 pb-[calc(env(safe-area-inset-bottom,0px)+5.35rem)] lg:pb-[max(env(safe-area-inset-bottom),1rem)]">
+            <div className="mx-auto max-w-5xl rounded-[1.8rem] border border-white/12 bg-[#fffaf2]/95 p-4 text-center shadow-[0_24px_80px_rgba(0,0,0,0.28)] backdrop-blur-xl">
+              <Link
+                href={challenge.href}
+                className="inline-flex h-11 items-center justify-center gap-1.5 rounded-full bg-[#171313] px-6 text-sm font-black text-white transition hover:scale-[1.02]"
+              >
+                Voir le défi
+                <ArrowRight className="h-3.5 w-3.5" />
+              </Link>
+            </div>
+          </div>
+        </>
+      );
+    }
+
+    const { announcement } = item;
+    return (
+      <>
+        <div className="absolute inset-0 bg-gradient-to-br from-[#4A9EAA] via-[#171313] to-[#171313]" />
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-4 px-6 text-center">
+          <span className="grid h-16 w-16 place-items-center rounded-full bg-white/12 backdrop-blur-xl">
+            <Megaphone className="h-7 w-7 text-white" />
+          </span>
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-white/60">Actu Synaura</p>
+            <h2 className="mt-1.5 max-w-sm text-2xl font-black tracking-tight text-white">{announcement.title}</h2>
+            {announcement.description ? (
+              <p className="mx-auto mt-2 max-w-xs text-sm font-semibold leading-6 text-white/65">{announcement.description}</p>
+            ) : null}
+            <p className="mt-3 text-xs font-bold uppercase tracking-[0.14em] text-white/45">
+              {announcement.tracksCount} morceau{announcement.tracksCount > 1 ? 'x' : ''} à découvrir
+            </p>
+          </div>
+        </div>
+        <div className="absolute bottom-0 left-0 right-0 z-30 px-4 pb-[calc(env(safe-area-inset-bottom,0px)+5.35rem)] lg:pb-[max(env(safe-area-inset-bottom),1rem)]">
+          <div className="mx-auto max-w-5xl rounded-[1.8rem] border border-white/12 bg-[#fffaf2]/95 p-4 text-center shadow-[0_24px_80px_rgba(0,0,0,0.28)] backdrop-blur-xl">
+            <Link
+              href={announcement.href}
+              className="inline-flex h-11 items-center justify-center gap-1.5 rounded-full bg-[#171313] px-6 text-sm font-black text-white transition hover:scale-[1.02]"
+            >
+              Découvrir
+              <ArrowRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  if (!continuityReady) {
+    return <div className="fixed inset-0 z-[100] bg-[#171313]" aria-busy="true" aria-label="Restauration de Live" />;
+  }
+
+  return (
+    <div className="v2-live experience-live fixed inset-0 z-[100] overflow-hidden text-white" data-chambre-music="live">
+      <HomeFlowPrelude
+        open={homePreludeOpen && filter === 'foryou'}
+        tracks={baseTracks}
+        posts={basePosts}
+        currentTrack={(currentTrack as ScrollTrack | undefined) || null}
+        currentPlaying={audioState.isPlaying}
+        userName={(session?.user as any)?.name || username || null}
+        onEnterFlow={enterFlow}
+        onPlayTrack={playPreludeTrack}
+        onOpenTrack={openPreludeTrack}
+        onOpenPost={(post) => navigateFromLive(`/posts/${encodeURIComponent(post.id)}`)}
+        onSearch={() => navigateFromLive('/search')}
+        onNotifications={() => navigateFromLive('/notifications')}
+        onDiscover={() => navigateFromLive('/discover')}
+        onRadar={() => navigateFromLive('/radar')}
+        onStudio={() => navigateFromLive('/ai-generator')}
+        onEvents={() => navigateFromLive('/city')}
+      />
+      <SynauraMobileDock appearance="immersive" showDesktop />
+      <ClipUploadIndicator />
+      <div className="v2-live-header absolute left-0 right-0 top-0 z-40 px-3 pt-[max(env(safe-area-inset-top),0.75rem)] sm:px-4">
+        <div className="flex items-center justify-between gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              selectFilter('foryou');
+              setHomePreludeOpen(true);
+            }}
+            className="flex min-w-0 items-center gap-2"
+            aria-label="Revenir à l'accueil Synaura"
+          >
+            <SynauraLogo variant="wordmark" size={34} decorative priority />
+          </button>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setSearchOpen((v) => !v)}
+              aria-label="Rechercher"
+              className={`grid h-10 w-10 shrink-0 place-items-center rounded-full border border-white/14 backdrop-blur-xl transition ${
+                searchOpen ? 'bg-white text-[#171313]' : 'bg-white/10 text-white hover:bg-white/16'
+              }`}
+            >
+              {searchOpen ? <X className="h-4 w-4" /> : <Search className="h-4 w-4" />}
+            </button>
+            <MessageInboxButton className="border border-white/14 bg-white/10 text-white hover:bg-white/16" />
+            <NotificationCenter className="h-10 w-10 border border-white/14 bg-white/10 text-white hover:bg-white/16" />
+            <div className="relative" ref={accountRef}>
+              <button
+                type="button"
+                onClick={() => setAccountOpen((v) => !v)}
+                aria-label="Profil"
+                className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full border border-white/14 bg-white/10 text-white backdrop-blur-xl transition hover:bg-white/16"
+              >
+                {avatarUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={avatarUrl} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <User className="h-4 w-4" />
+                )}
+              </button>
+
+              {accountOpen ? (
+                <div className="absolute right-0 top-[calc(100%+0.5rem)] z-50 w-56 max-w-none overflow-hidden rounded-[1.2rem] border border-black/[0.08] bg-[#fffaf2] p-1.5 shadow-[0_24px_60px_rgba(0,0,0,0.35)]">
+                  {accountLinks.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <Link
+                        key={item.label}
+                        href={item.href}
+                        onClick={() => setAccountOpen(false)}
+                        className="flex items-center gap-2.5 rounded-[0.85rem] px-3 py-2.5 text-sm font-black text-black/70 transition hover:bg-black hover:text-white"
+                      >
+                        <Icon className="h-4 w-4" />
+                        {item.label}
+                      </Link>
+                    );
+                  })}
+                  {session ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAccountOpen(false);
+                        signOut({ callbackUrl: '/' });
+                      }}
+                      className="flex w-full items-center gap-2.5 rounded-[0.85rem] px-3 py-2.5 text-left text-sm font-black text-[#d92d20] transition hover:bg-[#d92d20] hover:text-white"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      Déconnexion
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </div>
+
+        {searchOpen ? (
+          <div className="mt-2.5 rounded-[1.4rem] bg-[#fffaf2] px-1 py-1 shadow-[0_16px_40px_rgba(0,0,0,0.32)]">
+            <SynauraUniversalSearch compact />
+          </div>
+        ) : (
+          <div className="v2-live-filters synaura-no-scrollbar mt-2.5 flex gap-1.5 overflow-x-auto">
+            {FILTER_ORDER.map((key) => {
+              const meta = FILTER_META[key];
+              const active = key === filter;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => selectFilter(key)}
+                  aria-pressed={active}
+                  className={`flex h-8 shrink-0 items-center gap-1.5 rounded-full px-3.5 text-xs font-black transition ${
+                    active ? 'bg-white text-[#171313]' : 'bg-white/10 text-white/68 hover:bg-white/16 hover:text-white'
+                  }`}
+                >
+                  {meta.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {cityPulse ? (
+        <button
+          type="button"
+          onClick={() => navigateFromLive('/city')}
+          className="experience-live-pulse absolute left-4 top-[6.5rem] z-30 hidden max-w-[280px] rounded-[var(--syn-radius-md)] border border-[var(--syn-border)] bg-[var(--syn-surface)] p-3 text-left text-[var(--syn-text-primary)] shadow-[var(--syn-shadow-low)] md:block"
+        >
+          <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#FF6F61]">Events · Synaura Pulse</p>
+          <p className="mt-1 line-clamp-1 text-sm font-black">{cityPulse.event}</p>
+          <p className="mt-1 text-xs font-bold text-[var(--syn-text-secondary)]">{cityPulse.title} · Pulse {cityPulse.pulse}% · {cityPulse.votes} votes</p>
+        </button>
+      ) : null}
+
+      {loading ? (
+        <div className="grid h-full w-full place-items-center">
+          <div className="rounded-[2rem] border border-[#dccfbb] bg-white p-8 text-center text-[#171313] shadow-[0_24px_80px_rgba(44,33,19,0.16)]">
+            <Loader2 className="mx-auto h-8 w-8 animate-spin" />
+            <p className="mt-3 text-sm font-black text-black/50">Chargement du scroll...</p>
+          </div>
+        </div>
+      ) : error || showEmptyState ? (
+        <div className="grid h-full w-full place-items-center px-6">
+          <div className="max-w-md rounded-[2rem] border border-[#dccfbb] bg-white p-8 text-center text-[#171313] shadow-[0_24px_80px_rgba(44,33,19,0.16)]">
+            {filter === 'creators' ? (
+              <>
+                <Users className="mx-auto h-10 w-10 text-black/24" />
+                <h1 className="mt-4 text-2xl font-black">Pas de créateur à l'affiche</h1>
+                <p className="mt-2 text-sm font-semibold text-black/48">Reviens un peu plus tard, de nouveaux artistes arrivent régulièrement.</p>
+              </>
+            ) : filter === 'challenges' ? (
+              <>
+                <Trophy className="mx-auto h-10 w-10 text-black/24" />
+                <h1 className="mt-4 text-2xl font-black">Aucun défi en cours</h1>
+                <p className="mt-2 text-sm font-semibold text-black/48">Reviens un peu plus tard, le prochain défi Synaura arrive bientôt.</p>
+              </>
+            ) : (
+              <>
+                <ListMusic className="mx-auto h-10 w-10 text-black/24" />
+                <h1 className="mt-4 text-2xl font-black">Aucun son à afficher</h1>
+                <p className="mt-2 text-sm font-semibold text-black/48">{error || 'Le feed est vide pour le moment.'}</p>
+              </>
+            )}
+            <button
+              onClick={() => (filter === 'creators' || filter === 'challenges' ? selectFilter('foryou') : setReloadKey((v) => v + 1))}
+              className="mt-5 h-11 rounded-full bg-[#171313] px-5 text-sm font-black text-white"
+            >
+              {filter === 'creators' || filter === 'challenges' ? 'Retour à Pour toi' : 'Réessayer'}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div
+          ref={scrollSnap.containerRef}
+          tabIndex={-1}
+          aria-label="Live Synaura"
+          data-testid="synaura-scroll-feed"
+          data-context-surface-origin="live"
+          onTouchStart={scrollSnap.onTouchStart}
+          onTouchEnd={scrollSnap.onTouchEnd}
+          onScroll={scrollSnap.onScroll}
+          className="synaura-scroll-feed h-full w-full snap-y snap-mandatory touch-pan-y overflow-y-auto overscroll-contain"
+          style={{ scrollSnapType: 'y mandatory', WebkitOverflowScrolling: 'touch', overscrollBehaviorY: 'contain', scrollbarWidth: 'none' }}
+        >
+          <style>{`.synaura-scroll-feed::-webkit-scrollbar { display: none; }`}</style>
+          {feedItems.map((item, index) => {
+            if (index < renderRange.lo || index > renderRange.hi) {
+              return (
+                <div
+                  key={item.id}
+                  ref={(el) => { scrollSnap.itemRefs.current[index] = el; }}
+                  data-feed-item-id={item.id}
+                  data-feed-item-type={item.type}
+                  data-active="false"
+                  className="h-[100svh] w-full snap-start"
+                  style={{ scrollSnapAlign: 'start', scrollSnapStop: 'always', contain: 'layout size paint style' }}
+                />
+              );
+            }
+            return (
+              <section
+                key={item.id}
+                ref={(el) => { scrollSnap.itemRefs.current[index] = el; el?.toggleAttribute('inert', index !== activeIndex); }}
+                data-index={index}
+                data-feed-item-id={item.id}
+                data-feed-item-type={item.type}
+                data-active={index === activeIndex ? 'true' : 'false'}
+                aria-hidden={index !== activeIndex}
+                className="relative h-[100svh] w-full snap-start overflow-hidden"
+                style={{ scrollSnapAlign: 'start', scrollSnapStop: 'always' }}
+              >
+                {renderItemBody(item, index)}
+              </section>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}

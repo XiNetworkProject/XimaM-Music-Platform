@@ -29,7 +29,7 @@ function AuthErrorContent() {
       description="Ton univers reste intact. Choisis simplement comment revenir dans Synaura."
       compact
     >
-      <div role="alert" className="my-auto rounded-[1.75rem] border border-[color-mix(in_srgb,var(--syn-danger)_28%,transparent)] bg-[color-mix(in_srgb,var(--syn-danger)_8%,var(--syn-surface))] p-5 sm:p-7">
+      <div role="alert" className="chambre-auth-error my-auto rounded-[1.75rem] border border-[color-mix(in_srgb,var(--syn-danger)_28%,transparent)] bg-[color-mix(in_srgb,var(--syn-danger)_8%,var(--syn-surface))] p-5 sm:p-7">
         <span className="grid h-12 w-12 place-items-center rounded-2xl border border-[color-mix(in_srgb,var(--syn-danger)_30%,transparent)] bg-[color-mix(in_srgb,var(--syn-danger)_12%,transparent)] text-[var(--syn-danger)]">
           <AlertTriangle className="h-5 w-5" aria-hidden />
         </span>

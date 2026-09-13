@@ -1,12 +1,35 @@
 // lib/suno.ts
+import { DEFAULT_SUNO_MODEL } from './sunoModels';
+import { validateSunoGenerationInput, validateSunoTuningInput } from './sunoValidation';
 
 const BASE = process.env.SUNO_API_BASE || "https://api.sunoapi.org";
+
+/** An explicit upstream rejection is refundable; a lost/invalid response is ambiguous. */
+export class SunoProviderRejectedError extends Error {
+  constructor() {
+    super('Service IA temporairement indisponible');
+    this.name = 'SunoProviderRejectedError';
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+
+async function parseGenerationResponse(response: Response): Promise<SunoGenerateResponse> {
+  const data = await response.json().catch(() => null);
+  if (!response.ok || (typeof data?.code === 'number' && data.code !== 200)) {
+    throw new SunoProviderRejectedError();
+  }
+  if (data?.code !== 200 || typeof data?.data?.taskId !== 'string' || !data.data.taskId.trim()) {
+    throw new Error('Réponse du service IA invalide');
+  }
+  return data;
+}
 
 export interface SunoGenerateRequest {
   customMode?: boolean;
   prompt?: string;
   model?: string;
   instrumental?: boolean;
+  duration?: number;
   callBackUrl?: string;
 }
 
@@ -16,6 +39,7 @@ export interface SunoCustomGenerateRequest {
   prompt?: string;
   instrumental: boolean;
   model?: string;
+  duration?: number;
   negativeTags?: string;
   vocalGender?: "m" | "f";
   styleWeight?: number;
@@ -79,6 +103,7 @@ export interface SunoUploadCoverRequest {
   customMode: boolean;
   instrumental: boolean;
   model?: string;
+  duration?: number;
   prompt?: string; // description (non-custom) ou lyrics (custom non-instrumental)
   title?: string;  // requis si customMode=true
   style?: string;  // requis si customMode=true
@@ -133,22 +158,19 @@ export async function generateMusic(request: SunoGenerateRequest): Promise<SunoG
     throw new Error("SUNO_API_KEY manquant");
   }
 
+  const payload = { ...request, customMode: false, instrumental: request.instrumental ?? false, model: request.model ?? DEFAULT_SUNO_MODEL };
+  const validation = validateSunoGenerationInput(payload);
+  if (!validation.ok) throw new Error(validation.error);
   const response = await fetch(`${BASE}/api/v1/generate`, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify(request),
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(20_000),
   });
-
-  const data = await response.json();
-  
-  if (!response.ok || data?.code !== 200) {
-    throw new Error(data?.msg || `Erreur Suno: ${response.status}`);
-  }
-
-  return data;
+  return parseGenerationResponse(response);
 }
 
 // Génération personnalisée (mode custom)
@@ -158,16 +180,12 @@ export async function generateCustomMusic(request: SunoCustomGenerateRequest): P
     throw new Error("SUNO_API_KEY manquant");
   }
 
-  // Validation selon les règles customMode
-  if (!request.title) {
-    throw new Error("title requis");
-  }
-  if (!request.style) {
-    throw new Error("style requis");
-  }
-  if (request.instrumental === false && !request.prompt) {
-    throw new Error("prompt requis quand instrumental=false");
-  }
+  // Canonical routes normalize new requests; explicit legacy callers retain their recorded identity.
+  const model = request.model ?? DEFAULT_SUNO_MODEL;
+  const validation = validateSunoGenerationInput({ ...request, customMode: true, model });
+  if (!validation.ok) throw new Error(validation.error);
+  const tuning = validateSunoTuningInput(request);
+  if (!tuning.ok) throw new Error(tuning.error);
 
   const payload = {
     customMode: true,
@@ -175,9 +193,10 @@ export async function generateCustomMusic(request: SunoCustomGenerateRequest): P
     title: request.title,
     style: request.style,
     prompt: request.instrumental ? undefined : request.prompt,
-    model: request.model ?? "V4_5",
+    model,
+    duration: request.duration,
     negativeTags: request.negativeTags,
-    vocalGender: request.vocalGender,
+    vocalGender: request.vocalGender || undefined,
     styleWeight: request.styleWeight ?? 0.65,
     weirdnessConstraint: request.weirdnessConstraint ?? 0.5,
     audioWeight: request.audioWeight ?? 0.65,
@@ -191,15 +210,9 @@ export async function generateCustomMusic(request: SunoCustomGenerateRequest): P
       "Content-Type": "application/json",
     },
     body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(20_000),
   });
-
-  const data = await response.json();
-  
-  if (!response.ok || data?.code !== 200) {
-    throw new Error(data?.msg || `Erreur Suno: ${response.status}`);
-  }
-
-  return data;
+  return parseGenerationResponse(response);
 }
 
 // Upload & Cover (Remix sur un audio fourni)
@@ -209,6 +222,11 @@ export async function uploadAndCoverAudio(request: SunoUploadCoverRequest): Prom
     throw new Error("SUNO_API_KEY manquant");
   }
 
+  const model = request.model ?? DEFAULT_SUNO_MODEL;
+  const validation = validateSunoGenerationInput({ ...request, model, hasUploadUrl: true });
+  if (!validation.ok) throw new Error(validation.error);
+  const tuning = validateSunoTuningInput(request);
+  if (!tuning.ok) throw new Error(tuning.error);
   // Validation selon la documentation officielle
   if (!request.uploadUrl) {
     throw new Error("uploadUrl requis");
@@ -228,16 +246,17 @@ export async function uploadAndCoverAudio(request: SunoUploadCoverRequest): Prom
     uploadUrl: request.uploadUrl,
     customMode: request.customMode,
     instrumental: request.instrumental,
-    model: request.model ?? "V4_5",
+    model,
     callBackUrl: request.callBackUrl,
   };
 
   if (request.customMode) {
+    payload.duration = request.duration;
     payload.title = request.title;
     payload.style = request.style;
     payload.prompt = request.instrumental ? undefined : request.prompt; // lyrics uniquement si non-instrumental
     payload.negativeTags = request.negativeTags;
-    payload.vocalGender = request.vocalGender;
+    payload.vocalGender = request.vocalGender || undefined;
     payload.styleWeight = request.styleWeight ?? 0.65;
     payload.weirdnessConstraint = request.weirdnessConstraint ?? 0.5;
     payload.audioWeight = request.audioWeight ?? 0.65;
@@ -253,13 +272,9 @@ export async function uploadAndCoverAudio(request: SunoUploadCoverRequest): Prom
       "Content-Type": "application/json",
     },
     body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(20_000),
   });
-
-  const data = await response.json();
-  if (!response.ok || data?.code !== 200) {
-    throw new Error(data?.msg || `Erreur Suno: ${response.status}`);
-  }
-  return data;
+  return parseGenerationResponse(response);
 }
 
 export async function generateMusicVideo(request: SunoMusicVideoRequest): Promise<SunoGenerateResponse> {

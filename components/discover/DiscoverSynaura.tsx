@@ -2,219 +2,137 @@
 
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { motion, useReducedMotion, useScroll, useTransform } from 'framer-motion';
-import { ArrowDown, ArrowRight, Compass, Headphones, Music2, Pause, Sparkles, UploadCloud, Users, Volume2, Wand2 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useReducedMotion } from 'framer-motion';
+import { ArrowDown, ArrowRight, MessageCircle, Volume2 } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import SynauraLogo from '@/components/brand/SynauraLogo';
 import SynauraSonicIntro from '@/components/discover/SynauraSonicIntro';
-import { SynauraButton, SynauraIconButton } from '@/components/ui/SynauraPrimitives';
-import { DISCOVER_DEMO } from '@/lib/discoverDemo';
+import { SynauraImage } from '@/components/ui/SynauraImage';
+import { useProfilePeek } from '@/components/profile/useProfilePeek';
+import { useCommentsSurface } from '@/components/comments/useCommentsSurface';
 import { recordEntryEvent } from '@/lib/entryAnalytics';
 import styles from './DiscoverSynaura.module.css';
 
 const SONIC_INTRO_SEEN_KEY = 'synaura.sonic-intro.seen.v1';
-const WAVE_HEIGHTS = [22, 42, 30, 58, 38, 70, 48, 82, 54, 68, 36, 76, 46, 64, 28, 52, 40, 72, 34, 60, 26, 48, 32, 66];
-
-function DiscoverHeader({ onReplay }: { onReplay: () => void }) {
-  return (
-    <header className="fixed inset-x-0 top-0 z-[var(--syn-z-header)] px-3 pt-[max(env(safe-area-inset-top),0.75rem)] sm:px-6">
-      <div className="mx-auto flex max-w-7xl items-center justify-between rounded-full border border-[var(--syn-border)] bg-[var(--syn-surface-translucent)] px-3 py-2 shadow-[var(--syn-shadow-low)] backdrop-blur-2xl">
-        <Link href="/" className="flex items-center gap-2 rounded-full pr-2 font-black tracking-tight" aria-label="Synaura, accueil">
-          <span className="grid h-9 w-9 place-items-center rounded-full bg-[var(--syn-soft)]">
-            <SynauraLogo size={34} priority decorative />
-          </span>
-          <span>Synaura</span>
-        </Link>
-        <nav aria-label="Navigation de découverte" className="flex items-center gap-1">
-          <a href="#experience" className="syn-interactive hidden min-h-9 items-center rounded-full px-3 text-xs font-black text-[var(--syn-text-secondary)] hover:bg-[var(--syn-soft)] hover:text-[var(--syn-text-primary)] sm:inline-flex">Découvrir</a>
-          <SynauraIconButton label="Rejouer la signature Synaura" variant="ghost" onClick={onReplay}>
-            <Volume2 className="h-4 w-4" />
-          </SynauraIconButton>
-          <Link href="/enter" className="syn-interactive inline-flex min-h-9 items-center rounded-full bg-[var(--syn-contrast-bg)] px-4 text-xs font-black text-[var(--syn-contrast-text)]">Entrer</Link>
-        </nav>
-      </div>
-    </header>
-  );
-}
-
-function AuraStage({ reduced }: { reduced: boolean }) {
-  const { scrollYProgress } = useScroll();
-  const y = useTransform(scrollYProgress, [0, 0.5], [0, reduced ? 0 : 110]);
-  const opacity = useTransform(scrollYProgress, [0, 0.32], [1, 0.32]);
-  return (
-    <motion.div aria-hidden className="pointer-events-none absolute inset-0" style={{ y, opacity }}>
-      <div className={styles.orbit} />
-      <div className={styles.aura} />
-    </motion.div>
-  );
-}
-
-function DemoPlayer() {
-  return (
-    <div className={styles.playerCard} aria-label="Démonstration d'un morceau et de ses réactions">
-      <div className={styles.cover}>
-        <div className="absolute inset-x-5 bottom-5 z-10 text-white">
-          <p className="text-xs font-black uppercase tracking-[0.18em] text-white/60">En train de vivre</p>
-          <p className="mt-1 text-2xl font-black tracking-tight">{DISCOVER_DEMO.track.title}</p>
-          <p className="text-sm font-bold text-white/60">{DISCOVER_DEMO.track.artist}</p>
-        </div>
-      </div>
-      <div className={styles.waveform} aria-label="Forme d'onde simulée">
-        {WAVE_HEIGHTS.map((height, index) => <span key={index} style={{ height, animationDelay: `${index * 45}ms` }} />)}
-      </div>
-      <div className="flex items-center justify-between gap-3 text-xs font-black text-[var(--syn-text-secondary)]">
-        <span className="inline-flex items-center gap-2"><span className="grid h-9 w-9 place-items-center rounded-full bg-[var(--syn-contrast-bg)] text-[var(--syn-contrast-text)]"><Pause className="h-3.5 w-3.5" /></span> 0:47</span>
-        <span>{DISCOVER_DEMO.track.duration}</span>
-      </div>
-      {DISCOVER_DEMO.track.reactions.map((reaction, index) => (
-        <div key={reaction.at} className={styles.reaction} style={{ right: `${index * 8 - 2}%`, top: `${15 + index * 28}%` }}>
-          <Sparkles className="h-3 w-3 text-[var(--syn-accent-coral)]" /> {reaction.at} · {reaction.label}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function CreatorScene() {
-  return (
-    <div className={styles.creatorStack} aria-label="Démonstration de profils créateurs">
-      {DISCOVER_DEMO.creators.map((creator, index) => (
-        <div key={creator.name} className={styles.creatorCard}>
-          <span className={styles.avatar}>{creator.initials}</span>
-          <span className="min-w-0"><strong className="block truncate text-base">{creator.name}</strong><span className="text-sm text-[var(--syn-text-secondary)]">{creator.role}</span></span>
-          <span className="ml-auto text-xs font-black text-[var(--syn-accent)]">{index === 2 ? 'ton monde' : 'suivre'}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function CreationScene() {
-  return (
-    <div className={styles.creationCard} aria-label="Démonstration du Studio Synaura">
-      <div className={styles.studioPanel}>
-        <div className={styles.studioRail}><span /><span /><span /></div>
-        <div className={styles.studioBody}>
-          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">Studio · une idée prend forme</p>
-          <h3 className="mt-3 text-2xl font-black tracking-tight">Décris une couleur. Fais naître un son.</h3>
-          <div className="mt-7 rounded-2xl border border-white/10 bg-white/[0.06] p-4">
-            <div className={`${styles.promptLine} w-full`} />
-            <div className={`${styles.promptLine} w-4/5`} />
-            <div className={`${styles.promptLine} w-2/3`} />
-          </div>
-          <div className="mt-4 flex flex-wrap gap-2">
-            {[['IA', Wand2], ['Publier', UploadCloud], ['Partager', Users]].map(([label, Icon]) => (
-              <span key={String(label)} className="inline-flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-2 text-xs font-black"><Icon className="h-3.5 w-3.5" /> {String(label)}</span>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function WorldScene() {
-  return (
-    <div className={styles.worldCard} aria-label="Démonstration de l'univers personnel">
-      <div className="mb-5 flex items-center justify-between"><span><span className="block text-xs font-black uppercase tracking-[0.18em] text-[var(--syn-accent-blue)]">Pour toi</span><strong className="mt-1 block text-2xl tracking-tight">Ton monde se précise.</strong></span><Compass className="h-5 w-5 text-[var(--syn-text-secondary)]" /></div>
-      <div className={styles.worldRows}>
-        {DISCOVER_DEMO.worlds.map((world, index) => <div key={world} className={styles.worldRow}><span className={styles.worldCover} style={{ filter: `hue-rotate(${index * 42}deg)` }} /><span><strong className="block text-sm">{world}</strong><span className="text-xs text-[var(--syn-text-secondary)]">sons, playlists et créateurs</span></span><Music2 className="ml-auto h-4 w-4 text-[var(--syn-text-secondary)]" /></div>)}
-      </div>
-    </div>
-  );
-}
+const CHAPTERS = [
+  { name: 'Seuil', title: 'La musique,\nun peu plus près.', text: 'Un morceau. Une personne. Une idée qui reste. Entre dans un espace qui les relie.' },
+  { name: 'Musique', title: 'D’abord,\nressentir.', text: 'Laisse une place au morceau. Son image, sa voix, et tout ce qu’il te fait imaginer.' },
+  { name: 'Découverte', title: 'Puis, suivre\nce qui résonne.', text: 'D’un son à un créateur. D’une ambiance à une autre. La découverte commence par la curiosité.' },
+  { name: 'Création', title: 'Et si la prochaine\nidée était la tienne ?', text: 'Importer un morceau. Créer avec l’IA. Explorer le Studio. Tu choisis le point de départ.' },
+  { name: 'Moment social', title: 'Un instant précis.\nUne histoire partagée.', text: 'La conversation accompagne la musique. Les Moments relient les mots à l’instant qui les a fait naître.' },
+  { name: 'Entrer', title: 'Ce monde\nprend ta couleur.', text: 'Retrouve tes sons, garde tes découvertes et fais une place à tes créations.' },
+] as const;
+type EntryTrack = { _id: string; title: string; coverUrl?: string; audioUrl?: string; duration?: number; artist?: { _id?: string; username?: string; name?: string; artistName?: string } };
 
 export default function DiscoverSynaura({ legacy = false }: { legacy?: boolean }) {
   const router = useRouter();
   const reduced = Boolean(useReducedMotion());
+  const rootRef = useRef<HTMLElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
+  const chapterRef = useRef(0);
+  const [chapter, setChapter] = useState(0);
   const [firstVisit, setFirstVisit] = useState(false);
   const [ready, setReady] = useState(false);
   const [showSonicIntro, setShowSonicIntro] = useState(false);
   const [entering, setEntering] = useState(false);
+  const [expanded, setExpanded] = useState(false);
+  const [tracks, setTracks] = useState<EntryTrack[]>([]);
+  const [mediaStatus, setMediaStatus] = useState<'loading' | 'ready' | 'empty'>('loading');
+  const peek = useProfilePeek('other');
+  const comments = useCommentsSurface('other');
+  const fullExperience = firstVisit || expanded;
+  const track = tracks[0];
+  const artist = track?.artist?.artistName || track?.artist?.name || track?.artist?.username || 'Créateur';
 
   useEffect(() => {
     try {
-      const forceSonicPreview = process.env.NODE_ENV !== 'production'
-        && new URLSearchParams(window.location.search).get('sonicPreview') === '1';
+      const forceSonicPreview = process.env.NODE_ENV !== 'production' && new URLSearchParams(window.location.search).get('sonicPreview') === '1';
       const seen = localStorage.getItem(SONIC_INTRO_SEEN_KEY) === '1' && !forceSonicPreview;
-      setFirstVisit(!seen);
-      setShowSonicIntro(!seen);
-    } catch {}
+      setFirstVisit(!seen); setShowSonicIntro(!seen);
+    } catch { setFirstVisit(true); setShowSonicIntro(true); }
     setReady(true);
     recordEntryEvent('discover_view', { legacy });
+    const controller = new AbortController();
+    // Public, read-only content: no fabricated creator, reaction or listening count.
+    fetch('/api/tracks?limit=3', { signal: controller.signal }).then(async response => {
+      if (!response.ok) throw new Error('Public selection unavailable');
+      const payload = await response.json();
+      if (controller.signal.aborted) return;
+      const selection = (Array.isArray(payload?.tracks) ? payload.tracks : []).filter((item: EntryTrack) => item._id && item.title).slice(0, 3);
+      setTracks(selection); setMediaStatus(selection.length ? 'ready' : 'empty');
+    }).catch(() => { if (!controller.signal.aborted) setMediaStatus('empty'); });
+    return () => controller.abort();
   }, [legacy]);
 
-  const intro = useMemo(() => firstVisit && !reduced ? { duration: 0.9, delay: 0.08 } : { duration: 0.32, delay: 0 }, [firstVisit, reduced]);
+  useEffect(() => {
+    const root = rootRef.current, stage = stageRef.current;
+    const scroller = root?.closest('.app-scroll-container');
+    if (!root || !stage || !scroller) return;
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      const distance = Math.max(1, root.offsetHeight - stage.offsetHeight);
+      const progress = fullExperience ? Math.min(1, Math.max(0, (scroller.getBoundingClientRect().top - root.getBoundingClientRect().top) / distance)) : 0;
+      // Scroll changes presentation only: no audio start, seek or queue mutation.
+      stage.style.setProperty('--entry-progress', String(reduced ? 0 : progress));
+      const next = Math.min(5, Math.floor(progress * 6));
+      if (chapterRef.current !== next) { chapterRef.current = next; setChapter(next); }
+    };
+    const schedule = () => { if (!frame) frame = requestAnimationFrame(update); };
+    scroller.addEventListener('scroll', schedule, { passive: true }); window.addEventListener('resize', schedule);
+    const observer = new ResizeObserver(schedule); observer.observe(stage); update();
+    return () => { scroller.removeEventListener('scroll', schedule); window.removeEventListener('resize', schedule); observer.disconnect(); cancelAnimationFrame(frame); };
+  }, [fullExperience, reduced]);
 
-  const enter = async () => {
+  const enter = () => {
     if (entering) return;
-    setEntering(true);
-    recordEntryEvent('enter_click', { source: legacy ? 'legacy_landing' : 'discover' });
-    await new Promise((resolve) => window.setTimeout(resolve, reduced ? 80 : 260));
-    router.push('/enter');
+    setEntering(true); recordEntryEvent('enter_click', { source: legacy ? 'legacy_landing' : 'discover' }); router.push('/enter');
   };
-
   const completeSonicIntro = (reason: 'sound' | 'silent' | 'skip') => {
     try { localStorage.setItem(SONIC_INTRO_SEEN_KEY, '1'); } catch {}
-    setShowSonicIntro(false);
-    recordEntryEvent('sonic_intro_dismiss', { reason });
+    setShowSonicIntro(false); recordEntryEvent('sonic_intro_dismiss', { reason });
+  };
+  const goToChapter = (index: number) => {
+    const root = rootRef.current, scroller = root?.closest('.app-scroll-container');
+    if (!root || !scroller || !stageRef.current) return;
+    const start = scroller.scrollTop + root.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
+    scroller.scrollTo({ top: start + (root.offsetHeight - stageRef.current.offsetHeight) * (index / 6 + 0.02), behavior: reduced ? 'instant' : 'smooth' });
   };
 
   return (
-    <main className={styles.root} data-first-visit={ready && firstVisit || undefined}>
+    <section ref={rootRef} className={`v2-entry ${styles.root}`} data-first-visit={ready && firstVisit || undefined} data-full-experience={fullExperience} data-reduced={reduced} aria-label="Entrer dans Synaura">
       <SynauraSonicIntro open={ready && showSonicIntro} onComplete={completeSonicIntro} />
-      <div aria-hidden={ready && showSonicIntro || undefined}>
-        <DiscoverHeader onReplay={() => setShowSonicIntro(true)} />
-        <div className={styles.grain} aria-hidden />
-        <section className={styles.hero} aria-labelledby="discover-title">
-        <AuraStage reduced={reduced} />
-        <motion.div className={styles.heroCopy} initial={{ opacity: 0, y: reduced ? 0 : 24 }} animate={{ opacity: ready ? 1 : 0, y: 0 }} transition={intro}>
-          <motion.div className={styles.logoStage} initial={{ scale: firstVisit && !reduced ? 1.5 : 1, opacity: 0 }} animate={{ scale: 1, opacity: ready ? 1 : 0 }} transition={{ duration: firstVisit && !reduced ? 1 : 0.3, ease: [0.22, 1, 0.36, 1] }}>
-            <SynauraLogo size={116} priority decorative />
-          </motion.div>
-          <p className="mt-7 text-xs font-black uppercase tracking-[0.28em] text-[var(--syn-text-secondary)]">Écoute · crée · partage</p>
-          <h1 id="discover-title" className={`${styles.wordmark} mt-5`}>Synaura</h1>
-          <p className={styles.heroLead}>La musique ne devrait pas seulement se lancer. Elle devrait rapprocher, surprendre et laisser une trace.</p>
-          <div className={styles.ctaRow}>
-            <SynauraButton size="lg" variant="primary" onClick={() => void enter()} loading={entering}>Entrer dans Synaura <ArrowRight className="h-4 w-4" /></SynauraButton>
-            <Link href="/auth/signin" className="syn-interactive inline-flex min-h-12 items-center rounded-full px-5 text-sm font-black text-[var(--syn-text-secondary)] hover:bg-[var(--syn-soft)] hover:text-[var(--syn-text-primary)]">J’ai déjà un compte</Link>
+      <div ref={stageRef} className={styles.stage} data-chapter={chapter} aria-hidden={ready && showSonicIntro || undefined}>
+        <header className={styles.header}>
+          <Link href="/" aria-label="Synaura, accueil"><SynauraLogo variant="wordmark" size={44} priority decorative /></Link>
+          <nav aria-label="Navigation de découverte"><Link className={styles.discoveryLink} href="/discover">Explorer la musique</Link><button onClick={() => setShowSonicIntro(true)} aria-label="Rejouer la signature Synaura"><Volume2 size={18} /></button><Link href="/auth/signin">Se connecter <ArrowRight size={15} /></Link></nav>
+        </header>
+        <div className={styles.light} aria-hidden />
+        <div className={styles.artStage}>
+          <figure className={styles.artwork}>
+            {track ? <SynauraImage src={track.coverUrl} alt={`Pochette de ${track.title}`} fetchPriority="high" /> : <div className={styles.artFallback} aria-label={mediaStatus === 'loading' ? 'Chargement de la sélection musicale' : 'Sélection musicale indisponible'}><span>Un espace<br />pour la musique.</span></div>}
+            {track && <figcaption><span>Sélection publique</span><Link href={`/track/${encodeURIComponent(track._id)}`}>{track.title} <ArrowRight size={15} /></Link><button onClick={event => peek(track.artist?.username, event.currentTarget)} disabled={!track.artist?.username}>{artist}</button></figcaption>}
+          </figure>
+          <div className={styles.satellites} aria-hidden={chapter !== 2} ref={element => { if (element) element.inert = chapter !== 2; }}>
+            {tracks.slice(1).map(item => <Link href={`/track/${encodeURIComponent(item._id)}`} key={item._id}><SynauraImage src={item.coverUrl} alt={item.title} loading="lazy" /><span>{item.title}</span></Link>)}
           </div>
-          <p className="mt-3 text-xs text-[var(--syn-text-secondary)]">La signature sonore ne joue qu’après un geste explicite. Tu peux la rejouer en haut.</p>
-        </motion.div>
-        <a href="#experience" className={styles.scrollCue}><ArrowDown className="h-4 w-4" /> Explorer</a>
-        </section>
-
-        <div id="experience" className={styles.story}>
-        <section className={styles.scene} aria-labelledby="scene-listen">
-          <div><p className={styles.eyebrow}>Un son, maintenant</p><h2 id="scene-listen" className={styles.sceneTitle}>Écouter devient un lieu.</h2><p className={styles.sceneText}>Une waveform, des réactions au bon instant, une Aura qui respire avec le morceau. La musique reste au centre ; les gens apparaissent autour.</p></div>
-          <div className={styles.sceneVisual}><DemoPlayer /></div>
-        </section>
-
-        <section className={styles.scene} aria-labelledby="scene-people">
-          <div><p className={styles.eyebrow}>Autour de la musique</p><h2 id="scene-people" className={styles.sceneTitle}>Quelqu’un écoute avec toi.</h2><p className={styles.sceneText}>Créateurs, profils, commentaires temporels et partages donnent une histoire à chaque morceau — sans interrompre l’écoute.</p></div>
-          <div className={styles.sceneVisual}><CreatorScene /></div>
-        </section>
-
-        <section className={styles.scene} aria-labelledby="scene-create">
-          <div><p className={styles.eyebrow}>Quand l’idée arrive</p><h2 id="scene-create" className={styles.sceneTitle}>Elle peut devenir un son.</h2><p className={styles.sceneText}>Crée avec l’IA, publie tes propres morceaux, imagine une variation ou accompagne-les d’un post. Le Studio ouvre la porte ; tu gardes la direction.</p></div>
-          <div className={styles.sceneVisual}><CreationScene /></div>
-        </section>
-
-        <section className={styles.scene} aria-labelledby="scene-world">
-          <div><p className={styles.eyebrow}>À force d’écouter</p><h2 id="scene-world" className={styles.sceneTitle}>Ton monde prend une couleur.</h2><p className={styles.sceneText}>Bibliothèque, playlists, découvertes et recommandations se rassemblent autour de ce qui te fait vibrer.</p></div>
-          <div className={styles.sceneVisual}><WorldScene /></div>
-        </section>
+          <div className={styles.creation} aria-hidden={chapter !== 3} ref={element => { if (element) element.inert = chapter !== 3; }}>
+            <p>De l’intention au morceau</p><Link href="/ai-generator"><span>01</span> Faire naître une idée <ArrowRight size={16} /></Link><Link href="/studio"><span>02</span> Ouvrir le Studio <ArrowRight size={16} /></Link><Link href="/upload"><span>03</span> Publier ma musique <ArrowRight size={16} /></Link>
+          </div>
+          <div className={styles.social} aria-hidden={chapter !== 4} ref={element => { if (element) element.inert = chapter !== 4; }}>
+            <MessageCircle size={22} strokeWidth={1.4} /><p>Les mots trouvent<br />leur place dans le son.</p>
+            {track ? <button onClick={event => comments({ type: 'track', id: track._id, title: track.title, artist, coverUrl: track.coverUrl, audioUrl: track.audioUrl, duration: track.duration, creatorId: track.artist?._id }, event.currentTarget)}>Ouvrir la conversation <ArrowRight size={15} /></button> : <Link href="/discover">Découvrir les morceaux <ArrowRight size={15} /></Link>}
+          </div>
         </div>
-
-        <section className={styles.finale} aria-labelledby="discover-finale">
-        <div className="relative z-10 max-w-3xl">
-          <Headphones className="mx-auto h-7 w-7 text-[var(--syn-accent-coral)]" />
-          <h2 id="discover-finale" className={`${styles.sceneTitle} mt-5`}>Le reste commence quand tu entres.</h2>
-          <p className={`${styles.sceneText} mx-auto`}>Quelques choix, puis Synaura s’ouvre sur ton univers musical.</p>
-          <div className={styles.ctaRow}><SynauraButton size="lg" variant="accent" onClick={() => void enter()} loading={entering}>Entrer dans Synaura <ArrowRight className="h-4 w-4" /></SynauraButton></div>
+        <div className={styles.narrative}>
+          {CHAPTERS.map((item, index) => <section key={item.name} className={styles.chapter} data-active={chapter === index} aria-hidden={chapter !== index}><p className={styles.eyebrow}>{String(index + 1).padStart(2, '0')} / Synaura · {item.name}</p>{index === 0 ? <h1>{item.title}</h1> : <h2>{item.title}</h2>}<p className={styles.description}>{item.text}</p></section>)}
+          <div className={styles.cta}><button className="v2-action v2-action-primary" onClick={enter} disabled={entering}>{entering ? 'Ouverture…' : 'Entrer dans Synaura'} <ArrowRight size={17} /></button>{!fullExperience && <button className={styles.explore} onClick={() => setExpanded(true)}>Revivre la découverte <ArrowDown size={15} /></button>}</div>
         </div>
-        </section>
+        <footer className={styles.footer}>
+          {fullExperience ? <nav aria-label="Chapitres de l’entrée">{CHAPTERS.map((item, index) => <button key={item.name} onClick={() => goToChapter(index)} aria-label={`${index + 1}. ${item.name}`} aria-current={chapter === index ? 'step' : undefined}><span>{String(index + 1).padStart(2, '0')}</span><span>{item.name}</span></button>)}</nav> : <p>Heureux de te retrouver.</p>}
+          <span className={styles.scrollCue}>{fullExperience ? <>Défiler pour entrer <ArrowDown size={14} /></> : 'L’écoute commence par un choix.'}</span>
+        </footer>
       </div>
-    </main>
+    </section>
   );
 }

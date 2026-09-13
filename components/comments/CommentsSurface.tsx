@@ -12,6 +12,7 @@ import { commentRequest, useComments, useCommentsViewer, useSharedMoments, useSh
 import { clusterMusicalMoments, mergeComments, momentTime, supportsMoments, type CommentEntity, type CommentEntityType, type SocialComment, type MusicalCluster } from '@/lib/commentsModel';
 import { MOMENT_REACTION_META, MOMENT_REACTION_TYPES } from '@/lib/momentReactions';
 import { getCdnUrl } from '@/lib/cdn';
+import { SynauraImage } from '@/components/ui/SynauraImage';
 import MusicalWaveform from './MusicalWaveform';
 import TrackActionButton from '@/components/actions/TrackActionButton';
 import { Heart, MessageCircle, Send, Clock3, X, ArrowRight, Loader2 } from 'lucide-react';
@@ -113,7 +114,7 @@ function CommentsContent({ entity, entry, closeSurface }: { entity: CommentEntit
   const renderComment = (comment: SocialComment, nested = false) => <article key={comment.id} data-comment-id={comment.id} className={`rounded-xl p-3 ${draft.selectedCommentId === comment.id ? 'bg-[var(--syn-soft-strong)] ring-1 ring-[var(--syn-accent)]' : ''} ${nested ? 'ml-5 border-l border-[var(--syn-border)]' : 'border-b border-[var(--syn-border)]'}`}>
     <div className="flex gap-2.5">
       <button type="button" data-context-surface-trigger-key={`comment-avatar-${entity.type}-${comment.id}`} onClick={e => peek(comment.user.username, e.currentTarget)} aria-label={`Aperçu de ${comment.user.name}`} className="syn-interactive h-11 w-11 shrink-0 overflow-hidden rounded-full bg-[var(--syn-soft)] text-sm font-bold">
-        {comment.user.avatar ? <img src={getCdnUrl(comment.user.avatar) || comment.user.avatar} alt="" className="h-full w-full object-cover" /> : comment.user.name.slice(0, 1)}
+        {comment.user.avatar ? <SynauraImage fallbackSrc="/default-avatar.png" src={getCdnUrl(comment.user.avatar) || comment.user.avatar} alt="" className="h-full w-full object-cover" /> : comment.user.name.slice(0, 1)}
       </button>
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-x-2"><button type="button" data-context-surface-trigger-key={`comment-author-${entity.type}-${comment.id}`} className={`${actionClass} max-w-full truncate px-0 text-left`} onClick={e => peek(comment.user.username, e.currentTarget)}>{comment.user.name}</button>{comment.isCreatorFavorite && <span className="text-[10px] text-[var(--syn-accent)]">♥ Créateur</span>}</div>
@@ -130,11 +131,14 @@ function CommentsContent({ entity, entry, closeSurface }: { entity: CommentEntit
     </div>
     {!nested && comment.replies.map(reply => renderComment(reply, true))}
   </article>;
-  return <div ref={surface} className="comments-surface flex flex-col" data-comments-state={comments.isPending ? 'loading' : comments.isError ? 'error' : 'loaded'} data-comments-entity={`${entity.type}:${entity.id}`}>
+  return <div ref={surface} className="v2-comments comments-surface flex flex-col" data-chambre-context="comments" data-comments-view={draft.mode} data-comments-state={comments.isPending ? 'loading' : comments.isError ? 'error' : 'loaded'} data-comments-entity={`${entity.type}:${entity.id}`}>
     <header ref={header} tabIndex={-1} data-context-surface-initial-focus className="shrink-0 px-5 pb-2 pt-6 outline-none">
       <p className="mb-2 text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--syn-text-secondary)]">{entity.type === 'track' ? 'Autour du son' : entity.type === 'clip' ? 'Autour du clip' : 'Autour du post'}</p>
-      <SynauraOverlayTitle>{entity.title || 'Commentaires'}</SynauraOverlayTitle>
-      <SynauraOverlayDescription className="mt-1 truncate">{entity.artist ? `${entity.artist} · ` : ''}{count} commentaire{count !== 1 ? 's' : ''}</SynauraOverlayDescription>
+      <div className="v2-comments-identity">
+        {entity.coverUrl && <SynauraImage src={entity.coverUrl} alt="" className="v2-comments-cover" />}
+        <div className="min-w-0"><SynauraOverlayTitle>{entity.title || 'Commentaires'}</SynauraOverlayTitle>
+        <SynauraOverlayDescription className="mt-1 truncate">{entity.artist ? `${entity.artist} · ` : ''}{count} commentaire{count !== 1 ? 's' : ''}</SynauraOverlayDescription></div>
+      </div>
       {entity.type === 'track' && <div className="flex justify-end"><TrackActionButton track={{ ...entity, _id: entity.id }} origin={entry.origin} /></div>}
       {musical && <MusicalWaveform trackId={entity.id} peaks={waveform.peaks} duration={duration} loading={waveform.loading} clusters={clusters} selected={draft.clusterId} onSelect={selectCluster} onSeek={explicitSeek} />}
       <div role="tablist" aria-label="Vue des commentaires" className="mt-1 flex border-b border-[var(--syn-border)]">{(['conversation', ...(musical ? ['moments'] : [])] as Draft['mode'][]).map(mode => <button key={mode} type="button" role="tab" id={`comments-tab-${mode}`} aria-controls="comments-panel" aria-selected={draft.mode === mode} tabIndex={draft.mode === mode ? 0 : -1} onClick={() => setDraft(d => ({ ...d, mode }))} onKeyDown={e => { if (musical && ['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) { e.preventDefault(); const next = e.key === 'Home' ? 'conversation' : e.key === 'End' ? 'moments' : draft.mode === 'conversation' ? 'moments' : 'conversation'; setDraft(d => ({ ...d, mode: next })); document.getElementById(`comments-tab-${next}`)?.focus(); } }} className={`syn-interactive min-h-11 flex-1 border-b-2 text-sm font-bold ${draft.mode === mode ? 'border-[var(--syn-accent)] text-[var(--syn-text-primary)]' : 'border-transparent text-[var(--syn-text-secondary)]'}`}>{mode === 'conversation' ? 'Conversation' : 'Moments'}</button>)}</div>

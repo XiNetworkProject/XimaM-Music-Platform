@@ -1,12 +1,12 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { withCurrentHandoff } from '@/lib/creationHandoffClient';
 import { usePathname, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { SynauraOverlay } from '@/components/ui/SynauraOverlay';
+import { SynauraImage } from '@/components/ui/SynauraImage';
 import {
   Compass,
   Film,
@@ -43,28 +43,28 @@ const CREATE_ACTIONS: CreateAction[] = [
     description: 'Importe un titre et prépare sa sortie.',
     href: '/upload',
     icon: Upload,
-    accent: 'bg-[#7357C6]/12 text-[#7357C6]',
+    accent: 'bg-[var(--v2-selected)] text-[var(--v2-accent)]',
   },
   {
     label: 'Créer avec l’IA',
     description: 'Compose, remixe et développe une idée.',
     href: '/ai-generator',
     icon: Sparkles,
-    accent: 'bg-[#4A9EAA]/14 text-[#347E88]',
+    accent: 'bg-[var(--v2-selected)] text-[var(--v2-accent)]',
   },
   {
     label: 'Publier un clip',
     description: 'Transforme un passage en format vertical.',
     href: '/clips/new',
     icon: Film,
-    accent: 'bg-[#D96D63]/13 text-[#C45C53]',
+    accent: 'bg-[var(--v2-soft)] text-[var(--v2-pink)]',
   },
   {
     label: 'Écrire un post',
     description: 'Partage une actualité avec la communauté.',
     href: '/posts',
     icon: PenSquare,
-    accent: 'bg-[#C99B48]/15 text-[#9A732D]',
+    accent: 'bg-[var(--v2-soft)] text-[var(--v2-muted)]',
   },
   {
     label: 'Créer une variation',
@@ -98,7 +98,6 @@ export default function SynauraPrimaryDock({
   const pathname = usePathname();
   const router = useRouter();
   const { data: session, status } = useSession();
-  const [mounted, setMounted] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const authenticated = Boolean(session?.user);
@@ -106,7 +105,6 @@ export default function SynauraPrimaryDock({
   const profileHref = getWebProfileHref(username, authenticated);
   const immersive = appearance === 'immersive';
 
-  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     if (!createOpen) return;
@@ -153,8 +151,8 @@ export default function SynauraPrimaryDock({
     const active = isPrimaryWebRouteActive(item.id, pathname);
     const commonClass = `group relative flex h-[68px] min-w-0 flex-col items-center justify-center gap-0.5 px-1 transition ${
       active
-        ? immersive ? 'text-[#4A9EAA]' : 'text-[var(--syn-accent-blue)]'
-        : immersive ? 'text-white/48 hover:text-white' : 'text-[var(--syn-text-secondary)] hover:text-[var(--syn-text-primary)]'
+        ? immersive ? 'text-[var(--v2-accent)]' : 'text-[var(--syn-accent-blue)]'
+        : immersive ? 'text-[var(--v2-muted)] hover:text-white' : 'text-[var(--syn-text-secondary)] hover:text-[var(--syn-text-primary)]'
     }`;
     const content = (
       <>
@@ -169,10 +167,10 @@ export default function SynauraPrimaryDock({
         ) : item.id === 'profile' && resolvedAvatar ? (
           <span className={`grid h-[30px] w-[34px] place-items-center ${active ? '-translate-y-px' : ''}`}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
+            <SynauraImage fallbackSrc="/default-avatar.png"
               src={resolvedAvatar}
               alt=""
-              className={`h-6 w-6 rounded-full object-cover ${active ? 'ring-2 ring-[#4A9EAA] ring-offset-1 ring-offset-transparent' : 'opacity-75'}`}
+              className={`h-6 w-6 rounded-full object-cover ${active ? 'ring-2 ring-[var(--v2-accent)] ring-offset-1 ring-offset-transparent' : 'opacity-75'}`}
             />
           </span>
         ) : (
@@ -181,10 +179,10 @@ export default function SynauraPrimaryDock({
           </span>
         )}
         <span className={`max-w-full truncate text-[8px] font-bold min-[360px]:text-[10px] ${item.id === 'create' ? '-mt-1' : ''}`}>
-          {item.label}
+          {item.id === 'home' ? 'Live' : item.label}
         </span>
         {active && item.id !== 'create' ? (
-          <span className="absolute top-0 h-0.5 w-[22px] rounded-b-full bg-[#4A9EAA]" />
+          <span className="absolute top-0 h-0.5 w-[22px] rounded-b-full bg-[var(--v2-accent)]" />
         ) : null}
       </>
     );
@@ -234,10 +232,10 @@ export default function SynauraPrimaryDock({
       <>
         {item.id === 'profile' && resolvedAvatar ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <SynauraImage fallbackSrc="/default-avatar.png"
             src={resolvedAvatar}
             alt=""
-            className={`h-6 w-6 shrink-0 rounded-full object-cover ${active ? 'ring-2 ring-[#4A9EAA] ring-offset-1 ring-offset-transparent' : 'opacity-80'}`}
+            className={`h-6 w-6 shrink-0 rounded-full object-cover ${active ? 'ring-2 ring-[var(--v2-accent)] ring-offset-1 ring-offset-transparent' : 'opacity-80'}`}
           />
         ) : item.id === 'create' ? (
           <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full ${
@@ -248,9 +246,9 @@ export default function SynauraPrimaryDock({
         ) : (
           <Icon className="h-[18px] w-[18px] shrink-0" strokeWidth={active ? 2.3 : 1.85} />
         )}
-        <span className="truncate">{item.label}</span>
+        <span className="truncate">{item.id === 'home' ? 'Live' : item.label}</span>
         {active && item.id !== 'create' ? (
-          <span className="absolute inset-x-3 bottom-0 h-0.5 rounded-t-full bg-[#4A9EAA]" />
+          <span className="absolute inset-x-3 bottom-0 h-0.5 rounded-t-full bg-[var(--v2-accent)]" />
         ) : null}
       </>
     );
@@ -286,7 +284,7 @@ export default function SynauraPrimaryDock({
   return (
     <>
       <nav
-        className={`pointer-events-none fixed inset-x-0 bottom-0 z-[160] border-t backdrop-blur-2xl lg:hidden ${
+        className={`v2-primary-dock experience-dock pointer-events-none fixed inset-x-0 bottom-0 z-[160] border-t backdrop-blur-2xl lg:hidden ${
           immersive
             ? 'border-white/10 bg-[#0D0D0D]/94'
             : 'border-[var(--syn-border)] bg-[var(--syn-surface-translucent)]'
@@ -301,7 +299,7 @@ export default function SynauraPrimaryDock({
 
       {showDesktop ? (
         <nav
-          className={`fixed left-1/2 top-3 z-[160] hidden w-[min(640px,calc(100vw-340px))] -translate-x-1/2 rounded-lg border p-1 shadow-[0_16px_44px_rgba(0,0,0,0.24)] backdrop-blur-2xl lg:block ${
+          className={`v2-primary-dock-desktop experience-dock-desktop fixed left-1/2 top-3 z-[160] hidden w-[min(640px,calc(100vw-340px))] -translate-x-1/2 rounded-lg border p-1 shadow-[0_16px_44px_rgba(0,0,0,0.24)] backdrop-blur-2xl lg:block ${
             immersive
               ? 'border-white/10 bg-[#0D0D0D]/88'
               : 'border-[var(--syn-border)] bg-[var(--syn-surface-translucent)]'
@@ -314,31 +312,7 @@ export default function SynauraPrimaryDock({
         </nav>
       ) : null}
 
-      {mounted
-        ? createPortal(
-            <AnimatePresence>
-              {createOpen ? (
-                <div className="fixed inset-0 z-[220]">
-                  <motion.button
-                    type="button"
-                    aria-label="Fermer le menu Créer"
-                    className="absolute inset-0 h-full w-full bg-black/58 backdrop-blur-sm"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.16 }}
-                    onClick={() => setCreateOpen(false)}
-                  />
-                  <motion.section
-                    role="dialog"
-                    aria-modal="true"
-                    aria-labelledby="synaura-create-title"
-                    className="absolute inset-x-0 bottom-0 mx-auto max-w-xl rounded-t-[1.5rem] border-t border-[var(--syn-border)] bg-[var(--syn-surface)] px-4 pb-[calc(env(safe-area-inset-bottom,0px)+1rem)] pt-3 text-[var(--syn-text-primary)] shadow-[0_-24px_70px_rgba(0,0,0,0.28)]"
-                    initial={{ y: '100%' }}
-                    animate={{ y: 0 }}
-                    exit={{ y: '100%' }}
-                    transition={{ type: 'spring', damping: 30, stiffness: 390 }}
-                  >
+      <SynauraOverlay open={createOpen} onClose={() => setCreateOpen(false)} presentation="responsive" showClose={false} labelledBy="synaura-create-title" className="v2-create-menu p-5 pb-[calc(env(safe-area-inset-bottom,0px)+1rem)]">
                     <div className="mx-auto mb-2 h-1 w-9 rounded-full bg-[var(--syn-border)]" />
                     <div className="flex h-12 items-center justify-between">
                       <div>
@@ -381,13 +355,8 @@ export default function SynauraPrimaryDock({
                     <button type="button" onClick={() => navigateCreate('/create')} className="mt-2 min-h-10 w-full rounded-lg px-3 text-xs font-bold text-[var(--syn-text-secondary)] focus-visible:outline focus-visible:outline-2">
                       Tous les outils de création
                     </button>
-                  </motion.section>
-                </div>
-              ) : null}
-            </AnimatePresence>,
-            document.body,
-          )
-        : null}
+      </SynauraOverlay>
+
     </>
   );
 }

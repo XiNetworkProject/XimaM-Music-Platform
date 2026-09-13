@@ -263,7 +263,7 @@ export default function SynauraCityPage() {
       <div className="space-y-7 sm:space-y-10">
         <SynauraTickerBanner text={tickerText} tone="coral" />
 
-        <SynauraColorBand tone="sunset" className="p-5 sm:p-8">
+        <SynauraColorBand tone="sunset" className="v2-city-intro py-8">
           <div className="grid gap-7 lg:grid-cols-[1.2fr_.8fr] lg:items-end">
             <div>
               <span className="inline-flex h-9 items-center gap-2 rounded-full bg-white/70 px-3 text-[10px] font-black uppercase tracking-[0.16em] text-[#7c5cff]">
@@ -271,10 +271,10 @@ export default function SynauraCityPage() {
                 Events en direct
               </span>
               <h1 className="mt-5 max-w-4xl text-4xl font-black leading-[0.96] tracking-tight text-[#171313] sm:text-6xl">
-                Tout ce qui fait vibrer Synaura, maintenant.
+                La ville<br /><span className="chambre-type-accent">bat au rythme.</span>
               </h1>
               <p className="mt-4 max-w-2xl text-sm font-bold leading-relaxed text-black/52 sm:text-base">
-                Battles, challenges, nouveaux talents et titres qui prennent de la vitesse. Les donnees bougent chaque jour.
+                Battles, challenges et découvertes. Des rendez-vous pour écouter, participer et faire avancer la création.
               </p>
               <div className="mt-6 flex flex-wrap gap-2">
                 <Link href="/upload" className="inline-flex h-12 items-center gap-2 rounded-full bg-[#171313] px-6 text-sm font-black text-white shadow-[0_14px_32px_rgba(23,19,19,0.18)] transition hover:-translate-y-0.5">
@@ -304,7 +304,7 @@ export default function SynauraCityPage() {
 
         <section className="space-y-4">
           <SynauraSectionHeader eyebrow="Cette semaine" title="En live maintenant" description="Vote, participe ou viens simplement decouvrir ce qui bouge." icon={<CalendarDays className="h-6 w-6 text-[#7c5cff]" />} />
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div className="chambre-city-events grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             {city.events.map((event) => (
               <SynauraEventCard
                 key={event.id}
@@ -393,7 +393,7 @@ export default function SynauraCityPage() {
             <motion.div initial={{ y: 30, scale: 0.92 }} animate={{ y: 0, scale: 1 }} exit={{ y: 20, scale: 0.94 }} className="relative w-full max-w-xl overflow-hidden rounded-[2rem] bg-[#171313] p-5 text-white shadow-[0_32px_120px_rgba(23,19,19,.55)] sm:p-7">
               <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_10%_0%,rgba(255,111,97,.34),transparent_38%),radial-gradient(circle_at_90%_10%,rgba(124,92,255,.38),transparent_42%)]" />
               <div className="relative">
-                <motion.div animate={{ rotate: [0, -8, 8, 0], scale: [1, 1.12, 1] }} transition={{ duration: 1.8, repeat: Infinity }} className="grid h-14 w-14 place-items-center rounded-[1.15rem] bg-[#ffd667] text-[#171313]"><Trophy className="h-7 w-7" /></motion.div>
+                <motion.div animate={{ rotate: [0, -8, 8, 0], scale: [1, 1.12, 1] }} transition={{ duration: 1.8, repeat: Infinity }} className="grid h-14 w-14 place-items-center rounded-[1.15rem] bg-[#ffd667] text-[var(--v2-bg)]"><Trophy className="h-7 w-7" /></motion.div>
                 <p className="mt-5 text-[10px] font-black uppercase tracking-[0.2em] text-[#ff9a90]">Victoire Synaura</p>
                 <h2 className="mt-2 text-3xl font-black tracking-tight sm:text-4xl">{celebrationEvent.celebration?.title}</h2>
                 <p className="mt-3 text-sm font-bold leading-6 text-white/58">{celebrationEvent.celebration?.message}</p>
@@ -486,7 +486,7 @@ function BattlePanel({ event, voting, currentId, isPlaying, onPlay, onVote, onCl
                     </div>
                     <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white text-[#171313]">{playing ? <Pause className="h-4 w-4" /> : <Play className="ml-0.5 h-4 w-4" />}</span>
                   </button>
-                  <button disabled={voting || !canVote} onClick={() => onVote(track._id)} className={`mt-3 inline-flex h-10 w-full items-center justify-center gap-2 rounded-full text-xs font-black transition disabled:opacity-50 ${selected ? 'bg-[#ff9a90] text-[#171313]' : 'bg-white/10 text-white hover:bg-white/16'}`}>
+                  <button disabled={voting || !canVote} onClick={() => onVote(track._id)} className={`mt-3 inline-flex h-10 w-full items-center justify-center gap-2 rounded-full text-xs font-black transition disabled:opacity-50 ${selected ? 'bg-[#ff9a90] text-[var(--v2-bg)]' : 'bg-white/10 text-white hover:bg-white/16'}`}>
                     {selected ? <Check className="h-4 w-4" /> : <Vote className="h-4 w-4" />}
                     {selected ? 'Ton vote' : canVote ? `Voter · ${percent}%` : `Résultat · ${percent}%`}
                   </button>
@@ -526,7 +526,7 @@ function HallOfFame({ awards, onPlay }: { awards: CityAward[]; onPlay: (track: C
       <div className="mt-5 grid gap-2 sm:grid-cols-2">
         {awards.map((award, index) => (
           <button key={award.id} onClick={() => award.track && onPlay(award.track)} className="flex min-w-0 items-center gap-3 rounded-[1.15rem] bg-black/[0.035] p-3 text-left transition hover:bg-black/[0.06]">
-            <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-[0.9rem] ${index === 0 ? 'bg-[#ffd667] text-[#171313]' : 'bg-[#7c5cff]/12 text-[#5b3fe8]'}`}><Medal className="h-4 w-4" /></span>
+            <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-[0.9rem] ${index === 0 ? 'bg-[#ffd667] text-[var(--v2-bg)]' : 'bg-[#7c5cff]/12 text-[#5b3fe8]'}`}><Medal className="h-4 w-4" /></span>
             <div className="min-w-0"><p className="truncate text-xs font-black">{award.title}</p><p className="mt-1 truncate text-[10px] font-bold text-black/42">{award.track?.title || award.artist?.name || award.subtitle}</p></div>
           </button>
         ))}

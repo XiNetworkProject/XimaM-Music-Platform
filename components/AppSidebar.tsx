@@ -37,7 +37,7 @@ import StarAcademyBanner from '@/components/StarAcademyBanner';
 import SynauraLogo from '@/components/brand/SynauraLogo';
 
 const NAV_ITEMS = [
-  { href: '/', label: 'Pour toi', icon: Home },
+  { href: '/live', label: 'Live', icon: Home },
   { href: '/discover', label: 'Découvrir', icon: Compass },
   { href: '/messages', label: 'Messages', icon: MessageCircle },
   { href: '/library', label: 'Bibliothèque', icon: BookOpen },
@@ -136,7 +136,7 @@ export default function AppSidebar() {
 
   return (
     <aside
-      className="group/sidebar fixed inset-y-0 left-0 hidden lg:flex lg:flex-col bg-syn-surface text-syn-textPrimary border-r border-syn-border overflow-hidden z-40 transition-all duration-200"
+      className="v2-service-sidebar group/sidebar fixed inset-y-0 left-0 hidden lg:flex lg:flex-col bg-syn-surface text-syn-textPrimary border-r border-syn-border overflow-hidden z-40 transition-all duration-200"
       data-collapsed={collapsed}
       data-show-content={isSidebarOpen}
       style={{ width: isSidebarOpen ? 220 : 72 } as CSSProperties}
@@ -146,20 +146,18 @@ export default function AppSidebar() {
         type="button"
         onClick={toggleSidebar}
         className="absolute top-7 right-3 z-10 w-6 h-6 rounded-md flex items-center justify-center text-black/25 hover:text-black/70 hover:bg-black/[0.05] transition-all group-data-[collapsed=true]/sidebar:left-1/2 group-data-[collapsed=true]/sidebar:-translate-x-1/2 group-data-[collapsed=true]/sidebar:right-auto"
-        aria-label="Toggle sidebar"
+        aria-label={isSidebarOpen ? 'Réduire la navigation' : 'Développer la navigation'}
       >
         <ChevronLeft className={`w-4 h-4 transition-transform ${!isSidebarOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {/* Logo */}
       <div className="flex h-[68px] items-center px-4 pt-4">
-        <Link href="/" className="flex items-center gap-2.5 group-data-[collapsed=true]/sidebar:justify-center group/logo">
+        <Link href="/" aria-label="Synaura, accueil" className="chambre-service-brand flex items-center gap-2.5 group-data-[collapsed=true]/sidebar:justify-center group/logo">
           <div className="relative shrink-0">
-            <SynauraLogo size={48} className="transition-transform duration-200 group-hover/logo:scale-105" decorative />
+            <SynauraLogo variant="wordmark" size={34} className="group-data-[collapsed=true]/sidebar:hidden" decorative />
+            <SynauraLogo size={32} className="hidden group-data-[collapsed=true]/sidebar:inline-flex" decorative />
           </div>
-          <span className="text-[20px] font-black tracking-tight text-syn-textPrimary group-data-[collapsed=true]/sidebar:hidden">
-            Synaura
-          </span>
         </Link>
       </div>
 
@@ -272,7 +270,7 @@ export default function AppSidebar() {
       <div className="h-px bg-syn-border mx-3" />
 
       {/* Nav */}
-      <div className="flex-1 min-h-0 overflow-y-auto px-3 pt-2 space-y-0.5">
+      <div className="chambre-service-links flex-1 min-h-0 overflow-y-auto px-3 pt-2 space-y-0.5">
         {NAV_ITEMS.map((item) => {
           const active = isActive(item.href);
           const Icon = item.icon;
@@ -280,6 +278,7 @@ export default function AppSidebar() {
             <Link
               key={item.href}
               href={item.href}
+              aria-current={active ? 'page' : undefined}
               className={`relative flex items-center gap-2.5 rounded-xl px-2.5 py-[7px] text-[13px] font-medium transition-all active:scale-[0.98] ${
                 active
                   ? 'bg-syn-accent/10 text-syn-accent font-semibold'
@@ -290,7 +289,7 @@ export default function AppSidebar() {
               <Icon className="w-[18px] h-[18px] shrink-0" strokeWidth={active ? 2.2 : 1.6} />
               <span className="group-data-[collapsed=true]/sidebar:hidden truncate">{item.label}</span>
               {item.href === '/messages' && messagesUnread > 0 ? (
-                <span className="ml-auto min-w-5 rounded-full bg-syn-accent px-1.5 py-0.5 text-center text-[9px] font-black text-white group-data-[collapsed=true]/sidebar:absolute group-data-[collapsed=true]/sidebar:right-0 group-data-[collapsed=true]/sidebar:top-0">
+                <span className="ml-auto min-w-5 rounded-full bg-[var(--v2-accent-fill)] px-1.5 py-0.5 text-center text-[9px] font-black text-white group-data-[collapsed=true]/sidebar:absolute group-data-[collapsed=true]/sidebar:right-0 group-data-[collapsed=true]/sidebar:top-0">
                   {messagesUnread > 99 ? '99+' : messagesUnread}
                 </span>
               ) : null}

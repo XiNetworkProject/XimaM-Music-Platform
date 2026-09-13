@@ -14,6 +14,11 @@ function startsWithAny(pathname: string, prefixes: string[]) {
   return prefixes.some((prefix) => pathname.startsWith(prefix));
 }
 
+/** Opt-in local product study; similarly named routes keep their existing chrome. */
+export function isChamberProductRoute(pathname: string | null | undefined) {
+  return pathname === '/dev/chambre' || Boolean(pathname?.startsWith('/dev/chambre/'));
+}
+
 export function getRouteChrome(pathname: string | null): RouteChrome {
   if (!pathname) {
     return {
@@ -27,17 +32,30 @@ export function getRouteChrome(pathname: string | null): RouteChrome {
     };
   }
 
+  if (isChamberProductRoute(pathname)) {
+    return {
+      kind: 'immersive',
+      showSidebar: false,
+      showTopSearch: false,
+      showBottomNav: false,
+      useFullScreenLayout: true,
+      suppressGlobalPlayerPadding: true,
+      showGlobalShutdownNotice: false,
+    };
+  }
+
   const isHome = pathname === '/' || pathname === '/live';
   const isAuth = pathname.startsWith('/auth');
   const isOnboarding = pathname.startsWith('/onboarding');
   const isPublicEntry = pathname.startsWith('/enter') || pathname.startsWith('/landing');
   const isMeteoFullscreen = pathname.includes('/meteo/login') || pathname.includes('/meteo/dashboard');
-  const isSynauraSurface = startsWithAny(pathname, [
+  const isSynauraSurface = pathname === '/publish' || startsWithAny(pathname, [
     '/discover',
     '/radar',
     '/library',
     '/upload',
     '/ai-generator',
+    '/ai-library',
     '/studio',
     '/create',
     '/posts',
@@ -57,6 +75,7 @@ export function getRouteChrome(pathname: string | null): RouteChrome {
     '/community',
     '/download',
     '/dev/ui',
+    '/dev/v2',
   ]);
   const isImmersivePlayer = pathname.startsWith('/swipe');
   const isConversation = /^\/messages\/[^/]+/.test(pathname);
@@ -98,6 +117,7 @@ export function getRouteChrome(pathname: string | null): RouteChrome {
 
 export function shouldRenderGlobalMiniPlayer(pathname: string | null) {
   if (!pathname) return true;
+  if (isChamberProductRoute(pathname)) return false;
   if (pathname === '/' || pathname === '/live' || pathname.startsWith('/swipe')) return false;
   if (/^\/messages\/[^/]+/.test(pathname)) return false;
   if (pathname.startsWith('/upload')) return false;

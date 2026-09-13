@@ -181,12 +181,10 @@ export default function SynauraSonicIntro({
           {phase === 'prompt' ? (
             <>
               <div className={styles.ambient} aria-hidden />
-              <div className={styles.mist} aria-hidden />
-              <div className={styles.orbit} aria-hidden />
               <motion.div className={styles.prompt} initial={{ opacity: 0, y: reduced ? 0 : 12 }} animate={{ opacity: 1, y: 0 }}>
-                <SynauraLogo size={148} className={styles.promptLogo} priority />
+                <SynauraLogo variant="wordmark" size={88} className={styles.promptLogo} priority />
                 <p className={styles.eyebrow}>Une signature de 3,2 secondes</p>
-                <h1 id="sonic-intro-title" className={styles.title}>Entre dans l’Aura.</h1>
+                <h1 id="sonic-intro-title" className={styles.title}>Avant d’entrer.</h1>
                 <p className={styles.description}>L’identité sonore ne démarre jamais seule. Choisis l’expérience complète, ou découvre Synaura en silence.</p>
                 <div className={styles.actions}>
                   <button ref={primaryRef} type="button" className={styles.primary} onClick={() => play(true)}>
@@ -209,7 +207,7 @@ export default function SynauraSonicIntro({
                     if (event.currentTarget === event.target && phase === 'playing') finish(completionReasonRef.current);
                   }}
                 >
-                  <SynauraLogo size={reduced ? 250 : 360} className={styles.fallbackLogo} priority decorative />
+                  <SynauraLogo variant="wordmark" size={reduced ? 112 : 140} className={styles.fallbackLogo} priority decorative />
                   <span className={styles.fallbackAura} aria-hidden />
                 </div>
               ) : (

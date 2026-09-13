@@ -385,24 +385,36 @@ function MessagesContent() {
 
   if (!session?.user) {
     return (
-      <main className="min-h-screen bg-syn-background px-5 py-24 text-syn-textPrimary">
-        <div className="mx-auto flex max-w-md flex-col items-center text-center">
-          <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-syn-accent/10 text-syn-accent">
-            <MessageCircle className="h-7 w-7" />
-          </div>
-          <h1 className="text-2xl font-black">Tes discussions Synaura</h1>
-          <p className="mt-2 text-sm text-syn-textSecondary">
+      <SynauraAppShell contentClassName="max-w-[1380px]">
+        <SynauraTopBar />
+        <SynauraRouteNav />
+      <main className="chambre-messages-guest">
+        <div className="chambre-messages-guest-copy">
+          <p className="chambre-messages-guest-eyebrow">Messages / Les liens restent</p>
+          <h1>Tes discussions <span>Synaura</span></h1>
+          <p className="chambre-messages-guest-intro">
             Connecte-toi pour retrouver tes amis et parler des sons que vous
             aimez.
           </p>
           <button
             onClick={() => router.push("/auth/signin")}
-            className="mt-6 rounded-full bg-syn-textPrimary px-6 py-3 text-sm font-bold text-syn-background"
+            className="chambre-messages-guest-signin"
           >
-            Se connecter
+            Se connecter <ArrowRight className="h-[18px] w-[18px]" aria-hidden="true" />
           </button>
+          <p className="chambre-messages-guest-note">Ta messagerie est réservée à ton compte.</p>
         </div>
+        <section className="chambre-messages-guest-context" aria-labelledby="chambre-messages-guest-context-title">
+          <MessageCircle className="chambre-messages-guest-symbol" aria-hidden="true" />
+          <h2 id="chambre-messages-guest-context-title">Au-delà du morceau.</h2>
+          <ul>
+            <li><MessageCircle className="h-5 w-5" aria-hidden="true" /><div><h3>Discussions</h3><p>Prolonge les échanges autour des sons.</p></div></li>
+            <li><UserPlus className="h-5 w-5" aria-hidden="true" /><div><h3>Amis & demandes</h3><p>Retrouve tes liens et tes invitations.</p></div></li>
+            <li><Users className="h-5 w-5" aria-hidden="true" /><div><h3>Groupes</h3><p>Un espace pour se retrouver à plusieurs.</p></div></li>
+          </ul>
+        </section>
       </main>
+      </SynauraAppShell>
     );
   }
 
@@ -428,15 +440,15 @@ function MessagesContent() {
   ];
 
   return (
-    <SynauraAppShell contentClassName="max-w-[960px]">
+    <SynauraAppShell contentClassName="max-w-[1380px]">
       <SynauraTopBar />
       <SynauraRouteNav />
       <main className="min-h-screen pb-24 text-syn-textPrimary lg:pb-12">
-      <div className="mx-auto w-full max-w-4xl px-1 pt-4 sm:px-4 sm:pt-6">
-        <header className="flex items-end justify-between gap-4 border-b border-syn-border pb-6">
+      <div className="v2-inbox-layout chambre-inbox">
+        <header className="v2-inbox-heading">
           <div>
             <p className="mb-2 text-[11px] font-extrabold uppercase text-[color-mix(in_srgb,var(--syn-accent)_65%,var(--syn-text-primary))]">
-              Liens musicaux
+              Les liens restent
             </p>
             <h1 className="text-3xl font-black sm:text-4xl">Messages</h1>
             <p className="mt-2 max-w-lg text-sm text-syn-textSecondary">
@@ -454,7 +466,7 @@ function MessagesContent() {
         </header>
 
         <nav
-          className="mt-5 flex gap-1 overflow-x-auto rounded-xl bg-syn-surfaceMuted p-1"
+          className="v2-inbox-tabs"
           aria-label="Messagerie"
         >
           {tabs.map((tab) => {
@@ -465,6 +477,7 @@ function MessagesContent() {
                 key={tab.id}
                 type="button"
                 onClick={() => chooseTab(tab.id)}
+                aria-pressed={active}
                 className={`relative flex min-h-11 min-w-0 flex-1 flex-wrap items-center justify-center gap-1 rounded-lg px-2 py-2 text-xs font-bold transition sm:gap-2 sm:px-4 sm:text-sm ${
                   active
                     ? "bg-syn-surface text-syn-textPrimary shadow-sm"
@@ -477,7 +490,7 @@ function MessagesContent() {
                   <span
                     className={`min-w-5 rounded-full px-1.5 py-0.5 text-[10px] font-black ${
                       active
-                        ? "bg-syn-accent text-white"
+                        ? "bg-[var(--v2-accent-fill)] text-white"
                         : "bg-syn-border text-syn-textSecondary"
                     }`}
                   >
@@ -489,11 +502,12 @@ function MessagesContent() {
           })}
         </nav>
 
+        <div className="v2-inbox-stack">
         {activeTab === "conversations" && contacts.length >= 2 ? (
           <button
             type="button"
             onClick={() => setGroupOpen(true)}
-            className="mt-4 flex min-h-16 w-full items-center gap-3 rounded-xl border border-syn-border bg-syn-surface px-4 text-left transition hover:border-syn-accent/40 hover:bg-syn-surfaceMuted"
+            className="v2-inbox-content mb-4 flex min-h-16 w-full items-center gap-3 rounded-xl border border-syn-border bg-syn-surface px-4 text-left transition hover:border-syn-accent/40 hover:bg-syn-surfaceMuted"
           >
             <span className="flex h-10 w-10 items-center justify-center rounded-full bg-syn-accent2/10 text-syn-accent2">
               <Users className="h-5 w-5" />
@@ -508,10 +522,11 @@ function MessagesContent() {
           </button>
         ) : null}
 
-        <div className="relative mt-4">
+        <div className="v2-inbox-content relative mb-5">
           <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-syn-textSecondary" />
           <input
             value={query}
+            aria-label="Rechercher dans la messagerie"
             onChange={(event) => setQuery(event.target.value)}
             placeholder={
               activeTab === "contacts"
@@ -534,12 +549,12 @@ function MessagesContent() {
           ) : null}
         </div>
 
-        <section className="mt-5 min-h-[360px]">
+        <section className="v2-inbox-content min-h-[360px]">
           {loading ? <InboxLoading compact /> : null}
 
           {!loading && activeTab === "conversations" ? (
             visibleConversations.length ? (
-              <div className="divide-y divide-syn-border overflow-hidden rounded-xl border border-syn-border bg-syn-surface">
+              <div className="chambre-conversation-list divide-y divide-syn-border overflow-hidden rounded-xl border border-syn-border bg-syn-surface">
                 {visibleConversations.map((conversation, index) => {
                   const user = conversation.otherUser;
                   const group = conversation.type === "group";
@@ -732,6 +747,7 @@ function MessagesContent() {
             )
           ) : null}
         </section>
+        </div>
       </div>
 
       <SynauraOverlay open={groupOpen} onClose={() => setGroupOpen(false)} presentation="responsive" size="md">
@@ -797,7 +813,7 @@ function MessagesContent() {
                       <span
                         className={`flex h-6 w-6 items-center justify-center rounded-full border ${
                           selected
-                            ? "border-syn-accent bg-syn-accent text-white"
+                            ? "border-syn-accent bg-[var(--v2-accent-fill)] text-white"
                             : "border-syn-border"
                         }`}
                       >

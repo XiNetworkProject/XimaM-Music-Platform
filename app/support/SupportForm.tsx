@@ -94,7 +94,7 @@ export function SupportHero() {
   ];
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+    <div className="chambre-support-intents grid grid-cols-1 sm:grid-cols-3 gap-3">
       {ctas.map(({ href, icon: Icon, label, description, gradient, border, iconColor, isAnchor }) => {
         const className = `group flex flex-col items-center gap-2 rounded-2xl border ${border} bg-gradient-to-br ${gradient} p-5 text-center transition hover:brightness-110 hover:-translate-y-0.5 duration-200`;
         if (isAnchor) {
@@ -275,13 +275,14 @@ export function SupportForm() {
     'w-full rounded-xl bg-white/[0.04] border border-white/[0.08] px-4 py-2.5 text-sm text-white placeholder:text-white/20 outline-none focus:border-white/[0.16] focus:ring-1 focus:ring-white/[0.08] transition';
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+    <form onSubmit={handleSubmit} className="chambre-support-form space-y-4" noValidate>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-white/60">
+          <label htmlFor="chambre-support-email" className="text-xs font-medium text-white/60">
             Email <span className="text-rose-400">*</span>
           </label>
           <input
+            id="chambre-support-email"
             type="email"
             placeholder="ton@email.com"
             value={fields.email}
@@ -292,11 +293,12 @@ export function SupportForm() {
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-white/60">
+          <label htmlFor="chambre-support-subject" className="text-xs font-medium text-white/60">
             Sujet <span className="text-rose-400">*</span>
           </label>
           <div className="relative">
             <select
+              id="chambre-support-subject"
               value={fields.subject}
               onChange={(e) => set('subject', e.target.value)}
               className={`${inputClass} appearance-none pr-9 cursor-pointer`}
@@ -320,10 +322,11 @@ export function SupportForm() {
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-white/60">
+        <label htmlFor="chambre-support-message" className="text-xs font-medium text-white/60">
           Message <span className="text-rose-400">*</span>
         </label>
         <textarea
+          id="chambre-support-message"
           placeholder="Décris ton problème en détail. Pour un bug, précise ton navigateur, ton appareil et l'URL exacte."
           rows={5}
           value={fields.message}
@@ -334,11 +337,12 @@ export function SupportForm() {
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-white/60">
+        <label htmlFor="chambre-support-url" className="text-xs font-medium text-white/60">
           URL concernée{' '}
           <span className="text-white/30">(optionnel)</span>
         </label>
         <input
+          id="chambre-support-url"
           type="url"
           placeholder="https://synaura.fr/..."
           value={fields.url}

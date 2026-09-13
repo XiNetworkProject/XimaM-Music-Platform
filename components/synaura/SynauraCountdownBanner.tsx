@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import Image from 'next/image';
+import SynauraLogo from '@/components/brand/SynauraLogo';
 import { motion } from 'framer-motion';
 import { Bell, Play, Vote } from 'lucide-react';
 import TrackCover from '@/components/TrackCover';
@@ -51,8 +51,8 @@ export default function SynauraCountdownBanner({
       <div className="relative grid gap-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
         <div className="min-w-0">
           <div className="flex items-center gap-3">
-            <motion.span animate={{ scale: [1, 1.08, 1] }} transition={{ duration: 1.8, repeat: Infinity }} className="grid h-11 w-11 place-items-center rounded-[1rem] bg-white">
-              <Image src="/brand/2026/synaura-symbol-2026.png" alt="" width={36} height={36} className="h-9 w-9 object-contain" unoptimized />
+            <motion.span animate={{ scale: [1, 1.08, 1] }} transition={{ duration: 1.8, repeat: Infinity }} className="grid h-11 w-11 place-items-center rounded-[1rem] bg-[var(--v2-raised)]">
+              <SynauraLogo size={36} decorative />
             </motion.span>
             <div>
               <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/48">{current ? 'Vote en cours' : 'Prochain vote dans'}</p>

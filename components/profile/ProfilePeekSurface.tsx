@@ -82,17 +82,17 @@ export default function ProfilePeekSurface({ entry, closeSurface }: ContextSurfa
   const followerCount = follow.followerCount ?? profile.followerCount;
 
   return (
-    <div className="flex h-[82dvh] flex-col md:h-full" data-profile-peek-state="loaded" data-profile-peek-cache={state.cache}>
+    <div className="v2-profile-peek flex h-[82dvh] flex-col md:h-full" data-chambre-context="profile" data-profile-peek-state="loaded" data-profile-peek-cache={state.cache}>
       <div className="context-surface-scroll flex-1 overflow-y-auto overscroll-contain p-5 pb-[calc(9rem+env(safe-area-inset-bottom))] pt-14 sm:p-6 sm:pb-[calc(9rem+env(safe-area-inset-bottom))] sm:pt-16 md:pb-6">
-        <header ref={initialFocusRef} data-context-surface-initial-focus tabIndex={-1} className="outline-none">
+        <header ref={initialFocusRef} data-context-surface-initial-focus tabIndex={-1} className="v2-profile-peek-identity outline-none">
           <div className="flex items-start gap-4">
-            <div className="grid h-20 w-20 shrink-0 place-items-center overflow-hidden rounded-full bg-[linear-gradient(145deg,var(--syn-accent),var(--syn-accent-blue))] text-2xl font-black text-white shadow-[var(--syn-shadow-medium)]">
+            <div className="grid h-20 w-20 shrink-0 place-items-center overflow-hidden rounded-full border border-[var(--v2-line)] bg-[var(--v2-raised)] text-2xl font-normal text-[var(--v2-text)]">
               {profile.avatar ? <img src={profile.avatar} alt="" className="h-full w-full object-cover" /> : profile.displayName.slice(0, 1).toUpperCase()}
             </div>
             <div className="min-w-0 flex-1 pt-1">
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[color-mix(in_srgb,var(--syn-accent)_65%,var(--syn-text-primary))]">Aperçu créateur</p>
+              <p className="text-[10px] font-medium uppercase tracking-[0.18em] text-[var(--v2-muted)]">Dans son univers</p>
               <div className="mt-1 flex items-center gap-1.5">
-                <SynauraOverlayTitle className="truncate">{profile.displayName}</SynauraOverlayTitle>
+                <SynauraOverlayTitle className="v2-profile-peek-name truncate">{profile.displayName}</SynauraOverlayTitle>
                 {profile.isVerified ? <BadgeCheck className="h-5 w-5 shrink-0 text-[var(--syn-accent-blue)]" aria-label="Profil vérifié" /> : null}
               </div>
               <SynauraOverlayDescription className="mt-0.5 truncate">@{profile.username}</SynauraOverlayDescription>
@@ -116,7 +116,7 @@ export default function ProfilePeekSurface({ entry, closeSurface }: ContextSurfa
                 }
                 follow.toggle().catch((error: any) => notify.error('Suivi impossible', error?.message || 'Réessaie dans un instant.'));
               }}
-              className={`syn-interactive min-h-11 flex-1 rounded-full px-5 text-sm font-black ${following ? 'bg-[var(--syn-soft-strong)] text-[var(--syn-text-primary)]' : 'bg-[var(--syn-accent)] text-white'} disabled:opacity-60`}
+              className={`syn-interactive min-h-11 flex-1 rounded-lg px-5 text-sm font-medium ${following ? 'bg-[var(--v2-raised)] text-[var(--v2-text)]' : 'bg-[var(--v2-accent-fill)] text-white'} disabled:opacity-60`}
             >
               {follow.mutating ? <Loader2 className="mx-auto h-4 w-4 animate-spin" /> : following ? 'Abonné' : <span className="inline-flex items-center gap-2"><UserPlus className="h-4 w-4" /> Suivre</span>}
             </button>
@@ -124,7 +124,7 @@ export default function ProfilePeekSurface({ entry, closeSurface }: ContextSurfa
           <button type="button" data-profile-peek-full-profile="desktop" onClick={openFullProfile} className="syn-interactive hidden min-h-11 flex-1 rounded-full border border-[var(--syn-border)] px-4 text-sm font-black text-[var(--syn-text-primary)] md:flex md:items-center md:justify-center">Profil complet</button>
         </div>
 
-        <dl className="mt-6 grid grid-cols-3 gap-2 border-y border-[var(--syn-border)] py-4 text-center">
+        <dl className="v2-profile-peek-stats mt-6 grid grid-cols-3 gap-2 border-y border-[var(--syn-border)] py-4 text-left">
           <div><dt className="text-[10px] font-black uppercase tracking-[0.12em] text-[var(--syn-text-secondary)]">Followers</dt><dd className="mt-1 text-lg font-black text-[var(--syn-text-primary)]">{compact.format(followerCount)}</dd></div>
           <div><dt className="text-[10px] font-black uppercase tracking-[0.12em] text-[var(--syn-text-secondary)]">Titres</dt><dd className="mt-1 text-lg font-black text-[var(--syn-text-primary)]">{compact.format(profile.tracksCount)}</dd></div>
           <div><dt className="text-[10px] font-black uppercase tracking-[0.12em] text-[var(--syn-text-secondary)]">Écoutes</dt><dd className="mt-1 text-lg font-black text-[var(--syn-text-primary)]">{compact.format(profile.totalPlays)}</dd></div>

@@ -1,0 +1,3 @@
+# Immutable source fixtures: retain the original bytes, including historical whitespace.
+# Application sources keep their normal whitespace checks and line-ending behavior.
+/artifacts/**/before/** -text -whitespace

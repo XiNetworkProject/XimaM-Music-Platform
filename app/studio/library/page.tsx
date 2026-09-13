@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useMemo, useState } from 'react';
-import StudioBackground from '@/components/StudioBackground';
 import { LibraryToolbar, type LibraryFilterBy, type LibrarySortBy } from '@/components/studio/LibraryToolbar';
 import { TrackRowStudio, type LibraryTrackMinimal } from '@/components/studio/TrackRowStudio';
 
@@ -94,8 +93,12 @@ export default function StudioLibraryPage() {
   }, []);
 
   return (
-    <div className="min-h-screen relative">
-      <StudioBackground />
+    <div className="v2-creation min-h-screen relative">
+      <aside className="v2-panel chambre-legacy-notice mx-auto max-w-4xl p-6" role="note">
+        <p className="v2-kicker">Démonstration historique — hors navigation produit</p>
+        <p className="mt-3 text-sm text-[var(--v2-muted)]">Les pistes ci-dessous sont des exemples non persistants. La lecture et les actions de cette ancienne démonstration ne sont pas fonctionnelles.</p>
+        <a href="/ai-library" className="mt-4 inline-flex min-h-11 items-center text-sm text-[var(--v2-accent)]">Accéder à ma vraie bibliothèque IA →</a>
+      </aside>
       <div
         className="relative z-10 flex flex-col min-h-screen max-w-4xl mx-auto"
         style={{

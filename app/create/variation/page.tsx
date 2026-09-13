@@ -25,7 +25,7 @@ export default function CreateVariationPage() {
       fallback={
         <SynauraAppShell contentClassName="max-w-[1000px]">
           <SynauraPanel className="grid min-h-[420px] place-items-center p-8">
-            <Loader2 className="h-8 w-8 animate-spin text-[#4A9EAA]" />
+            <Loader2 className="h-8 w-8 animate-spin text-[var(--v2-accent)]" />
           </SynauraPanel>
         </SynauraAppShell>
       }
@@ -79,57 +79,60 @@ function CreateVariationContent() {
   }
 
   return (
-    <SynauraAppShell contentClassName="max-w-[1000px]">
+    <SynauraAppShell contentClassName="v2-creation v2-variation !max-w-[1440px]">
       <SynauraTopBar secondaryHref="/ai-generator" secondaryLabel="Créer avec l’IA" primaryHref="/upload" primaryLabel="Publier" />
       <div className="space-y-4 pb-24">
         <Link
           href="/create"
-          className="inline-flex h-11 items-center gap-2 rounded-full border border-black/[0.08] bg-white px-4 text-sm font-black text-black/58 transition hover:bg-[#111111] hover:text-white"
+          className="inline-flex h-11 items-center gap-2 rounded-full border border-[var(--v2-line)] bg-[var(--v2-raised)] px-4 text-sm font-semibold text-[var(--v2-muted)] transition hover:bg-[var(--v2-surface)] hover:text-white"
         >
           <ArrowLeft className="h-4 w-4" />
           Retour à Créer
         </Link>
 
+        <header className="v2-creative-header chambre-creation-cover chambre-variation-cover">
         <div>
-          <span className="inline-flex rounded-full bg-[#4A9EAA]/10 px-3 py-1 text-[11px] font-black uppercase tracking-[0.16em] text-[#4A9EAA]">
-            Variation IA
+          <span className="v2-kicker">
+            L’atelier / Variation IA
           </span>
-          <h1 className="mt-3 text-3xl font-black tracking-tight text-[#111111] sm:text-4xl">Choisis un morceau à transformer</h1>
-          <p className="mt-3 max-w-xl text-sm font-semibold leading-6 text-black/54">
+          <h1 className="mt-3">UNE AUTRE<br /><span>DIRECTION.</span></h1>
+          <p className="mt-3 max-w-xl text-sm font-semibold leading-6 text-[var(--v2-muted)]">
             Seuls les morceaux Synaura dont le créateur a autorisé la variation IA apparaissent ici. Le créateur original reste toujours crédité.
           </p>
         </div>
+        <p className="v2-kicker chambre-creation-cover-note">Choisis ton morceau source<br />Le crédit reste à son créateur.</p>
+        </header>
 
         <SynauraPanel className="p-4 sm:p-5">
           {loading ? (
             <div className="grid min-h-[220px] place-items-center">
-              <Loader2 className="h-7 w-7 animate-spin text-[#4A9EAA]" />
+              <Loader2 className="h-7 w-7 animate-spin text-[var(--v2-accent)]" />
             </div>
           ) : error ? (
-            <p className="rounded-2xl bg-[#D96D63]/10 px-4 py-3 text-sm font-bold text-[#9b352e]">{error}</p>
+            <p className="rounded-lg border border-red-400/30 bg-red-400/10 px-4 py-3 text-sm text-red-200">{error}</p>
           ) : sources.length ? (
-            <div className="max-h-[520px] space-y-2 overflow-y-auto pr-1">
+            <div className="v2-variation-sources grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               {sources.map((source) => (
                 <button
                   key={`${source.sourceTrackType}-${source.sourceTrackId}`}
                   type="button"
                   onClick={() => openStudioWith(source)}
-                  className="flex w-full items-center gap-3 rounded-2xl border border-black/[0.08] bg-[#F7F6F3] p-3 text-left transition hover:border-[#4A9EAA]/40 hover:bg-[#4A9EAA]/8"
+                  className="flex w-full items-center gap-3 rounded-2xl border border-[var(--v2-line)] bg-[var(--v2-surface)] p-3 text-left transition hover:border-[var(--v2-line)] hover:bg-[var(--v2-accent)]"
                 >
                   <img src={source.coverUrl || FALLBACK_COVER} alt="" className="h-14 w-14 rounded-2xl object-cover" />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-black">{source.title}</span>
-                    <span className="mt-1 block truncate text-xs font-bold text-black/46">{source.artist || 'Artiste Synaura'}</span>
-                    <span className="mt-1 block text-[10px] font-black uppercase tracking-[0.08em] text-[#4A9EAA]">Créer une variation</span>
+                    <span className="block truncate text-sm font-semibold">{source.title}</span>
+                    <span className="mt-1 block truncate text-xs font-bold text-[var(--v2-muted)]">{source.artist || 'Artiste Synaura'}</span>
+                    <span className="mt-1 block text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--v2-accent)]">Créer une variation</span>
                   </span>
-                  <Wand2 className="h-4 w-4 shrink-0 text-[#4A9EAA]" />
+                  <Wand2 className="h-4 w-4 shrink-0 text-[var(--v2-accent)]" />
                 </button>
               ))}
             </div>
           ) : (
             <div className="grid min-h-[220px] place-items-center gap-3 text-center">
-              <Music2 className="h-10 w-10 text-black/16" />
-              <p className="text-sm font-semibold text-black/48">Aucun morceau n&apos;autorise la variation IA pour le moment.</p>
+              <Music2 className="h-10 w-10 text-[var(--v2-muted)]" />
+              <p className="text-sm font-semibold text-[var(--v2-muted)]">Aucun morceau n&apos;autorise la variation IA pour le moment.</p>
             </div>
           )}
         </SynauraPanel>

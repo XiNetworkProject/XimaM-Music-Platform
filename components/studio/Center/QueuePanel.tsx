@@ -45,7 +45,7 @@ export default function QueuePanel() {
 
         <div className="flex items-center gap-2">
           <select
-            className="h-9 px-2 rounded-xl border border-border-secondary bg-white/5 text-sm"
+            className="h-9 px-2 rounded-xl border border-border-secondary bg-[var(--v2-raised)] text-sm"
             value={queueConfig.maxConcurrency}
             onChange={(e) => setQueueConfig({ maxConcurrency: Number(e.target.value) as any })}
             title="Max concurrency"
@@ -57,7 +57,7 @@ export default function QueuePanel() {
 
           <button
             type="button"
-            className="h-9 w-9 rounded-xl border border-border-secondary bg-white/5 hover:bg-white/10 transition flex items-center justify-center"
+            className="h-9 w-9 rounded-xl border border-border-secondary bg-[var(--v2-raised)] hover:bg-[var(--v2-raised)] transition flex items-center justify-center"
             onClick={() => setQueueConfig({ autoRun: !queueConfig.autoRun })}
             title={queueConfig.autoRun ? 'Pause auto-run' : 'Resume auto-run'}
           >
@@ -73,7 +73,7 @@ export default function QueuePanel() {
           items.slice(0, 20).map((q) => (
             <div
               key={q.id}
-              className="rounded-xl border border-border-secondary bg-white/5 px-3 py-2 flex items-center gap-3"
+              className="rounded-xl border border-border-secondary bg-[var(--v2-raised)] px-3 py-2 flex items-center gap-3"
             >
               <div className="min-w-0 flex-1">
                 <div className="text-[13px] text-foreground-primary truncate">
@@ -95,7 +95,7 @@ export default function QueuePanel() {
                 </div>
                 {q.error ? <div className="text-[11px] text-red-400 truncate">{q.error}</div> : null}
                 {q.status === 'running' && typeof q.progress === 'number' ? (
-                  <div className="mt-2 h-1.5 rounded-full bg-white/10 overflow-hidden">
+                  <div className="mt-2 h-1.5 rounded-full bg-[var(--v2-raised)] overflow-hidden">
                     <div
                       className="h-full bg-cyan-400/70"
                       style={{ width: `${Math.max(2, Math.min(100, Math.round(q.progress || 0)))}%` }}
@@ -106,7 +106,7 @@ export default function QueuePanel() {
               {q.status === 'failed' ? (
                 <button
                   type="button"
-                  className="h-9 w-9 rounded-xl border border-border-secondary bg-white/5 hover:bg-white/10 transition flex items-center justify-center"
+                  className="h-9 w-9 rounded-xl border border-border-secondary bg-[var(--v2-raised)] hover:bg-[var(--v2-raised)] transition flex items-center justify-center"
                   onClick={() => retryQueueItem(q.id)}
                   title="Retry"
                 >

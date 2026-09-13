@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { BookOpen, HelpCircle, Scale, Music, Link2 } from 'lucide-react';
 import { SupportHero, NoBookingNotice, RevealEmailButton, SupportForm } from './SupportForm';
+import ChambreResonance from '@/components/v2/ChambreResonance';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,13 +22,14 @@ export const metadata: Metadata = {
 export default function SupportPage() {
   return (
     <div className="min-h-screen text-white">
-      <main className="mx-auto max-w-3xl px-4 py-10 space-y-6">
+      <main className="v2-support-layout">
 
         {/* ── Hero ─────────────────────────────────────────── */}
-        <section className="space-y-3">
-          <div className="text-xs font-medium text-indigo-400 uppercase tracking-wider">Support</div>
+        <section className="v2-support-heading chambre-support-heading space-y-4">
+          <ChambreResonance />
+          <div className="chambre-support-index">Synaura / À ton écoute</div>
           <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
-            Comment peut-on t'aider ?
+            On garde<br /><span className="chambre-type-accent">le contact.</span>
           </h1>
           <p className="text-sm md:text-base text-white/50 max-w-xl">
             Choisis l'action qui correspond à ta situation. La plupart des demandes trouvent
@@ -42,7 +44,7 @@ export default function SupportPage() {
         <NoBookingNotice />
 
         {/* ── Ressources ───────────────────────────────────── */}
-        <section className="rounded-2xl border border-white/8 bg-white/3 p-5 space-y-4">
+        <section className="chambre-support-resources rounded-2xl border border-white/8 bg-white/3 p-5 space-y-4">
           <h2 className="text-sm font-semibold text-white/80">Ressources utiles</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
             {[
@@ -79,12 +81,13 @@ export default function SupportPage() {
         {/* ── Formulaire de support ─────────────────────────── */}
         <section
           id="contact-form"
-          className="rounded-2xl border border-white/8 bg-white/3 p-5 md:p-6 space-y-5 scroll-mt-24"
+          className="v2-support-contact chambre-support-contact border border-[var(--v2-line)] bg-[var(--v2-surface)] p-5 space-y-5 scroll-mt-24"
         >
+          <p className="chambre-support-form-label"><span aria-hidden="true" />Une demande, un échange</p>
           <div className="space-y-1">
             <h2 className="text-base font-semibold text-white">Formulaire de support</h2>
             <p className="text-xs text-white/40">
-              Décris ton problème, nous t'répondrons dès que possible.
+              Décris ton problème, nous te répondrons dès que possible.
             </p>
           </div>
           <SupportForm />

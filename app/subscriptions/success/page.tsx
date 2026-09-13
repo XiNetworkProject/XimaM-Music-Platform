@@ -90,9 +90,9 @@ function SubscriptionSuccessContent() {
     <SynauraAppShell contentClassName="max-w-5xl">
       <SynauraTopBar searchLabel="Rechercher un son, un post ou un profil..." primaryHref="/upload" primaryLabel="Publier" secondaryHref="/settings?tab=compte" secondaryLabel="Compte" />
 
-      <main className="space-y-5 pb-24">
+      <main className="chambre-subscription-success space-y-5 pb-24">
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
-          <SynauraInkPanel className="p-6 text-center sm:p-10">
+          <SynauraInkPanel className="v2-subscription-intro py-8">
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_8%,rgba(16,185,129,0.26),transparent_32%),radial-gradient(circle_at_82%_18%,rgba(124,92,255,0.24),transparent_34%),radial-gradient(circle_at_55%_100%,rgba(0,194,203,0.18),transparent_34%)]" />
             <div className="relative">
               <div className="mx-auto grid h-20 w-20 place-items-center rounded-[1.6rem] bg-white text-[#171313] shadow-[0_16px_34px_rgba(255,255,255,0.16)]">

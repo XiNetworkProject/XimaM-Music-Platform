@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#030508">
+    <meta name="description" content="Synaura — La Chambre Sonore. Une étude interactive de matière, de lumière et de son.">
+    <title>Synaura — La Chambre Sonore</title>
+    <link rel="icon" href="data:,">
+    <link rel="preload" as="image" href="/assets/membrane-cobalt.png">
+    <link rel="stylesheet" href="/chamber.css">
+    <script type="module" src="/chamber.js"></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#chapter-copy">Aller à l’expérience</a>
+    <header class="masthead">
+      <a class="wordmark" href="#top" aria-label="Synaura, début de l’expérience">SYNAURA</a>
+      <nav aria-label="Explorer la Chambre Sonore">
+        <button type="button" data-chapter-target="0" aria-current="step">Ressentir</button>
+        <button type="button" data-chapter-target="1">Explorer</button>
+        <button type="button" data-chapter-target="2">Créer</button>
+      </nav>
+      <span class="edition"><span class="status-dot" aria-hidden="true"></span> ÉTUDE 001</span>
+    </header>
+
+    <main id="top">
+      <div id="chamber-stage" data-chapter="0" data-renderer="loading">
+        <div class="room-light" aria-hidden="true"></div>
+        <div class="room-lines" aria-hidden="true"><i></i><i></i><i></i></div>
+        <div class="floor" aria-hidden="true"></div>
+        <div class="large-index" aria-hidden="true">01</div>
+        <img class="material-fallback" src="/assets/membrane-cobalt.png" alt="" aria-hidden="true">
+        <div class="material-reflection" aria-hidden="true"></div>
+
+        <div class="copy-stack" id="chapter-copy" tabindex="-1">
+          <section class="chapter-copy is-active" data-copy="0" aria-labelledby="title-0">
+            <p class="eyebrow"><span class="fine-line"></span> LA CHAMBRE SONORE</p>
+            <h1 id="title-0"><span>LE SON</span><span>PREND</span><span>CORPS<span class="title-dot">.</span></span></h1>
+            <p class="chapter-description">Il y a la musique que l’on écoute.<br>Et celle que l’on ressent.</p>
+          </section>
+          <section class="chapter-copy" data-copy="1" aria-labelledby="title-1" aria-hidden="true" inert>
+            <p class="eyebrow"><span class="fine-line"></span> UNE AUTRE DIMENSION</p>
+            <h2 id="title-1"><span>SUIVEZ</span><span>L’ONDE<span class="title-dot">.</span></span></h2>
+            <p class="chapter-description">Approchez. La lumière glisse.<br>Le son devient une matière vivante.</p>
+          </section>
+          <section class="chapter-copy" data-copy="2" aria-labelledby="title-2" aria-hidden="true" inert>
+            <p class="eyebrow"><span class="fine-line"></span> CHAQUE GESTE A UN ÉCHO</p>
+            <h2 id="title-2"><span>FAITES</span><span>VIBRER<span class="title-dot">.</span></span></h2>
+            <p class="chapter-description">Une impulsion. Votre empreinte.<br>Touchez la matière pour la faire résonner.</p>
+          </section>
+        </div>
+
+        <canvas id="chamber-canvas" aria-hidden="true"></canvas>
+        <div class="stage-vignette" aria-hidden="true"></div>
+        <div class="orbital-label" aria-hidden="true"><span class="crosshair">+</span><span>MATIÈRE SONORE<br><b>COBALT / 001</b></span></div>
+        <button id="material-pulse" type="button" aria-label="Envoyer une onde dans la matière">
+          <span class="pulse-symbol" aria-hidden="true"><i></i><i></i><i></i></span>
+          <span>TOUCHEZ LA MATIÈRE</span><span class="pulse-arrow" aria-hidden="true">↗</span>
+        </button>
+
+        <div class="entry-action">
+          <button id="enter-chamber" class="entry-button" type="button"><span>Entrer dans le son</span><span aria-hidden="true">↗</span></button>
+          <span class="entry-aside">UNE EXPÉRIENCE SYNAURA<br><b>À EXPLORER, À RESSENTIR.</b></span>
+        </div>
+        <div class="chapter-meter" aria-hidden="true"><span id="chapter-number">01</span><div><i></i></div><span>03</span></div>
+        <footer class="stage-footer">
+          <span class="scroll-cue"><span aria-hidden="true">↓</span><span id="scroll-label">SCROLLEZ POUR RESSENTIR</span></span>
+          <span class="prototype-label">PROTOTYPE IMMERSIF · PAS LE SITE PUBLIC</span>
+          <div class="experience-controls">
+            <button id="motion-toggle" type="button" aria-pressed="false" aria-label="Mettre les animations en pause"><span class="motion-icon" aria-hidden="true">Ⅱ</span><span class="motion-label">Mouvement</span></button>
+            <button id="sound-toggle" type="button" aria-pressed="false" aria-label="Écouter la signature Synaura, 3,2 secondes"><span class="sound-bars" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span class="sound-label">Activer le son</span></button>
+          </div>
+        </footer>
+      </div>
+      <div class="scroll-journey" aria-hidden="true"><div id="chapter-0"></div><div id="chapter-1"></div><div id="chapter-2"></div></div>
+    </main>
+    <audio id="chamber-audio" src="/media/signature.wav" preload="none"></audio>
+    <div id="chamber-announcement" role="status" aria-live="polite" class="sr-only"></div>
+    <noscript><p class="no-script">La scène est disponible en image. Activez JavaScript pour explorer les mouvements.</p></noscript>
+  </body>
+</html>

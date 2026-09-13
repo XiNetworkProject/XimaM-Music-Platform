@@ -30,5 +30,5 @@
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts", "types/external-modules.d.ts", "example"],
-  "exclude": ["node_modules", "XimaMMobile/**/*", "synaura-mobile/**/*", "synaura-app/**/*", "**/__tests__/**/*"]
+  "exclude": ["node_modules", "artifacts/**/*", "XimaMMobile/**/*", "synaura-mobile/**/*", "synaura-app/**/*", "**/__tests__/**/*"]
 }

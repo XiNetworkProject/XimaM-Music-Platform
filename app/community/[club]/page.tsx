@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { SynauraImage } from '@/components/ui/SynauraImage';
 import Link from '@/components/navigation/HandoffLink';
 import { useParams } from 'next/navigation';
 import { ArrowLeft, ArrowRight, Clock, Music2, Pause, Play, Reply, ThumbsUp, Trophy } from 'lucide-react';
@@ -64,7 +65,7 @@ function PostCard({ post, accent, isPlaying, onPlayTrack }: { post: ClubPost; ac
         >
           <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-[0.85rem] bg-[#171313] text-white">
             {track.coverUrl || track.cover_url ? (
-              <img src={track.coverUrl || track.cover_url} alt="" className="h-full w-full object-cover" />
+              <SynauraImage src={track.coverUrl || track.cover_url} alt="" className="h-full w-full object-cover" />
             ) : (
               <Music2 className="m-4 h-4 w-4" />
             )}
@@ -213,13 +214,13 @@ export default function ClubDetailPage() {
       <SynauraTopBar searchHref="/community" searchLabel="Chercher un Club..." secondaryHref="/ai-generator" secondaryLabel="Créer avec l’IA" />
       <SynauraRouteNav />
 
-      <div className="space-y-5 pb-24">
+      <div className="chambre-club-page space-y-5 pb-24">
         <Link href="/community" className="inline-flex h-10 items-center gap-2 rounded-full border border-black/[0.08] bg-white px-4 text-xs font-black text-black/56 transition hover:bg-[#171313] hover:text-white">
           <ArrowLeft className="h-3.5 w-3.5" />
           Tous les Clubs
         </Link>
 
-        <div className="relative overflow-hidden rounded-[1.8rem] p-6 text-white sm:p-8" style={{ background: `linear-gradient(135deg, ${club.accent}, #171313 130%)` }}>
+        <div className="v2-community-hero relative text-white">
           <div className="relative">
             <div className="inline-flex h-10 w-10 items-center justify-center rounded-[0.9rem] bg-white/16">
               <Music2 className="h-5 w-5" />
@@ -255,7 +256,7 @@ export default function ClubDetailPage() {
           <Link
             href={`/challenges/${clubChallenge.id}`}
             className="flex items-center gap-3 rounded-[1.4rem] border border-black/[0.08] bg-[#fffaf2]/92 p-4 shadow-[0_16px_42px_rgba(30,25,20,0.08)] transition hover:-translate-y-0.5"
-            style={{ backgroundImage: `linear-gradient(145deg, ${clubChallenge.accentColor || club.accent}22, rgba(255,250,242,.94) 62%)` }}
+            style={{ backgroundColor: 'var(--v2-surface)' }}
           >
             <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[1rem] bg-[#171313] text-white">
               <Trophy className="h-5 w-5" />
@@ -268,7 +269,7 @@ export default function ClubDetailPage() {
           </Link>
         ) : null}
 
-        <section id="club-posts" className="space-y-3">
+        <section id="club-posts" className="chambre-club-posts space-y-3">
           <h2 className="text-xl font-black tracking-[-0.04em] text-[#171313]">Discussions du Club</h2>
           {loading ? (
             <SynauraPanel className="grid min-h-[220px] place-items-center p-8">

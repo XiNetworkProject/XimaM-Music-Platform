@@ -111,7 +111,7 @@ export default function TrendingPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[var(--background)]">
+      <div className="chambre-legacy-selection min-h-screen bg-[var(--background)]" aria-busy="true">
         {/* Header skeleton */}
         <div className="relative h-64 sm:h-80 bg-gradient-to-b from-orange-900/20 via-red-800/10 to-[var(--background)] animate-pulse">
           <div className="absolute top-4 left-4 sm:top-6 sm:left-6 w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-white/10" />
@@ -155,15 +155,16 @@ export default function TrendingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--background)] pb-32">
+    <div className="chambre-legacy-selection min-h-screen bg-[var(--background)] pb-32" data-chambre-music="trending">
       {/* Header avec image de fond */}
-      <div className="relative h-64 sm:h-80 bg-gradient-to-b from-orange-900/40 via-red-800/20 to-[var(--background)]">
+      <div className="chambre-selection-hero relative h-64 sm:h-80 bg-gradient-to-b from-orange-900/40 via-red-800/20 to-[var(--background)]">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(249,115,22,0.15),transparent_50%)]"></div>
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_70%_80%,rgba(239,68,68,0.1),transparent_50%)]"></div>
         
         <div className="relative h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col justify-end pb-6 sm:pb-8">
           <button
             onClick={() => router.back()}
+            aria-label="Retour"
             className="absolute top-4 left-4 sm:top-6 sm:left-6 p-2 rounded-full bg-black/40 hover:bg-black/60 backdrop-blur-sm transition-colors"
           >
             <ArrowLeft size={20} className="text-white sm:w-6 sm:h-6" />
@@ -191,8 +192,8 @@ export default function TrendingPage() {
                   PLAYLIST
                 </span>
               </div>
-              <h1 className="text-3xl sm:text-5xl lg:text-7xl font-bold mb-2 sm:mb-4 drop-shadow-lg">Les plus écoutées</h1>
-              <p className="text-sm sm:text-base lg:text-lg text-white/80 mb-2 sm:mb-4 line-clamp-2">Les musiques les plus populaires en ce moment</p>
+              <h1 className="text-3xl sm:text-5xl lg:text-7xl font-bold mb-2 sm:mb-4 drop-shadow-lg">L’onde<br />collective.</h1>
+              <p className="text-sm sm:text-base lg:text-lg text-white/80 mb-2 sm:mb-4 line-clamp-2">Les plus écoutés. Les morceaux qui résonnent sur Synaura en ce moment.</p>
               <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] sm:text-xs font-medium bg-white/10 border border-white/15 text-white/90">
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M3 5h18v2H3zm0 6h12v2H3zm0 6h8v2H3z"/></svg>
@@ -213,10 +214,11 @@ export default function TrendingPage() {
       </div>
 
       {/* Contrôles + Liste dans un conteneur carte */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-4 sm:-mt-6 relative z-10">
+      <div className="chambre-selection-list max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-4 sm:-mt-6 relative z-10">
         <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)]/40 backdrop-blur-sm shadow-lg overflow-hidden">
           <div className="px-3 sm:px-4 py-3 sm:py-4 flex items-center gap-3 sm:gap-4">
           <button
+            aria-label="Lire la sélection"
             onClick={() => {
               if (tracks.length > 0) {
                 // Jouer toutes les pistes dans l'ordre
@@ -255,8 +257,10 @@ export default function TrendingPage() {
             const isTopThree = index < 3;
             
             return (
-              <div
+              <button
                 key={track._id}
+                type="button"
+                aria-label={`Écouter ${track.title}`}
                 onClick={() => handlePlayTrack(track)}
                 className={`relative grid grid-cols-[auto_1fr_auto] sm:grid-cols-[40px_1fr_minmax(120px,200px)_80px_100px] gap-2 sm:gap-3 lg:gap-4 px-3 sm:px-4 py-2.5 sm:py-3 hover:bg-[var(--surface-2)]/70 active:bg-[var(--surface-3)] transition-colors cursor-pointer group ${
                   isTopThree ? 'bg-gradient-to-r from-orange-500/5 to-transparent' : ''
@@ -360,7 +364,7 @@ export default function TrendingPage() {
                     {formatNumber(track.plays || 0)}
                   </span>
                 </div>
-              </div>
+              </button>
             );
           })}
           </div>

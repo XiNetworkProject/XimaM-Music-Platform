@@ -284,8 +284,8 @@ export default function RightPanelImproved({
             className="absolute inset-0 h-full w-full object-cover"
             onError={(e) => {
               const img = e.currentTarget;
-              if (!img.src.includes('/brand/2026/synaura-symbol-2026-white.png')) {
-                img.src = '/brand/2026/synaura-symbol-2026-white.png';
+              if (!img.src.includes('/default-cover.svg')) {
+                img.src = '/default-cover.svg';
               }
             }}
           />

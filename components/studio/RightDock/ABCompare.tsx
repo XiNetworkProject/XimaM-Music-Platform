@@ -25,7 +25,7 @@ export default function ABCompare({
         <div className="flex items-center gap-2">
           <button
             type="button"
-            className="h-8 w-8 rounded-xl border border-border-secondary bg-white/5 hover:bg-white/10 transition flex items-center justify-center"
+            className="h-8 w-8 rounded-xl border border-border-secondary bg-[var(--v2-raised)] hover:bg-[var(--v2-raised)] transition flex items-center justify-center"
             onClick={swapAB}
             title="Swap"
           >
@@ -33,7 +33,7 @@ export default function ABCompare({
           </button>
           <button
             type="button"
-            className="h-8 px-2 rounded-xl border border-border-secondary bg-white/5 hover:bg-white/10 transition text-xs"
+            className="h-8 px-2 rounded-xl border border-border-secondary bg-[var(--v2-raised)] hover:bg-[var(--v2-raised)] transition text-xs"
             onClick={clearAB}
           >
             Clear
@@ -49,7 +49,7 @@ export default function ABCompare({
           <div className="mt-2 flex items-center gap-2">
             <button
               type="button"
-              className="h-8 px-2 rounded-xl border border-border-secondary bg-white/5 hover:bg-white/10 transition text-xs"
+              className="h-8 px-2 rounded-xl border border-border-secondary bg-[var(--v2-raised)] hover:bg-[var(--v2-raised)] transition text-xs"
               disabled={!a}
               onClick={() => {
                 if (!a) return;
@@ -61,7 +61,7 @@ export default function ABCompare({
             </button>
             <button
               type="button"
-              className="h-8 px-2 rounded-xl border border-border-secondary bg-white/5 hover:bg-white/10 transition text-xs"
+              className="h-8 px-2 rounded-xl border border-border-secondary bg-[var(--v2-raised)] hover:bg-[var(--v2-raised)] transition text-xs"
               disabled={!a}
               onClick={() => {
                 if (!a) return;
@@ -80,7 +80,7 @@ export default function ABCompare({
           <div className="mt-2 flex items-center gap-2">
             <button
               type="button"
-              className="h-8 px-2 rounded-xl border border-border-secondary bg-white/5 hover:bg-white/10 transition text-xs"
+              className="h-8 px-2 rounded-xl border border-border-secondary bg-[var(--v2-raised)] hover:bg-[var(--v2-raised)] transition text-xs"
               disabled={!b}
               onClick={() => {
                 if (!b) return;

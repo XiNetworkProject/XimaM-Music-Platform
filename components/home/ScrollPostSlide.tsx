@@ -83,7 +83,7 @@ export default function ScrollPostSlide({ post, active, playing, onOpenPost, onO
   };
 
   return (
-    <div className="absolute inset-0 overflow-hidden bg-[#111111] text-[#F7F6F3]">
+    <div className="v2-live-post absolute inset-0 overflow-hidden bg-[#111111] text-[#F7F6F3]" data-chambre-music="live-post">
       {visual ? (
         <>
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -94,9 +94,9 @@ export default function ScrollPostSlide({ post, active, playing, onOpenPost, onO
         <div className="absolute inset-0 bg-[linear-gradient(145deg,rgba(115,87,198,0.26),transparent_42%),linear-gradient(28deg,rgba(74,158,170,0.18),transparent_45%),linear-gradient(180deg,#171313,#0B0B0B)]" />
       )}
 
-      <div className="absolute inset-0 z-10 flex items-center justify-center px-4 pb-[max(env(safe-area-inset-bottom),1rem)] pt-28 sm:px-8">
-        <article className={`w-full max-w-3xl transition duration-500 ${active ? 'translate-y-0 opacity-100' : 'translate-y-5 opacity-70'}`}>
-          <div className="mb-5 flex items-center gap-3">
+      <div className="v2-live-post-stage">
+        <article className={`v2-live-post-composition ${active ? 'opacity-100' : 'opacity-70'}`}>
+          <div className="v2-live-post-author flex items-center gap-3">
             <button type="button" onClick={(event) => onOpenProfile(event.currentTarget)} className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-full border border-white/20 bg-white/10 text-sm font-black">
               {post.creator.avatar ? (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -118,7 +118,7 @@ export default function ScrollPostSlide({ post, active, playing, onOpenPost, onO
           </div>
 
           {post.content ? (
-            <button type="button" onClick={onOpenPost} className="block max-w-2xl text-left">
+            <button type="button" onClick={onOpenPost} className="v2-live-post-text">
               <p className="line-clamp-6 whitespace-pre-wrap text-xl font-black leading-[1.16] text-white sm:text-2xl md:text-3xl">
                 {post.content}
               </p>
@@ -126,14 +126,14 @@ export default function ScrollPostSlide({ post, active, playing, onOpenPost, onO
           ) : null}
 
           {post.image_url ? (
-            <button type="button" onClick={onOpenPost} className="mt-5 block max-h-[34vh] w-full overflow-hidden rounded-lg border border-white/12 bg-black/25">
+            <button type="button" onClick={onOpenPost} className="v2-live-post-image">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={post.image_url} alt="" className="max-h-[34vh] w-full object-cover" />
             </button>
           ) : null}
 
           {track ? (
-            <div className="mt-6 flex items-center gap-3 border-y border-white/12 py-4">
+            <div className="v2-live-post-sound flex items-center gap-3 border-y border-white/12 py-4">
               <button type="button" onClick={() => onPlayTrack(track)} className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg bg-white/[0.08]">
                 {track.coverUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -179,7 +179,7 @@ export default function ScrollPostSlide({ post, active, playing, onOpenPost, onO
             </div>
           ) : null}
 
-          <div className="mt-5 flex items-center gap-2">
+          <div className="v2-live-post-actions flex items-center gap-2">
             <button type="button" disabled={liking} onClick={() => void toggleLike()} className={`inline-flex h-11 items-center gap-2 rounded-full border px-4 text-xs font-black transition ${liked ? 'border-[#D96D63]/50 bg-[#D96D63]/[0.22] text-[#FFB7B0]' : 'border-white/12 bg-white/[0.08] text-white/72 hover:bg-white/12'}`}>
               <Heart className={`h-4 w-4 ${liked ? 'fill-current' : ''}`} />
               {likesCount ? formatCount(likesCount) : "J'aime"}

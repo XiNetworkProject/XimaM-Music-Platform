@@ -1,27 +1,26 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import {
   ArrowDown,
+  ArrowUpRight,
   Calendar,
   Check,
   Coins,
   CreditCard,
   HelpCircle,
   Music2,
-  Shield,
   Sparkles,
   Upload,
   Wand2,
   X,
-  Zap,
 } from 'lucide-react';
 import PaymentElementCard from './PaymentElementCard';
 import BuyCreditsModal from '@/components/BuyCreditsModal';
 import { fetchCreditsBalance } from '@/lib/credits';
 import { CREDITS_PER_GENERATION, PLANS, WELCOME_CREDITS } from '@/lib/billing/pricing';
-import { SynauraAppShell, SynauraInkPanel, SynauraPanel, SynauraTopBar } from '@/components/synaura/SynauraShell';
+import { SynauraAppShell, SynauraPanel, SynauraTopBar } from '@/components/synaura/SynauraShell';
 
 type UsageInfo = {
   tracks: { used: number; limit: number; percentage: number };
@@ -53,6 +52,7 @@ function formatLimit(value: number, suffix = '') {
 }
 
 export default function SubscriptionsPage() {
+  const reduceMotion = useReducedMotion();
   const [usage, setUsage] = useState<UsageInfo | null>(null);
   const [current, setCurrent] = useState<CurrentSubscription>(null);
   const [period, setPeriod] = useState<'month' | 'year'>('year');
@@ -238,52 +238,29 @@ export default function SubscriptionsPage() {
     <SynauraAppShell contentClassName="max-w-7xl">
       <SynauraTopBar searchLabel="Rechercher un son, un post ou un profil..." primaryHref="/upload" primaryLabel="Publier" secondaryHref="/settings?tab=compte" secondaryLabel="Compte" />
 
-      <main className="space-y-5 pb-28">
-        <SynauraInkPanel className="p-5 sm:p-7 lg:p-8">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_12%_8%,rgba(255,111,97,0.28),transparent_32%),radial-gradient(circle_at_88%_10%,rgba(124,92,255,0.24),transparent_34%),radial-gradient(circle_at_62%_100%,rgba(0,194,203,0.18),transparent_34%)]" />
-          <div className="relative grid gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
-            <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
-              <p className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/8 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-white/58">
-                <Shield className="h-3.5 w-3.5" />
-                Paiement sécurisé · annulable
-              </p>
-              <h1 className="mt-5 max-w-3xl text-5xl font-black leading-[0.92] tracking-tight text-white sm:text-6xl">
-                Choisis le plan qui suit ton rythme.
-              </h1>
-              <p className="mt-5 max-w-2xl text-base font-semibold leading-7 text-white/62">
-                Plus de crédits, plus de place pour publier, une meilleure qualité audio et les outils créateur quand tu en as besoin.
-              </p>
-              <div className="mt-6 flex flex-wrap gap-3">
-                <button onClick={() => plansRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="inline-flex h-12 items-center gap-2 rounded-full bg-white px-5 text-sm font-black text-[#171313] transition hover:scale-[1.02]">
-                  Voir les plans
-                  <ArrowDown className="h-4 w-4" />
-                </button>
-                <button onClick={() => setShowBuyCredits(true)} className="inline-flex h-12 items-center gap-2 rounded-full bg-white/10 px-5 text-sm font-black text-white transition hover:bg-white/16">
-                  <Coins className="h-4 w-4" />
-                  Acheter des crédits
-                </button>
-              </div>
-            </motion.div>
+      <main className="chambre-subscriptions experience-membership pb-28">
+        <header className="experience-membership-heading">
+          <motion.div initial={reduceMotion ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
+            <p className="experience-account-eyebrow"><span aria-hidden="true">03 /</span> Les abonnements</p>
+            <h1>Fais de la place<br />à <span className="chambre-type-accent">tes idées.</span></h1>
+            <p className="experience-membership-lede">Un premier son ou toute une discographie. Trouve l’espace qui suit ton rythme de création.</p>
+            <button type="button" onClick={() => plansRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="experience-membership-explore">Explorer les plans <ArrowDown size={16} aria-hidden="true" /></button>
+          </motion.div>
+          <div className="experience-membership-sculpture" aria-hidden="true"><i /><i /><i /><span>CHAMBRE<br />SONORE</span></div>
+        </header>
 
-            <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35, delay: 0.08 }} className="rounded-[2rem] border border-white/12 bg-white/10 p-4 backdrop-blur">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-xs font-black uppercase tracking-[0.16em] text-white/45">Ton plan actuel</p>
-                  <h2 className="mt-1 text-3xl font-black text-white">{planName}</h2>
-                </div>
-                <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-[#171313]">{subscriptionStatus === 'none' ? 'Free' : subscriptionStatus}</span>
-              </div>
-
-              <div className="mt-4 grid grid-cols-2 gap-2">
-                <Kpi label="Période" value={billingPeriod} />
-                <Kpi label="Prochain paiement" value={nextBilling} icon={<Calendar className="h-4 w-4" />} />
-                <Kpi label="Crédits" value={`${creditsBalance}`} icon={<Coins className="h-4 w-4" />} />
-                <Kpi label="Uploads" value={usage ? `${usage.tracks.used}/${usage.tracks.limit}` : '—'} />
-                <Kpi label="Playlists" value={usage ? `${usage.playlists.used}/${usage.playlists.limit}` : '—'} />
-                <Kpi label="Générations" value={`≈ ${Math.floor(creditsBalance / CREDITS_PER_GENERATION)}`} icon={<Wand2 className="h-4 w-4" />} />
-              </div>
-
-              <div className="mt-4 flex flex-wrap gap-2">
+        <section className="experience-membership-overview" aria-labelledby="membership-current-heading">
+          <div className="experience-membership-pass">
+            <div className="experience-membership-pass-title">
+              <span className="experience-membership-pass-mark" aria-hidden="true"><Music2 size={22} /></span>
+              <div><p className="experience-account-eyebrow">Ton accès actuel</p><h2 id="membership-current-heading">{planName}</h2></div>
+              <span className="experience-membership-status">{subscriptionStatus === 'none' ? 'Free' : subscriptionStatus}</span>
+            </div>
+            <dl className="experience-membership-billing">
+              <Kpi label="Période" value={billingPeriod} />
+              <Kpi label="Prochain paiement" value={nextBilling} icon={<Calendar className="h-4 w-4" />} />
+            </dl>
+            <div className="experience-membership-management">
                 {!isFreeActive ? (
                   <>
                     <button onClick={cancelSubscription} className="h-10 rounded-full bg-red-500/12 px-4 text-xs font-black text-red-100 transition hover:bg-red-500/20">
@@ -294,13 +271,17 @@ export default function SubscriptionsPage() {
                     </button>
                   </>
                 ) : null}
-                <button onClick={() => setShowBuyCredits(true)} className="h-10 rounded-full bg-white px-4 text-xs font-black text-[#171313] transition hover:scale-[1.02]">
-                  Acheter des crédits
-                </button>
-              </div>
-            </motion.div>
+            </div>
           </div>
-        </SynauraInkPanel>
+          <div className="experience-membership-balance">
+            <div><p className="experience-account-eyebrow">Ta réserve créative</p><p className="experience-membership-credit-number">{creditsBalance}<span>crédits</span></p><p className="experience-membership-generation"><Wand2 size={14} aria-hidden="true" /> ≈ {Math.floor(creditsBalance / CREDITS_PER_GENERATION)} générations disponibles</p></div>
+            <button type="button" onClick={() => setShowBuyCredits(true)} className="experience-account-primary"><Coins size={16} aria-hidden="true" /> Acheter des crédits</button>
+          </div>
+          <dl className="experience-membership-usage">
+            <Kpi label="Pistes publiées" value={usage ? `${usage.tracks.used} / ${formatLimit(usage.tracks.limit)}` : '—'} icon={<Upload className="h-4 w-4" />} />
+            <Kpi label="Playlists" value={usage ? `${usage.playlists.used} / ${formatLimit(usage.playlists.limit)}` : '—'} icon={<Music2 className="h-4 w-4" />} />
+          </dl>
+        </section>
 
         {(hasPaymentIssue || quotaWarnings.length > 0) && (
           <div className="grid gap-3">
@@ -340,23 +321,21 @@ export default function SubscriptionsPage() {
           </div>
         )}
 
-        <section ref={plansRef} className="scroll-mt-28">
-          <SynauraPanel className="p-5 sm:p-7">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <section ref={plansRef} className="experience-membership-plans scroll-mt-28" aria-labelledby="membership-plans-heading">
+          <div className="experience-membership-plans-inner">
+            <div className="experience-membership-section-heading">
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-black/38">Plans</p>
-                <h2 className="mt-1 text-3xl font-black tracking-tight text-[#171313]">Free, Starter ou Pro</h2>
-                <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-black/54">
-                  L’annuel revient moins cher. Les crédits non utilisés sont conservés.
-                </p>
+                <p className="experience-account-eyebrow">Choisir ton espace</p>
+                <h2 id="membership-plans-heading">À chaque rythme, un plan.</h2>
+                <p>Les crédits non utilisés sont conservés.</p>
               </div>
               <PeriodToggle value={period} onChange={setPeriod} />
             </div>
 
-            <div className="mt-6 grid gap-4 lg:grid-cols-3">
+            <div className="chambre-plan-grid mt-6 grid gap-4 lg:grid-cols-3">
               <PlanCard
                 title="Free"
-                description="Pour découvrir Synaura et publier doucement."
+                description="Le premier espace pour tes sons."
                 priceText="Gratuit"
                 badge={isFreeActive ? 'Actif' : undefined}
                 active={isFreeActive}
@@ -371,10 +350,10 @@ export default function SubscriptionsPage() {
               />
               <PlanCard
                 title="Starter"
-                description="Le meilleur choix pour créer régulièrement."
+                description="De la place pour créer régulièrement."
                 priceText={period === 'year' ? `${formatEuro(PLANS.starter.priceYearly)} / an` : `${formatEuro(PLANS.starter.priceMonthly)} / mois`}
                 subPrice={period === 'year' ? `soit ${formatEuro(PLANS.starter.priceYearly / 12)}/mois` : 'Taxes calculées au paiement'}
-                badge={isStarterActive ? 'Actif' : PLANS.starter.badge}
+                badge={isStarterActive ? 'Actif' : undefined}
                 active={isStarterActive}
                 highlight
                 features={PLANS.starter.features}
@@ -388,14 +367,14 @@ export default function SubscriptionsPage() {
               />
               <PlanCard
                 title="Pro"
-                description="Pour les créateurs qui veulent tout débloquer."
+                description="Tout l’espace pour tes projets musicaux."
                 priceText={period === 'year' ? `${formatEuro(PLANS.pro.priceYearly)} / an` : `${formatEuro(PLANS.pro.priceMonthly)} / mois`}
                 subPrice={period === 'year' ? `soit ${formatEuro(PLANS.pro.priceYearly / 12)}/mois` : 'Taxes calculées au paiement'}
                 badge={isProActive ? 'Actif' : undefined}
                 active={isProActive}
                 features={PLANS.pro.features}
                 limits={[
-                  ['Pistes', `${PLANS.pro.limits.maxTracks}/mois`],
+                  ['Pistes', formatLimit(PLANS.pro.limits.maxTracks, '/mois')],
                   ['Playlists', formatLimit(PLANS.pro.limits.maxPlaylists)],
                   ['Qualité', `${PLANS.pro.limits.audioQualityKbps} kbps`],
                   ['Crédits', `${PLANS.pro.monthlyCredits.toLocaleString()}/mois`],
@@ -403,10 +382,10 @@ export default function SubscriptionsPage() {
                 onChoose={isProActive ? undefined : () => choosePlan(priceMap.Pro[period])}
               />
             </div>
-          </SynauraPanel>
+          </div>
         </section>
 
-        <SynauraPanel className="p-5 sm:p-7">
+        <SynauraPanel className="experience-membership-comparison p-5 sm:p-7">
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.18em] text-black/38">Comparaison</p>
@@ -415,20 +394,20 @@ export default function SubscriptionsPage() {
             <Sparkles className="h-5 w-5 text-black/24" />
           </div>
 
-          <div className="mt-5 overflow-x-auto">
-            <div className="grid min-w-[760px] grid-cols-4 gap-2 text-sm">
-              <CompareCell muted>Caractéristiques</CompareCell>
-              <CompareCell strong>Free</CompareCell>
-              <CompareCell strong>Starter</CompareCell>
-              <CompareCell strong>Pro</CompareCell>
-              <CompareRow label="Pistes / mois" free={String(PLANS.free.limits.maxTracks)} starter={String(PLANS.starter.limits.maxTracks)} pro={String(PLANS.pro.limits.maxTracks)} />
+          <div className="experience-membership-table-wrap" tabIndex={0} role="region" aria-label="Tableau comparatif des abonnements">
+            <table className="experience-membership-table">
+              <caption className="sr-only">Prix, quotas et fonctionnalités des plans Free, Starter et Pro</caption>
+              <thead><tr><th scope="col">Inclus dans ton plan</th><th scope="col">Free</th><th scope="col">Starter</th><th scope="col">Pro</th></tr></thead>
+              <tbody>
+              <CompareRow label="Pistes / mois" free={String(PLANS.free.limits.maxTracks)} starter={String(PLANS.starter.limits.maxTracks)} pro={formatLimit(PLANS.pro.limits.maxTracks)} />
               <CompareRow label="Playlists" free={String(PLANS.free.limits.maxPlaylists)} starter={String(PLANS.starter.limits.maxPlaylists)} pro="Illimité" />
               <CompareRow label="Crédits" free={`${WELCOME_CREDITS} bienvenue`} starter={`${PLANS.starter.monthlyCredits}/mois`} pro={`${PLANS.pro.monthlyCredits.toLocaleString()}/mois`} />
               <CompareRow label="Qualité audio" free={`${PLANS.free.limits.audioQualityKbps} kbps`} starter={`${PLANS.starter.limits.audioQualityKbps} kbps`} pro={`${PLANS.pro.limits.audioQualityKbps} kbps`} />
               <CompareRow label="Messagerie" free="—" starter={PLANS.starter.featureFlags.messaging ? 'Oui' : '—'} pro={PLANS.pro.featureFlags.messaging ? 'Oui' : '—'} />
               <CompareRow label="Statistiques avancées" free="—" starter="—" pro={PLANS.pro.featureFlags.analyticsAdvanced ? 'Oui' : '—'} />
               <CompareRow label="Téléchargement" free="—" starter="—" pro={PLANS.pro.featureFlags.download ? 'Oui' : '—'} />
-            </div>
+              </tbody>
+            </table>
           </div>
         </SynauraPanel>
 
@@ -482,7 +461,7 @@ export default function SubscriptionsPage() {
 
         {paid ? (
           <SynauraPanel className="border-emerald-300/40 bg-emerald-50 p-6">
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-emerald-700">Activé</p>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-[var(--syn-success)]">Activé</p>
             <h2 className="mt-1 text-2xl font-black tracking-tight text-[#171313]">Ton abonnement est actif</h2>
             <p className="mt-2 text-sm font-semibold text-black/56">Tes avantages Premium sont disponibles.</p>
             <div className="mt-5 flex flex-wrap gap-2">
@@ -492,7 +471,7 @@ export default function SubscriptionsPage() {
           </SynauraPanel>
         ) : null}
 
-        <SynauraPanel className="p-5 sm:p-7">
+        <SynauraPanel className="experience-membership-faq p-5 sm:p-7">
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.18em] text-black/38">FAQ</p>
@@ -510,7 +489,7 @@ export default function SubscriptionsPage() {
       </main>
 
       {selectedPriceId && !paid ? (
-        <div className="fixed bottom-3 left-3 right-3 z-40 sm:hidden">
+        <div className="experience-membership-payment-dock fixed bottom-3 left-3 right-3 z-40 sm:hidden">
           <div className="rounded-3xl border border-[#dccfbb] bg-[#fff7ec] p-3 shadow-[0_18px_60px_rgba(30,25,20,0.18)]">
             <div className="flex items-center gap-3">
               <div className="min-w-0 flex-1">
@@ -526,10 +505,10 @@ export default function SubscriptionsPage() {
       ) : null}
 
       {toast ? (
-        <div className={`fixed bottom-4 left-1/2 z-50 -translate-x-1/2 rounded-2xl px-4 py-3 text-sm font-bold shadow-xl ${toast.type === 'success' ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white'}`}>
+        <div role="status" className={`fixed bottom-4 left-1/2 z-50 -translate-x-1/2 rounded-2xl px-4 py-3 text-sm font-bold shadow-xl ${toast.type === 'success' ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white'}`}>
           <div className="flex items-center gap-3">
             <span>{toast.msg}</span>
-            <button onClick={() => setToast(null)} className="rounded-full bg-white/16 p-1">
+            <button type="button" aria-label="Fermer le message" onClick={() => setToast(null)} className="rounded-full bg-white/16 p-1">
               <X className="h-4 w-4" />
             </button>
           </div>
@@ -543,33 +522,30 @@ export default function SubscriptionsPage() {
 
 function Kpi({ label, value, icon }: { label: string; value: string; icon?: React.ReactNode }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/10 p-3">
-      <p className="text-[11px] font-black uppercase tracking-[0.14em] text-white/38">{label}</p>
-      <p className="mt-1 inline-flex min-w-0 items-center gap-2 text-sm font-black text-white">
-        {icon ? <span className="text-white/45">{icon}</span> : null}
-        <span className="truncate">{value}</span>
-      </p>
+    <div className="experience-membership-kpi">
+      <dt>{label}</dt>
+      <dd>{icon ? <span aria-hidden="true">{icon}</span> : null}{value}</dd>
     </div>
   );
 }
 
 function PeriodToggle({ value, onChange }: { value: 'month' | 'year'; onChange: (v: 'month' | 'year') => void }) {
   return (
-    <div className="inline-flex rounded-full border border-[#dccfbb] bg-[#efe4d4] p-1">
+    <div className="experience-membership-period" role="group" aria-label="Période de facturation">
       {[
         { v: 'month', label: 'Mensuel' },
-        { v: 'year', label: 'Annuel', hint: '-20%' },
+        { v: 'year', label: 'Annuel' },
       ].map((item) => {
         const active = value === item.v;
         return (
           <button
             key={item.v}
             type="button"
+            aria-pressed={active}
             onClick={() => onChange(item.v as 'month' | 'year')}
-            className={`inline-flex h-10 items-center gap-2 rounded-full px-4 text-xs font-black transition ${active ? 'bg-[#171313] text-white shadow-lg' : 'text-black/50 hover:text-[#171313]'}`}
+            className="experience-membership-period-option"
           >
             {item.label}
-            {item.hint ? <span className={`rounded-full px-2 py-0.5 text-[10px] ${active ? 'bg-white/16 text-white' : 'bg-white text-black/46'}`}>{item.hint}</span> : null}
           </button>
         );
       })}
@@ -600,90 +576,46 @@ function PlanCard({
   features: string[];
   onChoose?: () => void;
 }) {
+  const reduceMotion = useReducedMotion();
   return (
     <motion.article
-      initial={{ opacity: 0, y: 12 }}
+      initial={reduceMotion ? false : { opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`relative flex h-full flex-col overflow-hidden rounded-[2rem] border p-5 transition hover:-translate-y-1 ${
-        highlight ? 'border-[#ff6f61]/28 bg-[#171313] text-white shadow-[0_24px_70px_rgba(23,19,19,0.20)]' : 'border-[#dccfbb] bg-white/72 text-[#171313]'
-      }`}
+      aria-label={`Abonnement ${title}`}
+      data-plan={title.toLowerCase()}
+      data-plan-highlighted={Boolean(highlight)}
+      data-plan-active={Boolean(active)}
+      className="chambre-plan experience-membership-plan"
     >
-      {highlight ? <div className="absolute inset-0 bg-[radial-gradient(circle_at_16%_0%,rgba(255,111,97,0.26),transparent_32%),radial-gradient(circle_at_90%_12%,rgba(124,92,255,0.22),transparent_32%)]" /> : null}
-      <div className="relative flex h-full flex-col">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h3 className="text-2xl font-black tracking-tight">{title}</h3>
-            <p className={`mt-2 text-sm font-semibold leading-6 ${highlight ? 'text-white/58' : 'text-black/52'}`}>{description}</p>
-          </div>
-          {badge ? <span className={`shrink-0 rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-[0.12em] ${highlight ? 'bg-white text-[#171313]' : 'bg-[#171313] text-white'}`}>{badge}</span> : null}
-        </div>
-
-        <div className="mt-6">
-          <p className="text-3xl font-black">{priceText}</p>
-          {subPrice ? <p className={`mt-1 text-xs font-bold ${highlight ? 'text-white/48' : 'text-black/42'}`}>{subPrice}</p> : null}
-        </div>
-
-        <div className="mt-5 grid gap-2">
-          {limits.map(([label, value]) => (
-            <div key={label} className={`flex items-center justify-between gap-4 rounded-2xl px-3 py-2 text-sm ${highlight ? 'bg-white/10 text-white/72' : 'bg-[#f4eadc] text-black/54'}`}>
-              <span className="font-semibold">{label}</span>
-              <span className={`font-black ${highlight ? 'text-white' : 'text-[#171313]'}`}>{value}</span>
-            </div>
-          ))}
-        </div>
-
-        <ul className="mt-5 space-y-2">
-          {features.filter(Boolean).slice(0, 6).map((feature) => (
-            <li key={feature} className={`flex items-start gap-2 text-sm font-semibold ${highlight ? 'text-white/72' : 'text-black/56'}`}>
-              <Check className={`mt-0.5 h-4 w-4 shrink-0 ${highlight ? 'text-[#00c2cb]' : 'text-[#ff6f61]'}`} />
-              {feature}
-            </li>
-          ))}
-        </ul>
-
-        <button
-          type="button"
-          disabled={!onChoose}
-          onClick={onChoose}
-          className={`mt-auto h-12 rounded-2xl text-sm font-black transition ${
-            !onChoose
-              ? highlight
-                ? 'bg-white/10 text-white/35'
-                : 'bg-black/[0.05] text-black/32'
-              : highlight
-                ? 'bg-white text-[#171313] hover:scale-[1.02]'
-                : 'bg-[#171313] text-white hover:scale-[1.02]'
-          }`}
-        >
-          {active ? 'Plan actif' : 'Choisir ce plan'}
-        </button>
+      <div className="experience-membership-plan-art" aria-hidden="true"><i /><i /><i /><span>{title === 'Free' ? '01' : title === 'Starter' ? '02' : '03'}</span></div>
+      <div className="experience-membership-plan-heading"><h3>{title}</h3>{badge ? <span className="experience-membership-plan-badge"><Check size={12} aria-hidden="true" />{badge}</span> : null}</div>
+      <p className="experience-membership-plan-description">{description}</p>
+      <div className="experience-membership-plan-price">
+        <p>{priceText}</p>
+        <span>{subPrice || 'Sans abonnement payant'}</span>
       </div>
+      <button type="button" disabled={!onChoose} onClick={onChoose} aria-label={active ? `Plan ${title} actif` : `Choisir le plan ${title}`} className="experience-membership-plan-choose">
+        {active ? 'Plan actif' : 'Choisir ce plan'}{active ? <Check size={16} aria-hidden="true" /> : <ArrowUpRight size={17} aria-hidden="true" />}
+      </button>
+      <dl className="experience-membership-plan-limits">
+        {limits.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
+      </dl>
+      <ul className="experience-membership-plan-features">
+        {features.filter(Boolean).slice(0, 6).map((feature) => <li key={feature}><Check size={14} aria-hidden="true" />{feature}</li>)}
+      </ul>
     </motion.article>
-  );
-}
-
-function CompareCell({ children, strong, muted }: { children: React.ReactNode; strong?: boolean; muted?: boolean }) {
-  return (
-    <div className={`rounded-2xl px-3 py-2 ${strong ? 'bg-[#171313] font-black text-white' : muted ? 'bg-black/[0.03] font-black text-black/38' : 'bg-black/[0.03] font-semibold text-black/56'}`}>
-      {children}
-    </div>
   );
 }
 
 function CompareRow({ label, free, starter, pro }: { label: string; free: string; starter: string; pro: string }) {
   return (
-    <>
-      <CompareCell muted>{label}</CompareCell>
-      <CompareCell>{free}</CompareCell>
-      <CompareCell>{starter}</CompareCell>
-      <CompareCell>{pro}</CompareCell>
-    </>
+    <tr><th scope="row">{label}</th><td>{free}</td><td>{starter}</td><td>{pro}</td></tr>
   );
 }
 
 function FaqItem({ q, a }: { q: string; a: string }) {
   return (
-    <div className="rounded-[1.5rem] border border-[#dccfbb] bg-white/72 p-4">
+    <div className="experience-membership-faq-item">
       <h3 className="text-sm font-black text-[#171313]">{q}</h3>
       <p className="mt-2 text-sm font-semibold leading-6 text-black/52">{a}</p>
     </div>

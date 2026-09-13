@@ -68,7 +68,7 @@ function SignInContent() {
 
   return (
     <EntryFrame eyebrow="Connexion" title="Ravi de te revoir." description="Retrouve directement ton écoute, tes créations et les personnes que tu suis.">
-      <div className="flex flex-1 flex-col">
+      <div className="chambre-auth-fields flex flex-1 flex-col">
         {successMessage ? <div role="status" className="mb-4 flex items-center gap-2 rounded-[var(--syn-radius-md)] border border-[color-mix(in_srgb,var(--syn-success)_32%,transparent)] bg-[color-mix(in_srgb,var(--syn-success)_12%,transparent)] p-3 text-sm font-bold text-[var(--syn-success)]"><Check className="h-4 w-4" /> {successMessage}</div> : null}
         {error ? <div role="alert" className="mb-4 flex items-center gap-2 rounded-[var(--syn-radius-md)] border border-[color-mix(in_srgb,var(--syn-destructive)_32%,transparent)] bg-[color-mix(in_srgb,var(--syn-destructive)_12%,transparent)] p-3 text-sm font-bold text-[var(--syn-destructive)]"><AlertCircle className="h-4 w-4" /> {error}</div> : null}
 

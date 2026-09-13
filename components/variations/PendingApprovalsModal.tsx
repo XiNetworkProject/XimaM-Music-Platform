@@ -26,7 +26,7 @@ export type PendingVariation = {
   };
 };
 
-const FALLBACK_COVER = '/brand/2026/synaura-symbol-2026.png';
+const FALLBACK_COVER = '/default-cover.svg';
 
 function formatDate(value: string) {
   try {
@@ -77,22 +77,22 @@ export default function PendingApprovalsModal({
 
   return (
     <div
-      className="fixed inset-0 z-[300] flex items-end justify-center bg-black/40 p-0 sm:items-center sm:p-4"
+      className="v2-creation fixed inset-0 z-[300] flex items-end justify-center bg-black/65 p-0 sm:items-center sm:p-4"
       onClick={onClose}
     >
       <div
-        className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-t-[1.8rem] bg-[#fffaf2] p-5 shadow-[0_-20px_60px_rgba(30,25,20,0.2)] sm:rounded-[1.8rem] sm:p-6"
+        className="chambre-pending-variations max-h-[85vh] w-full max-w-lg overflow-y-auto p-5 pb-[calc(20px+env(safe-area-inset-bottom,0px))] shadow-2xl sm:p-6"
         onClick={(event) => event.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
           <div>
-            <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#7357C6]">Variations</p>
-            <h2 className="mt-0.5 text-xl font-black text-[#171313]">Variations à valider</h2>
+            <p className="v2-kicker">L’atelier / Variations</p>
+            <h2 className="mt-2 text-2xl font-medium tracking-[-0.05em] text-[var(--v2-text)]">Variations à valider</h2>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-black/[0.05] text-black/50 transition hover:bg-black hover:text-white"
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-[var(--v2-line)] text-[var(--v2-muted)] transition hover:bg-[var(--v2-raised)] hover:text-white"
             aria-label="Fermer"
           >
             <X className="h-4 w-4" />
@@ -101,29 +101,29 @@ export default function PendingApprovalsModal({
 
         <div className="space-y-3">
           {items.map((item) => (
-            <div key={item.remixId} className="rounded-[1.3rem] border border-black/[0.08] bg-white p-3.5">
+            <div key={item.remixId} className="chambre-variation-item border p-3.5">
               <div className="flex items-center gap-3">
-                <img src={item.coverUrl || FALLBACK_COVER} alt="" className="h-14 w-14 shrink-0 rounded-2xl object-cover" />
+                <img src={item.coverUrl || FALLBACK_COVER} alt="" className="h-14 w-14 shrink-0 rounded-md object-cover" />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-black text-[#171313]">{item.title}</p>
-                  <p className="truncate text-xs font-bold text-black/46">par {item.creator.name || item.creator.username}</p>
-                  <Link href={item.source.trackUrl} className="mt-0.5 block truncate text-[11px] font-semibold text-black/38 hover:text-[#7357C6]">
+                  <p className="truncate text-sm font-semibold text-[var(--v2-text)]">{item.title}</p>
+                  <p className="truncate text-xs text-[var(--v2-muted)]">par {item.creator.name || item.creator.username}</p>
+                  <Link href={item.source.trackUrl} className="mt-0.5 block truncate text-[11px] text-[var(--v2-muted)] hover:text-[var(--v2-accent)]">
                     Inspiré de {item.source.title}
                   </Link>
                 </div>
                 <Link
                   href={item.trackUrl}
-                  className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-black/[0.05] text-black/60 transition hover:bg-black hover:text-white"
+                  className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-[var(--v2-line)] text-[var(--v2-text)] transition hover:bg-[var(--v2-raised)]"
                   aria-label="Écouter"
                 >
                   <Play className="h-3.5 w-3.5" />
                 </Link>
               </div>
-              <p className="mt-2 text-[11px] font-semibold text-black/34">{formatDate(item.createdAt)}</p>
+              <p className="mt-2 text-[11px] text-[var(--v2-muted)]">{formatDate(item.createdAt)}</p>
 
               {confirmingId === item.remixId ? (
-                <div className="mt-3 rounded-[1rem] border border-[#D96D63]/30 bg-[#D96D63]/[0.06] p-3">
-                  <p className="flex items-start gap-2 text-xs font-bold text-[#9b352e]">
+                <div className="mt-3 rounded-md border border-red-400/30 bg-red-400/10 p-3">
+                  <p className="flex items-start gap-2 text-xs text-red-200">
                     <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                     Refuser cette variation ? Le brouillon reste privé chez le créateur.
                   </p>
@@ -131,7 +131,7 @@ export default function PendingApprovalsModal({
                     <button
                       type="button"
                       onClick={() => setConfirmingId(null)}
-                      className="h-9 flex-1 rounded-full bg-black/[0.06] text-xs font-black text-black/60 transition hover:bg-black/[0.1]"
+                      className="h-10 flex-1 rounded-full border border-[var(--v2-line)] text-xs font-semibold text-[var(--v2-text)] transition hover:bg-[var(--v2-raised)]"
                     >
                       Annuler
                     </button>
@@ -139,7 +139,7 @@ export default function PendingApprovalsModal({
                       type="button"
                       disabled={busyId === item.remixId}
                       onClick={() => decide(item.remixId, 'reject')}
-                      className="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-full bg-[#D96D63] text-xs font-black text-white transition hover:bg-[#c25850] disabled:opacity-60"
+                      className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-full bg-red-300 text-xs font-semibold text-[var(--v2-bg)] transition hover:bg-red-200 disabled:opacity-60"
                     >
                       {busyId === item.remixId ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : 'Confirmer le refus'}
                     </button>
@@ -151,7 +151,7 @@ export default function PendingApprovalsModal({
                     type="button"
                     disabled={busyId === item.remixId}
                     onClick={() => decide(item.remixId, 'approve')}
-                    className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-full bg-[#7357C6] text-xs font-black text-white transition hover:bg-[#5f46a8] disabled:opacity-60"
+                    className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-full bg-[var(--v2-accent-fill)] text-xs font-semibold text-white transition hover:brightness-110 disabled:opacity-60"
                   >
                     {busyId === item.remixId ? (
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -165,7 +165,7 @@ export default function PendingApprovalsModal({
                     type="button"
                     disabled={busyId === item.remixId}
                     onClick={() => setConfirmingId(item.remixId)}
-                    className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-full border border-black/[0.12] text-xs font-black text-black/60 transition hover:border-[#D96D63] hover:text-[#D96D63] disabled:opacity-60"
+                    className="flex h-10 flex-1 items-center justify-center gap-1.5 rounded-full border border-[var(--v2-line)] text-xs font-semibold text-[var(--v2-muted)] transition hover:border-red-300 hover:text-red-200 disabled:opacity-60"
                   >
                     <X className="h-3.5 w-3.5" /> Refuser
                   </button>
@@ -175,7 +175,7 @@ export default function PendingApprovalsModal({
           ))}
 
           {!items.length ? (
-            <p className="py-10 text-center text-sm font-semibold text-black/40">Aucune variation en attente.</p>
+            <p className="py-10 text-center text-sm text-[var(--v2-muted)]">Aucune variation en attente.</p>
           ) : null}
         </div>
       </div>

@@ -29,7 +29,6 @@ export default function BuyCreditsModal({ isOpen, onClose }: BuyCreditsModalProp
   );
 
   const selectedGenerations = getGenerationsFromCredits(selected.credits);
-  const selectedVariants = selectedGenerations * 2;
 
   const onCheckout = async () => {
     try {
@@ -76,7 +75,7 @@ export default function BuyCreditsModal({ isOpen, onClose }: BuyCreditsModalProp
                 Credits pour creer sans casser le flow.
               </h2>
               <p className="mt-4 max-w-sm text-sm leading-6 text-syn-textSecondary">
-                Chaque generation Suno debite {CREDITS_PER_GENERATION} credits et renvoie 2 variantes A/B dans le Studio.
+                Chaque génération utilise {CREDITS_PER_GENERATION} crédits. Écoute les versions reçues dans le Studio, puis choisis celles à garder.
               </p>
             </div>
 
@@ -87,9 +86,9 @@ export default function BuyCreditsModal({ isOpen, onClose }: BuyCreditsModalProp
                 <div className="text-xs text-syn-textSecondary">credits</div>
               </div>
               <div className="rounded-2xl border border-syn-accentBlue/20 bg-syn-accentBlue/[0.07] p-4">
-                <div className="text-[11px] uppercase tracking-[0.16em] text-syn-accentBlue">Sorties</div>
-                <div className="mt-2 text-2xl font-black">~{selectedVariants}</div>
-                <div className="text-xs text-syn-accentBlue">variantes IA</div>
+                <div className="text-[11px] uppercase tracking-[0.16em] text-syn-accentBlue">Créations</div>
+                <div className="mt-2 text-2xl font-black">~{selectedGenerations}</div>
+                <div className="text-xs text-syn-accentBlue">générations</div>
               </div>
             </div>
 
@@ -111,7 +110,7 @@ export default function BuyCreditsModal({ isOpen, onClose }: BuyCreditsModalProp
               </div>
               <div className="inline-flex items-center gap-2 rounded-full border border-syn-border bg-black/[0.03] px-3 py-2 text-xs text-syn-textSecondary">
                 <Zap className="h-3.5 w-3.5 text-syn-accentGold" />
-                V5.5 ready
+                Suno V6
               </div>
             </div>
 
@@ -147,7 +146,7 @@ export default function BuyCreditsModal({ isOpen, onClose }: BuyCreditsModalProp
                           ) : null}
                         </div>
                         <div className="mt-1 text-xs text-syn-textSecondary">
-                          {pack.credits.toLocaleString('fr-FR')} credits - ~{generations} generations - ~{generations * 2} variantes
+                          {pack.credits.toLocaleString('fr-FR')} crédits · ~{generations} générations
                         </div>
                       </div>
                       <div className="text-right">
@@ -163,8 +162,8 @@ export default function BuyCreditsModal({ isOpen, onClose }: BuyCreditsModalProp
             <div className="mt-4 grid gap-3 sm:grid-cols-3">
               <div className="rounded-2xl border border-syn-border bg-black/[0.02] p-3">
                 <Wand2 className="h-4 w-4 text-syn-textSecondary" />
-                <div className="mt-2 text-xs font-semibold text-syn-textPrimary/80">Generation A/B</div>
-                <div className="mt-1 text-[11px] leading-4 text-syn-textSecondary">Toujours 2 pistes par lancement.</div>
+                <div className="mt-2 text-xs font-semibold text-syn-textPrimary/80">Tes versions</div>
+                <div className="mt-1 text-[11px] leading-4 text-syn-textSecondary">Le nombre de pistes dépend du résultat.</div>
               </div>
               <div className="rounded-2xl border border-syn-border bg-black/[0.02] p-3">
                 <Zap className="h-4 w-4 text-syn-textSecondary" />

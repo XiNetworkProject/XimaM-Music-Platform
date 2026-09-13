@@ -14,15 +14,15 @@ import {
 import { twMerge } from 'tailwind-merge';
 
 const buttonStyles = cva(
-  'syn-interactive inline-flex min-h-11 select-none items-center justify-center gap-2 rounded-full font-black outline-none disabled:pointer-events-none disabled:opacity-45 aria-[busy=true]:cursor-wait',
+  'syn-interactive inline-flex min-h-11 select-none items-center justify-center gap-2 rounded-[var(--syn-radius-sm)] font-medium outline-none disabled:pointer-events-none disabled:opacity-45 aria-[busy=true]:cursor-wait',
   {
     variants: {
       variant: {
         primary: 'bg-[var(--syn-contrast-bg)] text-[var(--syn-contrast-text)] shadow-[var(--syn-shadow-low)] hover:-translate-y-0.5 hover:shadow-[var(--syn-shadow-medium)] active:translate-y-0',
-        accent: 'bg-[var(--syn-accent)] text-white shadow-[var(--syn-glow-accent)] hover:brightness-110',
+        accent: 'bg-[var(--v2-accent-fill)] text-white hover:brightness-110',
         secondary: 'border border-[var(--syn-border)] bg-[var(--syn-surface)] text-[var(--syn-text-primary)] hover:bg-[var(--syn-soft)]',
         ghost: 'bg-transparent text-[var(--syn-text-secondary)] hover:bg-[var(--syn-soft)] hover:text-[var(--syn-text-primary)]',
-        danger: 'bg-[var(--syn-destructive)] text-white hover:brightness-110',
+        danger: 'bg-[var(--syn-destructive)] text-[var(--v2-bg)] hover:brightness-110',
       },
       size: {
         sm: 'min-h-9 px-3 text-xs',

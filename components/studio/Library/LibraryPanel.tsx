@@ -61,14 +61,15 @@ export default function LibraryPanel({
   };
 
   return (
-    <div className="panel-suno h-full min-h-0 flex flex-col overflow-hidden">
+    <div className="panel-suno experience-studio-library h-full min-h-0 flex flex-col overflow-hidden">
       <div className="p-3 border-b border-border-secondary flex items-center gap-2">
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <Search className="w-4 h-4 text-foreground-tertiary" />
           <input
             ref={searchRef as any}
             className={`${SUNO_FIELD} h-9`}
-            placeholder="Search (Ctrl/Cmd+F)"
+            placeholder="Rechercher une version…"
+            aria-label="Rechercher dans les versions du studio"
             value={ui.search}
             onChange={(e) => setUI({ search: e.target.value })}
           />
@@ -76,7 +77,7 @@ export default function LibraryPanel({
         <button
           type="button"
           onClick={onRefresh}
-          className="h-9 w-9 rounded-xl border border-border-secondary bg-white/5 hover:bg-white/10 transition flex items-center justify-center"
+          className="h-9 w-9 rounded-xl border border-border-secondary bg-[var(--v2-raised)] hover:bg-[var(--v2-raised)] transition flex items-center justify-center"
           title="Refresh"
           aria-label="Refresh"
         >
@@ -91,7 +92,7 @@ export default function LibraryPanel({
             <div className="text-[11px] text-foreground-tertiary">{selectedTracks.length} selected</div>
             <button
               type="button"
-              className="h-8 px-2 rounded-xl border border-border-secondary bg-white/5 hover:bg-white/10 transition text-xs flex items-center gap-1"
+              className="h-8 px-2 rounded-xl border border-border-secondary bg-[var(--v2-raised)] hover:bg-[var(--v2-raised)] transition text-xs flex items-center gap-1"
               onClick={() => setShowExport(true)}
             >
               <Package className="w-4 h-4" />
@@ -99,7 +100,7 @@ export default function LibraryPanel({
             </button>
             <button
               type="button"
-              className="h-8 px-2 rounded-xl border border-border-secondary bg-white/5 hover:bg-white/10 transition text-xs flex items-center gap-1"
+              className="h-8 px-2 rounded-xl border border-border-secondary bg-[var(--v2-raised)] hover:bg-[var(--v2-raised)] transition text-xs flex items-center gap-1"
               onClick={onBatchDelete}
             >
               <Trash2 className="w-4 h-4" />
@@ -107,7 +108,7 @@ export default function LibraryPanel({
             </button>
             <button
               type="button"
-              className="h-8 w-8 rounded-xl border border-border-secondary bg-white/5 hover:bg-white/10 transition flex items-center justify-center"
+              className="h-8 w-8 rounded-xl border border-border-secondary bg-[var(--v2-raised)] hover:bg-[var(--v2-raised)] transition flex items-center justify-center"
               onClick={clearSelection}
               title="Clear selection"
             >
@@ -118,11 +119,18 @@ export default function LibraryPanel({
       </div>
 
       <div className="clip-browser-list-scroller flex-1 min-h-0 overflow-y-auto px-2 pb-3">
+        {loading ? <div className="experience-library-loading" role="status"><div aria-hidden="true"><span /><span /><span /></div><span>On retrouve tes versions…</span></div> : null}
+        {error ? <div className="experience-library-error" role="alert"><strong>La bibliothèque n’a pas pu s’ouvrir.</strong><p>{error}</p></div> : null}
         {tracks.map((t) => (
           <LibraryItemRow key={t.id} track={t} onPlay={onPlayTrack} />
         ))}
         {!loading && !error && tracks.length === 0 ? (
-          <div className="p-4 text-sm text-foreground-tertiary">Aucun résultat.</div>
+          <div className="experience-library-empty" data-has-collection={Boolean(ui.search) || undefined}>
+            <div className="experience-empty-material" aria-hidden="true"><img src="/brand/chambre/membrane-cobalt.png" alt="" loading="lazy" decoding="async" /><span>A</span><span>B</span></div>
+            <p className="v2-kicker">Le studio est ouvert</p>
+            <h3>{ui.search ? 'Aucune version correspondante.' : 'Une idée peut tout changer.'}</h3>
+            <p>{ui.search ? 'Essaie un autre titre ou efface ta recherche.' : 'Décris ton intention dans Composer. Tes versions apparaîtront ici pour l’écoute et la comparaison.'}</p>
+          </div>
         ) : null}
       </div>
 

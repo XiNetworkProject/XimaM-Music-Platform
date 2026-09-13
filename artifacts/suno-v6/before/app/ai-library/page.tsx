@@ -1,0 +1,616 @@
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
+import Link from '@/components/navigation/HandoffLink';
+import { Music, Heart, Play, Download, Share2, Search, Clock, Sparkles, RefreshCw, Link as LinkIcon, Repeat2, UploadCloud, Video } from 'lucide-react';
+import { useSession } from 'next-auth/react';
+import { useAudioPlayer } from '@/app/providers';
+import { AIGeneration, AITrack } from '@/lib/aiGenerationService';
+import { notify } from '@/components/NotificationCenter';
+import { SynauraAppShell, SynauraInkPanel, SynauraPanel, SynauraRouteNav, SynauraTopBar } from '@/components/synaura/SynauraShell';
+import TrackCover from '@/components/TrackCover';
+
+interface PlayerTrack {
+  _id: string;
+  title: string;
+  artist: {
+    _id: string;
+    name: string;
+    username: string;
+    avatar?: string;
+  };
+  audioUrl: string;
+  coverUrl?: string;
+  coverVideoUrl?: string | null;
+  coverVideoPosterUrl?: string | null;
+  duration: number;
+  likes: string[];
+  comments: string[];
+  plays: number;
+  isLiked?: boolean;
+  genre?: string[];
+  lyrics?: string;
+}
+
+export default function AILibrary() {
+  const { data: session } = useSession();
+  const { setQueueAndPlay } = useAudioPlayer();
+  
+  const [generations, setGenerations] = useState<AIGeneration[]>([]);
+  const [allTracks, setAllTracks] = useState<AITrack[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filter, setFilter] = useState<'all' | 'favorites' | 'recent'>('all');
+  const [modelFilter, setModelFilter] = useState<'all' | 'V4_5' | 'V4_5PLUS' | 'V3_5' | 'V5' | 'V5_5'>('all');
+  const [stats, setStats] = useState({
+    total: 0,
+    favorites: 0,
+    totalDuration: 0
+  });
+  const [error, setError] = useState<string | null>(null);
+  const [generatingVideoTrackId, setGeneratingVideoTrackId] = useState<string | null>(null);
+
+  const parseSourceLinks = (value?: string | null) => {
+    try {
+      return value ? JSON.parse(value) : {};
+    } catch {
+      return {};
+    }
+  };
+
+  const getTrackVideoMeta = (track: AITrack) => {
+    const sourceLinks = parseSourceLinks(track.source_links);
+    return {
+      videoUrl: track.cover_video_url || sourceLinks.cover_video_url || null,
+      posterUrl: track.cover_video_poster_url || sourceLinks.cover_video_poster_url || track.image_url || null,
+      videoTaskId: track.video_task_id || sourceLinks.video_task_id || null,
+    };
+  };
+
+  const studioLinkForTrack = (track: AITrack, mode: 'style' | 'remix' = 'style') => {
+    const params = new URLSearchParams({
+      mode,
+      sourceTrack: `ai-${track.id}`,
+      title: track.title || '',
+      style: track.style || track.prompt || 'IA Synaura',
+    });
+    return `/ai-generator?${params.toString()}`;
+  };
+
+  // Charger la bibliothèque
+  const loadLibrary = async () => {
+    if (!session?.user?.id) return;
+
+    try {
+      setLoading(true);
+      setError(null);
+      const response = await fetch('/api/ai/library', { cache: 'no-store', headers: { 'Cache-Control': 'no-store' } });
+      if (response.ok) {
+        const data = await response.json();
+        setGenerations(data.generations || []);
+
+        // Charger toutes les pistes de l'utilisateur
+        const trRes = await fetch('/api/ai/library/tracks', { cache: 'no-store', headers: { 'Cache-Control': 'no-store' } });
+        if (trRes.ok) {
+          const trJson = await trRes.json();
+          const loadedTracks = trJson.tracks || [];
+          setAllTracks(loadedTracks);
+          const total = data.generations?.length || 0;
+          const favorites = data.generations?.filter((g: AIGeneration) => g.is_favorite).length || 0;
+          const totalDuration = loadedTracks.reduce((acc: number, t: AITrack) => acc + (Number(t.duration) || 0), 0);
+          setStats({ total, favorites, totalDuration });
+        }
+      } else {
+        const txt = await response.text();
+        setError(`Erreur chargement: ${txt}`);
+      }
+    } catch (error) {
+      console.error('Erreur chargement bibliothèque:', error);
+      setError('Impossible de charger la bibliothèque');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Filtrer les générations
+  const filteredGenerations = generations.filter(generation => {
+    const matchesSearch = searchQuery === '' || 
+      generation.prompt.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      generation.tracks?.some(track => 
+        track.title.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    
+    const matchesFilter = filter === 'all' || 
+      (filter === 'favorites' && generation.is_favorite) ||
+      (filter === 'recent' && new Date(generation.created_at) > new Date(Date.now() - 7 * 24 * 60 * 60 * 1000));
+    const matchesModel = modelFilter === 'all' || (generation.model === modelFilter);
+    
+    return matchesSearch && matchesFilter && matchesModel;
+  });
+
+  const syntheticGenerationForTrack = (track: AITrack): AIGeneration => ({
+    id: 'gen',
+    user_id: (session?.user?.id as string) || '',
+    task_id: '',
+    prompt: track.prompt || '',
+    model: track.model_name || '',
+    status: 'completed',
+    created_at: new Date().toISOString(),
+    is_favorite: false,
+    is_public: false,
+    play_count: 0,
+    like_count: 0,
+    share_count: 0,
+    metadata: { title: track.title, style: track.style },
+    tracks: [],
+  } as any);
+
+  const formatDuration = (seconds?: number) => {
+    const safe = Math.max(0, Math.floor(Number(seconds) || 0));
+    return `${Math.floor(safe / 60)}:${String(safe % 60).padStart(2, '0')}`;
+  };
+
+  // Jouer une track IA
+  const playAITrack = (track: AITrack, generation: AIGeneration) => {
+    const toPlayerTrack = (sourceTrack: AITrack, sourceGeneration: AIGeneration): PlayerTrack => ({
+      _id: `ai-${sourceTrack.id}`,
+      title: sourceTrack.title,
+      artist: {
+        _id: (session?.user?.id as string) || 'ai-generator',
+        name: (session?.user as any)?.name || (session?.user as any)?.username || 'Artiste',
+        username: (session?.user as any)?.username || (session?.user as any)?.name || 'artiste',
+        avatar: (session?.user as any)?.avatar || (session?.user as any)?.image,
+      },
+      duration: sourceTrack.duration,
+      audioUrl: sourceTrack.audio_url,
+      coverUrl: sourceTrack.image_url || '/default-cover.svg',
+      coverVideoUrl: getTrackVideoMeta(sourceTrack).videoUrl,
+      coverVideoPosterUrl: getTrackVideoMeta(sourceTrack).posterUrl,
+      genre: ['IA', 'Généré'],
+      plays: sourceTrack.play_count,
+      likes: [],
+      comments: [],
+      lyrics: (sourceTrack.prompt || sourceGeneration.prompt || '').trim(),
+    });
+
+    const queue = filteredGenerations.flatMap((item) =>
+      (item.tracks || [])
+        .filter((sourceTrack) => sourceTrack?.audio_url)
+        .map((sourceTrack) => toPlayerTrack(sourceTrack, item)),
+    );
+    const selectedId = `ai-${track.id}`;
+    const startIndex = Math.max(0, queue.findIndex((item) => item._id === selectedId));
+    const nextQueue = queue.length ? queue : [toPlayerTrack(track, generation)];
+
+    setQueueAndPlay(nextQueue as any, startIndex >= 0 ? startIndex : 0);
+  };
+
+  const generateCoverVideo = async (track: AITrack, generation: AIGeneration) => {
+    if (!generation.task_id || !track.suno_id) {
+      notify.info('Video indisponible', 'Cette piste ne contient pas les IDs Suno requis.');
+      return;
+    }
+    setGeneratingVideoTrackId(track.id);
+    try {
+      const res = await fetch('/api/suno/generate-music-video', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ trackId: track.id, taskId: generation.task_id, audioId: track.suno_id }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.error || 'Erreur génération vidéo');
+      notify.success('Cover video demandee', 'Suno genere la video. Elle apparaitra automatiquement apres le callback.');
+      await loadLibrary();
+    } catch (error: any) {
+      notify.error('Erreur video', error?.message || 'Impossible de generer la cover video');
+    } finally {
+      setGeneratingVideoTrackId(null);
+    }
+  };
+
+  // Toggle favori
+  const toggleFavorite = async (generationId: string) => {
+    try {
+      const response = await fetch(`/api/ai/generations/${generationId}/favorite`, {
+        method: 'POST'
+      });
+      
+      if (response.ok) {
+        // Mettre à jour l'état local
+        setGenerations(prev => prev.map(g => 
+          g.id === generationId 
+            ? { ...g, is_favorite: !g.is_favorite }
+            : g
+        ));
+      }
+    } catch (error) {
+      console.error('Erreur toggle favori:', error);
+    }
+  };
+
+  // Télécharger une track
+  const downloadTrack = async (track: AITrack) => {
+    try {
+      const response = await fetch(track.audio_url);
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `synaura-${track.title || track.id}.wav`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Erreur téléchargement:', error);
+    }
+  };
+
+  // Re-synchroniser une génération (re-poll Suno puis sauvegarder)
+  const resyncGeneration = async (generation: AIGeneration) => {
+    try {
+      if (!generation.task_id) return;
+      const statusRes = await fetch(`/api/suno/status?taskId=${encodeURIComponent(generation.task_id)}`, { cache: 'no-store' });
+      const statusJson = await statusRes.json();
+      if (!statusRes.ok) throw new Error(statusJson?.error || 'Erreur polling');
+      const tracks = statusJson.tracks || [];
+      if (tracks.length > 0) {
+        const save = await fetch('/api/suno/save-tracks', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ taskId: generation.task_id, tracks, status: 'completed' })
+        });
+        if (save.ok) {
+          window.dispatchEvent(new CustomEvent('aiLibraryUpdated'));
+        }
+      }
+    } catch (e) {
+      console.error('Erreur resync:', e);
+    }
+  };
+
+  // Partager une génération
+  const shareGeneration = async (generation: AIGeneration) => {
+    try {
+      const shareData = {
+        title: 'Musique générée par Synaura',
+        text: `Écoutez "${generation.tracks?.[0]?.title || 'Ma musique IA'}" généré par IA`,
+        url: `${window.location.origin}/ai-library`
+      };
+
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(shareData.url);
+        notify.success('Lien copié', 'La bibliothèque IA est prête à partager.');
+      }
+    } catch (error) {
+      notify.info('Partage', 'Partage annulé ou indisponible.');
+    }
+  };
+
+  const publishTrack = async (track: AITrack) => {
+    try {
+      const response = await fetch(`/api/ai/tracks/${encodeURIComponent(track.id)}/visibility`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ isPublic: true }),
+      });
+      if (!response.ok) throw new Error('publish failed');
+      notify.success('Publié', `${track.title || 'Piste IA'} est visible sur Synaura.`);
+      loadLibrary();
+    } catch {
+      notify.error('Publication', 'Impossible de publier cette piste pour le moment.');
+    }
+  };
+
+  useEffect(() => {
+    loadLibrary();
+    const onUpdated = () => loadLibrary();
+    window.addEventListener('aiLibraryUpdated', onUpdated as EventListener);
+    return () => window.removeEventListener('aiLibraryUpdated', onUpdated as EventListener);
+  }, [session?.user?.id]);
+
+  if (!session) {
+    return (
+      <SynauraAppShell contentClassName="v2-creation v2-ai-library">
+        <SynauraRouteNav />
+        <SynauraPanel className="chambre-creation-access grid min-h-[420px] place-items-center p-8">
+        <div className="text-center">
+          <Music className="w-10 h-10 mx-auto mb-6 text-[var(--v2-accent)]" />
+          <h2 className="text-2xl font-bold mb-2">Connexion requise</h2>
+          <p className="text-gray-400">Connectez-vous pour accéder à votre bibliothèque IA</p>
+          <Link href="/auth/signin?callbackUrl=%2Fai-library" className="v2-create-primary mt-6">Se connecter</Link>
+        </div>
+        </SynauraPanel>
+      </SynauraAppShell>
+    );
+  }
+
+  return (
+    <SynauraAppShell contentClassName="v2-creation v2-ai-library chambre-signature-library !max-w-[1560px]">
+      <SynauraTopBar searchHref="/ai-library" searchLabel="Chercher une piste IA..." primaryHref="/ai-generator" primaryLabel="AI Generator" />
+      <SynauraRouteNav />
+      <main className="pb-32">
+        <div className="w-full overflow-hidden">
+          {/* Header */}
+          <header className="v2-creative-header chambre-creation-cover chambre-library-cover">
+            <div className="chambre-signature-library-title">
+              <p className="v2-kicker">L’atelier / Ta collection</p>
+              <h1>TES IDÉES.<br /><span>EN MATIÈRE.</span></h1>
+              <p>Écoute, retrouve une version, prépare une publication ou repars d’une piste avec AI Generator.</p>
+            </div>
+            <div className="chambre-signature-library-actions"><span className="v2-kicker">Le prochain son commence ici</span><Link href="/ai-generator" className="v2-create-primary"><Sparkles size={16} />Nouvelle création</Link></div>
+          <dl className="v2-library-stats chambre-signature-library-ledger">
+            <div><dd>{stats.total}</dd><dt>générations</dt></div>
+            <div><dd>{stats.favorites}</dd><dt>favoris</dt></div>
+            <div><dd>{Math.round(stats.totalDuration / 60)}</dd><dt>minutes</dt></div>
+          </dl>
+          </header>
+
+          {/* Filtres et recherche */}
+          <SynauraPanel className="v2-library-filters mb-8">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+              <div className="relative flex-1 max-w-xs sm:max-w-md">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[var(--text-muted)]" size={20} />
+                <input
+                  type="text"
+                  placeholder="Rechercher dans vos musiques IA..."
+                  aria-label="Rechercher dans mes créations IA"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 bg-[var(--bg)] rounded-xl border border-[var(--border)] focus:border-[var(--color-primary)] focus:outline-none text-[var(--text)] placeholder-[var(--text-muted)]"
+                />
+              </div>
+              <div className="flex items-center space-x-3">
+                <select
+                  value={modelFilter}
+                  onChange={(e) => setModelFilter(e.target.value as any)}
+                  className="px-3 py-3 bg-[var(--surface-2)] rounded-lg border border-[var(--border)] text-[var(--text)] focus:outline-none focus:ring-2 focus:ring-blue-400/30 focus:border-blue-400/50 transition-all duration-200 appearance-none cursor-pointer"
+                  aria-label="Filtrer par modèle"
+                  style={{
+                    backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e")`,
+                    backgroundPosition: 'right 12px center',
+                    backgroundRepeat: 'no-repeat',
+                    backgroundSize: '16px',
+                    paddingRight: '36px'
+                  }}
+                >
+                  <option value="all" className="bg-[var(--surface-2)] text-[var(--text)] py-2">Tous modèles</option>
+                  <option value="V5_5" className="bg-[var(--surface-2)] text-cyan-400 font-semibold py-2">V5.5</option>
+                  <option value="V5" className="bg-[var(--surface-2)] text-blue-400 font-semibold py-2">V5 (Beta)</option>
+                  <option value="V4_5PLUS" className="bg-[var(--surface-2)] text-purple-400 font-semibold py-2">V4.5+</option>
+                  <option value="V4_5" className="bg-[var(--surface-2)] text-[var(--text)] py-2">V4.5</option>
+                  <option value="V3_5" className="bg-[var(--surface-2)] text-[var(--text)] py-2">V3.5</option>
+                </select>
+                <div className="flex bg-[var(--surface-2)] rounded-lg p-1">
+                  <button
+                    onClick={() => setFilter('all')}
+                    aria-pressed={filter === 'all'}
+                    className={`px-3 py-2 rounded-md text-sm ${filter === 'all' ? 'bg-[var(--color-primary)] text-white' : 'text-[var(--text-muted)] hover:text-[var(--text)]'}`}
+                  >Tout</button>
+                  <button
+                    onClick={() => setFilter('favorites')}
+                    aria-pressed={filter === 'favorites'}
+                    className={`px-3 py-2 rounded-md text-sm ${filter === 'favorites' ? 'bg-[var(--color-primary)] text-white' : 'text-[var(--text-muted)] hover:text-[var(--text)]'}`}
+                  ><Heart className="w-4 h-4 inline mr-1" />Favoris</button>
+                  <button
+                    onClick={() => setFilter('recent')}
+                    aria-pressed={filter === 'recent'}
+                    className={`px-3 py-2 rounded-md text-sm ${filter === 'recent' ? 'bg-[var(--color-primary)] text-white' : 'text-[var(--text-muted)] hover:text-[var(--text)]'}`}
+                  ><Clock className="w-4 h-4 inline mr-1" />Récent</button>
+                </div>
+                <button
+                  onClick={loadLibrary}
+                  className="px-4 py-3 rounded-lg font-medium transition-colors bg-[var(--surface-2)] text-[var(--text)] hover:bg-[var(--surface-3)] flex items-center gap-2"
+                  title="Rafraîchir"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  Rafraîchir
+                </button>
+              </div>
+            </div>
+          </SynauraPanel>
+
+        {error && (
+          <div className="mb-4 p-3 rounded-lg border border-red-500/40 bg-red-500/10 text-red-300 text-sm">{error}</div>
+        )}
+
+          {/* Liste des générations */}
+          {loading ? (
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-400 mx-auto"></div>
+            <p className="text-[var(--text-muted)] mt-4">Chargement de votre bibliothèque...</p>
+          </div>
+          ) : (generations.length === 0 && allTracks.length === 0) ? (
+            <SynauraPanel className="chambre-signature-library-empty p-8 text-center">
+              <div className="mx-auto mb-4 grid h-16 w-16 place-items-center rounded-[1.3rem] bg-[var(--v2-raised)] text-[var(--v2-muted)]">
+                <Music className="w-7 h-7" />
+              </div>
+              <h3 className="text-xl font-semibold tracking-[-0.03em] text-[var(--v2-text)]">Aucune génération IA pour le moment</h3>
+              <p className="mx-auto mt-2 max-w-md text-sm font-semibold leading-6 text-[var(--v2-muted)]">
+                {searchQuery ? 'Aucun résultat pour cette recherche. Essaie un titre, un style ou un prompt différent.' : 'Ouvre le Studio IA pour créer ta première piste, puis reviens ici pour la rejouer, publier ou remixer.'}
+              </p>
+              <Link href="/ai-generator" className="mt-5 inline-flex h-11 items-center gap-2 rounded-full bg-[var(--v2-surface)] px-5 text-sm font-semibold text-white transition hover:scale-[1.02]">
+                <Sparkles className="h-4 w-4" />
+                Ouvrir le Studio IA
+              </Link>
+            </SynauraPanel>
+          ) : (
+            <SynauraPanel className="chambre-signature-library-collection p-3 sm:p-6">
+              <div className="chambre-signature-library-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {generations.map((generation, index) => (
+              <motion.div
+                key={generation.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+                className="chambre-signature-generation rounded-lg p-6 border border-[var(--border)] hover:bg-[var(--v2-raised)] transition-colors"
+              >
+                {/* Header de la génération */}
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-lg mb-1">
+                      {generation.tracks?.[0]?.title || 'Musique générée'}
+                    </h3>
+                    <p className="text-[var(--text-muted)] text-sm line-clamp-2">
+                      {generation.prompt}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => toggleFavorite(generation.id)}
+                    aria-label={generation.is_favorite ? 'Retirer cette génération des favoris' : 'Ajouter cette génération aux favoris'}
+                    className={`p-2 rounded-full transition-colors ${
+                      generation.is_favorite 
+                        ? 'text-red-400 bg-red-400/10' 
+                        : 'text-gray-400 hover:text-red-400'
+                    }`}
+                  >
+                    <Heart className={`w-5 h-5 ${generation.is_favorite ? 'fill-current' : ''}`} />
+                  </button>
+                </div>
+
+                {/* Tracks */}
+                <div className="chambre-signature-generation-versions space-y-3 mb-4">
+                  {generation.tracks?.map((track) => {
+                    const videoMeta = getTrackVideoMeta(track);
+                    const canGenerateVideo = Boolean(generation.task_id && track.suno_id);
+                    return (
+                    <div key={track.id} className="chambre-signature-version-row flex items-center gap-3 p-3 bg-[var(--v2-raised)] rounded-lg">
+                      <div className="chambre-signature-version-art w-12 h-12 rounded-lg overflow-hidden border border-[var(--border)] bg-[var(--surface-2)] flex items-center justify-center">
+                        <TrackCover src={track.image_url || null} videoSrc={videoMeta.videoUrl} posterSrc={videoMeta.posterUrl || track.image_url || null} title={track.title} className="h-full w-full" rounded="rounded-none" objectFit="cover" />
+                      </div>
+                      <div className="chambre-signature-version-identity flex-1 min-w-0">
+                        <h4 className="font-medium truncate">{track.title}</h4>
+                        <p className="text-[var(--text-muted)] text-sm">
+                          {formatDuration(track.duration)}
+                        </p>
+                      </div>
+                      <div className="chambre-signature-version-actions flex gap-2">
+                        <button
+                          onClick={() => playAITrack(track, generation)}
+                          aria-label={`Écouter ${track.title}`}
+                          className="p-2 bg-[var(--color-primary)] hover:bg-[var(--color-primary-hover)] rounded-lg transition-colors"
+                        >
+                          <Play className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => downloadTrack(track)}
+                          aria-label={`Télécharger ${track.title}`}
+                          className="p-2 bg-[var(--v2-raised)] hover:bg-[var(--v2-raised)] rounded-lg transition-colors"
+                        >
+                          <Download className="w-4 h-4" />
+                        </button>
+                        <Link href={studioLinkForTrack(track, 'style')} className="p-2 bg-[var(--v2-raised)] hover:bg-[var(--v2-raised)] rounded-lg transition-colors" title="Créer une variation">
+                          <Sparkles className="w-4 h-4" />
+                        </Link>
+                        <Link href={studioLinkForTrack(track, 'remix')} className="p-2 bg-[var(--v2-raised)] hover:bg-[var(--v2-raised)] rounded-lg transition-colors" title="Remixer">
+                          <Repeat2 className="w-4 h-4" />
+                        </Link>
+                        <button onClick={() => publishTrack(track)} className="p-2 bg-[var(--v2-raised)] hover:bg-[var(--v2-raised)] rounded-lg transition-colors" title="Publier">
+                          <UploadCloud className="w-4 h-4" />
+                        </button>
+                        {canGenerateVideo ? (
+                          <button
+                            onClick={() => generateCoverVideo(track, generation)}
+                            disabled={generatingVideoTrackId === track.id}
+                            className="p-2 bg-[var(--v2-raised)] hover:bg-[var(--v2-raised)] rounded-lg transition-colors disabled:opacity-40"
+                            title={videoMeta.videoUrl ? 'Regenerer une cover video (100 credits)' : 'Generer une cover video (100 credits)'}
+                          >
+                            {generatingVideoTrackId === track.id ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Video className="w-4 h-4" />}
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+                    );
+                  })}
+                  {(!generation.tracks || generation.tracks.length === 0) && (
+                    <div className="p-3 bg-[var(--v2-raised)] rounded-lg flex items-center justify-between">
+                      <span className="text-[var(--text)] text-sm">Aucune piste encore enregistrée pour cette génération.</span>
+                      {generation.task_id && (
+                        <button onClick={() => resyncGeneration(generation)} className="px-3 py-2 bg-[var(--surface-2)] hover:bg-[var(--surface-3)] rounded-lg text-sm flex items-center gap-2">
+                          <RefreshCw className="w-4 h-4" /> Re-synchroniser
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Footer */}
+                <div className="flex items-center justify-between text-sm text-[var(--text-muted)]">
+                  <div className="flex items-center gap-4">
+                    <span>{new Date(generation.created_at).toLocaleDateString()}</span>
+                    <span>{generation.model}</span>
+                  </div>
+                  <button
+                    onClick={() => shareGeneration(generation)}
+                    aria-label="Partager cette génération"
+                    className="p-2 hover:bg-[var(--v2-raised)] rounded-lg transition-colors"
+                  >
+                    <Share2 className="w-4 h-4" />
+                  </button>
+                </div>
+                <div className="mt-3 flex items-center justify-end">
+                    <Link href="/ai-generator" className="text-[var(--v2-accent)] hover:opacity-90 text-sm inline-flex items-center gap-2">
+                    <LinkIcon className="w-4 h-4" /> Ouvrir AI Generator
+                  </Link>
+                </div>
+              </motion.div>
+            ))}
+              </div>
+            </SynauraPanel>
+          )}
+
+          {/* Liste globale des pistes IA */}
+          {allTracks.length > 0 && (
+            <SynauraPanel className="chambre-signature-library-all mt-8 p-3 sm:p-6">
+              <h2 className="text-xl font-semibold mb-4">Toutes mes pistes IA</h2>
+              <div className="chambre-signature-library-all-grid grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {allTracks.map((track) => {
+                const generation = (track as any).generation || syntheticGenerationForTrack(track);
+                const taskId = generation?.task_id || (track as any).generationTaskId || '';
+                const videoMeta = getTrackVideoMeta(track);
+                const canGenerateVideo = Boolean(taskId && track.suno_id);
+                return (
+                <div key={track.id} className="chambre-signature-version-row flex items-center gap-3 py-4 border-b border-[var(--v2-line)]">
+                  <div className="chambre-signature-version-art w-12 h-12 rounded-lg overflow-hidden bg-[var(--v2-raised)] flex items-center justify-center">
+                    <TrackCover src={track.image_url || null} videoSrc={videoMeta.videoUrl} posterSrc={videoMeta.posterUrl || track.image_url || null} title={track.title} className="h-full w-full" rounded="rounded-none" objectFit="cover" />
+                  </div>
+                  <div className="chambre-signature-version-identity flex-1 min-w-0">
+                    <h4 className="font-medium truncate">{track.title}</h4>
+                    <p className="text-[var(--text-muted)] text-sm">{formatDuration(track.duration)}</p>
+                  </div>
+                  <div className="chambre-signature-version-actions flex gap-2">
+                    <button aria-label={`Écouter ${track.title}`} onClick={() => playAITrack(track as any, generation)} className="min-h-10 min-w-10 grid place-items-center bg-[var(--v2-raised)] hover:bg-[var(--v2-selected)] rounded-lg transition-colors">
+                      <Play className="w-4 h-4" />
+                    </button>
+                    <button aria-label={`Télécharger ${track.title}`} onClick={() => downloadTrack(track)} className="min-h-10 min-w-10 grid place-items-center bg-[var(--v2-raised)] hover:bg-[var(--v2-selected)] rounded-lg transition-colors">
+                      <Download className="w-4 h-4" />
+                    </button>
+                    <Link href={studioLinkForTrack(track, 'style')} aria-label={`Créer une variation de ${track.title}`} className="p-2 bg-[var(--v2-raised)] hover:bg-[var(--v2-raised)] rounded-lg transition-colors">
+                      <Sparkles className="w-4 h-4" />
+                    </Link>
+                    <Link href={studioLinkForTrack(track, 'remix')} aria-label={`Remixer ${track.title}`} className="p-2 bg-[var(--v2-raised)] hover:bg-[var(--v2-raised)] rounded-lg transition-colors">
+                      <Repeat2 className="w-4 h-4" />
+                    </Link>
+                    {canGenerateVideo ? (
+                      <button
+                        onClick={() => generateCoverVideo(track, { ...generation, task_id: taskId } as AIGeneration)}
+                        disabled={generatingVideoTrackId === track.id}
+                        className="p-2 bg-[var(--v2-raised)] hover:bg-[var(--v2-raised)] rounded-lg transition-colors disabled:opacity-40"
+                        title={videoMeta.videoUrl ? 'Regenerer une cover video (100 credits)' : 'Generer une cover video (100 credits)'}
+                      >
+                        {generatingVideoTrackId === track.id ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Video className="w-4 h-4" />}
+                      </button>
+                    ) : null}
+                  </div>
+                </div>
+                );
+              })}
+              </div>
+            </SynauraPanel>
+          )}
+        </div>
+      </main>
+    </SynauraAppShell>
+  );
+}

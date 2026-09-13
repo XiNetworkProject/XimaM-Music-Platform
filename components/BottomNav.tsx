@@ -113,7 +113,7 @@ export default function BottomNav() {
               type="button"
               onClick={() => session ? setShowMore(v => !v) : go('/auth/signin')}
               className="flex flex-col items-center justify-center gap-0.5 w-16 h-full active:opacity-70 transition-opacity"
-              aria-label="Profil"
+              aria-label={session ? 'Profil' : 'Connexion'}
             >
               {session && avatarUrl ? (
                 <img
@@ -202,7 +202,7 @@ export default function BottomNav() {
                       <p className="text-[13px] font-bold text-syn-textPrimary truncate">Star Academy TikTok</p>
                       <p className="text-[11px] text-syn-accentCoral">Inscriptions le 17 mars 2026</p>
                     </div>
-                    <span className="text-[10px] font-bold bg-syn-accentCoral text-white px-2 py-0.5 rounded-full shrink-0 animate-pulse">
+                    <span className="text-[10px] font-bold bg-[var(--v2-accent-fill)] text-white px-2 py-0.5 rounded-full shrink-0 animate-pulse">
                       NEW
                     </span>
                   </Link>

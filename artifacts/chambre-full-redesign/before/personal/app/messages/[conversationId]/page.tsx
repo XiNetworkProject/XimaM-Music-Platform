@@ -1,0 +1,2555 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { SynauraImage } from '@/components/ui/SynauraImage';
+import { useParams } from "next/navigation";
+import { useHandoffRouter as useRouter } from '@/hooks/useHandoffRouter';
+import { messageOriginReturn } from '@/lib/creationHandoffClient';
+import { useSession } from "next-auth/react";
+import { AnimatePresence, motion } from "framer-motion";
+import {
+  Archive,
+  ArrowLeft,
+  Bell,
+  BellOff,
+  Check,
+  CheckCheck,
+  Flame,
+  HeartHandshake,
+  Heart,
+  Image as ImageIcon,
+  Laugh,
+  Loader2,
+  MessageCircle,
+  Mic,
+  MoreHorizontal,
+  Music2,
+  Paperclip,
+  Pause,
+  Play,
+  Send,
+  Hash,
+  Lock,
+  LogOut,
+  Palette,
+  Plus,
+  Reply,
+  RotateCcw,
+  Square,
+  Sparkles,
+  Trash2,
+  ShieldCheck,
+  Shield,
+  UserPlus,
+  UserMinus,
+  UserX,
+  X,
+} from "lucide-react";
+import Avatar from "@/components/Avatar";
+import { cleanupLocalMediaUploads, uploadLocalMedia } from "@/lib/clientMediaUpload";
+import { toPublicMediaUrl } from "@/lib/mediaUrls";
+import { notify } from "@/components/NotificationCenter";
+import { coordinateSecondaryAudioElement } from "@/lib/audio/AudioCore";
+
+type MessagingProfile = {
+  id: string;
+  name: string;
+  username: string;
+  avatar: string | null;
+  isVerified?: boolean;
+  lastSeen?: string | null;
+};
+
+type MessagingContact = {
+  friendshipId: string;
+  user: MessagingProfile;
+  conversationId: string | null;
+  friendsSince: string;
+};
+
+type MessageReaction = { userId: string; reaction: ReactionName };
+type ReactionName = "heart" | "fire" | "wow" | "support" | "laugh";
+
+type Message = {
+  id: string;
+  sender: MessagingProfile;
+  type:
+    | "text"
+    | "image"
+    | "video"
+    | "audio"
+    | "track"
+    | "clip"
+    | "post"
+    | "playlist"
+    | "deleted";
+  content: string;
+  mediaUrl: string | null;
+  sharedEntityType: string | null;
+  sharedEntityId: string | null;
+  metadata: Record<string, string | number>;
+  replyToId: string | null;
+  replyTo: {
+    id: string;
+    senderId: string;
+    senderName: string;
+    type: string;
+    content: string;
+  } | null;
+  roomId: string | null;
+  seenBy: string[];
+  reactions: MessageReaction[];
+  createdAt: string;
+  deleted: boolean;
+};
+
+type ConversationPreferences = {
+  nickname: string | null;
+  themeKey: "aura" | "ocean" | "coral" | "rose" | "graphite";
+  accentColor: "#7357C6" | "#4A9EAA" | "#D96D63" | "#C85D82" | "#111111";
+  backgroundKey: "quiet" | "aurora" | "cover" | "midnight";
+  wallpaperUrl: string | null;
+  bubbleEnabled: boolean;
+};
+
+type ConversationRoom = {
+  id: string;
+  name: string;
+  type: "text" | "voice_notes";
+  position: number;
+  createdBy: string | null;
+};
+
+type ConversationInfo = {
+  id: string;
+  name?: string | null;
+  description?: string | null;
+  avatarUrl?: string | null;
+  ownerId?: string | null;
+  type: "direct" | "group";
+  participants: MessagingProfile[];
+  otherUser: MessagingProfile | null;
+  canMessage: boolean;
+  blocked: boolean;
+  muted: boolean;
+  preferences: ConversationPreferences;
+  rooms: ConversationRoom[];
+  activeRoomId: string | null;
+  participantRoles?: Array<{
+    userId: string;
+    role: "owner" | "moderator" | "member";
+    nickname: string | null;
+  }>;
+};
+
+const THEME_OPTIONS: Array<{
+  key: ConversationPreferences["themeKey"];
+  label: string;
+  color: ConversationPreferences["accentColor"];
+}> = [
+  { key: "aura", label: "Aura", color: "#7357C6" },
+  { key: "ocean", label: "Onde", color: "#4A9EAA" },
+  { key: "coral", label: "Corail", color: "#D96D63" },
+  { key: "rose", label: "Velours", color: "#C85D82" },
+  { key: "graphite", label: "Graphite", color: "#111111" },
+];
+
+const BACKGROUND_OPTIONS: Array<{
+  key: ConversationPreferences["backgroundKey"];
+  label: string;
+}> = [
+  { key: "quiet", label: "Calme" },
+  { key: "aurora", label: "Aura" },
+  { key: "cover", label: "Pochette" },
+  { key: "midnight", label: "Minuit" },
+];
+
+const REACTIONS: Array<{
+  value: ReactionName;
+  label: string;
+  icon: typeof Heart;
+}> = [
+  { value: "heart", label: "J’aime", icon: Heart },
+  { value: "fire", label: "Fort", icon: Flame },
+  { value: "wow", label: "Waouh", icon: Sparkles },
+  { value: "support", label: "Soutien", icon: HeartHandshake },
+  { value: "laugh", label: "Drôle", icon: Laugh },
+];
+
+function formatClock(value: string) {
+  return new Date(value).toLocaleTimeString("fr-FR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function dayKey(value: string) {
+  const date = new Date(value);
+  return Number.isFinite(date.getTime())
+    ? `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`
+    : value;
+}
+
+function formatDay(value: string) {
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "";
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  if (dayKey(value) === dayKey(today.toISOString())) return "Aujourd'hui";
+  if (dayKey(value) === dayKey(yesterday.toISOString())) return "Hier";
+  return date.toLocaleDateString("fr-FR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    ...(date.getFullYear() !== today.getFullYear() ? { year: "numeric" } : {}),
+  });
+}
+
+function messagePreview(message: Message) {
+  if (message.deleted) return "Message supprimé";
+  if (message.type === "text") return message.content || "Message";
+  if (message.type === "audio") return "Message vocal";
+  if (message.type === "image") return "Photo";
+  if (message.type === "video") return "Vidéo";
+  return message.content || `Contenu ${message.type}`;
+}
+
+function formatDuration(value: number) {
+  const seconds = Math.max(0, Math.floor(value || 0));
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+}
+
+function mergeMessages(previous: Message[], incoming: Message[]) {
+  const byId = new Map(previous.map((message) => [message.id, message]));
+  incoming.forEach((message) => byId.set(message.id, message));
+  return Array.from(byId.values()).sort(
+    (first, second) =>
+      new Date(first.createdAt).getTime() - new Date(second.createdAt).getTime()
+  );
+}
+
+export default function ConversationPage() {
+  const { data: session, status } = useSession();
+  const router = useRouter();
+  const params = useParams<{ conversationId: string }>();
+  const conversationId = params.conversationId;
+  const [conversation, setConversation] = useState<ConversationInfo | null>(
+    null
+  );
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [hasMore, setHasMore] = useState(false);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [sending, setSending] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const [recordingBlob, setRecordingBlob] = useState<Blob | null>(null);
+  const [recordingLocked, setRecordingLocked] = useState(false);
+  const [recordingCancelArmed, setRecordingCancelArmed] = useState(false);
+  const [previewPlaying, setPreviewPlaying] = useState(false);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [playingMessageId, setPlayingMessageId] = useState<string | null>(null);
+  const [reactionPickerId, setReactionPickerId] = useState<string | null>(null);
+  const [messageMenuId, setMessageMenuId] = useState<string | null>(null);
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null);
+  const [reactionBurst, setReactionBurst] = useState<{ id: string; reaction: ReactionName } | null>(null);
+  const [conversationMenuOpen, setConversationMenuOpen] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<"remove" | "block" | null>(
+    null
+  );
+  const [muted, setMuted] = useState(false);
+  const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
+  const [customizeOpen, setCustomizeOpen] = useState(false);
+  const [preferenceDraft, setPreferenceDraft] =
+    useState<ConversationPreferences | null>(null);
+  const [savingPreferences, setSavingPreferences] = useState(false);
+  const [roomCreatorOpen, setRoomCreatorOpen] = useState(false);
+  const [roomName, setRoomName] = useState("");
+  const [roomType, setRoomType] = useState<"text" | "voice_notes">("text");
+  const [roomBusy, setRoomBusy] = useState(false);
+  const [contacts, setContacts] = useState<MessagingContact[]>([]);
+  const [contactsLoading, setContactsLoading] = useState(false);
+  const [memberPickerOpen, setMemberPickerOpen] = useState(false);
+  const [memberSearch, setMemberSearch] = useState("");
+  const [memberBusyId, setMemberBusyId] = useState<string | null>(null);
+  const [memberConfirm, setMemberConfirm] = useState<{
+    action: "remove" | "leave";
+    user?: MessagingProfile;
+  } | null>(null);
+
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const mediaChunksRef = useRef<Blob[]>([]);
+  const recordingTimerRef = useRef<number | null>(null);
+  const recordingGestureRef = useRef({
+    x: 0,
+    y: 0,
+    locked: false,
+    cancel: false,
+  });
+  const recordingStartPromiseRef = useRef<Promise<boolean> | null>(null);
+  const discardRecordingRef = useRef(false);
+  const previewAudioRef = useRef<HTMLAudioElement | null>(null);
+  const currentAudioRef = useRef<HTMLAudioElement | null>(null);
+  const currentAudioCleanupRef = useRef<(() => void) | null>(null);
+  const initialScrollDone = useRef(false);
+  const nearBottomRef = useRef(true);
+  const loadedRoomRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    const roomId = new URLSearchParams(window.location.search).get("room");
+    if (roomId) setActiveRoomId(roomId);
+  }, []);
+
+  const markSeen = useCallback(async () => {
+    if (!conversationId) return;
+    await fetch(`/api/messages/${encodeURIComponent(conversationId)}/seen`, {
+      method: "PUT",
+    }).catch(() => null);
+  }, [conversationId]);
+
+  const loadMessages = useCallback(
+    async (options?: { quiet?: boolean; before?: string | null }) => {
+      if (!conversationId) return;
+      const before = options?.before;
+      if (before) setLoadingOlder(true);
+      else if (!options?.quiet) setLoading(true);
+      try {
+        const query = new URLSearchParams({ limit: "50" });
+        if (before) query.set("before", before);
+        if (activeRoomId) query.set("roomId", activeRoomId);
+        const response = await fetch(
+          `/api/messages/${encodeURIComponent(
+            conversationId
+          )}?${query.toString()}`,
+          { cache: "no-store" }
+        );
+        const payload = await response.json().catch(() => null);
+        if (!response.ok)
+          throw new Error(payload?.error || "Discussion indisponible");
+        setConversation(payload.conversation || null);
+        setMuted(Boolean(payload.conversation?.muted));
+        const incoming = Array.isArray(payload.messages)
+          ? payload.messages
+          : [];
+        const responseRoomId = payload.conversation?.activeRoomId || null;
+        if (!activeRoomId && responseRoomId) setActiveRoomId(responseRoomId);
+        if (!before && loadedRoomRef.current !== responseRoomId) {
+          loadedRoomRef.current = responseRoomId;
+          initialScrollDone.current = false;
+          setMessages(incoming);
+        } else {
+          setMessages((previous) =>
+            before
+              ? mergeMessages(incoming, previous)
+              : mergeMessages(previous, incoming)
+          );
+        }
+        if (!before) {
+          setHasMore(Boolean(payload.hasMore));
+          setNextCursor(payload.nextCursor || null);
+        } else {
+          setHasMore(Boolean(payload.hasMore));
+          setNextCursor(payload.nextCursor || null);
+        }
+        const currentUserId = session?.user?.id;
+        if (
+          !before &&
+          currentUserId &&
+          incoming.some(
+            (message: Message) =>
+              message.sender.id !== currentUserId &&
+              !message.seenBy.includes(currentUserId)
+          )
+        )
+          void markSeen();
+      } catch (error) {
+        if (!options?.quiet)
+          notify.error(
+            "Messages",
+            error instanceof Error ? error.message : "Chargement impossible"
+          );
+      } finally {
+        setLoading(false);
+        setLoadingOlder(false);
+      }
+    },
+    [activeRoomId, conversationId, markSeen, session?.user?.id]
+  );
+
+  useEffect(() => {
+    if (session?.user?.id && conversationId) void loadMessages();
+  }, [conversationId, loadMessages, session?.user?.id]);
+
+  useEffect(() => {
+    if (!customizeOpen || conversation?.type !== "group") return;
+    const controller = new AbortController();
+    setContactsLoading(true);
+    void fetch("/api/messages/contacts", {
+      cache: "no-store",
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        const payload = await response.json().catch(() => null);
+        if (!response.ok)
+          throw new Error(payload?.error || "Contacts indisponibles");
+        setContacts(Array.isArray(payload?.contacts) ? payload.contacts : []);
+      })
+      .catch((error) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        notify.error(
+          "Membres",
+          error instanceof Error ? error.message : "Contacts indisponibles"
+        );
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setContactsLoading(false);
+      });
+    return () => controller.abort();
+  }, [conversation?.type, customizeOpen]);
+
+  useEffect(() => {
+    if (!session?.user?.id || !conversationId) return;
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "visible")
+        void loadMessages({ quiet: true });
+    }, 4_000);
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        void loadMessages({ quiet: true });
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [conversationId, loadMessages, session?.user?.id]);
+
+  useEffect(() => {
+    const outer = document.querySelector(
+      ".app-scroll-container"
+    ) as HTMLElement | null;
+    if (!outer) return;
+    const previous = outer.style.overflow;
+    outer.style.overflow = "hidden";
+    return () => {
+      outer.style.overflow = previous;
+    };
+  }, []);
+
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container || !messages.length) return;
+    if (!initialScrollDone.current) {
+      container.scrollTop = container.scrollHeight;
+      initialScrollDone.current = true;
+      return;
+    }
+    if (nearBottomRef.current)
+      container.scrollTo({ top: container.scrollHeight, behavior: "smooth" });
+  }, [messages.length]);
+
+  useEffect(
+    () => () => {
+      currentAudioRef.current?.pause();
+      currentAudioCleanupRef.current?.();
+      if (recordingTimerRef.current)
+        window.clearInterval(recordingTimerRef.current);
+      if (mediaRecorderRef.current?.state === "recording")
+        mediaRecorderRef.current.stop();
+    },
+    []
+  );
+
+  const sendPayload = async (payload: Record<string, unknown>) => {
+    const response = await fetch(
+      `/api/messages/${encodeURIComponent(conversationId)}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...payload,
+          replyToId:
+            payload.replyToId === undefined
+              ? replyingTo?.id || null
+              : payload.replyToId,
+          roomId: activeRoomId || conversation?.activeRoomId || null,
+        }),
+      }
+    );
+    const body = await response.json().catch(() => null);
+    if (!response.ok || !body?.message)
+      throw new Error(body?.error || "Envoi impossible");
+    nearBottomRef.current = true;
+    setMessages((previous) => mergeMessages(previous, [body.message]));
+    setReplyingTo(null);
+    return body.message as Message;
+  };
+
+  const sendText = async () => {
+    const content = draft.trim();
+    if (!content || sending || !conversation?.canMessage) return;
+    setSending(true);
+    setDraft("");
+    try {
+      await sendPayload({ type: "text", content });
+    } catch (error) {
+      setDraft(content);
+      notify.error(
+        "Message non envoyé",
+        error instanceof Error ? error.message : "Réessaie dans un instant"
+      );
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const uploadAndSend = async (
+    file: File,
+    type: "image" | "video" | "audio",
+    duration?: number
+  ) => {
+    setUploading(true);
+    let uploadedPublicId: string | null = null;
+    try {
+      const uploaded = await uploadLocalMedia(file, `message-${type}` as 'message-image' | 'message-video' | 'message-audio');
+      uploadedPublicId = uploaded.public_id;
+      await sendPayload({
+        type,
+        mediaUrl: uploaded.secure_url,
+        metadata: { duration: Number(uploaded.duration || duration || 0) },
+      });
+    } catch (error) {
+      await cleanupLocalMediaUploads([uploadedPublicId]);
+      notify.error(
+        "Pièce jointe non envoyée",
+        error instanceof Error ? error.message : "Réessaie dans un instant"
+      );
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const onFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    if (file.size > 25 * 1024 * 1024) {
+      notify.error("Fichier trop volumineux", "La limite est de 25 Mo.");
+      return;
+    }
+    const type = file.type.startsWith("image/")
+      ? "image"
+      : file.type.startsWith("video/")
+      ? "video"
+      : file.type.startsWith("audio/")
+      ? "audio"
+      : null;
+    if (!type) {
+      notify.error(
+        "Format non pris en charge",
+        "Choisis une image, une vidéo ou un fichier audio."
+      );
+      return;
+    }
+    await uploadAndSend(file, type);
+  };
+
+  const startRecording = async () => {
+    if (mediaRecorderRef.current?.state === "recording" || uploading)
+      return false;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const preferred = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
+        ? "audio/webm;codecs=opus"
+        : "";
+      const recorder = new MediaRecorder(
+        stream,
+        preferred ? { mimeType: preferred } : undefined
+      );
+      mediaChunksRef.current = [];
+      discardRecordingRef.current = false;
+      recorder.ondataavailable = (event) => {
+        if (event.data.size) mediaChunksRef.current.push(event.data);
+      };
+      recorder.onstop = () => {
+        stream.getTracks().forEach((track) => track.stop());
+        const blob = new Blob(mediaChunksRef.current, {
+          type: recorder.mimeType || "audio/webm",
+        });
+        if (!discardRecordingRef.current && blob.size) setRecordingBlob(blob);
+      };
+      mediaRecorderRef.current = recorder;
+      recorder.start(500);
+      setRecordingSeconds(0);
+      setRecordingBlob(null);
+      setPreviewPlaying(false);
+      setRecordingLocked(false);
+      setRecordingCancelArmed(false);
+      setIsRecording(true);
+      recordingTimerRef.current = window.setInterval(
+        () => setRecordingSeconds((value) => value + 1),
+        1_000
+      );
+      return true;
+    } catch {
+      notify.error(
+        "Microphone indisponible",
+        "Autorise l’accès au microphone pour envoyer un message audio."
+      );
+      return false;
+    }
+  };
+
+  const stopRecording = () => {
+    if (!isRecording) return;
+    mediaRecorderRef.current?.stop();
+    setIsRecording(false);
+    setRecordingLocked(false);
+    setRecordingCancelArmed(false);
+    if (recordingTimerRef.current)
+      window.clearInterval(recordingTimerRef.current);
+    recordingTimerRef.current = null;
+  };
+
+  const cancelRecording = () => {
+    discardRecordingRef.current = true;
+    if (mediaRecorderRef.current?.state === "recording")
+      mediaRecorderRef.current.stop();
+    setIsRecording(false);
+    setRecordingLocked(false);
+    setRecordingCancelArmed(false);
+    if (recordingTimerRef.current)
+      window.clearInterval(recordingTimerRef.current);
+    recordingTimerRef.current = null;
+    previewAudioRef.current?.pause();
+    setPreviewPlaying(false);
+    setRecordingBlob(null);
+    setRecordingSeconds(0);
+  };
+
+  const sendRecording = async () => {
+    if (!recordingBlob) return;
+    const file = new File([recordingBlob], `message-audio-${Date.now()}.webm`, {
+      type: recordingBlob.type || "audio/webm",
+    });
+    await uploadAndSend(file, "audio", recordingSeconds);
+    previewAudioRef.current?.pause();
+    setPreviewPlaying(false);
+    setRecordingBlob(null);
+    setRecordingSeconds(0);
+  };
+
+  useEffect(() => {
+    if (!recordingBlob) {
+      setPreviewUrl(null);
+      return undefined;
+    }
+    const url = URL.createObjectURL(recordingBlob);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [recordingBlob]);
+
+  const beginVoiceHold = (event: React.PointerEvent<HTMLButtonElement>) => {
+    if (draft.trim() || uploading) return;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    recordingGestureRef.current = {
+      x: event.clientX,
+      y: event.clientY,
+      locked: false,
+      cancel: false,
+    };
+    recordingStartPromiseRef.current = startRecording();
+  };
+
+  const moveVoiceHold = (event: React.PointerEvent<HTMLButtonElement>) => {
+    if (mediaRecorderRef.current?.state !== "recording") return;
+    const gesture = recordingGestureRef.current;
+    const cancel = event.clientX - gesture.x < -82 && !gesture.locked;
+    if (cancel !== gesture.cancel) {
+      gesture.cancel = cancel;
+      setRecordingCancelArmed(cancel);
+    }
+    if (event.clientY - gesture.y < -76 && !gesture.locked) {
+      gesture.locked = true;
+      gesture.cancel = false;
+      setRecordingLocked(true);
+      setRecordingCancelArmed(false);
+    }
+  };
+
+  const endVoiceHold = async () => {
+    if (recordingStartPromiseRef.current)
+      await recordingStartPromiseRef.current;
+    const gesture = recordingGestureRef.current;
+    if (gesture.cancel) cancelRecording();
+    else if (!gesture.locked) stopRecording();
+  };
+
+  const playAudio = (message: Message) => {
+    const source = toPublicMediaUrl(message.mediaUrl || message.content);
+    if (!source) return;
+    if (playingMessageId === message.id) {
+      currentAudioRef.current?.pause();
+      currentAudioCleanupRef.current?.();
+      currentAudioCleanupRef.current = null;
+      setPlayingMessageId(null);
+      return;
+    }
+    currentAudioRef.current?.pause();
+    currentAudioCleanupRef.current?.();
+    const audio = new Audio(source);
+    currentAudioRef.current = audio;
+    currentAudioCleanupRef.current = coordinateSecondaryAudioElement(audio, "voice-message");
+    setPlayingMessageId(message.id);
+    const finish = () => {
+      currentAudioCleanupRef.current?.();
+      currentAudioCleanupRef.current = null;
+      setPlayingMessageId(null);
+    };
+    audio.onended = finish;
+    audio.onerror = finish;
+    void audio.play().catch(() => {
+      currentAudioCleanupRef.current?.();
+      currentAudioCleanupRef.current = null;
+      setPlayingMessageId(null);
+      notify.error(
+        "Lecture impossible",
+        "Ce message audio ne peut pas être lu."
+      );
+    });
+  };
+
+  const reactToMessage = async (message: Message, reaction: ReactionName) => {
+    const existing = message.reactions.find(
+      (item) => item.userId === session?.user?.id
+    );
+    const remove = existing?.reaction === reaction;
+    setReactionPickerId(null);
+    setMessages((previous) =>
+      previous.map((item) =>
+        item.id === message.id
+          ? {
+              ...item,
+              reactions: remove
+                ? item.reactions.filter(
+                    (entry) => entry.userId !== session?.user?.id
+                  )
+                : [
+                    ...item.reactions.filter(
+                      (entry) => entry.userId !== session?.user?.id
+                    ),
+                    { userId: session!.user!.id!, reaction },
+                  ],
+            }
+          : item
+      )
+    );
+    try {
+      const response = await fetch(
+        `/api/messages/${conversationId}/${message.id}/reactions`,
+        {
+          method: remove ? "DELETE" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body: remove ? undefined : JSON.stringify({ reaction }),
+        }
+      );
+      if (!response.ok) throw new Error();
+      if (!remove) {
+        setReactionBurst({ id: message.id, reaction });
+        window.setTimeout(
+          () => setReactionBurst((current) => (current?.id === message.id ? null : current)),
+          620
+        );
+      }
+    } catch {
+      void loadMessages({ quiet: true });
+      notify.error("Réaction", "La réaction n’a pas pu être enregistrée.");
+    }
+  };
+
+  const deleteMessage = async (message: Message) => {
+    setMessageMenuId(null);
+    try {
+      const response = await fetch(
+        `/api/messages/${conversationId}/${message.id}`,
+        { method: "DELETE" }
+      );
+      if (!response.ok) throw new Error();
+      setMessages((previous) =>
+        previous.map((item) =>
+          item.id === message.id
+            ? {
+                ...item,
+                deleted: true,
+                type: "deleted",
+                content: "Message supprimé",
+                mediaUrl: null,
+                reactions: [],
+              }
+            : item
+        )
+      );
+    } catch {
+      notify.error("Message", "Suppression impossible.");
+    }
+  };
+
+  const updateConversation = async (action: "archive" | "mute" | "unmute") => {
+    setConversationMenuOpen(false);
+    try {
+      const response = await fetch(`/api/messages/${conversationId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(payload?.error || "Action impossible");
+      if (action === "archive") router.push("/messages");
+      else setMuted(action === "mute");
+    } catch (error) {
+      notify.error(
+        "Discussion",
+        error instanceof Error ? error.message : "Action impossible"
+      );
+    }
+  };
+
+  const runDangerAction = async () => {
+    const other = conversation?.otherUser;
+    if (!other || !confirmAction) return;
+    try {
+      const response = await fetch(
+        confirmAction === "block"
+          ? "/api/messages/blocks"
+          : "/api/messages/contacts",
+        {
+          method: confirmAction === "block" ? "POST" : "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ targetId: other.id }),
+        }
+      );
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(payload?.error || "Action impossible");
+      setConfirmAction(null);
+      router.push("/messages");
+    } catch (error) {
+      notify.error(
+        "Discussion",
+        error instanceof Error ? error.message : "Action impossible"
+      );
+    }
+  };
+
+  const savePreferences = async () => {
+    if (!preferenceDraft || savingPreferences) return;
+    setSavingPreferences(true);
+    try {
+      const response = await fetch(`/api/messages/${conversationId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "customize",
+          preferences: preferenceDraft,
+        }),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok)
+        throw new Error(payload?.error || "Personnalisation impossible");
+      setConversation((current) =>
+        current ? { ...current, preferences: payload.preferences } : current
+      );
+      setCustomizeOpen(false);
+    } catch (error) {
+      notify.error(
+        "Discussion",
+        error instanceof Error ? error.message : "Personnalisation impossible"
+      );
+    } finally {
+      setSavingPreferences(false);
+    }
+  };
+
+  const updateGroupMember = async (
+    method: "POST" | "PATCH" | "DELETE",
+    body: Record<string, string> = {}
+  ) => {
+    const response = await fetch(
+      `/api/messages/${encodeURIComponent(conversationId)}/participants`,
+      {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      }
+    );
+    const payload = await response.json().catch(() => null);
+    if (!response.ok)
+      throw new Error(payload?.error || "Gestion des membres impossible");
+  };
+
+  const addMember = async (user: MessagingProfile) => {
+    if (memberBusyId) return;
+    setMemberBusyId(`add:${user.id}`);
+    try {
+      await updateGroupMember("POST", { userId: user.id });
+      setMemberPickerOpen(false);
+      setMemberSearch("");
+      await loadMessages({ quiet: true });
+      notify.success("Membres", `${user.name} a rejoint le groupe.`);
+    } catch (error) {
+      notify.error(
+        "Membres",
+        error instanceof Error ? error.message : "Ajout impossible"
+      );
+    } finally {
+      setMemberBusyId(null);
+    }
+  };
+
+  const toggleMemberRole = async (
+    user: MessagingProfile,
+    role: "member" | "moderator"
+  ) => {
+    if (memberBusyId) return;
+    const nextRole = role === "moderator" ? "member" : "moderator";
+    setMemberBusyId(`role:${user.id}`);
+    try {
+      await updateGroupMember("PATCH", { userId: user.id, role: nextRole });
+      await loadMessages({ quiet: true });
+    } catch (error) {
+      notify.error(
+        "Membres",
+        error instanceof Error ? error.message : "Rôle impossible à modifier"
+      );
+    } finally {
+      setMemberBusyId(null);
+    }
+  };
+
+  const runMemberRemoval = async () => {
+    if (!memberConfirm || memberBusyId) return;
+    const targetId = memberConfirm.action === "remove" ? memberConfirm.user?.id : undefined;
+    setMemberBusyId(targetId ? `remove:${targetId}` : "leave");
+    try {
+      await updateGroupMember("DELETE", targetId ? { userId: targetId } : {});
+      setMemberConfirm(null);
+      if (!targetId) {
+        router.replace("/messages");
+        return;
+      }
+      await loadMessages({ quiet: true });
+    } catch (error) {
+      notify.error(
+        "Membres",
+        error instanceof Error ? error.message : "Retrait impossible"
+      );
+    } finally {
+      setMemberBusyId(null);
+    }
+  };
+
+  const createRoom = async () => {
+    if (!roomName.trim() || roomBusy) return;
+    setRoomBusy(true);
+    try {
+      const response = await fetch(`/api/messages/${conversationId}/rooms`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: roomName, type: roomType }),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || !payload?.room)
+        throw new Error(payload?.error || "Salon impossible à créer");
+      setConversation((current) =>
+        current
+          ? { ...current, rooms: [...(current.rooms || []), payload.room] }
+          : current
+      );
+      setRoomName("");
+      setRoomCreatorOpen(false);
+      selectRoom(payload.room.id);
+    } catch (error) {
+      notify.error(
+        "Salons",
+        error instanceof Error ? error.message : "Création impossible"
+      );
+    } finally {
+      setRoomBusy(false);
+    }
+  };
+
+  const deleteRoom = async (roomId: string) => {
+    if (roomBusy) return;
+    setRoomBusy(true);
+    try {
+      const response = await fetch(
+        `/api/messages/${conversationId}/rooms/${roomId}`,
+        { method: "DELETE" }
+      );
+      const payload = await response.json().catch(() => null);
+      if (!response.ok)
+        throw new Error(payload?.error || "Suppression impossible");
+      setConversation((current) =>
+        current
+          ? {
+              ...current,
+              rooms: current.rooms.filter((room) => room.id !== roomId),
+            }
+          : current
+      );
+      if (activeRoomId === roomId && payload?.replacementRoomId)
+        selectRoom(payload.replacementRoomId);
+    } catch (error) {
+      notify.error(
+        "Salons",
+        error instanceof Error ? error.message : "Suppression impossible"
+      );
+    } finally {
+      setRoomBusy(false);
+    }
+  };
+
+  const selectRoom = (roomId: string) => {
+    if (roomId === activeRoomId) return;
+    loadedRoomRef.current = null;
+    initialScrollDone.current = false;
+    setMessages([]);
+    setHasMore(false);
+    setNextCursor(null);
+    setActiveRoomId(roomId);
+    router.replace(
+      `/messages/${conversationId}?room=${encodeURIComponent(roomId)}`,
+      { scroll: false }
+    );
+  };
+
+  const reactionGroups = useCallback((message: Message) => {
+    const groups = new Map<ReactionName, MessageReaction[]>();
+    message.reactions.forEach((reaction) =>
+      groups.set(reaction.reaction, [
+        ...(groups.get(reaction.reaction) || []),
+        reaction,
+      ])
+    );
+    return Array.from(groups.entries());
+  }, []);
+
+  const other = conversation?.otherUser;
+  const title =
+    conversation?.preferences?.nickname ||
+    other?.name ||
+    conversation?.name ||
+    conversation?.participants
+      ?.map((participant) => participant.name)
+      .join(", ") ||
+    "Discussion";
+  const activeRoom = conversation?.rooms?.find(
+    (room) => room.id === (activeRoomId || conversation.activeRoomId)
+  );
+  const subtitle = activeRoom
+    ? `#${activeRoom.name}${
+        activeRoom.type === "voice_notes" ? " · vocaux asynchrones" : ""
+      }`
+    : other
+    ? `@${other.username}`
+    : "Groupe Synaura";
+  const canSend = Boolean(conversation?.canMessage && !conversation?.blocked);
+  const ownId = session?.user?.id;
+  const ownRole =
+    conversation?.participantRoles?.find(
+      (participant) => participant.userId === ownId
+    )?.role || "member";
+  const canManageRooms =
+    conversation?.type === "group" &&
+    (ownRole === "owner" || ownRole === "moderator");
+  const canManageMembers = canManageRooms;
+  const candidateContacts = useMemo(() => {
+    const participantIds = new Set(
+      conversation?.participants.map((participant) => participant.id) || []
+    );
+    const query = memberSearch.trim().toLocaleLowerCase("fr");
+    return contacts.filter((contact) => {
+      if (participantIds.has(contact.user.id)) return false;
+      if (!query) return true;
+      return `${contact.user.name} ${contact.user.username}`
+        .toLocaleLowerCase("fr")
+        .includes(query);
+    });
+  }, [contacts, conversation?.participants, memberSearch]);
+  const accentColor = conversation?.preferences?.accentColor || "#7357C6";
+  const lastOwnMessage = useMemo(
+    () =>
+      [...messages]
+        .reverse()
+        .find((message) => message.sender.id === ownId && !message.deleted),
+    [messages, ownId]
+  );
+
+  if (status === "loading" || loading) return <ConversationLoading />;
+  if (!session?.user) {
+    router.replace("/auth/signin");
+    return null;
+  }
+
+  return (
+    <main className="v2-conversation relative flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-syn-background text-syn-textPrimary">
+      {conversation?.preferences?.backgroundKey !== "quiet" ? (
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{
+            backgroundImage:
+              conversation?.preferences?.backgroundKey === "cover" &&
+              (conversation.preferences.wallpaperUrl ||
+                conversation.avatarUrl ||
+                other?.avatar)
+                ? `linear-gradient(180deg, rgba(13,13,13,.55), rgba(13,13,13,.94)), url(${
+                    conversation.preferences.wallpaperUrl ||
+                    conversation.avatarUrl ||
+                    other?.avatar
+                  })`
+                : conversation?.preferences?.backgroundKey === "midnight"
+                ? `linear-gradient(160deg, #050505 0%, ${accentColor}2e 48%, #050505 100%)`
+                : `linear-gradient(145deg, ${accentColor}38 0%, rgba(74,158,170,.18) 48%, rgba(13,13,13,.96) 100%)`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
+        />
+      ) : null}
+      <header className="relative z-30 shrink-0 border-b border-syn-border bg-syn-background/95 backdrop-blur-xl">
+        <div className="mx-auto flex h-[72px] w-full max-w-4xl items-center gap-3 px-3 sm:px-5">
+          <button
+            type="button"
+            onClick={() => router.push(messageOriginReturn())}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full hover:bg-syn-surfaceMuted"
+            aria-label="Retour à l'origine de la conversation"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          {other ? (
+            <button
+              type="button"
+              onClick={() => router.push(`/profile/${other.username}`)}
+            >
+              <Avatar
+                src={other.avatar}
+                name={other.name}
+                username={other.username}
+                size="md"
+              />
+            </button>
+          ) : (
+            <div
+              className="flex h-10 w-10 items-center justify-center rounded-full"
+              style={{
+                backgroundColor: `${accentColor}24`,
+                color: accentColor,
+              }}
+            >
+              <MessageCircle className="h-4 w-4" />
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => other && router.push(`/profile/${other.username}`)}
+            className="min-w-0 flex-1 text-left"
+          >
+            <p className="truncate text-sm font-black sm:text-base">{title}</p>
+            <p className="truncate text-[11px] font-semibold text-syn-textSecondary">
+              {subtitle}
+            </p>
+          </button>
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setConversationMenuOpen((value) => !value)}
+              className="flex h-10 w-10 items-center justify-center rounded-full border border-syn-border bg-syn-surface hover:bg-syn-surfaceMuted"
+              aria-label="Options de la discussion"
+            >
+              <MoreHorizontal className="h-5 w-5" />
+            </button>
+            <AnimatePresence>
+              {conversationMenuOpen ? (
+                <motion.div
+                  initial={{ opacity: 0, y: -5, scale: 0.97 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -5, scale: 0.97 }}
+                  className="absolute right-0 top-12 z-50 w-64 overflow-hidden rounded-xl border border-syn-border bg-syn-elevatedSurface p-1.5 shadow-2xl"
+                >
+                  <MenuButton
+                    icon={Palette}
+                    label="Personnaliser la discussion"
+                    onClick={() => {
+                      setConversationMenuOpen(false);
+                      setPreferenceDraft(conversation?.preferences || null);
+                      setMemberPickerOpen(false);
+                      setMemberSearch("");
+                      setCustomizeOpen(true);
+                    }}
+                  />
+                  {other ? (
+                    <MenuButton
+                      icon={MessageCircle}
+                      label="Voir le profil"
+                      onClick={() => router.push(`/profile/${other.username}`)}
+                    />
+                  ) : null}
+                  <MenuButton
+                    icon={muted ? Bell : BellOff}
+                    label={
+                      muted
+                        ? "Réactiver les notifications"
+                        : "Mettre en sourdine"
+                    }
+                    onClick={() =>
+                      void updateConversation(muted ? "unmute" : "mute")
+                    }
+                  />
+                  <MenuButton
+                    icon={Archive}
+                    label="Archiver la discussion"
+                    onClick={() => void updateConversation("archive")}
+                  />
+                  {other ? (
+                    <MenuButton
+                      icon={UserMinus}
+                      label="Retirer de mes amis"
+                      danger
+                      onClick={() => {
+                        setConversationMenuOpen(false);
+                        setConfirmAction("remove");
+                      }}
+                    />
+                  ) : null}
+                  {other ? (
+                    <MenuButton
+                      icon={UserX}
+                      label="Bloquer"
+                      danger
+                      onClick={() => {
+                        setConversationMenuOpen(false);
+                        setConfirmAction("block");
+                      }}
+                    />
+                  ) : null}
+                </motion.div>
+              ) : null}
+            </AnimatePresence>
+          </div>
+        </div>
+        {conversation?.type === "group" && conversation.rooms?.length ? (
+          <div className="mx-auto flex w-full max-w-4xl gap-2 overflow-x-auto px-3 pb-2 sm:px-5">
+            {conversation.rooms.map((room) => {
+              const selected =
+                room.id === (activeRoomId || conversation.activeRoomId);
+              return (
+                <button
+                  key={room.id}
+                  type="button"
+                  onClick={() => selectRoom(room.id)}
+                  className="flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[11px] font-black"
+                  style={{
+                    borderColor: selected ? accentColor : undefined,
+                    backgroundColor: selected ? `${accentColor}20` : undefined,
+                    color: selected ? accentColor : undefined,
+                  }}
+                >
+                  <Hash className="h-3 w-3" />
+                  {room.name}
+                  {room.type === "voice_notes" ? (
+                    <Mic className="h-3 w-3" />
+                  ) : null}
+                </button>
+              );
+            })}
+            {canManageRooms ? (
+              <button
+                type="button"
+                onClick={() => setRoomCreatorOpen(true)}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-syn-border bg-syn-surface"
+                aria-label="Créer un salon"
+              >
+                <Plus className="h-4 w-4" />
+              </button>
+            ) : null}
+          </div>
+        ) : null}
+      </header>
+
+      <div
+        ref={scrollRef}
+        onScroll={(event) => {
+          const target = event.currentTarget;
+          nearBottomRef.current =
+            target.scrollHeight - target.scrollTop - target.clientHeight < 140;
+        }}
+        className="relative z-10 min-h-0 flex-1 overflow-y-auto overscroll-contain"
+      >
+        <div className="v2-conversation-log flex min-h-full flex-col justify-end px-3 py-5 sm:px-8 sm:py-8">
+          {hasMore ? (
+            <button
+              type="button"
+              disabled={loadingOlder || !nextCursor}
+              onClick={() => void loadMessages({ before: nextCursor })}
+              className="mx-auto mb-6 rounded-full border border-syn-border bg-syn-surface px-4 py-2 text-xs font-bold text-syn-textSecondary disabled:opacity-50"
+            >
+              {loadingOlder ? "Chargement…" : "Messages précédents"}
+            </button>
+          ) : null}
+
+          {!messages.length ? (
+            <div className="my-auto flex min-h-[380px] flex-col items-center justify-center text-center">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-syn-accent/10 text-syn-accent">
+                <MessageCircle className="h-6 w-6" />
+              </div>
+              <h1 className="mt-4 text-lg font-black">
+                Une discussion qui commence par la musique
+              </h1>
+              <p className="mt-2 max-w-sm text-sm leading-6 text-syn-textSecondary">
+                Partage un son, un contexte ou simplement ce que tu as envie de
+                dire.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2.5">
+              {messages.map((message, index) => {
+                const own = message.sender.id === ownId;
+                const previous = messages[index - 1];
+                const startsGroup =
+                  !previous ||
+                  previous.sender.id !== message.sender.id ||
+                  new Date(message.createdAt).getTime() -
+                    new Date(previous.createdAt).getTime() >
+                      5 * 60_000;
+                const startsDay =
+                  !previous || dayKey(previous.createdAt) !== dayKey(message.createdAt);
+                const replyTarget = message.replyToId
+                  ? messages.find((item) => item.id === message.replyToId)
+                  : null;
+                const BurstIcon = reactionBurst?.id === message.id
+                  ? REACTIONS.find((entry) => entry.value === reactionBurst.reaction)?.icon
+                  : null;
+                const isLastOwn = lastOwnMessage?.id === message.id;
+                return (
+                  <div key={message.id} className="contents">
+                  {startsDay ? (
+                    <div className="flex items-center gap-3 py-3 text-[10px] font-black capitalize text-syn-textSecondary">
+                      <span className="h-px flex-1 bg-syn-border" />
+                      <span>{formatDay(message.createdAt)}</span>
+                      <span className="h-px flex-1 bg-syn-border" />
+                    </div>
+                  ) : null}
+                  <div
+                    className={`group/message flex items-end gap-2 ${
+                      own ? "justify-end" : "justify-start"
+                    } ${startsGroup && index ? "pt-3" : ""}`}
+                  >
+                    {!own ? (
+                      <div className="w-7 shrink-0">
+                        {startsGroup ? (
+                          <Avatar
+                            src={message.sender.avatar}
+                            name={message.sender.name}
+                            username={message.sender.username}
+                            size="sm"
+                          />
+                        ) : null}
+                      </div>
+                    ) : null}
+                    <div
+                      className={`relative max-w-[82%] sm:max-w-[68%] ${
+                        own ? "items-end" : "items-start"
+                      } flex flex-col`}
+                    >
+                      {startsGroup && !own ? (
+                        <span className="mb-1 px-1 text-[10px] font-bold text-syn-textSecondary">
+                          {message.sender.name}
+                        </span>
+                      ) : null}
+                      {message.replyToId ? (
+                        <div
+                          className="mb-1 max-w-full rounded-lg border-l-[3px] bg-syn-surfaceMuted px-2.5 py-1.5"
+                          style={{ borderLeftColor: own ? "#F7F6F3" : accentColor }}
+                        >
+                          <p className="truncate text-[10px] font-black" style={{ color: own ? "#F7F6F3" : accentColor }}>
+                            {message.replyTo?.senderName || replyTarget?.sender.name || "Message"}
+                          </p>
+                          <p className="truncate text-[11px] font-semibold text-syn-textSecondary">
+                            {message.replyTo?.content || (replyTarget ? messagePreview(replyTarget) : "Message précédent")}
+                          </p>
+                        </div>
+                      ) : null}
+                      <div className="relative flex items-center gap-1" onDoubleClick={() => void reactToMessage(message, "heart")}>
+                        {own && !message.deleted ? (
+                          <MessageActions
+                            message={message}
+                            currentUserId={ownId || ""}
+                            menuOpen={messageMenuId === message.id}
+                            reactionOpen={reactionPickerId === message.id}
+                            onMenu={() => {
+                              setMessageMenuId(
+                                messageMenuId === message.id ? null : message.id
+                              );
+                              setReactionPickerId(null);
+                            }}
+                            onReact={() => {
+                              setReactionPickerId(
+                                reactionPickerId === message.id
+                                  ? null
+                                  : message.id
+                              );
+                              setMessageMenuId(null);
+                            }}
+                            onDelete={() => void deleteMessage(message)}
+                            onReply={() => {
+                              setReplyingTo(message);
+                              setMessageMenuId(null);
+                            }}
+                            onPick={(reaction) =>
+                              void reactToMessage(message, reaction)
+                            }
+                          />
+                        ) : null}
+                        <MessageBubble
+                          message={message}
+                          own={own}
+                          accentColor={accentColor}
+                          playing={playingMessageId === message.id}
+                          onPlay={() => playAudio(message)}
+                          onOpen={(path) => router.push(path)}
+                        />
+                        <AnimatePresence>
+                          {BurstIcon ? (
+                            <motion.div
+                              initial={{ opacity: 0, scale: 0.45, y: 8 }}
+                              animate={{ opacity: 1, scale: 1.25, y: -22 }}
+                              exit={{ opacity: 0, scale: 0.9, y: -36 }}
+                              className="pointer-events-none absolute left-1/2 top-1/2 z-30 -translate-x-1/2 text-syn-accentCoral"
+                            >
+                              <BurstIcon className="h-8 w-8 fill-current" />
+                            </motion.div>
+                          ) : null}
+                        </AnimatePresence>
+                        {!own && !message.deleted ? (
+                          <MessageActions
+                            message={message}
+                            currentUserId={ownId || ""}
+                            menuOpen={false}
+                            reactionOpen={reactionPickerId === message.id}
+                            onMenu={() => {}}
+                            onReact={() =>
+                              setReactionPickerId(
+                                reactionPickerId === message.id
+                                  ? null
+                                  : message.id
+                              )
+                            }
+                            onDelete={() => {}}
+                            onReply={() => setReplyingTo(message)}
+                            onPick={(reaction) =>
+                              void reactToMessage(message, reaction)
+                            }
+                            hideMenu
+                          />
+                        ) : null}
+                      </div>
+                      {reactionGroups(message).length ? (
+                        <div
+                          className={`mt-1 flex flex-wrap gap-1 ${
+                            own ? "justify-end" : "justify-start"
+                          }`}
+                        >
+                          {reactionGroups(message).map(
+                            ([reaction, entries]) => {
+                              const definition = REACTIONS.find(
+                                (item) => item.value === reaction
+                              )!;
+                              const Icon = definition.icon;
+                              const mine = entries.some(
+                                (entry) => entry.userId === ownId
+                              );
+                              return (
+                                <button
+                                  type="button"
+                                  key={reaction}
+                                  onClick={() =>
+                                    void reactToMessage(message, reaction)
+                                  }
+                                  className={`flex h-6 items-center gap-1 rounded-full border px-2 text-[10px] font-black ${
+                                    mine
+                                      ? "border-syn-accent/40 bg-syn-accent/10 text-syn-accent"
+                                      : "border-syn-border bg-syn-surface text-syn-textSecondary"
+                                  }`}
+                                  aria-label={definition.label}
+                                >
+                                  <Icon className="h-3 w-3" />
+                                  {entries.length}
+                                </button>
+                              );
+                            }
+                          )}
+                        </div>
+                      ) : null}
+                      <div
+                        className={`mt-1 flex items-center gap-1 px-1 text-[9px] font-semibold text-syn-textSecondary ${
+                          own ? "justify-end" : "justify-start"
+                        }`}
+                      >
+                        <span>{formatClock(message.createdAt)}</span>
+                        {own && isLastOwn ? (
+                          message.seenBy.some((id) => id !== ownId) ? (
+                            <CheckCheck className="h-3 w-3 text-syn-accent2" />
+                          ) : (
+                            <Check className="h-3 w-3" />
+                          )
+                        ) : null}
+                      </div>
+                    </div>
+                  </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      <footer className="relative z-20 shrink-0 border-t border-syn-border bg-syn-background/95 px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 backdrop-blur-xl sm:px-5">
+        <div className="mx-auto w-full max-w-4xl">
+          {canSend && replyingTo ? (
+            <div className="mb-2 flex min-h-12 items-center gap-3 rounded-xl border border-syn-border bg-syn-surface px-3 py-2">
+              <span
+                className="h-8 w-1 shrink-0 rounded-full"
+                style={{ backgroundColor: accentColor }}
+              />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[10px] font-black" style={{ color: accentColor }}>
+                  Réponse à {replyingTo.sender.id === ownId ? "toi" : replyingTo.sender.name}
+                </p>
+                <p className="truncate text-xs font-semibold text-syn-textSecondary">
+                  {messagePreview(replyingTo)}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setReplyingTo(null)}
+                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-syn-textSecondary hover:bg-syn-surfaceMuted hover:text-syn-textPrimary"
+                aria-label="Annuler la réponse"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          ) : null}
+          {!canSend ? (
+            <div className="rounded-xl bg-syn-surfaceMuted px-4 py-3 text-center text-xs font-bold text-syn-textSecondary">
+              {conversation?.blocked
+                ? "Cette discussion est bloquée."
+                : "Vous devez être amis pour continuer cette discussion."}
+            </div>
+          ) : recordingBlob ? (
+            <div className="flex min-h-14 items-center gap-2 rounded-xl border border-syn-border bg-syn-surface p-2">
+              <button
+                type="button"
+                onClick={cancelRecording}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-syn-destructive hover:bg-syn-destructive/10"
+                aria-label="Supprimer l’enregistrement"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const audio = previewAudioRef.current;
+                  if (!audio) return;
+                  if (previewPlaying) audio.pause();
+                  else void audio.play();
+                  setPreviewPlaying(!previewPlaying);
+                }}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white"
+                style={{ backgroundColor: accentColor }}
+                aria-label={previewPlaying ? "Mettre en pause" : "Écouter"}
+              >
+                {previewPlaying ? (
+                  <Pause className="h-4 w-4 fill-current" />
+                ) : (
+                  <Play className="h-4 w-4 fill-current" />
+                )}
+              </button>
+              <div className="min-w-0 flex-1">
+                <div className="flex h-7 items-center gap-[3px] overflow-hidden">
+                  {Array.from({ length: 34 }, (_, index) => (
+                    <span
+                      key={index}
+                      className="w-[2px] shrink-0 rounded-full"
+                      style={{
+                        height: `${5 + ((index * 13) % 20)}px`,
+                        backgroundColor:
+                          index < 23
+                            ? accentColor
+                            : "var(--syn-text-secondary)",
+                      }}
+                    />
+                  ))}
+                </div>
+                <p className="text-[10px] font-bold tabular-nums text-syn-textSecondary">
+                  {formatDuration(recordingSeconds)} · écoute avant d’envoyer
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={cancelRecording}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-syn-textSecondary hover:bg-syn-surfaceMuted"
+                aria-label="Réenregistrer"
+              >
+                <RotateCcw className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => void sendRecording()}
+                disabled={uploading}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-white disabled:opacity-50"
+                style={{ backgroundColor: accentColor }}
+                aria-label="Envoyer l’enregistrement"
+              >
+                {uploading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}
+              </button>
+              {previewUrl ? (
+                <audio
+                  ref={previewAudioRef}
+                  src={previewUrl}
+                  onEnded={() => setPreviewPlaying(false)}
+                  onPause={() => setPreviewPlaying(false)}
+                  className="hidden"
+                />
+              ) : null}
+            </div>
+          ) : (
+            <div className="flex items-end gap-2">
+              <button
+                type="button"
+                onClick={() =>
+                  isRecording
+                    ? cancelRecording()
+                    : fileInputRef.current?.click()
+                }
+                disabled={uploading}
+                className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border bg-syn-surface disabled:opacity-40 ${
+                  isRecording
+                    ? "border-syn-accentCoral/40 text-syn-accentCoral"
+                    : "border-syn-border text-syn-textSecondary hover:text-syn-textPrimary"
+                }`}
+                aria-label={
+                  isRecording ? "Annuler le vocal" : "Ajouter un média"
+                }
+              >
+                {isRecording ? (
+                  <X className="h-4 w-4" />
+                ) : (
+                  <Paperclip className="h-4 w-4" />
+                )}
+              </button>
+              <div className="flex min-h-11 min-w-0 flex-1 items-end rounded-xl border border-syn-border bg-syn-surface px-3 focus-within:border-syn-accent/50 focus-within:ring-2 focus-within:ring-syn-accent/10">
+                {isRecording ? (
+                  <div className="flex min-h-10 min-w-0 flex-1 items-center gap-2 py-2">
+                    <span
+                      className={`h-2.5 w-2.5 shrink-0 animate-pulse rounded-full ${
+                        recordingCancelArmed ? "bg-syn-destructive" : ""
+                      }`}
+                      style={
+                        recordingCancelArmed
+                          ? undefined
+                          : { backgroundColor: accentColor }
+                      }
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p
+                        className={`text-xs font-black tabular-nums ${
+                          recordingCancelArmed ? "text-syn-destructive" : ""
+                        }`}
+                      >
+                        {formatDuration(recordingSeconds)}
+                      </p>
+                      <p className="truncate text-[9px] font-semibold text-syn-textSecondary">
+                        {recordingCancelArmed
+                          ? "Relâche pour supprimer"
+                          : recordingLocked
+                          ? "Vocal verrouillé"
+                          : "Glisse à gauche pour annuler · vers le haut pour verrouiller"}
+                      </p>
+                    </div>
+                    {recordingLocked ? (
+                      <Lock
+                        className="h-4 w-4"
+                        style={{ color: accentColor }}
+                      />
+                    ) : null}
+                  </div>
+                ) : (
+                  <textarea
+                    value={draft}
+                    onChange={(event) =>
+                      setDraft(event.target.value.slice(0, 2_000))
+                    }
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" && !event.shiftKey) {
+                        event.preventDefault();
+                        void sendText();
+                      }
+                    }}
+                    rows={1}
+                    placeholder={
+                      activeRoom?.type === "voice_notes"
+                        ? "Ajoute un contexte au vocal…"
+                        : "Écrire un message…"
+                    }
+                    className="max-h-32 min-h-10 flex-1 resize-none bg-transparent py-2.5 text-sm leading-5 text-syn-textPrimary outline-none placeholder:text-syn-textSecondary/60"
+                  />
+                )}
+                {!draft.trim() && !recordingLocked ? (
+                  <button
+                    type="button"
+                    onPointerDown={beginVoiceHold}
+                    onPointerMove={moveVoiceHold}
+                    onPointerUp={() => void endVoiceHold()}
+                    onPointerCancel={() => {
+                      if (!recordingLocked) cancelRecording();
+                    }}
+                    className="mb-1 flex h-9 w-9 shrink-0 touch-none items-center justify-center rounded-full text-white"
+                    style={{
+                      backgroundColor: isRecording
+                        ? recordingCancelArmed
+                          ? "#D96D63"
+                          : accentColor
+                        : "#111111",
+                    }}
+                    aria-label="Maintenir pour enregistrer"
+                  >
+                    <Mic className="h-4 w-4" />
+                  </button>
+                ) : null}
+              </div>
+              {recordingLocked ? (
+                <button
+                  type="button"
+                  onClick={stopRecording}
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-syn-accentCoral text-white"
+                  aria-label="Arrêter"
+                >
+                  <Square className="h-4 w-4 fill-current" />
+                </button>
+              ) : draft.trim() ? (
+                <button
+                  type="button"
+                  onClick={() => void sendText()}
+                  disabled={sending || uploading}
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white transition hover:scale-105 disabled:opacity-30"
+                  style={{ backgroundColor: accentColor }}
+                  aria-label="Envoyer"
+                >
+                  {sending || uploading ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Send className="h-4 w-4" />
+                  )}
+                </button>
+              ) : null}
+            </div>
+          )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,video/*,audio/*"
+            onChange={onFileChange}
+            className="hidden"
+          />
+        </div>
+      </footer>
+
+      <AnimatePresence>
+        {customizeOpen && preferenceDraft ? (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[110] flex items-end justify-center bg-black/60 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+            onMouseDown={(event: React.MouseEvent<HTMLDivElement>) => {
+              if (event.currentTarget === event.target) setCustomizeOpen(false);
+            }}
+          >
+            <motion.div
+              initial={{ y: 28, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 28, opacity: 0 }}
+              className="max-h-[92dvh] w-full max-w-xl overflow-y-auto rounded-t-2xl border border-syn-border bg-syn-elevatedSurface p-5 sm:rounded-2xl"
+            >
+              <div className="flex items-start gap-4">
+                <div
+                  className="flex h-11 w-11 items-center justify-center rounded-full"
+                  style={{
+                    backgroundColor: `${preferenceDraft.accentColor}20`,
+                    color: preferenceDraft.accentColor,
+                  }}
+                >
+                  <Palette className="h-5 w-5" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-lg font-black">
+                    Ta discussion, ton ambiance
+                  </h2>
+                  <p className="mt-1 text-xs text-syn-textSecondary">
+                    Ces réglages ne changent que ton affichage.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCustomizeOpen(false)}
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-syn-surfaceMuted"
+                  aria-label="Fermer"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              {conversation?.type === "group" ? (
+                <section className="mt-6 border-t border-syn-border pt-5">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-[10px] font-black uppercase text-syn-textSecondary">
+                        Membres
+                      </p>
+                      <p className="mt-1 text-xs text-syn-textSecondary">
+                        {conversation.participants.length} participant{conversation.participants.length > 1 ? "s" : ""}
+                      </p>
+                    </div>
+                    {canManageMembers ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMemberPickerOpen((open) => !open);
+                          setMemberSearch("");
+                        }}
+                        className="flex h-9 items-center gap-1.5 rounded-full px-3 text-xs font-black text-white"
+                        style={{ backgroundColor: preferenceDraft.accentColor }}
+                      >
+                        {memberPickerOpen ? <X className="h-4 w-4" /> : <UserPlus className="h-4 w-4" />}
+                        {memberPickerOpen ? "Fermer" : "Ajouter"}
+                      </button>
+                    ) : null}
+                  </div>
+                  {memberPickerOpen ? (
+                    <div className="mt-3 overflow-hidden rounded-xl border border-syn-border bg-syn-surface">
+                      <div className="flex h-11 items-center gap-2 border-b border-syn-border px-3">
+                        <UserPlus className="h-4 w-4 text-syn-textSecondary" />
+                        <input
+                          value={memberSearch}
+                          onChange={(event) => setMemberSearch(event.target.value)}
+                          placeholder="Rechercher parmi tes amis"
+                          className="min-w-0 flex-1 bg-transparent text-xs font-bold outline-none placeholder:text-syn-textSecondary/70"
+                        />
+                      </div>
+                      {contactsLoading ? (
+                        <div className="flex h-20 items-center justify-center"><Loader2 className="h-5 w-5 animate-spin" style={{ color: preferenceDraft.accentColor }} /></div>
+                      ) : candidateContacts.length ? (
+                        <div className="max-h-56 divide-y divide-syn-border overflow-y-auto">
+                          {candidateContacts.map((contact) => (
+                            <button
+                              key={contact.user.id}
+                              type="button"
+                              disabled={Boolean(memberBusyId)}
+                              onClick={() => void addMember(contact.user)}
+                              className="flex min-h-14 w-full items-center gap-3 px-3 text-left transition hover:bg-syn-surfaceMuted disabled:opacity-50"
+                            >
+                              <Avatar src={contact.user.avatar} name={contact.user.name} username={contact.user.username} size="sm" />
+                              <span className="min-w-0 flex-1"><span className="block truncate text-xs font-black">{contact.user.name}</span><span className="block truncate text-[10px] font-bold text-syn-textSecondary">@{contact.user.username}</span></span>
+                              {memberBusyId === `add:${contact.user.id}` ? <Loader2 className="h-4 w-4 animate-spin" /> : <><span className="text-[10px] font-black" style={{ color: preferenceDraft.accentColor }}>Ajouter</span><Plus className="h-4 w-4" style={{ color: preferenceDraft.accentColor }} /></>}
+                            </button>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="px-4 py-5 text-center text-xs font-bold text-syn-textSecondary">Aucun ami disponible à ajouter.</p>
+                      )}
+                    </div>
+                  ) : null}
+                  <div className="mt-3 divide-y divide-syn-border">
+                    {conversation.participants.map((participant) => {
+                      const role = conversation.participantRoles?.find((item) => item.userId === participant.id)?.role || "member";
+                      const canChangeRole = ownRole === "owner" && participant.id !== ownId && role !== "owner";
+                      const canRemove = participant.id !== ownId && role !== "owner" && (ownRole === "owner" || (ownRole === "moderator" && role === "member"));
+                      const roleLabel = role === "owner" ? "Propriétaire" : role === "moderator" ? "Modérateur" : "Membre";
+                      return (
+                        <div key={participant.id} className="flex min-h-14 items-center gap-3">
+                          <Avatar src={participant.avatar} name={participant.name} username={participant.username} size="sm" />
+                          <div className="min-w-0 flex-1"><p className="truncate text-xs font-black">{participant.name}{participant.id === ownId ? " · toi" : ""}</p><p className="truncate text-[10px] font-bold text-syn-textSecondary">@{participant.username}</p></div>
+                          {canChangeRole ? (
+                            <button type="button" disabled={Boolean(memberBusyId)} onClick={() => void toggleMemberRole(participant, role)} className="flex h-8 items-center gap-1.5 rounded-full bg-syn-surfaceMuted px-2.5 text-[10px] font-black disabled:opacity-50">
+                              {memberBusyId === `role:${participant.id}` ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : role === "moderator" ? <ShieldCheck className="h-3.5 w-3.5" style={{ color: preferenceDraft.accentColor }} /> : <Shield className="h-3.5 w-3.5" />}
+                              {roleLabel}
+                            </button>
+                          ) : <span className="text-[10px] font-bold text-syn-textSecondary">{roleLabel}</span>}
+                          {canRemove ? (
+                            <button type="button" disabled={Boolean(memberBusyId)} onClick={() => setMemberConfirm({ action: "remove", user: participant })} className="flex h-8 w-8 items-center justify-center rounded-full text-syn-destructive transition hover:bg-syn-destructive/10 disabled:opacity-50" aria-label={`Retirer ${participant.name}`}><UserMinus className="h-3.5 w-3.5" /></button>
+                          ) : null}
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {ownRole !== "owner" ? (
+                    <button type="button" disabled={Boolean(memberBusyId)} onClick={() => setMemberConfirm({ action: "leave" })} className="mt-3 flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-syn-destructive/10 text-xs font-black text-syn-destructive disabled:opacity-50"><LogOut className="h-4 w-4" />Quitter le groupe</button>
+                  ) : null}
+                </section>
+              ) : null}
+              <label className="mt-6 block text-[10px] font-black uppercase text-syn-textSecondary">
+                Nom chez toi
+              </label>
+              <input
+                value={preferenceDraft.nickname || ""}
+                onChange={(event) =>
+                  setPreferenceDraft({
+                    ...preferenceDraft,
+                    nickname: event.target.value.slice(0, 48) || null,
+                  })
+                }
+                placeholder={
+                  other?.name || conversation?.name || "Nom de la discussion"
+                }
+                className="mt-2 h-11 w-full rounded-lg border border-syn-border bg-syn-surface px-3 text-sm font-bold outline-none focus:border-syn-accent"
+              />
+              <p className="mt-6 text-[10px] font-black uppercase text-syn-textSecondary">
+                Couleur
+              </p>
+              <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-5">
+                {THEME_OPTIONS.map((option) => {
+                  const selected = preferenceDraft.themeKey === option.key;
+                  return (
+                    <button
+                      key={option.key}
+                      type="button"
+                      onClick={() =>
+                        setPreferenceDraft({
+                          ...preferenceDraft,
+                          themeKey: option.key,
+                          accentColor: option.color,
+                        })
+                      }
+                      className="flex h-11 items-center gap-2 rounded-lg border px-3 text-xs font-black"
+                      style={{
+                        borderColor: selected ? option.color : undefined,
+                        backgroundColor: selected
+                          ? `${option.color}18`
+                          : undefined,
+                        color: selected ? option.color : undefined,
+                      }}
+                    >
+                      <span
+                        className="h-4 w-4 rounded-full"
+                        style={{ backgroundColor: option.color }}
+                      />
+                      {option.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <p className="mt-6 text-[10px] font-black uppercase text-syn-textSecondary">
+                Fond
+              </p>
+              <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {BACKGROUND_OPTIONS.map((option) => {
+                  const selected = preferenceDraft.backgroundKey === option.key;
+                  const gradient =
+                    option.key === "quiet"
+                      ? "linear-gradient(145deg,#191919,#101010)"
+                      : option.key === "aurora"
+                      ? `linear-gradient(145deg,${preferenceDraft.accentColor},#4A9EAA)`
+                      : option.key === "cover"
+                      ? "linear-gradient(145deg,#D96D63,#7357C6)"
+                      : "linear-gradient(145deg,#111,#030303)";
+                  return (
+                    <button
+                      key={option.key}
+                      type="button"
+                      onClick={() =>
+                        setPreferenceDraft({
+                          ...preferenceDraft,
+                          backgroundKey: option.key,
+                        })
+                      }
+                      className="relative h-20 overflow-hidden rounded-lg border-2 p-3 text-left text-xs font-black text-white"
+                      style={{
+                        borderColor: selected
+                          ? preferenceDraft.accentColor
+                          : "transparent",
+                        backgroundImage: gradient,
+                      }}
+                    >
+                      {option.label}
+                      {selected ? (
+                        <Check className="absolute right-2 top-2 h-4 w-4" />
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
+              {conversation?.type === "group" ? (
+                <div className="mt-6 border-t border-syn-border pt-5">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-[10px] font-black uppercase text-syn-textSecondary">
+                        Salons
+                      </p>
+                      <p className="mt-1 text-xs text-syn-textSecondary">
+                        Messages et vocaux restent asynchrones.
+                      </p>
+                    </div>
+                    {canManageRooms ? (
+                      <button
+                        type="button"
+                        onClick={() => setRoomCreatorOpen(true)}
+                        className="flex h-9 items-center gap-1.5 rounded-full px-3 text-xs font-black text-white"
+                        style={{ backgroundColor: preferenceDraft.accentColor }}
+                      >
+                        <Plus className="h-4 w-4" />
+                        Ajouter
+                      </button>
+                    ) : null}
+                  </div>
+                  <div className="mt-3 divide-y divide-syn-border">
+                    {conversation.rooms.map((room) => (
+                      <div
+                        key={room.id}
+                        className="flex min-h-11 items-center gap-2"
+                      >
+                        <Hash className="h-4 w-4 text-syn-textSecondary" />
+                        <span className="flex-1 text-xs font-black">
+                          {room.name}
+                        </span>
+                        <span className="text-[10px] font-bold text-syn-textSecondary">
+                          {room.type === "voice_notes" ? "Vocaux" : "Texte"}
+                        </span>
+                        {canManageRooms && conversation.rooms.length > 1 ? (
+                          <button
+                            type="button"
+                            disabled={roomBusy}
+                            onClick={() => void deleteRoom(room.id)}
+                            className="flex h-8 w-8 items-center justify-center rounded-full text-syn-destructive hover:bg-syn-destructive/10"
+                            aria-label={`Supprimer ${room.name}`}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+              <button
+                type="button"
+                disabled={savingPreferences}
+                onClick={() => void savePreferences()}
+                className="mt-6 flex h-12 w-full items-center justify-center rounded-lg text-sm font-black text-white disabled:opacity-50"
+                style={{ backgroundColor: preferenceDraft.accentColor }}
+              >
+                {savingPreferences ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  "Enregistrer"
+                )}
+              </button>
+            </motion.div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {memberConfirm ? (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[130] flex items-end justify-center bg-black/65 p-4 backdrop-blur-sm sm:items-center"
+            onMouseDown={(event: React.MouseEvent<HTMLDivElement>) => {
+              if (event.currentTarget === event.target && !memberBusyId)
+                setMemberConfirm(null);
+            }}
+          >
+            <motion.div
+              initial={{ y: 18, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 18, opacity: 0 }}
+              className="w-full max-w-sm rounded-xl border border-syn-border bg-syn-elevatedSurface p-5"
+            >
+              <h2 className="text-lg font-black">
+                {memberConfirm.action === "leave"
+                  ? "Quitter le groupe ?"
+                  : `Retirer ${memberConfirm.user?.name || "ce membre"} ?`}
+              </h2>
+              <p className="mt-2 text-sm text-syn-textSecondary">
+                {memberConfirm.action === "leave"
+                  ? "Tu ne recevras plus les messages de ce groupe."
+                  : "Cette personne perdra l’accès aux messages et aux salons du groupe."}
+              </p>
+              <div className="mt-5 grid grid-cols-2 gap-2">
+                <button type="button" disabled={Boolean(memberBusyId)} onClick={() => setMemberConfirm(null)} className="h-11 rounded-lg border border-syn-border text-xs font-black disabled:opacity-50">Annuler</button>
+                <button type="button" disabled={Boolean(memberBusyId)} onClick={() => void runMemberRemoval()} className="flex h-11 items-center justify-center rounded-lg bg-syn-destructive text-xs font-black text-white disabled:opacity-50">{memberBusyId ? <Loader2 className="h-4 w-4 animate-spin" /> : memberConfirm.action === "leave" ? "Quitter" : "Retirer"}</button>
+              </div>
+            </motion.div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {roomCreatorOpen ? (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[120] flex items-end justify-center bg-black/60 p-4 backdrop-blur-sm sm:items-center"
+            onMouseDown={(event: React.MouseEvent<HTMLDivElement>) => {
+              if (event.currentTarget === event.target)
+                setRoomCreatorOpen(false);
+            }}
+          >
+            <motion.div
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 20, opacity: 0 }}
+              className="w-full max-w-sm rounded-xl border border-syn-border bg-syn-elevatedSurface p-5"
+            >
+              <h2 className="text-lg font-black">Nouveau salon</h2>
+              <p className="mt-2 text-sm text-syn-textSecondary">
+                Un espace dédié à un sujet ou aux messages vocaux.
+              </p>
+              <input
+                autoFocus
+                value={roomName}
+                onChange={(event) =>
+                  setRoomName(event.target.value.slice(0, 40))
+                }
+                placeholder="Nom du salon"
+                className="mt-5 h-11 w-full rounded-lg border border-syn-border bg-syn-surface px-3 text-sm font-bold outline-none"
+              />
+              <div className="mt-3 grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setRoomType("text")}
+                  className="flex h-11 items-center justify-center gap-2 rounded-lg border text-xs font-black"
+                  style={{
+                    borderColor: roomType === "text" ? accentColor : undefined,
+                    color: roomType === "text" ? accentColor : undefined,
+                  }}
+                >
+                  <MessageCircle className="h-4 w-4" />
+                  Messages
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setRoomType("voice_notes")}
+                  className="flex h-11 items-center justify-center gap-2 rounded-lg border text-xs font-black"
+                  style={{
+                    borderColor:
+                      roomType === "voice_notes" ? accentColor : undefined,
+                    color: roomType === "voice_notes" ? accentColor : undefined,
+                  }}
+                >
+                  <Mic className="h-4 w-4" />
+                  Vocaux
+                </button>
+              </div>
+              <div className="mt-5 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setRoomCreatorOpen(false)}
+                  className="flex-1 rounded-lg border border-syn-border px-4 py-3 text-sm font-bold"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  disabled={!roomName.trim() || roomBusy}
+                  onClick={() => void createRoom()}
+                  className="flex-1 rounded-lg px-4 py-3 text-sm font-black text-white disabled:opacity-40"
+                  style={{ backgroundColor: accentColor }}
+                >
+                  {roomBusy ? (
+                    <Loader2 className="mx-auto h-4 w-4 animate-spin" />
+                  ) : (
+                    "Créer"
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {confirmAction && other ? (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] flex items-end justify-center bg-black/55 p-4 backdrop-blur-sm sm:items-center"
+            onMouseDown={(event: React.MouseEvent<HTMLDivElement>) => {
+              if (event.currentTarget === event.target) setConfirmAction(null);
+            }}
+          >
+            <motion.div
+              initial={{ y: 24, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 24, opacity: 0 }}
+              className="w-full max-w-sm rounded-xl border border-syn-border bg-syn-elevatedSurface p-5"
+            >
+              <h2 className="text-lg font-black">
+                {confirmAction === "block"
+                  ? `Bloquer ${other.name} ?`
+                  : `Retirer ${other.name} de tes amis ?`}
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-syn-textSecondary">
+                {confirmAction === "block"
+                  ? "Cette personne ne pourra plus t’envoyer de demande ni de message."
+                  : "Vous devrez accepter une nouvelle demande avant de pouvoir vous écrire à nouveau."}
+              </p>
+              <div className="mt-5 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setConfirmAction(null)}
+                  className="flex-1 rounded-lg border border-syn-border px-4 py-3 text-sm font-bold"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void runDangerAction()}
+                  className="flex-1 rounded-lg bg-syn-destructive px-4 py-3 text-sm font-bold text-white"
+                >
+                  Confirmer
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+    </main>
+  );
+}
+
+function MessageBubble({
+  message,
+  own,
+  accentColor,
+  playing,
+  onPlay,
+  onOpen,
+}: {
+  message: Message;
+  own: boolean;
+  accentColor: string;
+  playing: boolean;
+  onPlay: () => void;
+  onOpen: (path: string) => void;
+}) {
+  const base = own
+    ? "text-white rounded-br-sm"
+    : "border border-syn-border bg-syn-surface text-syn-textPrimary rounded-bl-sm";
+  const ownStyle = own ? { backgroundColor: accentColor } : undefined;
+  const mediaUrl = toPublicMediaUrl(message.mediaUrl || message.content) || "";
+  if (message.deleted)
+    return (
+      <div
+        style={ownStyle}
+        className={`rounded-xl px-3.5 py-2.5 text-xs italic opacity-60 ${base}`}
+      >
+        Message supprimé
+      </div>
+    );
+  if (message.type === "image")
+    return (
+      <a
+        style={ownStyle}
+        href={mediaUrl}
+        target="_blank"
+        rel="noreferrer"
+        className={`block overflow-hidden rounded-xl p-1 ${base}`}
+      >
+        <SynauraImage
+          src={mediaUrl}
+          alt="Image partagée"
+          loading="lazy"
+          className="max-h-[420px] w-full rounded-lg object-cover"
+        />
+      </a>
+    );
+  if (message.type === "video")
+    return (
+      <div
+        style={ownStyle}
+        className={`overflow-hidden rounded-xl p-1 ${base}`}
+      >
+        <video
+          src={mediaUrl}
+          controls
+          playsInline
+          preload="metadata"
+          className="max-h-[420px] w-full rounded-lg"
+        />
+      </div>
+    );
+  if (message.type === "audio")
+    return (
+      <button
+        style={ownStyle}
+        type="button"
+        onClick={onPlay}
+        className={`flex min-w-[210px] items-center gap-3 rounded-xl px-3 py-3 text-left ${base}`}
+      >
+        <span
+          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
+            own ? "bg-white/16" : "bg-syn-accent/10 text-syn-accent"
+          }`}
+        >
+          {playing ? (
+            <Pause className="h-4 w-4" />
+          ) : (
+            <Play className="h-4 w-4" />
+          )}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-xs font-black">Message audio</span>
+          <span
+            className={`mt-1 block h-1 overflow-hidden rounded-full ${
+              own ? "bg-white/20" : "bg-syn-surfaceMuted"
+            }`}
+          >
+            <span
+              className={`block h-full w-1/3 rounded-full ${
+                own ? "bg-white/70" : "bg-syn-accent2"
+              }`}
+            />
+          </span>
+        </span>
+        {Number(message.metadata?.duration || 0) > 0 ? (
+          <span className="text-[10px] opacity-65">
+            {formatDuration(Number(message.metadata.duration))}
+          </span>
+        ) : null}
+      </button>
+    );
+  if (["track", "clip", "post", "playlist"].includes(message.type)) {
+    const title = String(
+      message.metadata?.title ||
+        (message.type === "track"
+          ? "Son partagé"
+          : message.type === "clip"
+          ? "Clip partagé"
+          : message.type === "playlist"
+          ? "Playlist partagée"
+          : "Post partagé")
+    );
+    const subtitle = String(
+      message.metadata?.artistName || message.metadata?.subtitle || "Synaura"
+    );
+    const coverUrl =
+      typeof message.metadata?.coverUrl === "string"
+        ? message.metadata.coverUrl
+        : "";
+    const path =
+      typeof message.metadata?.url === "string"
+        ? message.metadata.url
+        : message.sharedEntityId
+        ? `/${message.type === "track" ? "track" : message.type}/${
+            message.sharedEntityId
+          }`
+        : "";
+    return (
+      <button
+        style={ownStyle}
+        type="button"
+        onClick={() => path && onOpen(path)}
+        className={`flex min-w-[250px] max-w-sm items-center gap-3 rounded-xl p-2 text-left ${base}`}
+      >
+        {coverUrl ? (
+          <SynauraImage
+            src={coverUrl}
+            alt=""
+            className="h-14 w-14 shrink-0 rounded-lg object-cover"
+          />
+        ) : (
+          <span
+            className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-lg ${
+              own ? "bg-white/14" : "bg-syn-surfaceMuted"
+            }`}
+          >
+            <Music2 className="h-5 w-5" />
+          </span>
+        )}
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-xs font-black">{title}</span>
+          <span className="mt-1 block truncate text-[10px] opacity-65">
+            {subtitle}
+          </span>
+        </span>
+        <span
+          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${
+            own
+              ? "bg-white text-syn-accent"
+              : "bg-syn-textPrimary text-syn-background"
+          }`}
+        >
+          <Play className="h-3.5 w-3.5 fill-current" />
+        </span>
+      </button>
+    );
+  }
+  return (
+    <div
+      style={ownStyle}
+      className={`whitespace-pre-wrap break-words rounded-xl px-3.5 py-2.5 text-sm leading-5 ${base}`}
+    >
+      {message.content}
+    </div>
+  );
+}
+
+function MessageActions({
+  message,
+  currentUserId,
+  menuOpen,
+  reactionOpen,
+  onMenu,
+  onReact,
+  onReply,
+  onDelete,
+  onPick,
+  hideMenu = false,
+}: {
+  message: Message;
+  currentUserId: string;
+  menuOpen: boolean;
+  reactionOpen: boolean;
+  onMenu: () => void;
+  onReact: () => void;
+  onReply: () => void;
+  onDelete: () => void;
+  onPick: (reaction: ReactionName) => void;
+  hideMenu?: boolean;
+}) {
+  return (
+    <div className="relative flex opacity-100 transition sm:opacity-0 sm:group-hover/message:opacity-100">
+      <button
+        type="button"
+        onClick={onReply}
+        className="flex h-8 w-8 items-center justify-center rounded-full text-syn-textSecondary hover:bg-syn-surfaceMuted hover:text-syn-textPrimary"
+        aria-label="Répondre"
+      >
+        <Reply className="h-3.5 w-3.5" />
+      </button>
+      <button
+        type="button"
+        onClick={onReact}
+        className="flex h-8 w-8 items-center justify-center rounded-full text-syn-textSecondary hover:bg-syn-surfaceMuted hover:text-syn-textPrimary"
+        aria-label="Réagir"
+      >
+        <Heart className="h-3.5 w-3.5" />
+      </button>
+      {!hideMenu ? (
+        <button
+          type="button"
+          onClick={onMenu}
+          className="flex h-8 w-8 items-center justify-center rounded-full text-syn-textSecondary hover:bg-syn-surfaceMuted hover:text-syn-textPrimary"
+          aria-label="Options du message"
+        >
+          <MoreHorizontal className="h-4 w-4" />
+        </button>
+      ) : null}
+      <AnimatePresence>
+        {reactionOpen ? (
+          <motion.div
+            initial={{ opacity: 0, y: 4, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 4, scale: 0.96 }}
+            className="absolute bottom-9 right-0 z-40 flex gap-1 rounded-full border border-syn-border bg-syn-elevatedSurface p-1.5 shadow-xl"
+          >
+            {REACTIONS.map((reaction) => {
+              const Icon = reaction.icon;
+              const mine = message.reactions.some(
+                (entry) =>
+                  entry.userId === currentUserId &&
+                  entry.reaction === reaction.value
+              );
+              return (
+                <button
+                  type="button"
+                  key={reaction.value}
+                  onClick={() => onPick(reaction.value)}
+                  className={`flex h-8 w-8 items-center justify-center rounded-full hover:bg-syn-surfaceMuted ${
+                    mine ? "text-syn-accent" : "text-syn-textSecondary"
+                  }`}
+                  aria-label={reaction.label}
+                >
+                  <Icon className="h-4 w-4" />
+                </button>
+              );
+            })}
+          </motion.div>
+        ) : null}
+        {menuOpen ? (
+          <motion.div
+            initial={{ opacity: 0, y: 4, scale: 0.96 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 4, scale: 0.96 }}
+            className="absolute bottom-9 right-0 z-40 w-44 rounded-xl border border-syn-border bg-syn-elevatedSurface p-1.5 shadow-xl"
+          >
+            <button
+              type="button"
+              onClick={onDelete}
+              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-xs font-bold text-syn-destructive hover:bg-syn-destructive/10"
+            >
+              <Trash2 className="h-4 w-4" />
+              Supprimer
+            </button>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function MenuButton({
+  icon: Icon,
+  label,
+  onClick,
+  danger = false,
+}: {
+  icon: typeof MessageCircle;
+  label: string;
+  onClick: () => void;
+  danger?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-xs font-bold transition hover:bg-syn-surfaceMuted ${
+        danger ? "text-syn-destructive" : "text-syn-textPrimary"
+      }`}
+    >
+      <Icon className="h-4 w-4" />
+      {label}
+    </button>
+  );
+}
+
+function ConversationLoading() {
+  return (
+    <div className="flex h-[100dvh] items-center justify-center bg-syn-background">
+      <Loader2 className="h-7 w-7 animate-spin text-syn-accent" />
+    </div>
+  );
+}

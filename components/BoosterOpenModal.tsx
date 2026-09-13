@@ -3,7 +3,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useMemo, useState } from 'react';
 import { Sparkles, X, Zap, Star, Crown, Gem } from 'lucide-react';
-import Image from 'next/image';
+import SynauraLogo from '@/components/brand/SynauraLogo';
 import { InventoryItem } from '@/hooks/useBoosters';
 import { UButton } from '@/components/ui/UnifiedUI';
 
@@ -129,7 +129,10 @@ export default function BoosterOpenModal({
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          className="fixed inset-0 z-[200] bg-black/70 backdrop-blur-md flex items-center justify-center"
+          className="chambre-reward-overlay fixed inset-0 z-[200]"
+          role="dialog"
+          aria-label="Ouverture du booster"
+          data-reward-phase={phase}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -138,7 +141,7 @@ export default function BoosterOpenModal({
 
           {/* Screen shake on explosion */}
           <motion.div
-            className="absolute inset-0 flex items-center justify-center"
+            className="chambre-reward-stage absolute inset-0"
             animate={phase === 'explosion' ? { x: [0, -6, 6, -4, 4, -2, 2, 0], y: [0, 4, -4, 2, -2, 3, -3, 0] } : {}}
             transition={{ duration: 0.4 }}
           >
@@ -188,7 +191,7 @@ export default function BoosterOpenModal({
             )}
 
             {/* Close button */}
-            <button onClick={onClose} className="absolute top-6 right-6 z-40 text-white/50 hover:text-white transition" aria-label="Fermer"><X className="w-7 h-7" /></button>
+            <button onClick={onClose} className="chambre-reward-close" aria-label="Fermer"><X className="w-5 h-5" /></button>
 
             {/* Background click */}
             <div className="absolute inset-0 z-0" onClick={phase === 'revealed' ? onClose : undefined} />
@@ -196,7 +199,7 @@ export default function BoosterOpenModal({
             {/* ═══ IDLE / ANTICIPATION / BUILDUP — Card front ═══ */}
             {(phase === 'idle' || phase === 'anticipation' || phase === 'buildup') && (
               <motion.div
-                className="relative z-10 w-[240px] sm:w-[280px]"
+                className="chambre-booster-opening relative z-10"
                 animate={
                   phase === 'anticipation'
                     ? { scale: [1, 1.02, 1], rotate: [0, -1, 1, 0] }
@@ -206,21 +209,22 @@ export default function BoosterOpenModal({
                 transition={phase === 'anticipation' ? { duration: 1, repeat: Infinity } : {}}
                 style={phase === 'buildup' ? { animation: 'bo-shake 0.15s linear infinite' } : undefined}
               >
+                <div className="chambre-booster-preview">
                 {/* Glow behind */}
                 <div className="absolute inset-0 -inset-x-8 -inset-y-8 rounded-3xl pointer-events-none" style={{
-                  background: `radial-gradient(ellipse, ${phase === 'buildup' ? cfg.glowColor : 'rgba(124,58,237,0.3)'} 0%, transparent 70%)`,
+                  background: `radial-gradient(ellipse, ${phase === 'buildup' ? cfg.glowColor : 'var(--v2-selected)'} 0%, transparent 70%)`,
                   filter: 'blur(20px)',
                   opacity: phase === 'buildup' ? 0.9 : phase === 'anticipation' ? 0.6 : 0.3,
                   transition: 'opacity 0.5s',
                 }} />
 
                 {/* Card */}
-                <div className="relative aspect-[3/4] rounded-2xl border border-violet-500/30 bg-gradient-to-br from-[#0f0a20] to-[#1a0a2e] overflow-hidden shadow-2xl shadow-violet-500/20">
-                  <div className="absolute inset-0 bg-gradient-to-br from-violet-600/10 to-pink-600/10" />
+                <div className="chambre-booster-sealed relative aspect-[3/4] overflow-hidden">
+                  <div className="chambre-booster-material absolute inset-0" />
 
                   {/* Header */}
-                  <div className="absolute top-0 left-0 right-0 h-10 bg-gradient-to-r from-violet-600/50 to-pink-600/50 flex items-center justify-center border-b border-white/10">
-                    <span className="text-[11px] font-bold text-white/80 uppercase tracking-widest">Synaura Booster</span>
+                  <div className="chambre-booster-seal-header">
+                    <span>Synaura Booster</span>
                   </div>
 
                   {/* Noise texture */}
@@ -232,7 +236,7 @@ export default function BoosterOpenModal({
                       animate={phase === 'buildup' ? { scale: [1, 1.3, 1], rotate: [0, 360] } : phase === 'anticipation' ? { scale: [1, 1.1, 1] } : {}}
                       transition={{ duration: phase === 'buildup' ? 0.4 : 2, repeat: Infinity }}
                     >
-                      <Zap className="w-16 h-16 text-violet-400/70 drop-shadow-lg" />
+                      <Zap className="chambre-booster-seal-symbol w-16 h-16" />
                     </motion.div>
                   </div>
 
@@ -255,7 +259,7 @@ export default function BoosterOpenModal({
 
                   {/* Bottom text */}
                   <div className="absolute bottom-4 left-0 right-0 text-center">
-                    <div className="text-xs text-white/40">Mystere a decouvrir</div>
+                    <div className="chambre-reward-muted text-xs">Mystère à découvrir</div>
                   </div>
 
                   {/* Foil sweep */}
@@ -266,30 +270,37 @@ export default function BoosterOpenModal({
                   {/* Synaura logo */}
                   <div className="absolute bottom-1.5 left-0 right-0 flex items-center justify-center">
                     <div className="px-2 py-0.5 rounded bg-white/5 border border-white/10">
-                      <Image src="/brand/2026/synaura-symbol-2026.png" alt="" width={24} height={24} className="h-6 w-6 object-contain opacity-70" unoptimized />
+                      <SynauraLogo size={24} className="opacity-70" decorative />
                     </div>
                   </div>
                 </div>
 
+                </div>
+                <section className="chambre-booster-opening-copy">
+                  <p className="chambre-reward-eyebrow">Votre prochain élan</p>
+                  <h2>Le son prend<br /><span>de l’ampleur.</span></h2>
+                  <p className="chambre-reward-intro">Découvrez votre booster, son effet et sa durée avant de l’utiliser depuis votre inventaire.</p>
                 {/* CTA button */}
                 {phase === 'idle' && (
                   <motion.button
                     onClick={handleOpen}
                     disabled={isOpening}
-                    className="mt-6 w-full h-12 rounded-2xl bg-gradient-to-r from-violet-600 to-pink-600 text-white font-bold text-sm hover:from-violet-500 hover:to-pink-500 disabled:opacity-40 transition-all shadow-lg shadow-violet-500/30"
+                    className="chambre-reward-primary chambre-booster-open-button"
                     whileHover={{ scale: 1.03 }}
                     whileTap={{ scale: 0.97 }}
                   >
                     {isOpening ? 'Ouverture...' : 'Ouvrir le booster'}
                   </motion.button>
                 )}
+                  <p className="chambre-booster-opening-status" role="status">Le booster se révèle…</p>
+                </section>
               </motion.div>
             )}
 
             {/* ═══ REVEALED — Result card ═══ */}
             {phase === 'revealed' && boosterData && (
               <motion.div
-                className="relative z-10 w-[260px] sm:w-[300px]"
+                className="chambre-booster-result relative z-10"
                 style={{ animation: 'bo-descend 0.8s ease-out forwards' }}
               >
                 {/* Persistent glow */}
@@ -299,8 +310,8 @@ export default function BoosterOpenModal({
                 }} />
 
                 {/* Revealed card */}
-                <div className={`relative aspect-[3/4] rounded-2xl border bg-gradient-to-br from-[#0a0a15]/90 to-[#0a0a15]/80 overflow-hidden shadow-2xl`}
-                  style={{ borderColor: cfg.color + '40' }}>
+                <div className="chambre-booster-result-card relative overflow-hidden"
+                  style={{ borderColor: 'var(--v2-line)' }}>
 
                   {/* Gradient accent top */}
                   <div className={`absolute top-0 left-0 right-0 h-1 bg-gradient-to-r ${cfg.gradient}`} />
@@ -320,21 +331,22 @@ export default function BoosterOpenModal({
                   )}
 
                   {/* Header */}
-                  <div className="absolute top-0 left-0 right-0 h-9 bg-gradient-to-r from-white/5 to-white/[0.02] flex items-center justify-center border-b border-white/5">
-                    <span className="text-[10px] font-bold text-white/40 uppercase tracking-widest">Synaura</span>
+                  <div className="chambre-booster-result-heading">
+                    <span className="chambre-reward-eyebrow">Synaura / Booster révélé</span>
                   </div>
 
                   {/* Content */}
-                  <div className="h-full flex flex-col items-center justify-center p-6 pt-12 text-center gap-3">
+                  <div className="chambre-booster-result-content">
                     {/* Rarity badge */}
                     <motion.div
                       initial={{ scale: 0, rotate: -180 }}
                       animate={{ scale: 1, rotate: 0 }}
                       transition={{ delay: 0.2, type: 'spring', stiffness: 200 }}
+                      className="chambre-booster-rarity"
                     >
                       <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full border bg-white/5`} style={{ borderColor: cfg.color + '40' }}>
                         <Icon className="w-3.5 h-3.5" style={{ color: cfg.color }} />
-                        <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: cfg.color }}>{cfg.label}</span>
+                        <span className="text-[11px] font-bold uppercase tracking-wider" style={{ color: 'var(--v2-text)' }}>{cfg.label}</span>
                       </div>
                     </motion.div>
 
@@ -343,16 +355,16 @@ export default function BoosterOpenModal({
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
                       transition={{ delay: 0.4, type: 'spring' }}
-                      className="relative"
+                      className="chambre-booster-result-icon relative"
                     >
                       <div className="absolute inset-0 rounded-full blur-2xl" style={{ background: cfg.glowColor, transform: 'scale(2.5)' }} />
                       <Icon className="relative w-16 h-16" style={{ color: cfg.color, filter: `drop-shadow(0 0 12px ${cfg.color})` }} />
                     </motion.div>
 
                     {/* Name */}
-                    <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.6 }} className="space-y-1">
-                      <div className="text-xl font-black text-white">{boosterData.name}</div>
-                      <div className="text-xs text-white/40 max-w-[85%] mx-auto">{boosterData.description}</div>
+                    <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.6 }} className="chambre-booster-result-copy">
+                      <h2>{boosterData.name}</h2>
+                      <p>{boosterData.description}</p>
                     </motion.div>
 
                     {/* Stats */}
@@ -360,35 +372,35 @@ export default function BoosterOpenModal({
                       initial={{ scale: 0, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
                       transition={{ delay: 0.8 }}
-                      className="flex items-center gap-4 mt-2"
+                      className="chambre-booster-result-stats"
                     >
                       <div className="text-center">
                         <motion.div
-                          className="text-2xl font-black text-emerald-400"
+                          className="chambre-booster-result-value"
                           animate={{ scale: [1, 1.1, 1] }}
                           transition={{ duration: 1.5, repeat: Infinity }}
                         >
                           x{boosterData.multiplier?.toFixed(2)}
                         </motion.div>
-                        <div className="text-[10px] text-white/30">Multiplicateur</div>
+                        <div className="chambre-reward-muted text-xs">Multiplicateur</div>
                       </div>
                       <div className="w-px h-8 bg-white/10" />
                       <div className="text-center">
-                        <div className="text-2xl font-black text-white">{boosterData.duration_hours}h</div>
-                        <div className="text-[10px] text-white/30">Duree</div>
+                        <div className="chambre-booster-result-value">{boosterData.duration_hours}h</div>
+                        <div className="chambre-reward-muted text-xs">Durée</div>
                       </div>
                     </motion.div>
                   </div>
 
                   {/* Synaura logo */}
-                  <div className="absolute bottom-2 left-0 right-0 flex items-center justify-center">
-                    <Image src="/brand/2026/synaura-symbol-2026.png" alt="" width={24} height={24} className="h-6 w-6 object-contain opacity-45" unoptimized />
+                  <div className="chambre-booster-result-signature">
+                    <SynauraLogo size={24} className="opacity-45" decorative />
                   </div>
                 </div>
 
                 {/* Action buttons */}
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1 }} className="mt-5 flex gap-2">
-                  <UButton variant="accent" size="lg" fullWidth onClick={onClose}>
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 1 }} className="chambre-reward-result-footer">
+                  <UButton variant="accent" size="lg" fullWidth onClick={onClose} className="chambre-reward-primary">
                     Fermer
                   </UButton>
                 </motion.div>

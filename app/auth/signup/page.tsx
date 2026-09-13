@@ -128,7 +128,7 @@ function SignUpContent() {
 
       {error ? <div role="alert" className="mb-4 flex items-center gap-2 rounded-[var(--syn-radius-md)] bg-[color-mix(in_srgb,var(--syn-destructive)_12%,transparent)] p-3 text-sm font-bold text-[var(--syn-destructive)]"><AlertCircle className="h-4 w-4" /> {error}</div> : null}
 
-      <form onSubmit={submit} className="flex flex-1 flex-col">
+      <form onSubmit={submit} className="chambre-auth-fields flex flex-1 flex-col">
         <div className="space-y-4">
           {step === 0 ? <><SynauraInput label="Nom affiché" required autoComplete="name" value={form.name} onChange={(event) => update('name', event.target.value)} placeholder="Ton nom d’artiste ou ton prénom" /><SynauraInput label="Nom d’utilisateur" required autoComplete="username" value={form.username} onChange={(event) => update('username', event.target.value)} placeholder="tonpseudo" hint={form.username ? `Ton profil sera synaura.fr/profile/${form.username}` : '3 caractères minimum, sans espace'} /></> : null}
           {step === 1 ? <><SynauraInput label="Email" type="email" required autoComplete="email" value={form.email} onChange={(event) => update('email', event.target.value)} placeholder="toi@exemple.fr" /><div className="rounded-[var(--syn-radius-md)] bg-[var(--syn-soft)] p-4 text-sm font-semibold text-[var(--syn-text-secondary)]"><AtSign className="mb-2 h-4 w-4 text-[var(--syn-accent-blue)]" />Pas de newsletter automatique. Cet email sert à la connexion et à la récupération du compte.</div></> : null}

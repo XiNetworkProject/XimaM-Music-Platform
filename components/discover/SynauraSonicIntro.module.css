@@ -7,7 +7,7 @@
   overflow: hidden;
   overflow: clip;
   padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right)) max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
-  color: #fffaf5;
+  color: var(--v2-text);
   background: #010104;
   isolation: isolate;
 }
@@ -20,12 +20,8 @@
 }
 
 .ambient {
-  inset: -20%;
-  background:
-    radial-gradient(circle at 48% 43%, rgba(115, 87, 198, 0.24), transparent 19%),
-    radial-gradient(circle at 32% 26%, rgba(217, 109, 99, 0.12), transparent 24%),
-    radial-gradient(circle at 68% 68%, rgba(74, 158, 170, 0.14), transparent 26%);
-  filter: blur(28px);
+  inset: 0;
+  background: radial-gradient(ellipse at 56% 40%, #27324a55, transparent 66%);
 }
 
 .mist {
@@ -55,14 +51,15 @@
 }
 
 .promptLogo {
-  filter: drop-shadow(0 0 2.2rem rgba(115, 87, 198, 0.42));
+  filter: none;
+  max-width: 80vw;
 }
 
 .eyebrow {
   margin-top: 1.25rem;
   color: rgba(255, 250, 245, 0.58);
   font-size: 0.68rem;
-  font-weight: 900;
+  font-weight: 500;
   letter-spacing: 0.24em;
   text-transform: uppercase;
 }
@@ -70,7 +67,8 @@
 .title {
   margin-top: 0.85rem;
   font-size: clamp(2.45rem, 7vw, 5.4rem);
-  font-weight: 950;
+  font-family: var(--v2-font-display);
+  font-weight: 400;
   line-height: 0.94;
   letter-spacing: -0.06em;
   text-wrap: balance;
@@ -81,7 +79,7 @@
   margin: 1rem auto 0;
   color: rgba(255, 250, 245, 0.64);
   font-size: clamp(0.92rem, 2vw, 1.06rem);
-  font-weight: 650;
+  font-weight: 400;
   line-height: 1.55;
   text-wrap: balance;
 }
@@ -98,17 +96,17 @@
 .secondary,
 .skip {
   min-height: 2.85rem;
-  border-radius: 999px;
+  border-radius: var(--v2-radius-sm);
   padding: 0.72rem 1.15rem;
   font-size: 0.82rem;
-  font-weight: 900;
+  font-weight: 500;
   transition: transform 160ms ease, background 160ms ease, color 160ms ease;
 }
 
 .primary {
-  color: #09090c;
-  background: #fffaf5;
-  box-shadow: 0 1rem 3rem rgba(115, 87, 198, 0.2);
+  color: var(--v2-text);
+  background: var(--v2-accent-fill);
+  box-shadow: none;
 }
 
 .secondary {
@@ -124,15 +122,15 @@
 .primary:focus-visible,
 .secondary:focus-visible,
 .skip:focus-visible {
-  outline: 3px solid rgba(74, 158, 170, 0.85);
+  outline: 2px solid var(--v2-focus);
   outline-offset: 3px;
 }
 
 .hint {
   margin-top: 0.8rem;
-  color: rgba(255, 250, 245, 0.4);
+  color: var(--v2-faint);
   font-size: 0.7rem;
-  font-weight: 700;
+  font-weight: 400;
 }
 
 .cinema,
@@ -165,6 +163,7 @@
 }
 
 .fallbackLogo {
+  max-width: 84vw;
   position: relative;
   z-index: 2;
   opacity: 0;

@@ -17,7 +17,7 @@ function formatTime(seconds: number): string {
 }
 
 type Props = {
-  /** Amplitudes (0..1 ou brutes, seront normalisées). Si vide, affiche une forme de repli. */
+  /** Amplitudes (0..1 ou brutes, normalisées). Si vide, indique la forme indisponible. */
   waveformData: number[];
   /** Progression lecture 0..1 */
   progress: number;
@@ -61,15 +61,6 @@ function normalizeToSamples(data: number[], targetLength: number): number[] {
   return out.map((v) => Math.max(0, Math.min(1, v / max)));
 }
 
-function buildFallbackWaveform(length: number): number[] {
-  return Array.from({ length }, (_, i) => {
-    const t = i / (length - 1);
-    const s = Math.sin(t * Math.PI * 6) * 0.4 + 0.5;
-    const v = Math.sin(t * Math.PI * 14 + 0.3) * 0.2;
-    return Math.max(0.12, Math.min(0.98, s + v));
-  });
-}
-
 export function SynauraWaveform({
   waveformData,
   progress,
@@ -85,7 +76,7 @@ export function SynauraWaveform({
   const normalized = useMemo(() => {
     const raw = waveformData.length
       ? normalizeToSamples(waveformData, SAMPLES)
-      : buildFallbackWaveform(SAMPLES);
+      : [];
     return raw;
   }, [waveformData]);
 
@@ -114,16 +105,23 @@ export function SynauraWaveform({
 
   return (
     <div
-      className={`relative w-full ${heightClass} ${onSeek ? 'cursor-pointer' : ''} ${className}`}
+      className={`v2-workspace-waveform relative w-full ${heightClass} ${onSeek ? 'cursor-pointer' : ''} ${className}`}
       onClick={handleClick}
       role={onSeek ? 'slider' : undefined}
       aria-valuenow={prog}
       aria-valuemin={0}
       aria-valuemax={1}
       aria-label={onSeek ? 'Position dans le morceau' : undefined}
+      tabIndex={onSeek ? 0 : undefined}
+      onKeyDown={event => {
+        if (!onSeek || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+        event.preventDefault();
+        onSeek(event.key === 'Home' ? 0 : event.key === 'End' ? 1 : Math.max(0, Math.min(1, prog + (event.key === 'ArrowRight' ? 1 : -1) * 5 / Math.max(1, totalSec))));
+      }}
     >
       <div className="flex flex-col gap-1 h-full min-h-0">
         <div className="relative flex-1 min-h-[40px] w-full">
+          {!normalized.length && <span className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center text-[11px] text-[var(--v2-muted)]">Forme d’onde indisponible</span>}
           <div
             className={`absolute inset-0 overflow-hidden rounded-2xl border ${
               isUpload
@@ -144,12 +142,12 @@ export function SynauraWaveform({
               {!isUpload && (
                 <defs>
                   <linearGradient id={`${idPrefix}-stroke`} x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stopColor="rgba(129,140,248,0.55)" />
-                    <stop offset="100%" stopColor="rgba(34,211,238,0.5)" />
+                    <stop offset="0%" stopColor="var(--v2-line)" />
+                    <stop offset="100%" stopColor="var(--v2-muted)" />
                   </linearGradient>
                   <linearGradient id={`${idPrefix}-played`} x1="0" y1="0" x2="1" y2="0">
-                    <stop offset="0%" stopColor="rgba(165,180,252,0.95)" />
-                    <stop offset="100%" stopColor="rgba(103,232,249,0.95)" />
+                    <stop offset="0%" stopColor="var(--v2-accent)" />
+                    <stop offset="100%" stopColor="var(--v2-blue)" />
                   </linearGradient>
                   <clipPath id={`${idPrefix}-clip`}>
                     <rect x="0" y="0" width={200 * prog} height={VIEW_HEIGHT} />

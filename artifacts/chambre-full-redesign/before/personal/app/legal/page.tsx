@@ -1,0 +1,212 @@
+'use client';
+
+import { motion } from 'framer-motion';
+import { FileText, Shield, Cookie, Scale, Users, Globe, ArrowRight, AlertTriangle } from 'lucide-react';
+import Link from 'next/link';
+import BottomNav from '@/components/BottomNav';
+import { SYNAURA_SHUTDOWN_NOTICES_ENABLED } from '@/lib/synauraShutdown';
+
+const legalPages = [
+  {
+    id: 'fermeture',
+    title: 'Fermeture de Synaura',
+    description: 'Annonce officielle d\'arrêt définitif du service',
+    icon: AlertTriangle,
+    href: '/fermeture'
+  },
+  {
+    id: 'mentions-legales',
+    title: 'Mentions légales',
+    description: 'Informations légales sur Synaura',
+    icon: FileText,
+    href: '/legal/mentions-legales'
+  },
+  {
+    id: 'confidentialite',
+    title: 'Politique de confidentialité',
+    description: 'Protection de vos données personnelles',
+    icon: Shield,
+    href: '/legal/confidentialite'
+  },
+  {
+    id: 'cgu',
+    title: 'Conditions générales d\'utilisation',
+    description: 'Règles d\'utilisation de la plateforme',
+    icon: Scale,
+    href: '/legal/cgu'
+  },
+  {
+    id: 'cgv',
+    title: 'Conditions générales de vente',
+    description: 'Conditions d\'achat des abonnements',
+    icon: Scale,
+    href: '/legal/cgv'
+  },
+  {
+    id: 'cookies',
+    title: 'Politique des cookies',
+    description: 'Utilisation des cookies et technologies similaires',
+    icon: Cookie,
+    href: '/legal/cookies'
+  },
+  {
+    id: 'rgpd',
+    title: 'Conformité RGPD',
+    description: 'Droits et protection des données',
+    icon: Users,
+    href: '/legal/rgpd'
+  }
+].filter((page) => SYNAURA_SHUTDOWN_NOTICES_ENABLED || page.id !== 'fermeture');
+
+export default function LegalPage() {
+  return (
+    <div className="min-h-screen w-full px-2 sm:px-4 md:px-6 pt-6 sm:pt-10 pb-24 text-white">
+      <div className="relative z-10 w-full p-0 sm:p-2">
+        <div className="v2-legal-index">
+          {/* Header */}
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6 }}
+            className="v2-legal-intro"
+          >
+            <div className="flex items-center justify-center mb-6">
+              <div className="p-3 rounded-xl bg-white/[0.06] border border-white/[0.06]">
+                <Scale className="w-8 h-8 text-white" />
+              </div>
+            </div>
+            <h1 className="text-3xl font-bold text-white mb-2">Centre légal</h1>
+            <p className="text-white/60">Documents légaux et informations importantes</p>
+          </motion.div>
+
+          {SYNAURA_SHUTDOWN_NOTICES_ENABLED ? (
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.15 }}
+              className="mb-6"
+            >
+              <Link
+                href="/fermeture"
+                className="block p-5 rounded-2xl border border-red-500/30 bg-gradient-to-r from-red-950/60 to-rose-950/40 hover:border-red-400/50 transition group"
+              >
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 rounded-xl bg-red-500/15 border border-red-500/25">
+                      <AlertTriangle className="w-6 h-6 text-red-400" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-bold text-red-100 group-hover:text-white transition">
+                        Synaura ferme définitivement
+                      </h2>
+                      <p className="text-sm text-white/50 mt-0.5">
+                        Lire l&apos;annonce officielle — dernier accès le 24 juin 2026
+                      </p>
+                    </div>
+                  </div>
+                  <ArrowRight className="w-5 h-5 text-red-300/60 group-hover:text-red-200 group-hover:translate-x-1 transition-all shrink-0" />
+                </div>
+              </Link>
+            </motion.div>
+          ) : null}
+
+          {/* Informations entreprise */}
+          <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="bg-white/[0.02] backdrop-blur-xl border border-white/[0.06] rounded-2xl p-6 mb-6"
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 rounded-lg bg-white/[0.06] border border-white/[0.06]">
+                <Globe className="w-5 h-5 text-white/60" />
+              </div>
+              <h2 className="text-xl font-bold text-white">Informations entreprise</h2>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div>
+                <span className="text-white/60">Raison sociale :</span>
+                <span className="text-white ml-2">Maxime VERMEULEN</span>
+              </div>
+              <div>
+                <span className="text-white/60">Statut :</span>
+                <span className="text-white ml-2">Auto-entrepreneur</span>
+              </div>
+              <div>
+                <span className="text-white/60">SIRET :</span>
+                <span className="text-white ml-2">991635194</span>
+              </div>
+              <div>
+                <span className="text-white/60">Activité :</span>
+                <span className="text-white ml-2">Développement d'applications</span>
+              </div>
+              <div>
+                <span className="text-white/60">Site web :</span>
+                <span className="text-white ml-2">synaura.fr</span>
+              </div>
+              <div>
+                <span className="text-white/60">Contact :</span>
+                <span className="text-white ml-2">contact.syn@synaura.fr</span>
+              </div>
+            </div>
+          </motion.div>
+
+          {/* Pages légales */}
+          <div className="v2-legal-documents space-y-4">
+            {legalPages.map((page, index) => (
+              <motion.div
+                key={page.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: 0.3 + index * 0.1 }}
+                className="bg-white/[0.02] backdrop-blur-xl border border-white/[0.06] rounded-2xl overflow-hidden"
+              >
+                <Link
+                  href={page.href}
+                  className="block p-6 hover:bg-white/5 transition-colors duration-200 group"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      <div className="p-3 rounded-xl bg-white/[0.06] border border-white/[0.06]">
+                        <page.icon className="w-6 h-6 text-white/60" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold text-white group-hover:text-white transition-colors">
+                          {page.title}
+                        </h3>
+                        <p className="text-sm text-white/60 mt-1">
+                          {page.description}
+                        </p>
+                      </div>
+                    </div>
+                    <ArrowRight className="w-5 h-5 text-white/40 group-hover:text-white/60 group-hover:translate-x-1 transition-all" />
+                  </div>
+                </Link>
+              </motion.div>
+            ))}
+          </div>
+
+          {/* Footer */}
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.6, delay: 0.8 }}
+            className="mt-8 text-center text-sm text-white/30"
+          >
+            <p>Dernière mise à jour : {new Date().toLocaleDateString('fr-FR')}</p>
+            <p className="mt-2">
+              Pour toute question légale :{' '}
+              <a href="mailto:contact.syn@synaura.fr" className="text-white/60 hover:text-white transition-colors">
+                contact.syn@synaura.fr
+              </a>
+            </p>
+          </motion.div>
+        </div>
+      </div>
+
+      {/* Bottom Navigation */}
+      <BottomNav />
+    </div>
+  );
+}

@@ -75,8 +75,8 @@ export default function CommunityFAQPage() {
         primaryLabel="Demander un avis"
       />
 
-      <div className="space-y-5 pb-28">
-        <SynauraInkPanel className="p-5 sm:p-7">
+      <div className="chambre-faq space-y-5 pb-28">
+        <SynauraInkPanel className="v2-community-hero">
           <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_300px] md:items-end">
             <div>
               <Link href="/community" className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-xs font-black text-white/58 transition hover:bg-white/14 hover:text-white">
@@ -144,7 +144,7 @@ export default function CommunityFAQPage() {
                 const isOpen = expanded.has(faq.id);
                 return (
                   <div key={faq.id} className="overflow-hidden rounded-[1.25rem] border border-black/[0.07] bg-black/[0.025]">
-                    <button type="button" onClick={() => toggle(faq.id)} className="flex w-full items-start justify-between gap-4 p-4 text-left">
+                    <button type="button" aria-expanded={isOpen} aria-controls={`faq-answer-${faq.id}`} onClick={() => toggle(faq.id)} className="flex w-full items-start justify-between gap-4 p-4 text-left">
                       <div>
                         <p className="text-sm font-black text-[#171313]">{faq.question}</p>
                         <div className="mt-2 flex flex-wrap gap-1.5">
@@ -157,7 +157,7 @@ export default function CommunityFAQPage() {
                       {isOpen ? <ChevronUp className="h-4 w-4 shrink-0 text-black/34" /> : <ChevronDown className="h-4 w-4 shrink-0 text-black/34" />}
                     </button>
                     {isOpen ? (
-                      <div className="border-t border-black/[0.06] px-4 pb-4 pt-3">
+                      <div id={`faq-answer-${faq.id}`} className="border-t border-black/[0.06] px-4 pb-4 pt-3">
                         <p className="whitespace-pre-wrap text-sm font-semibold leading-7 text-black/56">{faq.answer}</p>
                       </div>
                     ) : null}

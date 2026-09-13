@@ -9,7 +9,7 @@ export default function CookiesPage() {
   return (
     <div className="min-h-screen w-full px-2 sm:px-4 md:px-6 pt-6 sm:pt-10 pb-24 text-white">
       <div className="relative z-10 w-full p-0 sm:p-2">
-        <div className="max-w-4xl mx-auto">
+        <div className="chambre-legal-document max-w-4xl mx-auto">
           {/* Header */}
           <motion.div 
             initial={{ opacity: 0, y: -20 }}

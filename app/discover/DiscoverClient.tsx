@@ -1,5 +1,7 @@
 'use client';
 
+import '@/components/v2/music-v2.css';
+
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -61,7 +63,7 @@ function MoodResultsView({ moodId, onBack }: { moodId: MoodId; onBack: () => voi
   }, [moodId]);
 
   return (
-    <div className="space-y-5">
+    <div className="experience-mood-results space-y-5">
       <button
         type="button"
         onClick={onBack}
@@ -72,16 +74,17 @@ function MoodResultsView({ moodId, onBack }: { moodId: MoodId; onBack: () => voi
       </button>
 
       <div
-        className="relative overflow-hidden rounded-[14px] p-6 text-white sm:rounded-[20px] sm:p-8"
+        className="experience-mood-banner relative overflow-hidden rounded-[14px] p-6 text-white sm:rounded-[20px] sm:p-8"
         style={{ background: `linear-gradient(150deg, ${mood.gradient[0]}, ${mood.gradient[1]})` }}
       >
+        <p className="v2-kicker">Une fréquence à explorer</p>
         <h1 className="text-3xl font-black tracking-[-0.04em] sm:text-5xl">{mood.label}</h1>
         <p className="mt-2 max-w-lg text-sm font-semibold leading-6 text-white/72 sm:text-base">{mood.promise}</p>
       </div>
 
       {loading ? (
         <SynauraPanel className="grid min-h-[240px] place-items-center p-8">
-          <div className="mx-auto h-9 w-9 animate-spin rounded-full border-2 border-[var(--syn-border)] border-t-[var(--syn-text-primary)]" />
+          <p role="status" className="experience-loading-label">À la recherche de votre prochaine écoute…</p>
         </SynauraPanel>
       ) : hasEnough && tracks.length ? (
         <SynauraPanel className="p-4 sm:p-5">
@@ -137,21 +140,20 @@ function DiscoverLeadCard({
   };
 
   return (
-    <section className="relative min-h-[230px] overflow-hidden rounded-[14px] border border-white/10 bg-[#151515] text-white shadow-[0_18px_48px_var(--syn-shadow)] sm:min-h-[300px] sm:rounded-[20px]">
+    <section className="v2-discover-lead experience-discover-feature" aria-label="Un morceau à découvrir">
+      <div className="experience-discover-feature-topline"><span>À l’écoute / premier contact</span><span aria-hidden="true">↗</span></div>
       <TrackCover
         trackId={track._id}
         src={track.coverUrl}
         videoSrc={track.coverVideoUrl}
         posterSrc={track.coverVideoPosterUrl || track.coverUrl}
         title={track.title}
-        className="absolute inset-0 h-full w-full"
+        className="v2-discover-lead-art"
         rounded="rounded-none"
         objectFit="cover"
       />
-      <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/62 to-black/18" />
-      <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/10" />
-      <div className="relative flex min-h-[230px] max-w-2xl flex-col justify-end p-5 sm:min-h-[300px] sm:p-7">
-        <p className="text-[10px] font-black uppercase text-[#8fd3da]">Signal Radar</p>
+      <div className="v2-discover-lead-copy">
+        <p className="v2-kicker">Le son à suivre</p>
         <h2 className="mt-2 max-w-xl text-3xl font-black leading-[0.98] sm:text-5xl">{track.title}</h2>
         <p className="mt-2 text-sm font-bold text-white/68">{artist}</p>
         <div className="mt-5 flex flex-wrap items-center gap-2">
@@ -161,13 +163,13 @@ function DiscoverLeadCard({
             className="inline-flex h-11 items-center gap-2 rounded-[10px] bg-[#F7F6F3] px-4 text-sm font-black text-[#111111] transition hover:opacity-90"
           >
             {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4 fill-current" />}
-            {isPlaying ? 'Pause' : 'Ecouter'}
+            {isPlaying ? 'Pause' : 'Écouter'}
           </button>
           <Link
             href={`/track/${encodeURIComponent(track._id)}`}
             className="inline-flex h-11 items-center gap-2 rounded-[10px] border border-white/16 bg-white/10 px-4 text-sm font-black text-white transition hover:bg-white/16"
           >
-            Ouvrir le morceau
+            Le morceau
             <ArrowRight className="h-4 w-4" />
           </Link>
           {totalTracks ? (
@@ -183,18 +185,49 @@ function DiscoverTrackRail({
   title,
   subtitle,
   tracks,
+  edition,
+  eyebrow,
 }: {
   title: string;
   subtitle: string;
   tracks: DiscoverTrackLite[];
+  edition: 'releases' | 'hidden' | 'popular';
+  eyebrow: string;
 }) {
   if (!tracks.length) return null;
   return (
-    <section>
-      <SectionHeader title={title} subtitle={subtitle} />
-      <HorizontalScroller>
-        {tracks.map((track) => <TrackTile key={track._id} track={track} />)}
-      </HorizontalScroller>
+    <section className={`v2-discover-track-section chambre-discover-edition chambre-discover-edition--${edition}`} aria-labelledby={`discover-${edition}`}>
+      <header className="chambre-discover-section-heading">
+        <div>
+          <p className="v2-kicker">{eyebrow}</p>
+          <h2 id={`discover-${edition}`}>{title}</h2>
+        </div>
+        <p>{subtitle}</p>
+      </header>
+      <ol className="chambre-discover-records">
+        {tracks.slice(0, edition === 'popular' ? 6 : 4).map((track, index) => (
+          <li key={track._id} data-discover-track={track._id}>
+            <span className="chambre-discover-record-index" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
+            <TrackTile track={track} grid />
+          </li>
+        ))}
+      </ol>
+      {tracks.length > (edition === 'popular' ? 6 : 4) ? (
+        <details className="chambre-discover-remainder">
+          <summary>
+            <span>Explorer la suite <span className="chambre-discover-remainder-count">{tracks.length - (edition === 'popular' ? 6 : 4)} autres morceaux</span></span>
+            <ArrowRight size={18} aria-hidden="true" />
+          </summary>
+          <ol className="chambre-discover-records chambre-discover-records--continued" start={edition === 'popular' ? 7 : 5}>
+            {tracks.slice(edition === 'popular' ? 6 : 4).map((track, index) => (
+              <li key={track._id} data-discover-track={track._id}>
+                <span className="chambre-discover-record-index" aria-hidden="true">{String(index + (edition === 'popular' ? 7 : 5)).padStart(2, '0')}</span>
+                <TrackTile track={track} grid />
+              </li>
+            ))}
+          </ol>
+        </details>
+      ) : null}
     </section>
   );
 }
@@ -249,38 +282,45 @@ export default function DiscoverClient({
   const leadQueue = radarTracks.length ? radarTracks : newestTracks.length ? newestTracks : popularTracks;
 
   return (
-    <SynauraAppShell contentClassName="max-w-[1160px]">
-      <SynauraTopBar searchHref="/discover" searchLabel="Sons, artistes, playlists, clubs..." secondaryHref="/ai-generator" secondaryLabel="Studio" />
+<SynauraAppShell contentClassName="v2-music-shell v2-discover-shell">
+      <SynauraTopBar searchHref="/discover" searchLabel="Sons, artistes, playlists, clubs..." secondaryHref="/ai-generator" secondaryLabel="AI Generator" />
       <SynauraRouteNav />
 
-      <div className="space-y-6 pb-24">
+
+      <div className="v2-discover experience-discover" data-chambre-music="discover">
         {activeMoodConfig ? (
           <MoodResultsView moodId={activeMoodConfig.id} onBack={closeMood} />
         ) : (
           <>
-            <div>
-              <p className="text-[11px] font-black uppercase text-[var(--syn-accent-blue)]">Explorer</p>
-              <h1 className="mt-1 text-3xl font-black text-[var(--syn-text-primary)] sm:text-4xl">
-                Découvrir
-              </h1>
-              <p className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-[var(--syn-text-secondary)] sm:text-base">
-                Les signaux qui montent, les nouvelles voix et tous les univers de Synaura.
-              </p>
+            <nav aria-label="Explorer cette page" className="experience-discover-navigation">
+              <a href="#ambiances"><span>01</span> Ambiances</a>
+              {newestTracks.length ? <a href="#discover-releases"><span>02</span> Nouveautés</a> : null}
+              {artists.length ? <a href="#createurs"><span>03</span> Artistes</a> : null}
+              <a href="#rencontres"><span>04</span> Rencontres</a>
+            </nav>
+            <div className="v2-discover-opening">
+              <header className="v2-discover-intro">
+                <p className="v2-kicker">Chambre Sonore / Découvrir</p>
+                <h1 className="v2-heading">Le prochain<br /><em>déclic.</em></h1>
+                <p className="v2-intro">Des voix qui surprennent. Des morceaux qui restent. Prenez le temps de trouver votre fréquence.</p>
+                <a href="#ambiances" className="experience-discover-entry">Trouver mon ambiance <ArrowRight size={18} aria-hidden="true" /></a>
+                <div className="experience-discover-note"><span aria-hidden="true">↳</span><p>Une porte ouverte<br />sur les sons de Synaura.</p></div>
+              </header>
+              {leadTrack ? <DiscoverLeadCard track={leadTrack} queue={leadQueue} totalTracks={totalTracks} /> : (
+                <div className="experience-discover-quiet"><Compass size={36} aria-hidden="true" /><h2>La prochaine découverte se prépare.</h2><p>Explorez les ambiances et les communautés en attendant de nouveaux morceaux.</p></div>
+              )}
             </div>
 
-            {leadTrack ? (
-              <DiscoverLeadCard track={leadTrack} queue={leadQueue} totalTracks={totalTracks} />
-            ) : null}
-
-            <section>
-              <div className="mb-3">
-                <p className="text-[11px] font-black uppercase text-[var(--syn-text-secondary)]">8 ambiances</p>
-                <h2 className="mt-1 text-xl font-black text-[var(--syn-text-primary)] sm:text-2xl">Explorer par ambiance</h2>
+            <section id="ambiances" className="v2-discover-moods chambre-discover-frequencies" aria-labelledby="discover-frequencies-title">
+              <header className="chambre-discover-frequency-heading">
+                <p className="v2-kicker">01 / choisir une sensation</p>
+                <h2 id="discover-frequencies-title" className="mt-1 text-xl font-black text-[var(--syn-text-primary)] sm:text-2xl">À chaque instant,<br />sa fréquence.</h2>
                 <p className="mt-1 text-sm text-[var(--syn-text-secondary)]">
-                  Chaque univers s’appuie sur des pochettes et des morceaux réellement publiés.
+                  Choisissez ce que vous avez envie de ressentir.
                 </p>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <p className="chambre-discover-frequency-note">De l’énergie brute<br />aux heures suspendues.</p>
+              </header>
+              <div className="v2-mood-grid">
                 {orderedMoods.map((mood) => (
                   <MoodCard
                     key={mood.id}
@@ -293,41 +333,53 @@ export default function DiscoverClient({
               </div>
             </section>
 
-            <RadarSection tracks={radarTracks as any} compact showViewAll />
+            <div className="chambre-discover-radar">
+              <p className="v2-kicker">02 / capter ce qui émerge</p>
+              <RadarSection tracks={radarTracks as any} compact showViewAll />
+            </div>
 
             <DiscoverTrackRail
               title="Tout juste publiés"
-              subtitle="Les dernières sorties publiques, dans leur ordre réel de publication."
+              subtitle="Le journal des dernières sorties. La première écoute est peut-être la vôtre."
               tracks={newestTracks}
+              edition="releases"
+              eyebrow="03 / le journal des sorties"
             />
 
             <DiscoverTrackRail
               title="Pépites à découvrir"
-              subtitle="Des morceaux encore peu écoutés, remontés hors des classements habituels."
+              subtitle="Laissez une chance à ces morceaux encore peu écoutés."
               tracks={hiddenTracks}
+              edition="hidden"
+              eyebrow="04 / hors des sentiers battus"
             />
 
             {collections.length ? (
-              <section>
+              <section className="chambre-discover-collections" aria-label="Collections Synaura">
+                <p className="v2-kicker">Prolonger une sensation / les collections</p>
                 <CollectionSpotlight playlists={collections} />
               </section>
             ) : null}
 
             <DiscoverTrackRail
               title="Plébiscités sur Synaura"
-              subtitle="Les morceaux qui cumulent le plus d’amour et d’écoutes sur la plateforme."
+              subtitle="Ces morceaux font leur chemin dans les écoutes et les favoris."
               tracks={popularTracks}
+              edition="popular"
+              eyebrow="05 / la résonance collective"
             />
 
-            {artists.length ? (
-              <section>
-                <div className="mb-3">
-                  <p className="text-[11px] font-black uppercase text-[var(--syn-text-secondary)]">Créateurs</p>
-                  <h2 className="mt-1 text-xl font-black text-[var(--syn-text-primary)] sm:text-2xl">Artistes à découvrir</h2>
-                  <p className="mt-1 text-sm text-[var(--syn-text-secondary)]">
+{artists.length ? (
+              <section id="createurs" className="v2-discover-artists chambre-discover-portraits" aria-labelledby="discover-artists-title">
+                <header className="chambre-discover-section-heading">
+                  <div>
+                    <p className="v2-kicker">06 / derrière les sons</p>
+                    <h2 id="discover-artists-title">Artistes à découvrir</h2>
+                  </div>
+                  <p>
                     Entre directement dans leur univers avec un morceau réellement publié.
                   </p>
-                </div>
+                </header>
                 <HorizontalScroller>
                   {artists.map((artist) => (
                     <ArtistDiscoverCard key={artist._id} artist={artist} />
@@ -336,18 +388,18 @@ export default function DiscoverClient({
               </section>
             ) : null}
 
-            <section>
-              <div className="rounded-[14px] border border-[var(--syn-border)] bg-[var(--syn-surface)] p-4 sm:rounded-[20px] sm:p-5">
+            <section id="rencontres" className="v2-discover-community chambre-discover-meeting">
+              <div>
                 <div className="mb-3 flex items-center justify-between gap-3">
                   <div>
-                    <p className="text-[11px] font-black uppercase text-[var(--syn-text-secondary)]">Communauté</p>
+                    <p className="v2-kicker">07 / se rencontrer</p>
                     <h2 className="text-base font-black text-[var(--syn-text-primary)]">Créer avec d'autres</h2>
                   </div>
                   <Link href="/community" className="text-xs font-black text-[var(--syn-text-secondary)] hover:text-[var(--syn-text-primary)]">
                     Tous les Clubs
                   </Link>
                 </div>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <div className="chambre-discover-clubs grid grid-cols-2 gap-2 sm:grid-cols-4">
                   {COMMUNITY_CLUBS.map((club) => (
                     <Link
                       key={club.slug}
@@ -363,7 +415,7 @@ export default function DiscoverClient({
               </div>
             </section>
 
-            <section>
+            <section className="chambre-discover-events">
               <SectionHeader
                 title="Événements Synaura"
                 subtitle="Les rendez-vous, défis et scènes ouverts en ce moment."

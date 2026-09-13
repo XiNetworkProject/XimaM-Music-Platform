@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Ban, CheckCircle2, Link2, ArrowRight, Music2 } from 'lucide-react';
 import { RevealEmailButton } from '@/app/support/SupportForm';
+import ServiceFrame from '@/components/v2/ServiceFrame';
 
 export const metadata: Metadata = {
   title: 'Partenariats & Presse — Synaura',
@@ -35,26 +36,27 @@ const ELIGIBLE = [
 
 export default function PartnershipsPage() {
   return (
-    <div className="min-h-screen text-white">
-      <main className="mx-auto max-w-3xl px-4 py-10 space-y-6">
+    <div className="v2-personal v2-personal--partnerships min-h-screen">
+      <ServiceFrame>
+      <main className="v2-partnership-layout">
 
         {/* ── Header ───────────────────────────────────────── */}
-        <section className="space-y-3">
-          <div className="inline-flex items-center gap-2 rounded-full border border-indigo-500/30 bg-indigo-500/10 px-3 py-1 text-xs font-medium text-indigo-300">
+        <section className="v2-partnership-heading space-y-5">
+          <div className="v2-kicker inline-flex items-center gap-2">
             <Link2 size={12} />
             Partenariats & Presse
           </div>
-          <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
-            Travailler avec Synaura
+          <h1 className="v2-heading">
+            Créons<br /><span className="chambre-type-accent">la suite.</span>
           </h1>
-          <p className="text-sm md:text-base text-white/50 max-w-xl leading-relaxed">
+          <p className="v2-intro max-w-xl">
             Synaura est une plateforme musicale indépendante. Si tu veux collaborer avec nous,
             lis d'abord attentivement ce que nous faisons — et ce que nous ne faisons pas.
           </p>
         </section>
 
         {/* ── Ce que nous ne faisons PAS ───────────────────── */}
-        <section className="rounded-2xl border border-rose-500/30 bg-rose-500/5 p-5 md:p-6 space-y-4">
+        <section className="v2-partnership-boundary space-y-4">
           <div className="flex items-center gap-2">
             <Ban size={16} className="text-rose-400" />
             <h2 className="text-sm font-semibold text-rose-300">Ce que nous ne proposons pas</h2>
@@ -80,7 +82,7 @@ export default function PartnershipsPage() {
         </section>
 
         {/* ── Ce que nous faisons ──────────────────────────── */}
-        <section className="rounded-2xl border border-indigo-500/25 bg-gradient-to-br from-indigo-600/10 to-violet-600/8 p-5 md:p-6 space-y-4">
+        <section className="v2-partnership-eligible space-y-4">
           <div className="flex items-center gap-2">
             <CheckCircle2 size={16} className="text-indigo-400" />
             <h2 className="text-sm font-semibold text-indigo-300">Partenariats éligibles</h2>
@@ -96,7 +98,7 @@ export default function PartnershipsPage() {
         </section>
 
         {/* ── Comment nous contacter ───────────────────────── */}
-        <section className="rounded-2xl bg-white/[0.02] backdrop-blur-xl border border-white/[0.06] p-5 md:p-6 space-y-4">
+        <section className="v2-partnership-contact v2-panel space-y-5">
           <h2 className="text-sm font-semibold text-white/80">Soumettre une demande</h2>
           <p className="text-xs text-white/45 leading-relaxed">
             Envoie-nous un email avec :<br />
@@ -120,7 +122,7 @@ export default function PartnershipsPage() {
         </section>
 
         {/* ── Artistes → /publish ──────────────────────────── */}
-        <section className="rounded-2xl border border-violet-500/25 bg-gradient-to-br from-violet-600/10 to-indigo-600/8 p-5 flex items-center gap-4">
+        <section className="v2-partnership-artists flex flex-wrap items-center gap-4">
           <Music2 size={28} className="shrink-0 text-violet-400" />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-white">Tu es artiste ?</p>
@@ -138,6 +140,7 @@ export default function PartnershipsPage() {
         </section>
 
       </main>
+      </ServiceFrame>
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { Activity, Check, Clock3, Headphones, Heart, Maximize2, MessageCircle, P
 import { useAudioPlayer } from '@/app/providers';
 import { useLikeSystem } from '@/hooks/useLikeSystem';
 import TrackCover from '@/components/TrackCover';
+import { SynauraImage } from '@/components/ui/SynauraImage';
 
 type RadarArtist = {
   _id?: string;
@@ -120,6 +121,8 @@ function RadarLikeButton({ track }: { track: RadarTrack }) {
         void toggleLike();
       }}
       disabled={isLoading}
+      aria-label={`${isLiked ? 'Retirer des favoris' : 'Ajouter aux favoris'} : ${track.title}`}
+      aria-pressed={isLiked}
       className={cx(
         'inline-flex h-9 items-center gap-1.5 rounded-full border px-3 text-xs font-black transition',
         isLiked ? 'border-[#D96D63]/55 bg-[#D96D63]/18 text-white' : 'border-white/12 bg-white/[0.07] text-white/72 hover:bg-white/[0.12] hover:text-white',
@@ -244,12 +247,12 @@ function RadarTrackCard({
   return (
     <article
       className={cx(
-        'group/card relative overflow-hidden rounded-[14px] border border-white/10 bg-white/[0.055] p-3 text-white shadow-[0_18px_50px_rgba(0,0,0,0.22)] transition hover:-translate-y-0.5 hover:bg-white/[0.085]',
+        'v2-radar-card group/card relative overflow-hidden border border-[var(--v2-line)] bg-[var(--v2-surface)] text-[var(--v2-text)]',
         compact && 'w-[246px] shrink-0',
-        featured && 'lg:grid lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-4',
+        featured && 'v2-radar-card--featured',
       )}
     >
-      <div className={cx('relative overflow-hidden rounded-[10px]', featured ? 'lg:min-h-[220px]' : '')}>
+      <div className="v2-radar-artwork relative overflow-hidden">
         <TrackCover
           src={track.coverUrl || '/default-cover.svg'}
           videoSrc={track.coverVideoUrl || null}
@@ -279,7 +282,7 @@ function RadarTrackCard({
         </button>
       </div>
 
-      <div className={cx('mt-3 flex min-w-0 flex-col', featured && 'lg:mt-0 lg:justify-between')}>
+      <div className="v2-radar-card-copy flex min-w-0 flex-col">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <span className="rounded-full bg-white/[0.08] px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.14em] text-white/62">
@@ -300,9 +303,9 @@ function RadarTrackCard({
           </Link>
         </div>
 
-        <div className="mt-4 grid grid-cols-3 gap-1.5">
+        <div className="v2-radar-metrics mt-4 grid grid-cols-3 gap-1.5">
           <div className="rounded-[0.9rem] bg-white/[0.06] px-2.5 py-2">
-            <p className="flex items-center gap-1 text-[10px] font-black uppercase tracking-[0.12em] text-white/35"><Headphones className="h-3 w-3" /> Ecoutes</p>
+            <p className="flex items-center gap-1 text-[10px] font-black uppercase tracking-[0.12em] text-white/35"><Headphones className="h-3 w-3" /> Écoutes</p>
             <p className="mt-1 text-sm font-black">{formatCount(track.plays || 0)}</p>
           </div>
           <div className="rounded-[0.9rem] bg-white/[0.06] px-2.5 py-2">
@@ -326,14 +329,14 @@ function RadarTrackCard({
           </div>
         ) : null}
 
-        <div className="mt-4 flex flex-wrap items-center gap-2">
+        <div className="v2-radar-actions mt-4 flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={() => play(false)}
             className="inline-flex h-9 items-center gap-1.5 rounded-full bg-white px-3 text-xs font-black text-[#111111] transition hover:scale-[1.02]"
           >
             <Play className="h-3.5 w-3.5 fill-current" />
-            Play
+            Écouter
           </button>
           <RadarLikeButton track={track} />
           <RadarFollowButton artist={track.artist} />
@@ -370,7 +373,7 @@ function EmergingArtists({ tracks }: { tracks: RadarTrack[] }) {
   if (!artists.length) return null;
 
   return (
-    <div className="mt-6">
+    <div className="v2-radar-artists mt-6">
       <div className="mb-3 flex items-end justify-between gap-3">
         <div>
           <p className="text-[11px] font-black uppercase tracking-[0.18em] text-white/34">Nouveaux artistes prometteurs</p>
@@ -389,10 +392,10 @@ function EmergingArtists({ tracks }: { tracks: RadarTrack[] }) {
               <div className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-[0.9rem] bg-white/[0.08] text-sm font-black text-white">
                 {artist.avatar ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={artist.avatar} alt="" className="h-full w-full object-cover" />
+                  <SynauraImage src={artist.avatar} alt="" fallbackSrc="/default-avatar.png" className="h-full w-full object-cover" />
                 ) : cover ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={cover} alt="" className="h-full w-full object-cover" />
+                  <SynauraImage src={cover} alt="" className="h-full w-full object-cover" />
                 ) : (
                   label.slice(0, 1).toUpperCase()
                 )}
@@ -424,20 +427,20 @@ export default function RadarSection({
   const visible = compact ? tracks.slice(0, 8) : tracks;
   const featured = visible[0];
   const rest = compact ? visible : visible.slice(1);
+  const Heading = compact ? 'h2' : 'h1';
 
   return (
-    <section className="relative overflow-hidden rounded-[14px] bg-[#111111] p-4 text-white shadow-[0_26px_90px_rgba(17,17,17,0.24)] sm:rounded-[20px] sm:p-6">
-      <div className="absolute inset-0 pointer-events-none bg-[linear-gradient(135deg,rgba(115,87,198,0.24),transparent_34%),linear-gradient(160deg,transparent_52%,rgba(74,158,170,0.16)),linear-gradient(0deg,rgba(217,109,99,0.12),transparent_34%)]" />
+    <section className={cx('v2-radar relative text-[var(--v2-text)]', compact && 'v2-radar--compact')} data-chambre-music="radar">
       <div className="relative">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div className="v2-radar-heading flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-2xl">
-            <p className="inline-flex items-center gap-2 rounded-full bg-white/[0.08] px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.18em] text-white/62">
-              <Radar className="h-3.5 w-3.5 text-[#4A9EAA]" />
+            <p className="v2-kicker inline-flex items-center gap-2">
+              <Radar className="h-3.5 w-3.5 text-[var(--v2-accent)]" />
               Radar Synaura
             </p>
-            <h2 className={cx('mt-4 font-black leading-tight', compact ? 'text-2xl sm:text-3xl' : 'text-3xl sm:text-4xl')}>{title}</h2>
+            <Heading className="v2-heading mt-4">{title}</Heading>
             <p className="mt-3 max-w-xl text-sm font-bold leading-6 text-white/62 sm:text-base">
-              Découvre les sons avant tout le monde. Sur Synaura, même un petit créateur peut trouver ses premiers vrais auditeurs.
+              Captez les nouveaux signaux. Des morceaux émergents, de vraies écoutes, des artistes à rencontrer.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -452,7 +455,7 @@ export default function RadarSection({
         {tracks.length ? (
           <>
             {newThisWeek.length ? (
-              <div className="mt-5 rounded-[12px] border border-white/10 bg-white/[0.055] p-3">
+              <div className="v2-radar-week mt-5">
                 <p className="mb-2 text-[11px] font-black uppercase tracking-[0.18em] text-white/42">Nouveaux cette semaine</p>
                 <div className="flex flex-wrap gap-2">
                   {newThisWeek.map((track) => (
@@ -474,9 +477,9 @@ export default function RadarSection({
                 ))}
               </div>
             ) : (
-              <div className="mt-6 grid gap-3 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+              <div className="v2-radar-results">
                 {featured ? <RadarTrackCard track={featured} tracks={tracks} featured /> : null}
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="v2-radar-grid">
                   {rest.map((track) => (
                     <RadarTrackCard key={track._id} track={track} tracks={tracks} />
                   ))}

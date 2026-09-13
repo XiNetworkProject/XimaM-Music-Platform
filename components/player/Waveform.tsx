@@ -39,36 +39,17 @@ function fmtTime(seconds: number) {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
-const THEME = {
-  dark: {
-    dimBar: 'bg-white/[0.16]',
-    loadingWrap: 'bg-white/[0.06]',
-    loadingLabel: 'text-white/30',
-    timeLabel: 'text-white/50',
-    markerDot: 'bg-white/70 shadow-[0_0_0_3px_rgba(0,0,0,0.35)]',
-    bubble: 'border-white/10 bg-[#141019]/95',
-    bubbleName: 'text-white',
-    bubbleText: 'text-white/78',
-    bubbleAvatarBg: 'bg-white/10 ring-1 ring-white/10',
-    bubbleAvatarInitial: 'text-white/60',
-    bubbleTimeChip: 'bg-white/10 text-white/70 hover:bg-white/20 hover:text-white',
-    reactionChip: 'bg-white/10 text-white/82',
-  },
-  light: {
-    dimBar: 'bg-black/[0.1]',
-    loadingWrap: 'bg-black/[0.045]',
-    loadingLabel: 'text-black/32',
-    timeLabel: 'text-black/42',
-    markerDot: 'bg-[#171313]/55 shadow-[0_0_0_3px_rgba(255,250,242,0.92)]',
-    bubble: 'border-black/[0.08] bg-[#fffaf2]/98',
-    bubbleName: 'text-[#171313]',
-    bubbleText: 'text-black/72',
-    bubbleAvatarBg: 'bg-black/[0.06] ring-1 ring-black/[0.06]',
-    bubbleAvatarInitial: 'text-black/50',
-    bubbleTimeChip: 'bg-black/[0.06] text-black/60 hover:bg-[#171313] hover:text-white',
-    reactionChip: 'bg-black/[0.05] text-black/72',
-  },
+const WAVE_THEME = {
+  dimBar: 'bg-[var(--v2-line)]', loadingWrap: 'bg-[var(--v2-soft)]',
+  loadingLabel: 'text-[var(--v2-faint)]', timeLabel: 'text-[var(--v2-muted)]',
+  markerDot: 'bg-[var(--v2-blue)] ring-2 ring-[var(--v2-bg)]',
+  bubble: 'border-[var(--v2-line)] bg-[var(--v2-raised)]',
+  bubbleName: 'text-[var(--v2-text)]', bubbleText: 'text-[var(--v2-muted)]',
+  bubbleAvatarBg: 'bg-[var(--v2-soft)]', bubbleAvatarInitial: 'text-[var(--v2-muted)]',
+  bubbleTimeChip: 'bg-[var(--v2-selected)] text-[var(--v2-accent)] hover:bg-[var(--v2-line)]',
+  reactionChip: 'bg-[var(--v2-soft)] text-[var(--v2-text)]',
 } as const;
+const THEME = { dark: WAVE_THEME, light: WAVE_THEME };
 
 const WaveformBars = memo(function WaveformBars({ peaks, variant, dimClass }: { peaks: number[]; variant: 'dim' | 'played'; dimClass: string }) {
   return (
@@ -76,8 +57,8 @@ const WaveformBars = memo(function WaveformBars({ peaks, variant, dimClass }: { 
       {peaks.map((p, i) => (
         <div
           key={i}
-          className={`min-h-[3px] flex-1 rounded-full ${
-            variant === 'played' ? 'bg-gradient-to-t from-[#7357C6] to-[#4A9EAA]' : dimClass
+          className={`min-h-[3px] flex-1 rounded-[2px] ${
+            variant === 'played' ? 'bg-[var(--v2-accent)]' : dimClass
           }`}
           style={{ height: `${Math.max(8, p * 100)}%` }}
         />

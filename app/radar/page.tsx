@@ -26,7 +26,7 @@ export default async function RadarPage() {
   const radarTracks = await attachLikedFlag(radarRaw, userId);
 
   return (
-    <SynauraAppShell contentClassName="max-w-[1180px]">
+    <SynauraAppShell className="v2-personal v2-personal--radar" contentClassName="max-w-[1280px]">
       <SynauraTopBar searchHref="/radar" searchLabel="Chercher un son Radar, un artiste, une ambiance..." secondaryHref="/discover" secondaryLabel="Decouvrir" />
       <SynauraRouteNav />
       <div className="pb-24">

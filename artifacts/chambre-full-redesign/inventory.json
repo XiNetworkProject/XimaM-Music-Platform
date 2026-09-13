@@ -1,0 +1,1512 @@
+{
+  "head": "d0ac45379227b4ad86042b6b8eb2156535f1b817",
+  "routes": [
+    {
+      "route": "/admin/challenges",
+      "file": "app/admin/challenges/page.tsx",
+      "category": "ADMIN",
+      "status": "Cadre partagé adapté ; outils et autorisations conservés",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/admin/editorial-collections",
+      "file": "app/admin/editorial-collections/page.tsx",
+      "category": "ADMIN",
+      "status": "Cadre partagé adapté ; outils et autorisations conservés",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/admin/emails",
+      "file": "app/admin/emails/page.tsx",
+      "category": "ADMIN",
+      "status": "Cadre partagé adapté ; outils et autorisations conservés",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/admin/notifications",
+      "file": "app/admin/notifications/page.tsx",
+      "category": "ADMIN",
+      "status": "Cadre partagé adapté ; outils et autorisations conservés",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/admin",
+      "file": "app/admin/page.tsx",
+      "category": "ADMIN",
+      "status": "Cadre partagé adapté ; outils et autorisations conservés",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/admin/star-academy",
+      "file": "app/admin/star-academy/page.tsx",
+      "category": "ADMIN",
+      "status": "Cadre partagé adapté ; outils et autorisations conservés",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/admin/users",
+      "file": "app/admin/users/page.tsx",
+      "category": "ADMIN",
+      "status": "Cadre partagé adapté ; outils et autorisations conservés",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/ai-generator",
+      "file": "app/ai-generator/page.tsx",
+      "category": "CRÉATION",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/ai-library",
+      "file": "app/ai-library/page.tsx",
+      "category": "CRÉATION",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/album/[id]",
+      "file": "app/album/[id]/page.tsx",
+      "category": "MUSIQUE",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/arret",
+      "file": "app/arret/page.tsx",
+      "category": "SERVICE HISTORIQUE",
+      "status": "Service historique conservé, aucune fonction retirée",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/audio-core-harness",
+      "file": "app/audio-core-harness/page.tsx",
+      "category": "TECHNIQUE",
+      "status": "Outil conservé, hors refonte artistique",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/audio-core-harness/route",
+      "file": "app/audio-core-harness/route/page.tsx",
+      "category": "TECHNIQUE",
+      "status": "Outil conservé, hors refonte artistique",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/auth/error",
+      "file": "app/auth/error/page.tsx",
+      "category": "ENTRÉE / COMPTE",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/auth/forgot-password",
+      "file": "app/auth/forgot-password/page.tsx",
+      "category": "ENTRÉE / COMPTE",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/auth/mobile-google",
+      "file": "app/auth/mobile-google/page.tsx",
+      "category": "ENTRÉE / COMPTE",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/auth/reset-password",
+      "file": "app/auth/reset-password/page.tsx",
+      "category": "ENTRÉE / COMPTE",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/auth/signin",
+      "file": "app/auth/signin/page.tsx",
+      "category": "ENTRÉE / COMPTE",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/auth/signup",
+      "file": "app/auth/signup/page.tsx",
+      "category": "ENTRÉE / COMPTE",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/boosters",
+      "file": "app/boosters/page.tsx",
+      "category": "PERSONNEL",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/challenges/[id]",
+      "file": "app/challenges/[id]/page.tsx",
+      "category": "SOCIAL",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/city",
+      "file": "app/city/page.tsx",
+      "category": "SOCIAL",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/clips/[id]",
+      "file": "app/clips/[id]/page.tsx",
+      "category": "CRÉATION",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/clips/new",
+      "file": "app/clips/new/page.tsx",
+      "category": "CRÉATION",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/community/[club]",
+      "file": "app/community/[club]/page.tsx",
+      "category": "SOCIAL",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/community/faq",
+      "file": "app/community/faq/page.tsx",
+      "category": "SOCIAL",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/community/forum/[id]",
+      "file": "app/community/forum/[id]/page.tsx",
+      "category": "SOCIAL",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/community/forum/new",
+      "file": "app/community/forum/new/page.tsx",
+      "category": "SOCIAL",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/community/forum",
+      "file": "app/community/forum/page.tsx",
+      "category": "SOCIAL",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/community",
+      "file": "app/community/page.tsx",
+      "category": "SOCIAL",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/contact",
+      "file": "app/contact/page.tsx",
+      "category": "SERVICE",
+      "status": "Routeur inchangé vers destination adaptée",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/create",
+      "file": "app/create/page.tsx",
+      "category": "CRÉATION",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/create/variation",
+      "file": "app/create/variation/page.tsx",
+      "category": "CRÉATION",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/debug-audio",
+      "file": "app/debug-audio/page.tsx",
+      "category": "TECHNIQUE",
+      "status": "Outil conservé, hors refonte artistique",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/debug-subscription",
+      "file": "app/debug-subscription/page.tsx",
+      "category": "TECHNIQUE",
+      "status": "Outil conservé, hors refonte artistique",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/debug-sw",
+      "file": "app/debug-sw/page.tsx",
+      "category": "TECHNIQUE",
+      "status": "Outil conservé, hors refonte artistique",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/debug",
+      "file": "app/debug/page.tsx",
+      "category": "TECHNIQUE",
+      "status": "Outil conservé, hors refonte artistique",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/dev/chambre",
+      "file": "app/dev/chambre/page.tsx",
+      "category": "TECHNIQUE",
+      "status": "Outil conservé, hors refonte artistique",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/dev/discover-profile-peek",
+      "file": "app/dev/discover-profile-peek/page.tsx",
+      "category": "TECHNIQUE",
+      "status": "Outil conservé, hors refonte artistique",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/dev/live",
+      "file": "app/dev/live/page.tsx",
+      "category": "TECHNIQUE",
+      "status": "Outil conservé, hors refonte artistique",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/dev/profile-peek",
+      "file": "app/dev/profile-peek/page.tsx",
+      "category": "TECHNIQUE",
+      "status": "Outil conservé, hors refonte artistique",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/dev/ui",
+      "file": "app/dev/ui/page.tsx",
+      "category": "TECHNIQUE",
+      "status": "Outil conservé, hors refonte artistique",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/dev/v2",
+      "file": "app/dev/v2/page.tsx",
+      "category": "TECHNIQUE",
+      "status": "Outil conservé, hors refonte artistique",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/dev/v2/rewards",
+      "file": "app/dev/v2/rewards/page.tsx",
+      "category": "TECHNIQUE",
+      "status": "Outil conservé, hors refonte artistique",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/discover",
+      "file": "app/discover/page.tsx",
+      "category": "MUSIQUE",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/download",
+      "file": "app/download/page.tsx",
+      "category": "SERVICE",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/embed/[trackId]",
+      "file": "app/embed/[trackId]/page.tsx",
+      "category": "MUSIQUE",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/enter/continue",
+      "file": "app/enter/continue/page.tsx",
+      "category": "ENTRÉE / COMPTE",
+      "status": "Routeur inchangé vers destination adaptée",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/enter",
+      "file": "app/enter/page.tsx",
+      "category": "ENTRÉE / COMPTE",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/feed",
+      "file": "app/feed/page.tsx",
+      "category": "TECHNIQUE",
+      "status": "Outil conservé, hors refonte artistique",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/fermeture",
+      "file": "app/fermeture/page.tsx",
+      "category": "SERVICE HISTORIQUE",
+      "status": "Service historique conservé, aucune fonction retirée",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/for-you",
+      "file": "app/for-you/page.tsx",
+      "category": "MUSIQUE",
+      "status": "Sélection historique recomposée ; endpoints conservés, listes clavier",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/join/[code]",
+      "file": "app/join/[code]/page.tsx",
+      "category": "SOCIAL",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/landing",
+      "file": "app/landing/page.tsx",
+      "category": "ENTRÉE / COMPTE",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/legal/cgu",
+      "file": "app/legal/cgu/page.tsx",
+      "category": "SERVICE",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/legal/cgv",
+      "file": "app/legal/cgv/page.tsx",
+      "category": "SERVICE",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/legal/confidentialite",
+      "file": "app/legal/confidentialite/page.tsx",
+      "category": "SERVICE",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/legal/cookies",
+      "file": "app/legal/cookies/page.tsx",
+      "category": "SERVICE",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/legal/mentions-legales",
+      "file": "app/legal/mentions-legales/page.tsx",
+      "category": "SERVICE",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/legal",
+      "file": "app/legal/page.tsx",
+      "category": "SERVICE",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/legal/rgpd",
+      "file": "app/legal/rgpd/page.tsx",
+      "category": "SERVICE",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/library",
+      "file": "app/library/page.tsx",
+      "category": "PERSONNEL",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/live",
+      "file": "app/live/page.tsx",
+      "category": "MUSIQUE",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/messages/[conversationId]",
+      "file": "app/messages/[conversationId]/page.tsx",
+      "category": "SOCIAL",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/messages",
+      "file": "app/messages/page.tsx",
+      "category": "SOCIAL",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/meteo/bulletin/[id]",
+      "file": "app/meteo/bulletin/[id]/page.tsx",
+      "category": "SERVICE HISTORIQUE",
+      "status": "Service historique conservé, aucune fonction retirée",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/meteo/dashboard",
+      "file": "app/meteo/dashboard/page.tsx",
+      "category": "SERVICE HISTORIQUE",
+      "status": "Service historique conservé, aucune fonction retirée",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/meteo/login",
+      "file": "app/meteo/login/page.tsx",
+      "category": "SERVICE HISTORIQUE",
+      "status": "Service historique conservé, aucune fonction retirée",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/meteo",
+      "file": "app/meteo/page.tsx",
+      "category": "SERVICE HISTORIQUE",
+      "status": "Service historique conservé, aucune fonction retirée",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/notifications",
+      "file": "app/notifications/page.tsx",
+      "category": "SOCIAL",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/onboarding",
+      "file": "app/onboarding/page.tsx",
+      "category": "ENTRÉE / COMPTE",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/",
+      "file": "app/page.tsx",
+      "category": "ENTRÉE / COMPTE",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/partnerships",
+      "file": "app/partnerships/page.tsx",
+      "category": "SERVICE",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/playlists/[id]",
+      "file": "app/playlists/[id]/page.tsx",
+      "category": "MUSIQUE",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/posts/[id]",
+      "file": "app/posts/[id]/page.tsx",
+      "category": "SOCIAL",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/posts",
+      "file": "app/posts/page.tsx",
+      "category": "SOCIAL",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/profile/[username]",
+      "file": "app/profile/[username]/page.tsx",
+      "category": "MUSIQUE",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/publish",
+      "file": "app/publish/page.tsx",
+      "category": "CRÉATION",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/radar",
+      "file": "app/radar/page.tsx",
+      "category": "MUSIQUE",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/requests",
+      "file": "app/requests/page.tsx",
+      "category": "SOCIAL",
+      "status": "Routeur inchangé vers destination adaptée",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/reset-password",
+      "file": "app/reset-password/page.tsx",
+      "category": "ENTRÉE / COMPTE",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/search",
+      "file": "app/search/page.tsx",
+      "category": "MUSIQUE",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/settings",
+      "file": "app/settings/page.tsx",
+      "category": "PERSONNEL",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/star-academy-tiktok/inscription-staff",
+      "file": "app/star-academy-tiktok/inscription-staff/page.tsx",
+      "category": "SERVICE HISTORIQUE",
+      "status": "Service historique conservé, aucune fonction retirée",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/star-academy-tiktok/inscription",
+      "file": "app/star-academy-tiktok/inscription/page.tsx",
+      "category": "SERVICE HISTORIQUE",
+      "status": "Service historique conservé, aucune fonction retirée",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/star-academy-tiktok",
+      "file": "app/star-academy-tiktok/page.tsx",
+      "category": "SERVICE HISTORIQUE",
+      "status": "Service historique conservé, aucune fonction retirée",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/star-academy-tiktok/reglement",
+      "file": "app/star-academy-tiktok/reglement/page.tsx",
+      "category": "SERVICE HISTORIQUE",
+      "status": "Service historique conservé, aucune fonction retirée",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/star-academy-tiktok/suivi",
+      "file": "app/star-academy-tiktok/suivi/page.tsx",
+      "category": "SERVICE HISTORIQUE",
+      "status": "Service historique conservé, aucune fonction retirée",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/stats",
+      "file": "app/stats/page.tsx",
+      "category": "PERSONNEL",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/studio/library",
+      "file": "app/studio/library/page.tsx",
+      "category": "CRÉATION",
+      "status": "Démonstration historique annoncée ; vraie bibliothèque /ai-library",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/studio",
+      "file": "app/studio/page.tsx",
+      "category": "CRÉATION",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/subscriptions",
+      "file": "app/subscriptions/page.tsx",
+      "category": "PERSONNEL",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/subscriptions/success",
+      "file": "app/subscriptions/success/page.tsx",
+      "category": "PERSONNEL",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/support",
+      "file": "app/support/page.tsx",
+      "category": "SERVICE",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/swipe",
+      "file": "app/swipe/page.tsx",
+      "category": "MUSIQUE",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/test-audio",
+      "file": "app/test-audio/page.tsx",
+      "category": "TECHNIQUE",
+      "status": "Outil conservé, hors refonte artistique",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/test-auth",
+      "file": "app/test-auth/page.tsx",
+      "category": "TECHNIQUE",
+      "status": "Outil conservé, hors refonte artistique",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/test-direct",
+      "file": "app/test-direct/page.tsx",
+      "category": "TECHNIQUE",
+      "status": "Outil conservé, hors refonte artistique",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/test-mobile",
+      "file": "app/test-mobile/page.tsx",
+      "category": "TECHNIQUE",
+      "status": "Outil conservé, hors refonte artistique",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/test-synaura",
+      "file": "app/test-synaura/page.tsx",
+      "category": "TECHNIQUE",
+      "status": "Outil conservé, hors refonte artistique",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/track/[id]",
+      "file": "app/track/[id]/page.tsx",
+      "category": "MUSIQUE",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/trending",
+      "file": "app/trending/page.tsx",
+      "category": "MUSIQUE",
+      "status": "Sélection historique recomposée ; endpoints conservés, listes clavier",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    },
+    {
+      "route": "/upload",
+      "file": "app/upload/page.tsx",
+      "category": "CRÉATION",
+      "status": "Présentation candidate — voir matrice et preuves par domaine",
+      "e2e": "NON VALIDÉ : environnement connecté requis"
+    }
+  ],
+  "changedPresentation": [
+    {
+      "source": "app/ai-generator/page.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/creation/app/ai-generator/page.tsx",
+      "beforeHash": "f94dbf0b0c86d598d47847bb33b668784699086cc118fbd4f624bb2394463c44",
+      "afterHash": "ee1b976ad19b6eee3a0065b05f749122dec51d57667913e7a0979cc4bcfd1ad6"
+    },
+    {
+      "source": "app/ai-library/page.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/creation/app/ai-library/page.tsx",
+      "beforeHash": "c64f89f7529149b939b492df527681a72eef9c1a6b67b35d79da2f661a2b5b13",
+      "afterHash": "91bd4e5ee2f8fa009d38b4df4caf02e5886c97570c9c05d9aa75e60e0ec57638"
+    },
+    {
+      "source": "app/clips/new/page.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/creation/app/clips/new/page.tsx",
+      "beforeHash": "ceadf2eda95ba74a668b97edfcffe1e83214bc36cfc11575a5ca763d0b9c8104",
+      "afterHash": "f00d4b4013f3f14f8528a87c0921d48e92209c27f86326a6f61952511269f531"
+    },
+    {
+      "source": "app/clips/[id]/page.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/creation/app/clips/[id]/page.tsx",
+      "beforeHash": "6a9469d03579d19cc0e012e5926077a630b3c043675a6193e6587d2858d69a01",
+      "afterHash": "b3a85d29a00794d11cb6223c11e2d385132732b0c68dd5593f3fe8cc9b41dce8"
+    },
+    {
+      "source": "app/create/page.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/creation/app/create/page.tsx",
+      "beforeHash": "0825aa6ee053cadec9de02b5760d6690b70307ddff2d90053399a2bb57b240e3",
+      "afterHash": "bc942cd088601d70db3cfb825a3b0fa1e5c736f5789baa4be17f68ab5184714d"
+    },
+    {
+      "source": "app/create/variation/page.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/creation/app/create/variation/page.tsx",
+      "beforeHash": "ce2ed483a2a15635b9a6e20150dfe329a5238e5415a015ac817769e64950abaa",
+      "afterHash": "29a5368b1f25e072ad649bf2ebdce74ebae350249e3d00806cb6ff1ec732f294"
+    },
+    {
+      "source": "app/publish/page.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/creation/app/publish/page.tsx",
+      "beforeHash": "8a5af6746e51306711e6c7396e11ce3735c9efce0a4bd27cbfe7f82f1de18482",
+      "afterHash": "03f48659a4fc26b20369eae35b329fa09f38eaeb37696663e7395d093af09d2a"
+    },
+    {
+      "source": "app/studio/library/page.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/creation/app/studio/library/page.tsx",
+      "beforeHash": "7e0c766d71c6298e1cd44fb98ba4add8fa0411287ccf3a05dca04ab9734522e4",
+      "afterHash": "74cd603998e464214767929b66369db38d5d38eeb536fb9f659bbbcda249fc10"
+    },
+    {
+      "source": "app/studio/StudioClient.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/creation/app/studio/StudioClient.tsx",
+      "beforeHash": "c4d306180be7a8b85ca99ba2edd9fb2fc1451fe97df9e12665df542a6fa30dd7",
+      "afterHash": "674210e8d7ce2e22f3a10c8dfc028f1d278523faa85d2a6b76993eacffcb6444"
+    },
+    {
+      "source": "app/upload/page.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/creation/app/upload/page.tsx",
+      "beforeHash": "e65b3c0bf90a89cffa945553e643e348df49e0f94d09a7d244429ec41e7057e2",
+      "afterHash": "698b4847b8d8182364b71e34789a58239f6043ea3b15fd461cd4d4d5d037980f"
+    },
+    {
+      "source": "components/ai-studio/GenerationTimeline.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/creation/components/ai-studio/GenerationTimeline.tsx",
+      "beforeHash": "960fd70ef8333b3b58bfda2aa291639809627fbde4710930d9f92f04894e03b9",
+      "afterHash": "9edb9e6c07739e7b623fe01bae21adec1a2ce1c33728f81da0154c020b6c7fd1"
+    },
+    {
+      "source": "components/ai-studio/LibraryMiddlePanel.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/creation/components/ai-studio/LibraryMiddlePanel.tsx",
+      "beforeHash": "7515bfdca2a305664342a6fd07fdf5a81beb59296ad19479ffa506075362d5a1",
+      "afterHash": "bdb03e8d5a86ad5eb2816c34a978212c5865dbf97881eecb79c5ce5ff4a43bed"
+    },
+    {
+      "source": "components/ai-studio/TrackInspector.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/creation/components/ai-studio/TrackInspector.tsx",
+      "beforeHash": "894ec745ebc2321fd7c6fa4c460feb0a42ba4b5ef8a9d173576971299770b9fe",
+      "afterHash": "75e93ac172d0ad3a708c8505e8e0f33a1d71b3e513c4d20cc9149ce21dd33b8b"
+    },
+    {
+      "source": "components/clips/ClipUploadIndicator.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/creation/components/clips/ClipUploadIndicator.tsx",
+      "beforeHash": "df821c0fcb590bbde861a42ebbdf070aa5c68d04cde23e239e937f7db0069116",
+      "afterHash": "bbc9345d0ac15d1cbc357fe8a270f65472ca9f04dc2ec093d17c1b511d9e570a"
+    },
+    {
+      "source": "components/create/CreateArrivalBanner.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/creation/components/create/CreateArrivalBanner.tsx",
+      "beforeHash": "8e56257aa69110d30a5d6efb87b9a130ad226e497c9783cb9db8e978eb00c944",
+      "afterHash": "93e8827f8815f5adfd03038ad600c8cdaddd63f60b2a74967b03bd5a1f843ec7"
+    },
+    {
+      "source": "components/studio/LeftDock/GeneratorForm.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/creation/components/studio/LeftDock/GeneratorForm.tsx",
+      "beforeHash": "5690ff343851195ab3d5778fefd98468e451edf1afe379e25047fe90a83f6dde",
+      "afterHash": "69fac71ffcf7b4d582e5881d4ec6aa3e60548de23a1a3d1648ea52f13c390ecb"
+    },
+    {
+      "source": "components/studio/ui/MobileTabs.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/creation/components/studio/ui/MobileTabs.tsx",
+      "beforeHash": "e952c38ebb2557b8bc48ffc641751a5452fcef5df17c7784db42e41dfd2ff517",
+      "afterHash": "c9022230fa554321c51b591295f8ae6933868e5adbe288cdda22ebefb7989b6e"
+    },
+    {
+      "source": "components/v2/creation-v2.css",
+      "snapshot": "artifacts/chambre-full-redesign/before/creation/components/v2/creation-v2.css",
+      "beforeHash": "d86687738b9fdb9bea84da473a99b11ae43f13f063f16062a42f24e58f79be1c",
+      "afterHash": "a9531bb33bc36e589d8ebb6129c15614c168f229739052e3358b5917fd1cc35f"
+    },
+    {
+      "source": "components/variations/PendingApprovalsModal.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/creation/components/variations/PendingApprovalsModal.tsx",
+      "beforeHash": "0c0777c323efe73ffd28cc39d9ce48541980bfe221d310dc99ff2ef24cf0b25d",
+      "afterHash": "ce58117199b0ade256d900974c0c97533fe465759c1c4fabb808d15972b2ddac"
+    },
+    {
+      "source": "app/admin/layout.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/foundation/app/admin/layout.tsx",
+      "beforeHash": "7eec52f36404d96901f1e47b166022089ffcef10b764ef44d0ad499e51e74b14",
+      "afterHash": "75f9d869635a0865f80c5972978f6ced2058e16a434c65f4a93165663ea297d2"
+    },
+    {
+      "source": "app/admin/sidebar.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/foundation/app/admin/sidebar.tsx",
+      "beforeHash": "ddfd74ea06c9f2bf3e8cc5e76dc73cbc62626af4431c30963d7a26fe4fd24d65",
+      "afterHash": "455e53fe17fb1aa91433ee6edd4e61d05f06d40c8c393594f20f24baac994c18"
+    },
+    {
+      "source": "app/dev/v2/V2Review.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/foundation/app/dev/v2/V2Review.tsx",
+      "beforeHash": "5a645db56e5a9f02c4b742eabd6151a1546053222a3aec0ba57ab0bdf8dfffdd",
+      "afterHash": "d3a59adcd932b502e3a3b349f0de633831ef821a8a9968b01300d1877a4f869f"
+    },
+    {
+      "source": "app/global-error.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/foundation/app/global-error.tsx",
+      "beforeHash": "5e6a2608484f348536d9c0b482bf04dcf4d3cf63a2896817144a1a0a49b63d45",
+      "afterHash": "c459181b3e10bfbcb3aec5006bf44062c7780ef49847b5245b3fc0960692227b"
+    },
+    {
+      "source": "app/globals.css",
+      "snapshot": "artifacts/chambre-full-redesign/before/foundation/app/globals.css",
+      "beforeHash": "fd15787713c113b4b45323217b41f590e66ac7c2eada7719eab829bbda61805f",
+      "afterHash": "1d0b15334cbbccdee5222f16aa1326d846f4dbddc52c55c3499e57c86335716f"
+    },
+    {
+      "source": "app/landing/page.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/foundation/app/landing/page.tsx",
+      "beforeHash": "c95feb08ac9d3ff404d96dea767b6758d656a2866f736c1a3126948a8bd78f57",
+      "afterHash": "31bbf51d95bd58de290ae5faba89f53c66ccc359215f5b8bc52f576ede9a8f98"
+    },
+    {
+      "source": "app/layout.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/foundation/app/layout.tsx",
+      "beforeHash": "9159d113036630dd04076da2616e177141c27393b8db347d45993fe1c7e70355",
+      "afterHash": "d0dd53077c20e71d5191c48d7a5e3271588277dd0cb0335570899b92c0900353"
+    },
+    {
+      "source": "app/page.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/foundation/app/page.tsx",
+      "beforeHash": "de81844eb7bdb0f5606012d908d4d9b352d83ce3cc6057c432ffed210bd859f7",
+      "afterHash": "2b035616793f5430f3d7b8b66f0b6f044bccf1fe7b4bfbb751251b9b1449700e"
+    },
+    {
+      "source": "app/v2.css",
+      "snapshot": "artifacts/chambre-full-redesign/before/foundation/app/v2.css",
+      "beforeHash": "fac02b96121ec23cc580f6a6af25011c1874e7218655be3a973cb089ccc6c89b",
+      "afterHash": "10f1abb93a5f8f1db8d662d42d7d4996b28256344b1de44a54d6808d091e24d8"
+    },
+    {
+      "source": "components/AppSidebar.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/foundation/components/AppSidebar.tsx",
+      "beforeHash": "112b3d8528f82e8b69f2131daf7d99f9df81597b098fef3056f8ef6074b90c20",
+      "afterHash": "e99c88267065081fc80e46ec05bed05be9ffaeff2c9b596a945add9cf9c0e509"
+    },
+    {
+      "source": "components/BottomNav.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/foundation/components/BottomNav.tsx",
+      "beforeHash": "5bee4797690c973ef3e228d181fae1703eb794029ba25ca207f970434b04d049",
+      "afterHash": "4d2fb1e17373d00de4b46b8ecfb100954f4a492052f1889d2fad230a50e583bd"
+    },
+    {
+      "source": "components/brand/SynauraLogo.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/foundation/components/brand/SynauraLogo.tsx",
+      "beforeHash": "80114aae2d0389085e1b73e87b4553dc42e8a71f47bb0f874841f99ee336d77c",
+      "afterHash": "1a830538d16510be1f1eb17795902af1e699de806b08b3f5401885d290127ac3"
+    },
+    {
+      "source": "components/enter/EntryFrame.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/foundation/components/enter/EntryFrame.tsx",
+      "beforeHash": "e49b9e566338fde8f8d860a5bec7f07df08627321a66c8649ff141ef1c126a11",
+      "afterHash": "1d77cbfc94b78ab5517c8b6b90a26b9e75b0ff976bb69381f1c1c021d30d353e"
+    },
+    {
+      "source": "components/GlobalQueueBubble.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/foundation/components/GlobalQueueBubble.tsx",
+      "beforeHash": "54c690e94ccf5058f83ae436b2975223f370c1624c15e7b153914c971235656d",
+      "afterHash": "7d43e99ff3ab94824b1cb97821d92627c7617d093ff8b0af3c02385b54aad9fd"
+    },
+    {
+      "source": "components/synaura/SynauraPrimaryDock.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/foundation/components/synaura/SynauraPrimaryDock.tsx",
+      "beforeHash": "24b5475f7d3e9d17e206caf5d1a16a762eb220a0dea6a6efe6c80f6291035602",
+      "afterHash": "9be6df83c24fb398c4169768cb88f108d662251e636e677748353ccd8e20c0c9"
+    },
+    {
+      "source": "components/synaura/SynauraShell.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/foundation/components/synaura/SynauraShell.tsx",
+      "beforeHash": "8c4e65adc6ed9453959c25e109505618f5587e626f427051c40cbc377ac94fed",
+      "afterHash": "fc63851500ffee93a6fe9232d17061683e1651f17f10c0c42cfd5f3ffcb190f7"
+    },
+    {
+      "source": "components/v2/PersonalRouteFrame.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/foundation/components/v2/PersonalRouteFrame.tsx",
+      "beforeHash": "91a391f50bc2b4b6390744c30265489013bbbc4e7b578a6eabbef075a8dd03ad",
+      "afterHash": "62be4088a88a41045dfe05b799490358975885c6684d09002528ac5d682a1c43"
+    },
+    {
+      "source": "components/v2/ServiceFrame.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/foundation/components/v2/ServiceFrame.tsx",
+      "beforeHash": "d0a178f85e9aefec6623be956f1818149806f2db3a1d8fccfb8383f09f9e4568",
+      "afterHash": "71376563fe2bfc4a722223790a7b63b6afae7587e7bdcc333635ba545982b9fc"
+    },
+    {
+      "source": "tsconfig.json",
+      "snapshot": "artifacts/chambre-full-redesign/before/foundation/tsconfig.json",
+      "beforeHash": "847ac3d08ad3068980ce1066131be817a22d1fafce449e36be555b4a5611cbed",
+      "afterHash": "3d9d0c046bc1f5205473df7e06b3ef55bf81aef0d65c92334b2b0c5cd1e02c52"
+    },
+    {
+      "source": "app/album/[id]/page.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/music/app/album/[id]/page.tsx",
+      "beforeHash": "971a17eac5c95e145b7d3c6a93d16d24e7b73b4b3194684c849bbb3c8b0737a0",
+      "afterHash": "c2fe548efa5809b96bd3237cf612babd399d516378a5ef2ebc7ab24c1aa2e56d"
+    },
+    {
+      "source": "app/discover/DiscoverClient.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/music/app/discover/DiscoverClient.tsx",
+      "beforeHash": "94ed4987fd7d6ebeea025e45fd736fedcf65e11256aa66ea8368693cad68a945",
+      "afterHash": "0ee5b95c14550b2c4d30654fe793a31a805761d159da2b13cbbddfb8f79e9174"
+    },
+    {
+      "source": "app/discover/DiscoverMoodTiles.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/music/app/discover/DiscoverMoodTiles.tsx",
+      "beforeHash": "dbbce3aa1e8834f933465f792c970f7d668947c9642aece021f0e440811fbf38",
+      "afterHash": "3c0a57a1c0a9d197529576844c878b8d75f7f1adf4024ebef5214bcd234fcddc"
+    },
+    {
+      "source": "app/for-you/page.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/music/app/for-you/page.tsx",
+      "beforeHash": "f561170303189e88ed2efa74935685f59e23b19ac1bfa7fcea911764c9d56e9f",
+      "afterHash": "3decb21b64025e9c7b48b412c07473682b6c478991e80aafa1303faf06b8d6e9"
+    },
+    {
+      "source": "app/playlists/[id]/page.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/music/app/playlists/[id]/page.tsx",
+      "beforeHash": "2ed73f28717ded22e2073707c1c21a2209d547049988cb5114ea3c8390308a8b",
+      "afterHash": "bc9e1dd67f0b5311df4b544e219e7021e38ea4833a076601cbdf4a260ff726cb"
+    },
+    {
+      "source": "app/profile/[username]/page.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/music/app/profile/[username]/page.tsx",
+      "beforeHash": "6505775b57354a2b2273e7d7e2f1d163b6357ee3f8d16908082cf237e2a32239",
+      "afterHash": "2fe95202febbb1b5c090181ddfe4d23ce9ff718d3351874d075db1a82059b714"
+    },
+    {
+      "source": "app/track/[id]/TrackPageClient.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/music/app/track/[id]/TrackPageClient.tsx",
+      "beforeHash": "fbfb3c6a249b14dae37175d72b522985b200ad2cbea61c4d531d7ccedf62526b",
+      "afterHash": "5666de4449dd68563e33fadda393490dca3ae731b58173fe13bb4196e39eb9f4"
+    },
+    {
+      "source": "app/trending/page.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/music/app/trending/page.tsx",
+      "beforeHash": "8139e7019fcb6a2ee27e1b4bf7b9f2d641b2ae082bff3b026df4c7d1acf40530",
+      "afterHash": "b26f0b2bcef0a398b84f2e11f26b1aaa11e8def630b2c795fd3411adfc94f5c1"
+    },
+    {
+      "source": "components/actions/ActionsSurface.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/music/components/actions/ActionsSurface.tsx",
+      "beforeHash": "85b944d66da1212a11f86d28919264b945b963cf884d13edf52f9aa23c40220d",
+      "afterHash": "2da376eb79d7b0cbccde029e0fc3f4d66aff73b1e5a81708f1c3bd0f1c55b195"
+    },
+    {
+      "source": "components/comments/CommentsSurface.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/music/components/comments/CommentsSurface.tsx",
+      "beforeHash": "cd1a1a84ce8ac5b2027780e75430b30be132f8425c3d1ba9a0862adc036f075d",
+      "afterHash": "2a532ec3fd0bfd8f410143f7616e698edbd881e9792a89a50184307083e0f70c"
+    },
+    {
+      "source": "components/FullScreenPlayer.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/music/components/FullScreenPlayer.tsx",
+      "beforeHash": "48d12d3d2ab3d56ff0a7976b2ee6e33d20ca813665854bd36a1e35d71aaa5863",
+      "afterHash": "00cbd20b0123acf8d6c7c0865eeaedc6734bc3d33e3d37b4d6d330b4b1d7cb70"
+    },
+    {
+      "source": "components/home/ScrollPostSlide.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/music/components/home/ScrollPostSlide.tsx",
+      "beforeHash": "3a71f6ce11fd85d249ba2dacefec8e6574e7c0f51ac41af39b97e2fbb988c635",
+      "afterHash": "f5cf94148e9a3359820f51dd7e426a47df57d6a12cd25e085b0a9d3bb6af1022"
+    },
+    {
+      "source": "components/home/SynauraScroll.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/music/components/home/SynauraScroll.tsx",
+      "beforeHash": "bbee8b4617b39a90528d216fc5b73f84eeea7513615267e35ccc791b050565c7",
+      "afterHash": "987e658e9fc2a0f346e49c6f28e57a38e18a730bd49f70d269299627aa8e0a73"
+    },
+    {
+      "source": "components/profile/ProfilePeekSurface.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/music/components/profile/ProfilePeekSurface.tsx",
+      "beforeHash": "8916fae975531b88fcf7892b45ac07cc89ced0c8cb57614c5b3fa40122a0fb46",
+      "afterHash": "844be8b9f1ee57acf5bc9bf9624e06a0583aeeba36819f3bf77a8cb0545ba568"
+    },
+    {
+      "source": "components/radar/RadarSection.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/music/components/radar/RadarSection.tsx",
+      "beforeHash": "d2173a4d258226ef3e75c6d21d50c369370571b57149b4d70a57f5b4fe34483e",
+      "afterHash": "afd3eef70e3a74ddd37144dd674e371845d0c0f113671e5bd51266c60097e850"
+    },
+    {
+      "source": "components/TikTokPlayer.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/music/components/TikTokPlayer.tsx",
+      "beforeHash": "3386eb4d82d395f19f0b10ae29c703b7dfc467bc39bd3e51f30183906a1784b8",
+      "afterHash": "a1cada745efed2ba68209f2e04e7a084de669acc8f9aba1eb9c9827850fd1a4b"
+    },
+    {
+      "source": "components/TrackCover.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/music/components/TrackCover.tsx",
+      "beforeHash": "43c06dfaa26b727236ee44c31321bac3b0b21d5e283ce954784f4f270f2d537f",
+      "afterHash": "f598590143efda47704be22f77b7d04f21c0f93882f77bff761e574bb288d659"
+    },
+    {
+      "source": "components/v2/contexts-v2.css",
+      "snapshot": "artifacts/chambre-full-redesign/before/music/components/v2/contexts-v2.css",
+      "beforeHash": "3f20361f9b2bcfbe40f4cd1d5f620c9469302390c74a86206aa22e240275837d",
+      "afterHash": "251897b20700a282b67bbe35e5a4cd082132de543559ee639ca2012f896fd9f2"
+    },
+    {
+      "source": "components/v2/music-v2.css",
+      "snapshot": "artifacts/chambre-full-redesign/before/music/components/v2/music-v2.css",
+      "beforeHash": "9c7fa27468a4779fe8e3ed34ce1713d649c009483b8e91205519b01727a11f92",
+      "afterHash": "cced335789e6a2d4e2c1770a5535d541c8b6536dfb0895c70368daef3b909585"
+    },
+    {
+      "source": "app/auth/error/page.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/personal/app/auth/error/page.tsx",
+      "beforeHash": "e717528f9abcf8fd73d66b5f8cef9f296f52541b8bcd398aa5a7061e4becae12",
+      "afterHash": "e811772adce10944622303a5d8f2c460cf144dd62bc7cc838e9160e2f7090461"
+    },
+    {
+      "source": "app/auth/forgot-password/page.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/personal/app/auth/forgot-password/page.tsx",
+      "beforeHash": "10ea14b3078aa5adfb32ef22601c23c42ab01fefc393ab0f410d48814d5fecfd",
+      "afterHash": "8c5c8c5619b58b0e99d3238c83127bc8e0d86f63e8138bb592ad8382c17d602e"
+    },
+    {
+      "source": "app/auth/layout.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/personal/app/auth/layout.tsx",
+      "beforeHash": "b6ae5a57704838ad577ec55606f69ed36ce25f2befeb9b064186892589d14333",
+      "afterHash": "1b94dc0de088736308ed290396d50b26af58ca5e69da90c698696c1bf4c7c3e3"
+    },
+    {
+      "source": "app/auth/reset-password/page.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/personal/app/auth/reset-password/page.tsx",
+      "beforeHash": "e708e27ebd74ad4f0bbce1a089d0505d152c452f0d434b25063749e8f3972dd7",
+      "afterHash": "44e08e59c938e09123b1bc526268c5feae177ce6a524ebd9211126076257d1ee"
+    },
+    {
+      "source": "app/auth/signin/page.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/personal/app/auth/signin/page.tsx",
+      "beforeHash": "f876228431e5af2c16046c0db1600358edb65e9b8d102d1a5547fb9e883bfb51",
+      "afterHash": "9f3e8a929135506e1b81e051c9b6386ab5b910491a6ba102bfc35ac862552fe0"
+    },
+    {
+      "source": "app/auth/signup/page.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/personal/app/auth/signup/page.tsx",
+      "beforeHash": "58096a89e58e704431f95b356f1590476d65a75a35685e08c5b5e31c75f4ae22",
+      "afterHash": "1b6a278c6bbca485117a9372ab8566f678dd028cc3522dd87cc9de3b9238f035"
+    },
+    {
+      "source": "app/boosters/BoostersClient.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/personal/app/boosters/BoostersClient.tsx",
+      "beforeHash": "14f57948ab162cdb6ff505dd5c08b44772da26da52ab277b9d92fa5c28d6012b",
+      "afterHash": "7200d2645a7ad362ddf44195de313fa5dee818e8ee7b819f68ff4071bcd43756"
+    },
+    {
+      "source": "app/challenges/[id]/page.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/personal/app/challenges/[id]/page.tsx",
+      "beforeHash": "db5ca13db2f6760d638b076d814402f0c5f1b1d5f667afebcef1f740b5c050ad",
+      "afterHash": "de1858f74b1dd51997a8e24c33e13656e6b927274fcd1dee1aea22f5d59036f7"
+    },
+    {
+      "source": "app/community/faq/page.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/personal/app/community/faq/page.tsx",
+      "beforeHash": "5bda2795faea8cd268bab6dae262617bef1dd8daacd734e5ca5a7f886dd57633",
+      "afterHash": "3e65b9ab9dc1ba2f1e05105162dbacf44094b3cd2bab6f17cc34ef0366ba48bc"
+    },
+    {
+      "source": "app/community/forum/new/page.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/personal/app/community/forum/new/page.tsx",
+      "beforeHash": "1285f240dbc2b9f54360017f9cffa942e9a71fbfa0de068ae67adaa3144f8294",
+      "afterHash": "75ae49044dbf099e8766e3a985ffa16ae58ac894337e50cc79f3801fca414345"
+    },
+    {
+      "source": "app/community/forum/page.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/personal/app/community/forum/page.tsx",
+      "beforeHash": "9430577e76530d2fdf3c3b1b2cd00a5c5e16e4a2c6440e8247997739b24375bf",
+      "afterHash": "1464d586bd55951fb381c1e3ef65b7490afd29a6e923c34f32f965ee3ea33a96"
+    },
+    {
+      "source": "app/community/forum/[id]/page.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/personal/app/community/forum/[id]/page.tsx",
+      "beforeHash": "5ca521fc2fd104feac1b2893d19533985b4e23613030c7d8f02530fa04912947",
+      "afterHash": "272c7bfb861f183e828c1c749b03b6d3053387c003318c0355ba650d46fbb135"
+    },
+    {
+      "source": "app/community/page.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/personal/app/community/page.tsx",
+      "beforeHash": "4677b6e4f2d750d162224ec06941982cbb9ce5911d17bffdee0687a8f33ddcb7",
+      "afterHash": "b18dc8b4bb9603725ea1427f29aee38461f8ed964f5a434f60fb404690976b98"
+    },
+    {
+      "source": "app/community/[club]/page.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/personal/app/community/[club]/page.tsx",
+      "beforeHash": "83280d53fc8f036f776ac23e06893d323a44418f97168d18c85e6706d017a419",
+      "afterHash": "0e4d59a496be0e26740963dcde2663af9e3ec3975da5c8ad2fb017266e9a851f"
+    },
+    {
+      "source": "app/download/page.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/personal/app/download/page.tsx",
+      "beforeHash": "e85e305acaf4b15288fd2d2007ba427d60df7e5fe8a163157cd4e49676f9f8a1",
+      "afterHash": "8c0326222f367943fc6a4c148aa6d1510f7f0901522e821106a10426964ad6c2"
+    },
+    {
+      "source": "app/join/[code]/page.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/personal/app/join/[code]/page.tsx",
+      "beforeHash": "42c4f0327063b774d61218af568834467a8ef532cec472a466e0b3adac3ba5ca",
+      "afterHash": "58027fa0fe2fc0cf5f5ae6fa2753d8f08d16b5c7079ec15f88dc30057bd76f94"
+    },
+    {
+      "source": "app/legal/cgu/page.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/personal/app/legal/cgu/page.tsx",
+      "beforeHash": "c606d6b4872925ce399dfa9c0d4ee439a756ac8de8b2c73cf1dd8cf359047071",
+      "afterHash": "3511a6c26a0a6b006da70627b6402029f0b2e89663d630ed216344df8b523325"
+    },
+    {
+      "source": "app/legal/cgv/page.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/personal/app/legal/cgv/page.tsx",
+      "beforeHash": "9b622b7b5b3730de5b09aae2c6a4bbd5feebbc3a2a4314e9f6150473ff8c7460",
+      "afterHash": "7d73de51dfe9ac72013cb9c222560b979b57772d5845a51d277572527d5c9000"
+    },
+    {
+      "source": "app/legal/confidentialite/page.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/personal/app/legal/confidentialite/page.tsx",
+      "beforeHash": "a2154966b4bbda21b1d33a05a65bb563014eca9996511968a76158277a4f8213",
+      "afterHash": "0731ca6c017a5e92fe979163c2a31e4feb5a8e2e48945d7c10c30691e630a378"
+    },
+    {
+      "source": "app/legal/cookies/page.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/personal/app/legal/cookies/page.tsx",
+      "beforeHash": "63e76899e309e038d3c9a1e39730269d6c6cf869fdb83d0ff3d679d1b0511a93",
+      "afterHash": "0a49ed0aefe556d5418356d75c0aaff57a82def6d57e65bfc5879c5d65cef50f"
+    },
+    {
+      "source": "app/legal/mentions-legales/page.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/personal/app/legal/mentions-legales/page.tsx",
+      "beforeHash": "35ec88e825eafbce83f34ea443dc8d5819d54333f85852550f41dbcc8c0d8dd2",
+      "afterHash": "ca69e90400475a9373c5d126521a63a1f731c4d43c6eca486115bf38b6e30516"
+    },
+    {
+      "source": "app/legal/page.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/personal/app/legal/page.tsx",
+      "beforeHash": "0db1956af65e39bb3d767a993c54c0977dcfd08f2270b4820ed71c2333c86f82",
+      "afterHash": "614e77b2b2368641455fad0a901723d59b4f726bff5e138d71e7f20bedb1d5e2"
+    },
+    {
+      "source": "app/legal/rgpd/page.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/personal/app/legal/rgpd/page.tsx",
+      "beforeHash": "627692fe1c8d230ed87ae5a8af702bea509cc18701c093181c67955628ae6f76",
+      "afterHash": "dca17142851ae9b75119109784f509869dcc553cc1c235d67e696ccfce10d7df"
+    },
+    {
+      "source": "app/library/LibraryClient.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/personal/app/library/LibraryClient.tsx",
+      "beforeHash": "b56a046400898fbf703c0dbd553bfab6498838f5a133d08af9619f04111ed08e",
+      "afterHash": "f35ec3b97dec02558034c87a74acd1e14eba8ed1f6e9340b49cbb095a92061b1"
+    },
+    {
+      "source": "app/messages/page.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/personal/app/messages/page.tsx",
+      "beforeHash": "34aff0131e8ddd10235a1bffb24c2d318f75eae3ebbe0c3061c9e3869f8cdee3",
+      "afterHash": "cb88ec9cb0ef5f2fa415627b67d40a6678f04cf7def48ba519fdc58bdc55af3b"
+    },
+    {
+      "source": "app/messages/[conversationId]/page.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/personal/app/messages/[conversationId]/page.tsx",
+      "beforeHash": "cc36f4a1731feb699f68907c05a5f21b5f4a2a3407c86a4f428f55dfa8a13320",
+      "afterHash": "22c33ae1429612f3bb35f3a5fd3488aa0551a0adc668525a24e3183140e82e06"
+    },
+    {
+      "source": "app/notifications/page.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/personal/app/notifications/page.tsx",
+      "beforeHash": "563f698bd48e925ad84a942b12d79665b9ed470f9cdce136e453d1f86e32b009",
+      "afterHash": "34379e79c4f64c9d6b9e1443a78de0cf2bdccea2d1169b95aa3fc0b9ceba6e5a"
+    },
+    {
+      "source": "app/partnerships/page.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/personal/app/partnerships/page.tsx",
+      "beforeHash": "47d6c3412234b81605da795abe96a40e6bdc50b5df0d6246a59ee0e193486497",
+      "afterHash": "362d14db1b7cfb5c121705e37610115e9111f6929989e5273d23edc3ab7831ce"
+    },
+    {
+      "source": "app/posts/page.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/personal/app/posts/page.tsx",
+      "beforeHash": "ec69029be09792b53709f6695f140d1a72732530f8900d9d58e75ee53d4efaf5",
+      "afterHash": "ac603368bdfccd34215d9077939410563136f12a09d477dc760a0091d621881a"
+    },
+    {
+      "source": "app/posts/[id]/page.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/personal/app/posts/[id]/page.tsx",
+      "beforeHash": "2ccc890851c5003d98841533dc776c9d442705bdf505c1fe6ef16945042d1bdd",
+      "afterHash": "4568bc50972d66d37be31dff2be4926423663728c78b2767429868d02874a950"
+    },
+    {
+      "source": "app/reset-password/page.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/personal/app/reset-password/page.tsx",
+      "beforeHash": "1dc9aca858d3dca42881861617581b60c02f1b7150d1ff2d4069fc073ad337f6",
+      "afterHash": "8461864721ae6cdfb30bb128cf96cb11a843e6312ddff8f890efa85e479b9fbe"
+    },
+    {
+      "source": "app/search/page.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/personal/app/search/page.tsx",
+      "beforeHash": "486c2b430ab25f36afca67b857825affe7c84ca7b354a5640f389908b5d9e8d0",
+      "afterHash": "19c83ad41d48489f6ae46ec77d228616b0a68b1c691d76cbe5827ebe92696e01"
+    },
+    {
+      "source": "app/settings/SettingsClient.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/personal/app/settings/SettingsClient.tsx",
+      "beforeHash": "8e6a47d3b7c89b01ade64c70a5aab870b84a5a792b8f2e6ecdaba1da1a54cba9",
+      "afterHash": "0e35a896d41b168af2d5779d48df1d3ec4a1e2db7c4076cb390402328056bec8"
+    },
+    {
+      "source": "app/stats/page.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/personal/app/stats/page.tsx",
+      "beforeHash": "e8f05fd69dc61303fb391f9fb853806b73a57541790ce6e77696b7af14fedf3f",
+      "afterHash": "ecae5690ef98c81694e09bb35d96f386c63705fea0b88d3b9acceb720683277a"
+    },
+    {
+      "source": "app/subscriptions/page.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/personal/app/subscriptions/page.tsx",
+      "beforeHash": "c9a3ad5874e243ba7cae3a1e7920456d79ac50495139c6f54861dec294388dd2",
+      "afterHash": "42803631c0675da27aa871af659fdb0b341e12d423ec883c97f6ced19c4b3079"
+    },
+    {
+      "source": "app/subscriptions/success/page.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/personal/app/subscriptions/success/page.tsx",
+      "beforeHash": "b88ab689eb2dedb0e5e25484a06820e3a3c7d0faae41ab76b816fc40a7437664",
+      "afterHash": "eb2b28356c98bd3e56c4489b246cb0b51f30285909f737ffb62976348adf2493"
+    },
+    {
+      "source": "app/support/page.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/personal/app/support/page.tsx",
+      "beforeHash": "dcd9f3617ee9f5b7ba5284efbfd54f486646597d07bd11c5a522398cd081df02",
+      "afterHash": "36401ee0fe91a0b0c1559223eaa4e6c74d773a0e80b3e954909e8a8480384ad5"
+    },
+    {
+      "source": "app/support/SupportForm.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/personal/app/support/SupportForm.tsx",
+      "beforeHash": "b034716acd58949e3325bc976a10c032077a52acce965c5a92be73d51909439c",
+      "afterHash": "0be455eeb5ffa1b30a6833639a051037b78c63cb44929efcaf7535997ba3d92e"
+    },
+    {
+      "source": "components/city/SynauraCityPage.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/personal/components/city/SynauraCityPage.tsx",
+      "beforeHash": "d5688d6db4c18547013a97a64e2e56a4e993cac1dbf0d248a630c4c14ea2cada",
+      "afterHash": "d37af1df25ccae39c8271dba8a8f6c2e35e8183401178c26553b9a45193bcac3"
+    },
+    {
+      "source": "components/onboarding/OnboardingFlow.tsx",
+      "snapshot": "artifacts/chambre-full-redesign/before/personal/components/onboarding/OnboardingFlow.tsx",
+      "beforeHash": "459c854e985db39432513424c355ec5d1c1854e94c2894da552631f74a914b7b",
+      "afterHash": "5819eb8216a77a36b3edbef20b8785a43caaafbfce045e736d30719bf5b1d7a5"
+    },
+    {
+      "source": "components/v2/personal-v2.css",
+      "snapshot": "artifacts/chambre-full-redesign/before/personal/components/v2/personal-v2.css",
+      "beforeHash": "a7dc641e5d65f4738e1e03cd27a7b4a186bda96862325f39280f1b5f43334035",
+      "afterHash": "a5feb3d27278ae930511f7d3e9715c2a790d2ef7fbe6aec8711f90781196fb9f"
+    },
+    {
+      "source": "docs/chambre-creation-redesign.md",
+      "snapshot": "artifacts/chambre-resumption/before/creation/docs/chambre-creation-redesign.md",
+      "beforeHash": "506a7c51f819f5b2ac07e986c7de28982b2a966299d3764d3afe39061c0d34ff",
+      "afterHash": "f45eda91ef6b604c09405427fc3d4014b3a85e32f0d80d0558645b4497db49c3"
+    },
+    {
+      "source": "tests/chambre-creation-redesign.test.mjs",
+      "snapshot": "artifacts/chambre-resumption/before/creation/tests/chambre-creation-redesign.test.mjs",
+      "beforeHash": "e2a7884ca1414a71244feeee2005c5f1c1cb139586b39c0e69d9978c7a94b6f1",
+      "afterHash": "0bc04189eb4491cba93ff08fe4078cb33fa5caea33f8efdad8dba44d251a3411"
+    },
+    {
+      "source": "lib/routeChrome.ts",
+      "snapshot": "artifacts/chambre-resumption/before/foundation/lib/routeChrome.ts",
+      "beforeHash": "921fb0d35c2c5f8ca0e11522292b3c1eaaf7bfcf3e18889070c8536a4118a407",
+      "afterHash": "e48280def0c6ef9ba97ab99e0bfb7f78523177501166937347c60a12fd59bccd"
+    },
+    {
+      "source": "scripts/chambre-redesign-inventory.mjs",
+      "snapshot": "artifacts/chambre-resumption/before/foundation/scripts/chambre-redesign-inventory.mjs",
+      "beforeHash": "389032ac0812e6fa936ce0009c27781a2f73770773c57bac1d553bd9b46a5653",
+      "afterHash": "67bb133342b050ac1b4948b818357daaa8627db760fadeb38fccee5bb9727568"
+    },
+    {
+      "source": "components/NotificationCenter.tsx",
+      "snapshot": "artifacts/chambre-resumption/before/personal/components/NotificationCenter.tsx",
+      "beforeHash": "d6f9ca2486bbf1c6ba4232411f86407b66c79a4a5b5b89b3141902c4809ce48a",
+      "afterHash": "3b20ae77fd37039ab2f043efc5e74c75c8ed044049c3bbad3b584bba3f979c52"
+    },
+    {
+      "source": "docs/chambre-personal-redesign.md",
+      "snapshot": "artifacts/chambre-resumption/before/personal/docs/chambre-personal-redesign.md",
+      "beforeHash": "f0abfd9f3a565e1a91cb25c6896d1acc80e6f2bf8991c21c5a9c91cd19a051e7",
+      "afterHash": "3abf1727599a6aa468a0a45dca037d63376683f63b1c75c65ebe964951b71ec2"
+    },
+    {
+      "source": "components/home/HomeFlowPrelude.tsx",
+      "snapshot": "artifacts/chambre-continuation/before/live/components/home/HomeFlowPrelude.tsx",
+      "beforeHash": "f612bd1d1a97d7a4d98617ba440f8b0b21734085fe726237c56af169d394e19a",
+      "afterHash": "763bdd3af1bb6c4ca561d5d68780787b47c29ff1bebe37acab71f4cb2b2eebd4"
+    },
+    {
+      "source": "components/BoosterOpenModal.tsx",
+      "snapshot": "artifacts/chambre-continuation/before/rewards/components/BoosterOpenModal.tsx",
+      "beforeHash": "92ffec997546209c7fef0da8088dd4909d7ff3c77154b03a719703cc79e6f15c",
+      "afterHash": "361b25e8703e759e84c24dff32f7fdf069365111b5efc81239d3c5627b2eb9e3"
+    },
+    {
+      "source": "components/BoosterPackOpenModal.tsx",
+      "snapshot": "artifacts/chambre-continuation/before/rewards/components/BoosterPackOpenModal.tsx",
+      "beforeHash": "4eaa21837694935a03e335f3a837e65f8be45e80e51740bab49b49cc358596fc",
+      "afterHash": "24d31928e847972b0aa434996aa05d0e13091b399261fd7d1ef8f2545357c29d"
+    },
+    {
+      "source": "components/DailySpinModal.tsx",
+      "snapshot": "artifacts/chambre-continuation/before/rewards/components/DailySpinModal.tsx",
+      "beforeHash": "2b22d636d45061848be660873eb91a1fead65c249f0fd80d56c23b2a89550366",
+      "afterHash": "2e3056b9115c5ae05bfea89d483827a55b9fea8aaa0667c431d95def2e9ea175"
+    },
+    {
+      "source": "components/synaura/ChambreSpacesMenu.tsx",
+      "snapshot": "artifacts/chambre-signature/before/foundation/components/synaura/ChambreSpacesMenu.tsx",
+      "beforeHash": "b7ae1f8b73f04328c4c18316f530f0bfa9d7b835def61a5f93cbfc7f9a6cf3a9",
+      "afterHash": "7afec1cdd4fda860b6022857df6a8e127a2c1498b947d7e73db5467c27605e35"
+    },
+    {
+      "source": "tests/chambre-discover-continuation.test.mjs",
+      "snapshot": "artifacts/chambre-experience/before/collection/tests/chambre-discover-continuation.test.mjs",
+      "beforeHash": "cb72a7cb80c81cfd8206f950b7dab400c5c03c8c8cedd02fde7a68e9b29f2154",
+      "afterHash": "f61def1160df408c1674f6e39c9e72a4c6cb08a6bd631864b25f31e4a36e5290"
+    },
+    {
+      "source": "tests/chambre-music-redesign.test.mjs",
+      "snapshot": "artifacts/chambre-experience/before/collection/tests/chambre-music-redesign.test.mjs",
+      "beforeHash": "d8329a5b006c6fc9eac38b7634fcdf758a9e6d85f31299b0db95b12f4072364b",
+      "afterHash": "21b9404ec7a0819d799d0002832e07055eeca87ddbd8db372cf51ba63fc78368"
+    },
+    {
+      "source": "tests/chambre-personal-redesign.test.mjs",
+      "snapshot": "artifacts/chambre-experience/before/collection/tests/chambre-personal-redesign.test.mjs",
+      "beforeHash": "a2fa35cf0593255b6afaa2ffa7018cf4f49bb372359cb3508d40d137dfb190ad",
+      "afterHash": "cf27b9242d99d87cc6e4b26636f35d6579fcd1788576b3b4de20d4545b421e32"
+    },
+    {
+      "source": "components/studio/Center/StudioTimeline.tsx",
+      "snapshot": "artifacts/chambre-experience/before/creation/components/studio/Center/StudioTimeline.tsx",
+      "beforeHash": "dc89b4e8ce0fa71b18131187549fca5397e53e9cf2262409df92a192e27c3044",
+      "afterHash": "b490018532110d269c518110b71da36476aeaa9660afefb9e8bd28b10a1d258f"
+    },
+    {
+      "source": "components/studio/LeftDock/LeftDock.tsx",
+      "snapshot": "artifacts/chambre-experience/before/creation/components/studio/LeftDock/LeftDock.tsx",
+      "beforeHash": "79529dcbade875e941fd79f3d2be51ac3b308341c382cdf61cd898c7745c73f4",
+      "afterHash": "bca69a67b7cc9c43838c956099c4cc17f8a794c559d270ac785250496e2a1fd2"
+    },
+    {
+      "source": "components/studio/Library/LibraryPanel.tsx",
+      "snapshot": "artifacts/chambre-experience/before/creation/components/studio/Library/LibraryPanel.tsx",
+      "beforeHash": "34b7d502ab78a943d971b3cf3be04e44acc85ce0dd9b00b29a6a53b654b655ff",
+      "afterHash": "e80554493d5ae73265ebb71843967ee7d5caf07663fd738f989fb1349cedbe58"
+    },
+    {
+      "source": "components/studio/RightDock/Inspector.tsx",
+      "snapshot": "artifacts/chambre-experience/before/creation/components/studio/RightDock/Inspector.tsx",
+      "beforeHash": "a9650f98208e67160d5317fd545d3724a408b142b69c587af602d88d7a168107",
+      "afterHash": "fd8dd411e66d3ee066c1190ef0595080c8f5efea7eba7e8105d84b51507bc871"
+    },
+    {
+      "source": "components/v2/experience-creation.css",
+      "snapshot": "artifacts/chambre-experience/before/creation/components/v2/experience-creation.css",
+      "beforeHash": "8b773bfdbaa5f80b3507399695fb19e939608a44ca54143d2b41a739d092cded",
+      "afterHash": "9e9281a7aaa89ae6a98b8e49973c6d4912784f72b5f0aa139da54da40cc3a8d8"
+    },
+    {
+      "source": "tests/chambre-signature-creation.test.mjs",
+      "snapshot": "artifacts/chambre-experience/before/creation/tests/chambre-signature-creation.test.mjs",
+      "beforeHash": "cdae91b0fa60bad3ca89ce0ab58031433c459c9c02ecf219c68b223097e00965",
+      "afterHash": "641861a87620a360aa908def9e0ffe0e0ea6af45eace1607c64c7f692a452bb7"
+    },
+    {
+      "source": "tests/experience-creation.test.mjs",
+      "snapshot": "artifacts/chambre-experience/before/creation/tests/experience-creation.test.mjs",
+      "beforeHash": "e2b4eb3b488946e7b23680d5d5aa3fd50df146cc2b3aecbd9ebdddef004a5719",
+      "afterHash": "b297e20ec04db0be7e1e8859f9a376ff2a25958a821857c39249953be7153b85"
+    }
+  ],
+  "additions": [
+    "components/enter/PublicChamberEntry.tsx",
+    "scripts/chambre-redesign-inventory.mjs",
+    "components/v2/ChambreResonance.tsx",
+    "components/v2/chambre-signature.css",
+    "tests/chambre-signature-foundation.test.mjs",
+    "tests/chambre-signature-creation.test.mjs",
+    "tests/chambre-signature-music.test.mjs",
+    "tests/chambre-signature-personal.test.mjs",
+    "scripts/chambre-signature-gallery.mjs",
+    "docs/chambre-signature-validation.md",
+    "docs/chambre-signature-creation.md",
+    "docs/chambre-signature-music.md",
+    "docs/chambre-signature-personal.md",
+    "components/synaura/ChambreSpacesMenu.tsx",
+    "tests/chambre-navigation-resumption.test.mjs",
+    "tests/chambre-music-resumption.test.mjs",
+    "docs/chambre-music-resumption.md",
+    "docs/chambre-redesign-resumption.md",
+    "tests/chambre-personal-resumption.test.mjs",
+    "app/dev/v2/rewards/page.tsx",
+    "app/dev/v2/rewards/RewardsReview.tsx",
+    "tests/chambre-review-isolation.test.mjs",
+    "docs/chambre-continuation-validation.md",
+    "components/home/home-flow-prelude.css",
+    "tests/chambre-live-continuation.test.mjs",
+    "tests/chambre-discover-continuation.test.mjs",
+    "docs/chambre-live-continuation.md",
+    "docs/chambre-discover-continuation.md",
+    "scripts/chambre-continuation-gallery.mjs",
+    "tests/chambre-rewards-continuation.test.mjs",
+    "docs/chambre-rewards-continuation.md",
+    "scripts/chambre-redesign-gallery.mjs",
+    "docs/chambre-redesign-validation.md",
+    "docs/chambre-redesign-route-coverage.md",
+    "docs/chambre-music-redesign.md",
+    "docs/chambre-creation-redesign.md",
+    "docs/chambre-personal-redesign.md",
+    "tests/chambre-foundation-redesign.test.mjs",
+    "tests/chambre-music-redesign.test.mjs",
+    "tests/chambre-creation-redesign.test.mjs",
+    "tests/chambre-personal-redesign.test.mjs",
+    "tests/chambre-player-loading.test.mjs",
+    "components/v2/experience-live-navigation.css",
+    "components/v2/experience-collection.css",
+    "components/v2/experience-creation.css",
+    "components/v2/experience-account.css",
+    "tests/experience-navigation-live.test.mjs",
+    "tests/experience-collection.test.mjs",
+    "tests/experience-creation.test.mjs",
+    "tests/experience-account.test.mjs",
+    "docs/experience-collection.md",
+    "docs/experience-creation.md",
+    "docs/experience-account.md",
+    "docs/chambre-experience-validation.md",
+    "scripts/chambre-experience-gallery.mjs"
+  ],
+  "protectedFiles": 356,
+  "changedProtected": [
+    "lib/routeChrome.ts"
+  ],
+  "allowedPresentationChanges": [
+    "lib/routeChrome.ts"
+  ],
+  "unexpectedProtected": [],
+  "scan": {
+    "files": 163,
+    "secretFindings": [],
+    "caveat": "Heuristique, pas une garantie sur les changements utilisateur préexistants."
+  }
+}

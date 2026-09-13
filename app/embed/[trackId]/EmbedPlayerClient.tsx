@@ -2,6 +2,8 @@
 
 import { useRef, useState, useEffect } from 'react';
 import { Play, Pause } from 'lucide-react';
+import SynauraLogo from '@/components/brand/SynauraLogo';
+import { SynauraImage } from '@/components/ui/SynauraImage';
 
 interface TrackData {
   id: string;
@@ -68,67 +70,70 @@ export default function EmbedPlayerClient({ track }: { track: TrackData }) {
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
 
   return (
-    <div style={{
-      width: '100%', minHeight: 80, background: 'linear-gradient(135deg, #0c0c16, #141428)',
-      display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px',
-      fontFamily: "'Inter', system-ui, sans-serif", color: '#fff', boxSizing: 'border-box',
-      borderRadius: 12, border: '1px solid rgba(255,255,255,0.06)',
+    <div className="v2-embed" style={{
+      width: '100%', minHeight: 88, background: 'var(--v2-surface, #10141e)',
+      display: 'flex', alignItems: 'center', gap: 14, padding: '12px 16px',
+      fontFamily: "'Inter', system-ui, sans-serif", color: 'var(--v2-text, #eff1f8)', boxSizing: 'border-box',
+      borderRadius: 12, border: '1px solid var(--v2-line, #30384a)',
     }}>
+      <style jsx>{`
+        .v2-embed :is(button,a):focus-visible { outline: 2px solid var(--v2-focus,#b6d4ff); outline-offset: 3px; }
+        @media (max-width: 360px) { .v2-embed { gap: 10px!important; padding: 10px!important; } .v2-embed-link { padding: 0!important; } }
+        @media (prefers-reduced-motion: reduce) { .v2-embed-progress { transition: none!important; } }
+      `}</style>
       <audio ref={audioRef} src={track.audioUrl} preload="metadata" />
 
       {/* Cover */}
-      <div style={{ position: 'relative', width: 56, height: 56, borderRadius: 10, overflow: 'hidden', flexShrink: 0, cursor: 'pointer' }} onClick={togglePlay}>
-        <img src={track.coverUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+      <button type="button" aria-label={`${playing ? 'Mettre en pause' : 'Lire'} : ${track.title}`} style={{ position: 'relative', width: 56, height: 56, padding: 0, border: 0, background: 'var(--v2-raised, #191f2c)', borderRadius: 8, overflow: 'hidden', flexShrink: 0, cursor: 'pointer' }} onClick={togglePlay}>
+        <SynauraImage src={track.coverUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
         <div style={{
           position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
           background: playing ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.45)', transition: 'background 150ms',
         }}>
           {playing ? <Pause size={22} fill="#fff" stroke="#fff" /> : <Play size={22} fill="#fff" stroke="#fff" />}
         </div>
-      </div>
+      </button>
 
       {/* Info + progress */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {track.title}
         </div>
-        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        <div style={{ fontSize: 12, marginTop: 3, color: 'var(--v2-muted, #b0b8ca)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {track.artist}
         </div>
 
         {/* Seek bar */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 6 }}>
-          <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', width: 30, textAlign: 'right' }}>{fmt(currentTime)}</span>
+          <span style={{ fontSize: 10, fontVariantNumeric: 'tabular-nums', color: 'var(--v2-faint, #929db4)', width: 30, textAlign: 'right' }}>{fmt(currentTime)}</span>
           <div
             onClick={seek}
-            style={{ flex: 1, height: 4, borderRadius: 2, background: 'rgba(255,255,255,0.1)', cursor: 'pointer', position: 'relative' }}
+            style={{ flex: 1, height: 4, borderRadius: 2, background: 'var(--v2-line, #30384a)', cursor: 'pointer', position: 'relative' }}
           >
-            <div style={{
+            <div className="v2-embed-progress" style={{
               width: `${progress}%`, height: '100%', borderRadius: 2,
-              background: 'linear-gradient(90deg, #8b5cf6, #ec4899)', transition: 'width 100ms linear',
+              background: 'var(--v2-accent, #b9a3eb)', transition: 'width 100ms linear',
             }} />
           </div>
-          <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', width: 30 }}>{fmt(duration)}</span>
+          <span style={{ fontSize: 10, fontVariantNumeric: 'tabular-nums', color: 'var(--v2-faint, #929db4)', width: 30 }}>{fmt(duration)}</span>
         </div>
       </div>
 
       {/* Synaura link */}
       <a
+        className="v2-embed-link"
+        aria-label={`Ouvrir ${track.title} sur Synaura`}
         href={`${baseUrl}/track/${track.id}`}
         target="_blank"
         rel="noopener noreferrer"
         style={{
-          display: 'flex', alignItems: 'center', gap: 4, padding: '6px 10px',
-          borderRadius: 8, background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.25)',
-          color: '#c4b5fd', fontSize: 10, fontWeight: 600, textDecoration: 'none', whiteSpace: 'nowrap',
+          display: 'flex', alignItems: 'center', gap: 4, padding: '6px', minHeight: 44,
+          borderRadius: 6, background: 'transparent',
+          color: 'var(--v2-muted, #b0b8ca)', textDecoration: 'none', whiteSpace: 'nowrap',
           flexShrink: 0,
         }}
       >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2"/>
-          <path d="M9 8l6 4-6 4V8z" fill="currentColor"/>
-        </svg>
-        Synaura
+        <SynauraLogo variant="symbol" size={30} decorative />
       </a>
     </div>
   );

@@ -3,6 +3,8 @@
 import { useEffect, useRef, type MouseEvent as ReactMouseEvent } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { MOMENT_REACTION_TYPES, MOMENT_REACTION_META, type MomentReactionType } from '@/lib/momentReactions';
+import { useLiveReactionBurst } from './LiveReactionBurst';
+import burstStyles from './LiveReactionBurst.module.css';
 
 interface ReactionPickerProps {
   open: boolean;
@@ -12,6 +14,7 @@ interface ReactionPickerProps {
   variant?: 'dark' | 'light';
   /** Positionnement (le parent doit être `position: relative`), ex. "bottom-full mb-2 right-0". */
   className?: string;
+  celebrate?: boolean;
 }
 
 const THEME = {
@@ -21,9 +24,10 @@ const THEME = {
 
 /** Popover léger de 6 réactions prédéfinies pour un instant précis du morceau.
  * Se ferme sur clic externe (même logique que le menu compte de SynauraShell). */
-export default function ReactionPicker({ open, onPick, onClose, variant = 'dark', className = '' }: ReactionPickerProps) {
+export default function ReactionPicker({ open, onPick, onClose, variant = 'dark', className = '', celebrate = false }: ReactionPickerProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const theme = THEME[variant];
+  const burst = useLiveReactionBurst();
 
   useEffect(() => {
     if (!open) return;
@@ -35,6 +39,8 @@ export default function ReactionPicker({ open, onPick, onClose, variant = 'dark'
   }, [open, onClose]);
 
   return (
+    <>
+    {burst.layer}
     <AnimatePresence>
       {open ? (
         <motion.div
@@ -43,7 +49,7 @@ export default function ReactionPicker({ open, onPick, onClose, variant = 'dark'
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 6, scale: 0.94 }}
           transition={{ duration: 0.16, ease: 'easeOut' }}
-          className={`absolute z-[136] flex gap-1 rounded-full border p-1.5 shadow-[0_18px_44px_rgba(0,0,0,0.28)] backdrop-blur-xl ${theme.panel} ${className}`}
+          className={`absolute z-[136] flex gap-1 rounded-full border p-1.5 shadow-[0_18px_44px_rgba(0,0,0,0.28)] backdrop-blur-xl ${theme.panel} ${className} ${celebrate ? burstStyles.picker : ''}`}
           onClick={(event: ReactMouseEvent) => event.stopPropagation()}
         >
           {MOMENT_REACTION_TYPES.map((type) => {
@@ -54,7 +60,10 @@ export default function ReactionPicker({ open, onPick, onClose, variant = 'dark'
                 type="button"
                 title={meta.label}
                 aria-label={meta.label}
-                onClick={() => onPick(type)}
+                onClick={() => {
+                  if (celebrate) burst.emit(type);
+                  onPick(type);
+                }}
                 className={`grid h-10 w-10 place-items-center rounded-full text-xl transition active:scale-90 ${theme.chip}`}
               >
                 {meta.emoji}
@@ -64,5 +73,6 @@ export default function ReactionPicker({ open, onPick, onClose, variant = 'dark'
         </motion.div>
       ) : null}
     </AnimatePresence>
+    </>
   );
 }

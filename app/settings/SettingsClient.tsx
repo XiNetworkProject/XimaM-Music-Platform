@@ -1,6 +1,7 @@
 'use client';
 
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
+import { SynauraImage } from '@/components/ui/SynauraImage';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -23,13 +24,14 @@ import {
   Trash2,
   User,
   ArrowLeft,
+  ArrowUpRight,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import SubscriptionLimits from '@/components/SubscriptionLimits';
 import { notify } from '@/components/NotificationCenter';
 import { useAudioPlayer } from '@/app/providers';
 import { UModal, UModalBody } from '@/components/ui/UnifiedUI';
-import { SynauraAppShell, SynauraInkPanel, SynauraPanel, SynauraTopBar } from '@/components/synaura/SynauraShell';
+import { SynauraAppShell, SynauraPanel, SynauraTopBar } from '@/components/synaura/SynauraShell';
 import { registerPushSubscription, unregisterPushSubscription } from '@/lib/pushClient';
 import { SynauraThemeSelector } from '@/components/theme/SynauraThemeProvider';
 import { uploadLocalMedia } from '@/lib/clientMediaUpload';
@@ -79,38 +81,36 @@ function SettingsNavItem({
   active,
   icon: Icon,
   label,
+  description,
   onClick,
 }: {
   active: boolean;
   icon: any;
   label: string;
+  description: string;
   onClick: () => void;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={cx(
-        'w-full text-left rounded-[1rem] border px-3 py-3 transition',
-        active
-          ? 'border-transparent bg-[#171313] text-white shadow-[0_16px_36px_rgba(30,25,20,0.18)]'
-          : 'border-[#d8ccb8] bg-[#f5ecde] text-[#5f5650] hover:border-[#cbbca5] hover:bg-[#efe4d3] hover:text-[#171313]'
-      )}
+      aria-pressed={active}
+      aria-controls="experience-settings-panel"
+      className="experience-settings-nav-item"
     >
-      <span className="flex items-center gap-2">
-        <Icon className={cx('h-4 w-4', active ? 'text-white' : 'text-black/36')} />
-        <span className="text-[14px] font-black">{label}</span>
-      </span>
+      <Icon size={17} aria-hidden="true" />
+      <span><strong>{label}</strong><small>{description}</small></span>
+      <ArrowUpRight size={14} aria-hidden="true" />
     </button>
   );
 }
 
 function WarmCard({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <SynauraPanel className={`p-4 sm:p-5 ${className}`}>{children}</SynauraPanel>;
+  return <SynauraPanel className={`v2-settings-card ${className}`}>{children}</SynauraPanel>;
 }
 
-function InnerCard({ children, className = '' }: { children: ReactNode; className?: string }) {
-  return <div className={`rounded-[1.35rem] border border-[var(--syn-border)] bg-[var(--syn-surface-muted)] p-4 shadow-[0_10px_24px_var(--syn-shadow)] ${className}`}>{children}</div>;
+function InnerCard({ children, className = '', id }: { children: ReactNode; className?: string; id?: string }) {
+  return <div id={id} className={`v2-settings-inner border border-[var(--syn-border)] bg-[var(--syn-surface-muted)] p-4 ${className}`}>{children}</div>;
 }
 
 function SectionHeader({
@@ -123,11 +123,11 @@ function SectionHeader({
   description: string;
 }) {
   return (
-    <div>
-      <div className="text-[11px] font-black uppercase tracking-[0.18em] text-[var(--syn-text-secondary)]">{eyebrow}</div>
-      <div className="mt-2 text-[1.65rem] font-black text-[var(--syn-text-primary)]">{title}</div>
-      <div className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-[var(--syn-text-secondary)]">{description}</div>
-    </div>
+    <header className="experience-settings-section-heading">
+      <p className="experience-account-eyebrow">{eyebrow}</p>
+      <h2>{title}</h2>
+      <p>{description}</p>
+    </header>
   );
 }
 
@@ -167,7 +167,7 @@ function ToggleCard({
   description: string;
 }) {
   return (
-    <div className="rounded-[1.1rem] border border-[var(--syn-border)] bg-[var(--syn-surface)] p-4">
+    <div className="experience-settings-toggle-row">
       <Toggle checked={checked} onChange={onChange} label={label} description={description} />
     </div>
   );
@@ -177,7 +177,7 @@ function LegalLinkCard({ href, label }: { href: string; label: string }) {
   return (
     <Link
       href={href}
-      className="flex items-center justify-between gap-3 rounded-[1.1rem] border border-[#dbcdb8] bg-[#fff8ee] px-4 py-3 text-sm font-black text-[#171313] transition hover:bg-[#fff3e4]"
+      className="experience-settings-legal-link"
     >
       <span>{label}</span>
       <ExternalLink className="h-4 w-4 text-black/32" />
@@ -194,7 +194,7 @@ function PrimaryButton({
     <button
       {...props}
       className={cx(
-        'inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#171313] px-5 text-sm font-black text-white transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-45',
+        'experience-account-primary inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#171313] px-5 text-sm font-black text-white transition hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-45',
         className,
       )}
     >
@@ -231,7 +231,7 @@ function Field({
   children: ReactNode;
 }) {
   return (
-    <label className="block">
+    <label className="experience-settings-field block">
       <div className="flex items-end justify-between gap-3">
         <span className="text-sm font-black text-[#171313]">{label}</span>
         {hint ? <span className="text-xs font-semibold text-black/38">{hint}</span> : null}
@@ -253,7 +253,7 @@ function Toggle({
   description?: string;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4">
+    <div className="experience-settings-toggle flex items-center justify-between gap-4">
       <div className="min-w-0">
         <div className="text-sm font-black text-[#171313]">{label}</div>
         {description ? <div className="mt-0.5 text-xs font-semibold text-black/42">{description}</div> : null}
@@ -262,6 +262,7 @@ function Toggle({
         type="button"
         onClick={() => onChange(!checked)}
         role="switch"
+        aria-label={label}
         aria-checked={checked}
         className={cx(
           'relative inline-flex h-8 w-[4.35rem] shrink-0 items-center rounded-full border px-1 transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#171313]/20',
@@ -274,7 +275,7 @@ function Toggle({
             checked ? 'translate-x-[2.2rem] bg-[#fff8ee]' : 'translate-x-0 bg-white'
           )}
         />
-        <span className={cx('ml-auto pr-2 text-[10px] font-black uppercase tracking-[0.1em]', checked ? 'text-white' : 'text-[#6c6157]')}>
+        <span aria-hidden="true" className={cx('experience-settings-switch-state text-[10px] font-black uppercase tracking-[0.1em]', checked ? 'text-white' : 'text-[#6c6157]')}>
           {checked ? 'On' : 'Off'}
         </span>
       </button>
@@ -713,12 +714,12 @@ export default function SettingsClient() {
     return (
       <SynauraAppShell contentClassName="max-w-[1100px]">
         <SynauraTopBar searchHref="/discover" searchLabel="Rechercher un son, un profil ou un post..." />
-        <WarmCard className="mx-auto max-w-md text-center">
+        <WarmCard className="experience-settings-guest mx-auto max-w-md text-center">
           <div className="mx-auto w-fit rounded-[1.2rem] bg-black/[0.05] p-3 text-black/42">
             <Settings className="h-7 w-7" />
           </div>
-          <h1 className="mt-4 text-2xl font-black tracking-[-0.04em] text-[#171313]">Parametres</h1>
-          <p className="mt-2 text-sm font-semibold text-black/45">Connecte-toi pour acceder a tes parametres.</p>
+          <h1 className="mt-4 text-2xl font-black tracking-[-0.04em] text-[#171313]">À ta façon.</h1>
+          <p className="mt-2 text-sm font-semibold text-black/45">Connecte-toi pour retrouver ton profil, ton écoute et tes réglages.</p>
           <button type="button" onClick={() => router.push('/auth/signin', { scroll: false })} className="mt-5 inline-flex h-11 items-center justify-center rounded-full bg-[#171313] px-5 text-sm font-black text-white transition hover:scale-[1.02]">
             Se connecter
           </button>
@@ -741,160 +742,59 @@ export default function SettingsClient() {
     <SynauraAppShell contentClassName="max-w-[1400px]">
       <SynauraTopBar searchHref="/discover" searchLabel="Rechercher un son, un profil ou un post..." />
 
-      <div className="space-y-4 pb-24">
-        <button
-          onClick={() => router.back()}
-          className="inline-flex h-11 items-center gap-2 rounded-full border border-black/[0.08] bg-[#fffaf2]/88 px-4 text-sm font-black text-black/56 shadow-[0_14px_36px_rgba(30,25,20,0.08)] transition hover:bg-[#171313] hover:text-white"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Retour
-        </button>
-
-        <SynauraInkPanel className="overflow-hidden">
-          <div className="px-5 py-6 sm:px-7 sm:py-8">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/46">Synaura</p>
-                <h1 className="mt-3 text-3xl font-black leading-[0.95] tracking-[-0.06em] text-white sm:text-5xl">Parametres</h1>
-                <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-white/58">
-                  Profil, compte, notifications, securite et preferences du nouveau Synaura.
-                </p>
-              </div>
-
-              <Link
-                href={username ? `/profile/${encodeURIComponent(username)}` : '/'}
-                className="inline-flex h-11 items-center gap-2 rounded-full border border-white/12 bg-white/8 px-4 text-sm font-black text-white/76 transition hover:bg-white/12 hover:text-white"
-              >
-                <ExternalLink className="h-4 w-4" />
-                Voir mon profil
-              </Link>
+      <main className="experience-settings pb-24">
+        <header className="experience-settings-heading">
+          <div className="experience-settings-title">
+            <div className="experience-settings-breadcrumb">
+              <button type="button" onClick={() => router.back()}><ArrowLeft size={15} aria-hidden="true" /> Retour</button>
+              <span>Ton espace personnel</span>
             </div>
+            <h1>À ta façon<span className="chambre-type-accent">.</span></h1>
+            <p>Ton identité, ton écoute, tes choix.</p>
           </div>
-        </SynauraInkPanel>
+          <Link href={username ? `/profile/${encodeURIComponent(username)}` : '/'} className="experience-settings-identity">
+            <img src={avatarSrc} alt="" onError={(e) => {
+              (e.currentTarget as HTMLImageElement).src = '/default-avatar.png';
+            }} />
+            <span><strong>{displayName}</strong><small>@{username}</small><em>Voir mon profil <ArrowUpRight size={13} aria-hidden="true" /></em></span>
+          </Link>
+        </header>
 
-        <div className="grid gap-4 lg:grid-cols-[300px_minmax(0,1fr)]">
-          {/* NAV */}
-          <div className="lg:sticky lg:top-24 h-fit">
-            <SynauraPanel className="overflow-hidden p-3">
-              <div className="rounded-[1.5rem] border border-black/[0.08] bg-[radial-gradient(circle_at_top_left,rgba(255,111,97,0.16),transparent_34%),radial-gradient(circle_at_bottom_right,rgba(124,92,255,0.16),transparent_38%),rgba(0,0,0,0.03)] px-3 py-3">
-                <div className="flex items-center gap-3">
-                <div className="relative">
-                  <img
-                    src={avatarSrc}
-                    alt="Avatar"
-                    className="h-12 w-12 rounded-full object-cover border border-black/[0.08]"
-                    onError={(e) => {
-                      (e.currentTarget as HTMLImageElement).src = '/default-avatar.png';
-                    }}
-                  />
-                  <span className="absolute -bottom-1 -right-1 inline-flex h-5 w-5 items-center justify-center rounded-full border border-white/70 bg-white text-[#171313] shadow-[0_10px_20px_rgba(30,25,20,0.1)]">
-                    <Crown className="h-3 w-3" />
-                  </span>
-                </div>
-                <div className="min-w-0">
-                  <div className="text-sm font-black line-clamp-1 text-[#171313]">{displayName}</div>
-                  <div className="text-xs font-semibold text-black/45 line-clamp-1">@{username}</div>
-                </div>
-              </div>
-
-                <div className="mt-3 grid gap-2">
-                  <Link
-                    href={username ? `/profile/${encodeURIComponent(username)}` : '/'}
-                    className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-[#d6c8b3] bg-[#fff8ee] px-4 text-sm font-black text-[#171313] transition hover:bg-[#fff3e4]"
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                    Voir mon profil
-                  </Link>
-                </div>
-              </div>
-
-              <div className="mt-3 px-1">
-                <div className="text-[11px] font-black uppercase tracking-[0.18em] text-black/34">Sections</div>
-              </div>
-
-              <div className="mt-2 grid gap-2">
-                <SettingsNavItem active={tab === 'profil'} icon={User} label="Profil" onClick={() => setTabAndUrl('profil')} />
-                <SettingsNavItem active={tab === 'compte'} icon={Crown} label="Compte" onClick={() => setTabAndUrl('compte')} />
-                <SettingsNavItem active={tab === 'parrainage'} icon={Gift} label="Parrainage" onClick={() => {
+        <div className="v2-settings-layout chambre-settings-workspace">
+          <aside className="v2-settings-nav">
+            <div className="experience-settings-index">
+              <p className="experience-account-eyebrow">Les réglages</p>
+              <nav className="v2-settings-sections mt-2" aria-label="Réglages du compte">
+                <SettingsNavItem active={tab === 'profil'} icon={User} label="Profil" description="Ton identité publique" onClick={() => setTabAndUrl('profil')} />
+                <SettingsNavItem active={tab === 'compte'} icon={Crown} label="Compte" description="Identité, plan et limites" onClick={() => setTabAndUrl('compte')} />
+                <SettingsNavItem active={tab === 'parrainage'} icon={Gift} label="Parrainage" description="Invitations et crédits" onClick={() => {
                   setTabAndUrl('parrainage');
                   if (!referralData) {
                     setReferralLoading(true);
                     fetch('/api/referral').then(r => r.json()).then(d => setReferralData(d)).catch(() => {}).finally(() => setReferralLoading(false));
                   }
                 }} />
-                <SettingsNavItem active={tab === 'preferences'} icon={Sparkles} label="Préférences" onClick={() => setTabAndUrl('preferences')} />
-                <SettingsNavItem active={tab === 'events'} icon={CalendarDays} label="Events & Pulse" onClick={() => setTabAndUrl('events')} />
-                <SettingsNavItem active={tab === 'securite'} icon={Shield} label="Sécurité" onClick={() => setTabAndUrl('securite')} />
-                <SettingsNavItem active={tab === 'legal'} icon={FileText} label="Légal" onClick={() => setTabAndUrl('legal')} />
-              </div>
+                <SettingsNavItem active={tab === 'preferences'} icon={Sparkles} label="Préférences" description="Écoute et notifications" onClick={() => setTabAndUrl('preferences')} />
+                <SettingsNavItem active={tab === 'events'} icon={CalendarDays} label="Events & Pulse" description="Ta place dans la communauté" onClick={() => setTabAndUrl('events')} />
+                <SettingsNavItem active={tab === 'securite'} icon={Shield} label="Sécurité" description="Accès et comptes bloqués" onClick={() => setTabAndUrl('securite')} />
+                <SettingsNavItem active={tab === 'legal'} icon={FileText} label="Légal" description="Documents et politiques" onClick={() => setTabAndUrl('legal')} />
+              </nav>
 
-              <div className="mt-3 rounded-[1.25rem] border border-[#dccfbb] bg-[#f4ecdf] p-3">
-                <div className="text-xs font-black uppercase tracking-[0.16em] text-black/34">Raccourci</div>
-                <div className="mt-2 text-sm font-semibold text-black/56">
-                  Tout ce qui etait dans le petit modal profil est maintenant centralise ici.
-                </div>
-              </div>
 
-              <div className="mt-3 border-t border-black/[0.08] pt-3">
-                <button
-                  type="button"
-                  onClick={async () => {
-                    await logout();
-                  }}
-                  className="w-full rounded-[1rem] border border-[#ff6f61]/20 bg-[#ff6f61]/8 px-3 py-3 text-sm font-black text-[#9a3e34] transition hover:bg-[#ff6f61]/14 flex items-center gap-2 justify-center"
-                >
-                  <LogOut className="h-4 w-4" />
-                  Se déconnecter
-                </button>
-              </div>
-            </SynauraPanel>
-          </div>
+            </div>
+          </aside>
 
           {/* CONTENT */}
-          <div className="min-w-0 space-y-4">
-            {/* Abonnement */}
-            <WarmCard className="space-y-4 border-black/[0.08]">
-              <SectionHeader
-                eyebrow="Abonnement"
-                title="Plan et limites"
-                description="Retrouve ici ton niveau d’accès actuel et ouvre la gestion de ton abonnement si tu veux faire évoluer ton plan."
-              />
+          <div id="experience-settings-panel" className="v2-settings-content space-y-4" role="region" aria-label="Section de réglages sélectionnée">
 
-              <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_280px]">
-                <InnerCard>
-                  <SubscriptionLimits />
-                </InnerCard>
-
-                <InnerCard>
-                  <div className="text-[11px] font-black uppercase tracking-[0.18em] text-black/34">Gestion</div>
-                  <div className="mt-3 rounded-[1.1rem] border border-[#dbcdb8] bg-[#fff8ee] p-4">
-                    <div className="text-sm font-black text-[#171313]">Modifier mon plan</div>
-                    <div className="mt-2 text-sm font-semibold leading-6 text-black/52">
-                      Ouvre la page d’abonnement pour voir les offres, limites et options disponibles.
-                    </div>
-                    <Link
-                      href="/subscriptions"
-                      className="mt-4 inline-flex h-11 items-center justify-center rounded-full border border-[#d6c8b3] bg-[#efe4d4] px-4 text-sm font-black text-[#5f5650] transition hover:bg-[#e7dac8] hover:text-[#171313]"
-                    >
-                      Gérer l’abonnement
-                    </Link>
-                  </div>
-                </InnerCard>
-              </div>
-            </WarmCard>
 
             {tab === 'profil' && (
-              <WarmCard className="space-y-4">
-                <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-                  <div>
-                    <div className="text-[11px] font-black uppercase tracking-[0.18em] text-black/34">Edition</div>
-                    <div className="mt-2 text-[1.65rem] font-black tracking-[-0.05em] text-[#171313]">Profil</div>
-                    <div className="mt-2 max-w-2xl text-sm font-semibold leading-6 text-black/54">
-                      Nom, bio, visuels, lien, localisation et identité artiste. Tout ce qui était dans le petit modal est ici.
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap gap-2">
+              <WarmCard className="experience-settings-profile space-y-4">
+                <div className="experience-settings-profile-heading">
+                  <SectionHeader eyebrow="Profil public" title="Ça, c’est toi." description="Le nom, les mots et les images qui racontent ton univers." />
+                  <div className="experience-settings-save-area">
+                    <p role="status">{isProfileDirty ? 'Modifications à enregistrer' : 'Ton profil public'}</p>
+                    <div className="experience-settings-save-actions">
                     <SecondaryButton type="button" onClick={resetProfileForm} disabled={!isProfileDirty || profileSaving || profileLoading}>
                       Réinitialiser
                     </SecondaryButton>
@@ -902,6 +802,8 @@ export default function SettingsClient() {
                       {profileSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
                       Enregistrer
                     </PrimaryButton>
+                    </div>
+                    <a href="#experience-settings-visuals">Photos & aperçu <ArrowUpRight size={12} aria-hidden="true" /></a>
                   </div>
                 </div>
 
@@ -910,73 +812,12 @@ export default function SettingsClient() {
                     Chargement…
                   </div>
                 ) : (
-                  <div className="grid gap-4 xl:grid-cols-[minmax(0,1.05fr)_360px]">
+                  <div className="experience-settings-profile-layout">
                     <div className="space-y-4">
-                      <InnerCard className="overflow-hidden p-0">
-                        <div className="relative h-40 sm:h-48">
-                          {bannerSrc ? (
-                            <img src={bannerSrc} alt="Bannière" className="h-full w-full object-cover" />
-                          ) : (
-                            <div className="h-full w-full bg-[radial-gradient(circle_at_top_left,rgba(255,111,97,0.36),transparent_28%),radial-gradient(circle_at_top_right,rgba(124,92,255,0.3),transparent_32%),radial-gradient(circle_at_bottom,rgba(0,194,203,0.18),transparent_42%),linear-gradient(135deg,#171313_0%,#2b2320_100%)]" />
-                          )}
-                          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(23,19,19,0.1)_0%,rgba(23,19,19,0.62)_100%)]" />
-                          <div className="absolute right-4 top-4">
-                            <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-white/14 bg-black/24 px-3 py-2 text-xs font-black text-white backdrop-blur-xl transition hover:bg-black/36">
-                              {uploading.banner ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
-                              Changer la bannière
-                              <input
-                                type="file"
-                                accept="image/*"
-                                className="hidden"
-                                disabled={uploading.banner}
-                                onChange={(e) => {
-                                  const f = e.currentTarget.files?.[0];
-                                  e.currentTarget.value = '';
-                                  if (f) uploadProfileImage('banner', f);
-                                }}
-                              />
-                            </label>
-                          </div>
-                          <div className="absolute left-4 right-4 bottom-4 flex items-end gap-4">
-                            <div className="relative shrink-0">
-                              <img
-                                src={avatarSrc}
-                                alt="Avatar"
-                                className="h-24 w-24 rounded-[1.75rem] border border-white/16 object-cover shadow-[0_18px_40px_rgba(0,0,0,0.25)]"
-                                onError={(e) => {
-                                  (e.currentTarget as HTMLImageElement).src = '/default-avatar.png';
-                                }}
-                              />
-                              <label className="absolute -bottom-2 -right-2 inline-flex cursor-pointer items-center justify-center rounded-full border border-white/70 bg-white p-2 text-[#171313] shadow-[0_10px_20px_rgba(30,25,20,0.12)] transition hover:scale-[1.03]">
-                                {uploading.avatar ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
-                                <input
-                                  type="file"
-                                  accept="image/*"
-                                  className="hidden"
-                                  disabled={uploading.avatar}
-                                  onChange={(e) => {
-                                    const f = e.currentTarget.files?.[0];
-                                    e.currentTarget.value = '';
-                                    if (f) uploadProfileImage('avatar', f);
-                                  }}
-                                />
-                              </label>
-                            </div>
 
-                            <div className="min-w-0 pb-1 text-white">
-                              <div className="text-2xl font-black tracking-[-0.05em]">{displayName}</div>
-                              <div className="mt-1 text-sm font-semibold text-white/70">@{username}</div>
-                              {profile.isArtist && safeTrim(profile.artistName) ? (
-                                <div className="mt-2 inline-flex rounded-full border border-white/14 bg-white/10 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.12em] text-white/82">
-                                  {profile.artistName}
-                                </div>
-                              ) : null}
-                            </div>
-                          </div>
-                        </div>
-                      </InnerCard>
 
                       <InnerCard>
+                        <h3 className="experience-settings-group-title"><span>01</span> Ta présentation</h3>
                         <div className="grid gap-4 md:grid-cols-2">
                           <Field label="Nom d’affichage">
                             <input
@@ -1028,6 +869,7 @@ export default function SettingsClient() {
                       </InnerCard>
 
                       <InnerCard>
+                        <h3 className="experience-settings-group-title"><span>02</span> Ton identité musicale</h3>
                         <Toggle
                           checked={profile.isArtist}
                           onChange={(v) => setProfile((p) => ({ ...p, isArtist: v }))}
@@ -1049,9 +891,73 @@ export default function SettingsClient() {
                       </InnerCard>
                     </div>
 
-                    <div className="space-y-4">
+                    <aside id="experience-settings-visuals" className="experience-settings-profile-aside space-y-4">
+                      <InnerCard className="experience-settings-media overflow-hidden p-0">
+                        <div className="relative h-40 sm:h-48">
+                          {bannerSrc ? (
+                            <SynauraImage src={bannerSrc} alt="Bannière" className="h-full w-full object-cover" />
+                          ) : (
+                            <div className="h-full w-full bg-[radial-gradient(circle_at_top_left,rgba(255,111,97,0.36),transparent_28%),radial-gradient(circle_at_top_right,rgba(124,92,255,0.3),transparent_32%),radial-gradient(circle_at_bottom,rgba(0,194,203,0.18),transparent_42%),linear-gradient(135deg,#171313_0%,#2b2320_100%)]" />
+                          )}
+                          <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(23,19,19,0.1)_0%,rgba(23,19,19,0.62)_100%)]" />
+                          <div className="absolute right-4 top-4">
+                            <label className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-white/14 bg-black/24 px-3 py-2 text-xs font-black text-white backdrop-blur-xl transition hover:bg-black/36">
+                              {uploading.banner ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
+                              Changer la bannière
+                              <input
+                                type="file"
+                                accept="image/*"
+                                className="hidden"
+                                disabled={uploading.banner}
+                                onChange={(e) => {
+                                  const f = e.currentTarget.files?.[0];
+                                  e.currentTarget.value = '';
+                                  if (f) uploadProfileImage('banner', f);
+                                }}
+                              />
+                            </label>
+                          </div>
+                          <div className="absolute left-4 right-4 bottom-4 flex items-end gap-4">
+                            <div className="relative shrink-0">
+                              <img
+                                src={avatarSrc}
+                                alt="Avatar"
+                                className="h-24 w-24 rounded-[1.75rem] border border-white/16 object-cover shadow-[0_18px_40px_rgba(0,0,0,0.25)]"
+                                onError={(e) => {
+                                  (e.currentTarget as HTMLImageElement).src = '/default-avatar.png';
+                                }}
+                              />
+                              <label aria-label="Changer l’avatar" className="absolute -bottom-2 -right-2 inline-flex cursor-pointer items-center justify-center rounded-full border border-white/70 bg-white p-2 text-[#171313] shadow-[0_10px_20px_rgba(30,25,20,0.12)] transition hover:scale-[1.03]">
+                                {uploading.avatar ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
+                                <input
+                                  type="file"
+                                  aria-label="Choisir une image pour l’avatar"
+                                  accept="image/*"
+                                  className="hidden"
+                                  disabled={uploading.avatar}
+                                  onChange={(e) => {
+                                    const f = e.currentTarget.files?.[0];
+                                    e.currentTarget.value = '';
+                                    if (f) uploadProfileImage('avatar', f);
+                                  }}
+                                />
+                              </label>
+                            </div>
+
+                            <div className="min-w-0 pb-1 text-white">
+                              <div className="text-2xl font-black tracking-[-0.05em]">{displayName}</div>
+                              <div className="mt-1 text-sm font-semibold text-white/70">@{username}</div>
+                              {profile.isArtist && safeTrim(profile.artistName) ? (
+                                <div className="mt-2 inline-flex rounded-full border border-white/14 bg-white/10 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.12em] text-white/82">
+                                  {profile.artistName}
+                                </div>
+                              ) : null}
+                            </div>
+                          </div>
+                        </div>
+                      </InnerCard>
                       <InnerCard>
-                        <div className="text-[11px] font-black uppercase tracking-[0.18em] text-black/34">Aperçu</div>
+                        <div className="text-[11px] font-black uppercase tracking-[0.18em] text-black/34">Aperçu du profil</div>
                         <div className="mt-3 rounded-[1.35rem] border border-[#dbcdb8] bg-[#fff8ee] p-4">
                           <div className="flex items-center gap-3">
                             <img
@@ -1114,7 +1020,7 @@ export default function SettingsClient() {
                           </div>
                         </div>
                       </InnerCard>
-                    </div>
+                    </aside>
                   </div>
                 )}
               </WarmCard>
@@ -1179,6 +1085,16 @@ export default function SettingsClient() {
               </WarmCard>
             )}
 
+            <div hidden={tab !== 'compte'} className="experience-settings-plan-section">
+              <WarmCard>
+                <div className="experience-settings-plan-link">
+                  <SectionHeader eyebrow="Ton abonnement" title="Plan et limites" description="Ton accès et l’espace disponible pour tes créations." />
+                  <Link href="/subscriptions" className="experience-account-primary">Gérer l’abonnement <ArrowUpRight size={16} aria-hidden="true" /></Link>
+                </div>
+                <SubscriptionLimits />
+              </WarmCard>
+            </div>
+
             {tab === 'parrainage' && (
               <WarmCard className="space-y-4">
                 <SectionHeader
@@ -1234,7 +1150,7 @@ export default function SettingsClient() {
                           {referralData.referrals.map((r: any) => (
                             <div key={r.id} className="flex items-center gap-3 rounded-[1rem] border border-[#dbcdb8] bg-[#fff8ee] p-3">
                               <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-[#d6c8b3] bg-[#eadfce] text-xs font-black text-[#171313]">
-                                {r.avatar ? <img src={r.avatar} alt="" className="h-10 w-10 object-cover" /> : (r.username?.[0] || '?').toUpperCase()}
+                                {r.avatar ? <SynauraImage src={r.avatar} alt="" fallbackSrc="/default-avatar.png" className="h-10 w-10 object-cover" /> : (r.username?.[0] || '?').toUpperCase()}
                               </div>
                               <div className="min-w-0 flex-1">
                                 <div className="truncate text-sm font-black text-[#171313]">@{r.username}</div>
@@ -1258,17 +1174,18 @@ export default function SettingsClient() {
             )}
 
             {tab === 'preferences' && (
-              <WarmCard className="space-y-4">
+              <WarmCard className="experience-settings-preferences space-y-4">
                 <SectionHeader
                   eyebrow="Préférences"
-                  title="Ecoute et notifications"
-                  description="Régle l’expérience locale sur cet appareil et choisis quelles notifications tu veux recevoir."
+                  title="Trouve ton équilibre."
+                  description="L’ambiance de ton écran, la qualité de ton écoute et ce qui mérite ton attention."
                 />
+                <nav className="experience-settings-jumps" aria-label="Parcourir les préférences"><a href="#settings-appearance">Apparence</a><a href="#settings-listening">Écoute</a><a href="#settings-notifications">Notifications</a></nav>
 
-                <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+                <div className="experience-settings-preference-layout">
                   <div className="space-y-4">
-                    <InnerCard>
-                      <div className="text-sm font-black text-[var(--syn-text-primary)]">Apparence</div>
+                    <InnerCard id="settings-appearance">
+                      <h3 className="experience-settings-group-title"><span>01</span> Apparence</h3>
                       <div className="mt-1 text-xs font-semibold text-[var(--syn-text-secondary)]">Le même thème est appliqué à toutes les pages Synaura de cet appareil.</div>
                       <SynauraThemeSelector className="mt-3" />
                       {hiddenArtistsCount > 0 ? (
@@ -1312,8 +1229,8 @@ export default function SettingsClient() {
                       </select>
                     </InnerCard>
 
-                    <InnerCard>
-                      <div className="text-sm font-black text-[#171313]">Préférences locales</div>
+                    <InnerCard id="settings-listening">
+                      <h3 className="experience-settings-group-title"><span>02</span> Lecture et affichage</h3>
                       <div className="mt-3 grid gap-3">
                         <ToggleCard checked={prefs.autoplay} onChange={(v) => setPrefs((p) => ({ ...p, autoplay: v }))} label="Lecture automatique" description="Active le démarrage automatique quand c’est possible." />
                         <ToggleCard checked={prefs.highQuality} onChange={(v) => setPrefs((p) => ({ ...p, highQuality: v }))} label="Qualité audio élevée" description="Préférence de qualité quand plusieurs flux sont disponibles." />
@@ -1323,8 +1240,8 @@ export default function SettingsClient() {
                       </div>
                     </InnerCard>
 
-                    <InnerCard>
-                      <div className="text-sm font-black text-[#171313]">Notifications navigateur</div>
+                    <InnerCard id="settings-notifications">
+                      <h3 className="experience-settings-group-title"><span>03</span> Notifications navigateur</h3>
                       <div className="mt-3 flex flex-col gap-3 rounded-[1.1rem] border border-[#dbcdb8] bg-[#fff8ee] p-4 sm:flex-row sm:items-center sm:justify-between">
                         <div>
                           <div className="text-sm font-black text-[#171313]">Permission navigateur</div>
@@ -1455,7 +1372,7 @@ export default function SettingsClient() {
                         <div className="mt-3 divide-y divide-[var(--syn-border)] overflow-hidden rounded-xl border border-[var(--syn-border)] bg-[var(--syn-surface)]">
                           {blockedUsers.map((block) => (
                             <div key={block.id} className="flex items-center gap-3 px-3 py-3">
-                              <img src={block.user.avatar || '/default-avatar.png'} alt="" className="h-10 w-10 rounded-full object-cover" />
+                              <SynauraImage src={block.user.avatar || '/default-avatar.png'} alt="" fallbackSrc="/default-avatar.png" className="h-10 w-10 rounded-full object-cover" />
                               <div className="min-w-0 flex-1"><div className="truncate text-sm font-black text-[var(--syn-text-primary)]">{block.user.name}</div><div className="truncate text-xs font-semibold text-[var(--syn-text-secondary)]">@{block.user.username}</div></div>
                               <button type="button" disabled={unblockingUserId === block.user.id} onClick={() => void unblockUser(block.user.id)} className="rounded-full border border-[var(--syn-border)] px-3 py-2 text-xs font-black text-[var(--syn-text-primary)] disabled:opacity-50">Débloquer</button>
                             </div>
@@ -1530,7 +1447,28 @@ export default function SettingsClient() {
             )}
           </div>
         </div>
-      </div>
+        <footer className="experience-settings-footer">
+              <nav className="v2-settings-nav-note mt-6 space-y-1 border-t border-[var(--v2-line)] pt-4" aria-label="Outils personnels">
+                <Link href="/stats" className="flex min-h-11 items-center text-sm text-[var(--v2-muted)]">Statistiques musicales</Link>
+                <Link href="/boosters" className="flex min-h-11 items-center text-sm text-[var(--v2-muted)]">Mes boosters</Link>
+                <Link href="/meteo" className="flex min-h-11 items-center text-sm text-[var(--v2-muted)]">Météo</Link>
+                <Link href="/support" className="flex min-h-11 items-center text-sm text-[var(--v2-muted)]">Aide & contact</Link>
+              </nav>
+
+              <div className="mt-3 border-t border-black/[0.08] pt-3">
+                <button
+                  type="button"
+                  onClick={async () => {
+                    await logout();
+                  }}
+                  className="w-full rounded-[1rem] border border-[#ff6f61]/20 bg-[#ff6f61]/8 px-3 py-3 text-sm font-black text-[#9a3e34] transition hover:bg-[#ff6f61]/14 flex items-center gap-2 justify-center"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Se déconnecter
+                </button>
+              </div>
+        </footer>
+      </main>
 
       {/* Modal confirmation suppression de compte */}
       <UModal open={deleteAccountModalOpen} onClose={() => { if (!deleteAccountLoading) { setDeleteAccountModalOpen(false); setDeleteAccountConfirm(''); } }} size="md" className="border-[#ff6f61]/18">
@@ -1549,6 +1487,7 @@ export default function SettingsClient() {
           </p>
           <input
             type="text"
+            aria-label="Phrase de confirmation de suppression du compte"
             value={deleteAccountConfirm}
             onChange={(e) => setDeleteAccountConfirm(e.target.value)}
             placeholder={DELETE_CONFIRM_PHRASE}

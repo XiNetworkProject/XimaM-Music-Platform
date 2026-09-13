@@ -7,14 +7,11 @@ import { useHandoffRouter as useRouter } from '@/hooks/useHandoffRouter';
 import HandoffReturn from '@/components/navigation/HandoffReturn';
 import { useSession } from 'next-auth/react';
 import {
-  ArrowLeft,
   ArrowRight,
   Film,
   Loader2,
-  MessageCircle,
-  PenSquare,
-  Repeat2,
   Sparkles,
+  ListMusic,
   UploadCloud,
   Users,
   Wand2,
@@ -33,76 +30,46 @@ const INTENTION_SUGGESTIONS: Partial<Record<CreatorIntentionId, IntentionSuggest
 };
 const INTENTION_PRIORITY: CreatorIntentionId[] = ['create_ai', 'publish', 'clips', 'remix'];
 
-type SecondaryCard = {
-  href: string;
-  title: string;
-  text: string;
-  icon: typeof Sparkles;
-  color: string;
-  bg: string;
+type CreativeIntent = 'idea' | 'audio' | 'video' | 'together';
+const CREATIVE_INTENTS = [
+  { id: 'idea' as const, label: 'Une idée', icon: Sparkles },
+  { id: 'audio' as const, label: 'Un son', icon: UploadCloud },
+  { id: 'video' as const, label: 'Un Clip', icon: Film },
+  { id: 'together' as const, label: 'Avec les autres', icon: Users },
+];
+const CREATIVE_PATHS = {
+  idea: {
+    kicker: 'De l’intention au premier rendu', title: 'Donne une forme à ce que tu entends.',
+    text: 'Suno V6 est dans l’atelier. Quelques mots, une ambiance, des paroles : explore ton idée musicale, puis choisis les versions à partager. V6 Mini est accessible à tous ; V6 et Wild sont inclus dans les abonnements.',
+    steps: ['Décrire une intention', 'Affiner le style', 'Écouter tes versions'],
+    primary: { href: '/ai-generator', label: 'Ouvrir AI Generator' },
+    alternatives: [{ href: '/posts?compose=true', label: 'Commencer par un post', text: 'Un texte, une image ou un son à partager.' }],
+  },
+  audio: {
+    kicker: 'À partir d’un morceau', title: 'Un son est un point de départ.',
+    text: 'Publie un fichier que tu as créé, ou prends une nouvelle direction avec un morceau dont le créateur autorise les variations.',
+    steps: ['Choisir la source', 'Soigner la présentation', 'Décider de la diffusion'],
+    primary: { href: '/upload', label: 'Importer un morceau' },
+    alternatives: [{ href: '/create/variation', label: 'Créer une variation', text: 'Explorer les morceaux Synaura autorisés.' }],
+  },
+  video: {
+    kicker: 'Un son, un point de vue', title: 'Fais vivre un instant en image.',
+    text: 'Associe une vidéo verticale à un son Synaura. Choisis l’extrait et la légende : ton Clip garde sa propre identité.',
+    steps: ['Ajouter ta vidéo', 'Choisir le son', 'Publier le Clip'],
+    primary: { href: '/clips/new', label: 'Créer un Clip' },
+    alternatives: [{ href: '/posts?compose=true', label: 'Partager autrement', text: 'Créer un post avec ton texte, ton image ou ton son.' }],
+  },
+  together: {
+    kicker: 'La création se rencontre', title: 'Ce que tu cherches existe peut-être chez quelqu’un.',
+    text: 'Une écoute attentive, une voix complémentaire, une autre version. Ouvre une conversation autour de ton projet.',
+    steps: ['Présenter le projet', 'Préciser ta recherche', 'Échanger dans la communauté'],
+    primary: { href: '/community?compose=true&category=collab', label: 'Chercher une collab' },
+    alternatives: [
+      { href: '/community?compose=true&category=feedback', label: 'Demander un avis', text: 'Un regard sur un morceau ou une idée.' },
+      { href: '/community?compose=true&category=remix', label: 'Lancer un défi remix', text: 'Proposer une source à transformer.' },
+    ],
+  },
 };
-
-const SECONDARY_CARDS: SecondaryCard[] = [
-  {
-    href: '/posts?compose=true',
-    title: 'Créer un post',
-    text: 'Partage un texte, une image ou un son.',
-    icon: PenSquare,
-    color: '#7357C6',
-    bg: 'rgba(115,87,198,0.12)',
-  },
-  {
-    href: '/upload',
-    title: 'Publier un morceau',
-    text: 'Partage un titre que tu as déjà créé.',
-    icon: UploadCloud,
-    color: '#C99B48',
-    bg: 'rgba(201,155,72,0.12)',
-  },
-  {
-    href: '/clips/new',
-    title: 'Publier un Clip',
-    text: 'Fais vivre un son avec une vidéo verticale.',
-    icon: Film,
-    color: '#D96D63',
-    bg: 'rgba(217,109,99,0.10)',
-  },
-  {
-    href: '/create/variation',
-    title: 'Créer une variation',
-    text: 'Transforme un morceau Synaura autorisé.',
-    icon: Wand2,
-    color: '#4A9EAA',
-    bg: 'rgba(74,158,170,0.12)',
-  },
-];
-
-const COMMUNITY_ACTIONS: SecondaryCard[] = [
-  {
-    href: '/community?compose=true&category=feedback',
-    title: 'Demander un avis',
-    text: 'Obtiens des retours utiles.',
-    icon: MessageCircle,
-    color: '#D96D63',
-    bg: 'rgba(217,109,99,0.10)',
-  },
-  {
-    href: '/community?compose=true&category=collab',
-    title: 'Chercher une collab',
-    text: 'Trouve une voix, un beatmaker ou un feat.',
-    icon: Users,
-    color: '#7357C6',
-    bg: 'rgba(115,87,198,0.12)',
-  },
-  {
-    href: '/community?compose=true&category=remix',
-    title: 'Lancer un défi remix',
-    text: 'Propose une source à transformer.',
-    icon: Repeat2,
-    color: '#4A9EAA',
-    bg: 'rgba(74,158,170,0.12)',
-  },
-];
 
 export default function CreatePage() {
   return (
@@ -110,7 +77,7 @@ export default function CreatePage() {
       fallback={
         <SynauraAppShell contentClassName="max-w-[1120px]">
           <SynauraPanel className="grid min-h-[420px] place-items-center p-8">
-            <Loader2 className="h-8 w-8 animate-spin text-[#7357C6]" />
+            <Loader2 className="h-8 w-8 animate-spin text-[var(--v2-accent)]" />
           </SynauraPanel>
         </SynauraAppShell>
       }
@@ -124,6 +91,8 @@ function CreateHubContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { status } = useSession();
+  const [creativeIntent, setCreativeIntent] = useState<CreativeIntent>('idea');
+  const creativePath = CREATIVE_PATHS[creativeIntent];
   const [suggestion, setSuggestion] = useState<IntentionSuggestion | null>(null);
   const challengeId = searchParams.get('challengeId') || '';
   const [challengeTitle, setChallengeTitle] = useState<string | null>(null);
@@ -186,128 +155,40 @@ function CreateHubContent() {
   }, [status]);
 
   return (
-    <SynauraAppShell contentClassName="!max-w-[1200px]">
+    <SynauraAppShell contentClassName="v2-create v2-creation chambre-signature-create !max-w-[1680px]">
       <SynauraTopBar searchLabel="Rechercher un son, un profil ou une playlist..." />
-      <main className="space-y-4 pb-6">
-        <header className="flex items-start gap-3 px-1 pt-1">
-          <HandoffReturn fallbackHref="/" fallbackLabel="Retour" className="shrink-0 border border-[var(--syn-border)] bg-[var(--syn-surface)] text-[var(--syn-text-secondary)]" />
-          <div className="min-w-0 flex-1">
-            <p className="text-[10px] font-black uppercase text-[var(--syn-text-secondary)]">Ton espace créatif</p>
-            <h1 className="mt-1 text-3xl font-black text-[var(--syn-text-primary)]">Créer</h1>
-            <p className="mt-1 text-sm font-semibold leading-6 text-[var(--syn-text-secondary)]">
-              Commence par une idée, un fichier ou un morceau Synaura.
-            </p>
-            <Link href="/studio" className="mt-1 inline-flex min-h-10 items-center text-xs font-bold text-[var(--syn-text-secondary)] underline underline-offset-4">Ouvrir Studio IDE</Link>
-          </div>
+      <main className="v2-create-main chambre-create-hub">
+        <header className="v2-create-intro">
+          <div className="chambre-create-back"><HandoffReturn fallbackHref="/" fallbackLabel="Retour" /></div>
+          {challengeId ? <CreateArrivalBanner context="challenge" title={challengeTitle} /> : null}
+          <div className="chambre-create-manifesto"><p className="v2-kicker">Synaura / L’atelier</p><h1 className="v2-heading">FAIS<br /><span>VIBRER.</span></h1><p className="v2-intro">Pars de ce que tu as.<br />Choisis ton point de départ.</p></div>
+          <div className="chambre-creation-material" aria-hidden="true"><img src="/brand/chambre/membrane-cobalt.png" alt="" decoding="async" /></div>
         </header>
-
-        {challengeId ? <CreateArrivalBanner context="challenge" title={challengeTitle} /> : null}
-
-        {suggestion ? (
-          <Link
-            href={suggestion.href}
-            className="group flex items-center gap-3 rounded-[14px] border-l-[3px] border-[#7357C6] bg-[#7357C6]/[0.08] p-3 transition hover:bg-[#7357C6]/[0.12]"
-          >
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] bg-[#7357C6] text-white">
-              <suggestion.icon className="h-4 w-4" />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-sm font-black text-[var(--syn-text-primary)]">{suggestion.title}</span>
-              <span className="block text-xs font-semibold text-[var(--syn-text-secondary)]">{suggestion.text}</span>
-            </span>
-            <ArrowRight className="h-4 w-4 shrink-0 text-[#7357C6] transition group-hover:translate-x-0.5" />
-          </Link>
-        ) : null}
-
-        <div className="grid gap-4 lg:grid-cols-2">
-        <Link
-          href={withChallenge('/ai-generator')}
-          className="group block min-h-[246px] overflow-hidden rounded-[20px] border border-[#4A9EAA]/25 border-b-[3px] border-b-[#4A9EAA] p-5 text-white transition sm:p-6"
-          style={{ background: 'linear-gradient(135deg, #111111 0%, #292431 52%, #1E3D40 100%)' }}
-        >
-          <div className="flex h-full min-h-[204px] flex-col justify-between">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-[10px] font-black uppercase text-[#E7DBFF]">Créer avec l’IA</p>
-                <p className="mt-1 text-xs font-bold text-white/50">Prêt à composer</p>
-              </div>
-              <span className="grid h-11 w-11 place-items-center rounded-[12px] bg-white/14">
-                <Sparkles className="h-5 w-5" />
-              </span>
+        <div className="v2-create-composition">
+          <section className="v2-create-intentions" aria-label="Point de départ créatif">
+            <p className="v2-kicker">Qu’est-ce qui t’amène ?</p>
+            <div className="v2-intent-choices" role="group" aria-label="Choisir une intention">
+              {CREATIVE_INTENTS.map(({ id, label, icon: Icon }, index) => (
+                <button key={id} type="button" aria-pressed={creativeIntent === id} aria-controls="creative-path" onClick={() => setCreativeIntent(id)} className="v2-intent-choice"><span className="v2-intent-number">0{index + 1}</span><Icon aria-hidden="true" size={19} /><span className="chambre-signature-intent-copy"><strong>{label}</strong><small>{CREATIVE_PATHS[id].kicker}</small></span><ArrowRight aria-hidden="true" size={17} /></button>
+              ))}
             </div>
-            <div>
-              <h2 className="text-2xl font-black sm:text-3xl">Créer avec l&apos;IA</h2>
-              <p className="mt-2 max-w-md text-sm font-semibold leading-6 text-white/60">
-                Imagine un morceau à partir d&apos;une idée.
-              </p>
-              <span className="mt-4 inline-flex h-11 items-center gap-2 rounded-[12px] bg-[#F7F6F3] px-4 text-sm font-black text-[#111111]">
-                Créer avec l’IA
-                <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
-              </span>
-            </div>
-          </div>
-        </Link>
-
-        <div className="divide-y divide-[var(--syn-border)] border-y border-[var(--syn-border)]">
-          {SECONDARY_CARDS.map((card) => {
-            const Icon = card.icon;
-            return (
-              <Link
-                key={card.href}
-                href={withChallenge(card.href)}
-                className="group flex min-h-[72px] items-center gap-3 px-1 py-2.5 transition hover:bg-[var(--syn-soft)]"
-              >
-                <div
-                  className="grid h-12 w-12 shrink-0 place-items-center rounded-[12px]"
-                  style={{ backgroundColor: card.bg, color: card.color }}
-                >
-                  <Icon className="h-5 w-5" />
-                </div>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-black text-[var(--syn-text-primary)]">{card.title}</span>
-                  <span className="mt-1 block text-xs font-semibold text-[var(--syn-text-secondary)]">{card.text}</span>
-                </span>
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[var(--syn-soft)] text-[var(--syn-text-primary)]">
-                  <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
-                </span>
-              </Link>
-            );
-          })}
-        </div>
-
-        </div>
-        <div className="px-1 pt-3">
-          <h2 className="text-xl font-black text-[var(--syn-text-primary)]">Crée avec les autres</h2>
-          <p className="mt-1 text-sm font-semibold leading-6 text-[var(--syn-text-secondary)]">
-            Demande un regard, trouve une collaboration ou lance un défi.
-          </p>
-        </div>
-
-        <div className="divide-y divide-[var(--syn-border)] border-y border-[var(--syn-border)]">
-          {COMMUNITY_ACTIONS.map((card) => {
-            const Icon = card.icon;
-            return (
-              <Link
-                key={card.href}
-                href={card.href}
-                className="group flex min-h-[72px] items-center gap-3 px-1 py-2.5 transition hover:bg-[var(--syn-soft)]"
-              >
-                <span
-                  className="grid h-12 w-12 shrink-0 place-items-center rounded-[12px]"
-                  style={{ backgroundColor: card.bg, color: card.color }}
-                >
-                  <Icon className="h-5 w-5" />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-black text-[var(--syn-text-primary)]">{card.title}</span>
-                  <span className="mt-1 block text-xs font-semibold text-[var(--syn-text-secondary)]">{card.text}</span>
-                </span>
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[var(--syn-soft)] text-[var(--syn-text-primary)]">
-                  <ArrowRight className="h-4 w-4 transition group-hover:translate-x-0.5" />
-                </span>
-              </Link>
-            );
-          })}
+            {suggestion ? <Link href={withChallenge(suggestion.href)} className="v2-create-suggestion"><suggestion.icon size={16} aria-hidden="true" /><span><strong>{suggestion.title}</strong><small>{suggestion.text}</small></span></Link> : null}
+          </section>
+          <section className="v2-create-path" id="creative-path" aria-labelledby="creative-path-title" data-creative-intent={creativeIntent}>
+            <div className="chambre-signature-intent-orbit" aria-hidden="true"><span /><span /><span /></div>
+            <p className="v2-kicker">{creativePath.kicker}</p><h2 id="creative-path-title">{creativePath.title}</h2>
+            <Link href={withChallenge(creativePath.primary.href)} className="v2-create-primary">{creativePath.primary.label}<ArrowRight size={18} aria-hidden="true" /></Link>
+            <p className="v2-create-path-description">{creativePath.text}</p>
+            <ol className="v2-create-sequence">{creativePath.steps.map((step, index) => <li key={step}><span>0{index + 1}</span><strong>{step}</strong></li>)}</ol>
+            <div className="v2-create-alternatives">{creativePath.alternatives.map((alternative) => <Link href={withChallenge(alternative.href)} key={alternative.href}><span><strong>{alternative.label}</strong><small>{alternative.text}</small></span><ArrowRight size={16} aria-hidden="true" /></Link>)}</div>
+          </section>
+          <aside className="v2-create-studio">
+            <span className="v2-kicker">Ton espace de travail</span>
+            <div className="v2-create-studio-mark" aria-hidden="true"><span>INTENTION</span><span>VERSIONS</span><span>CRÉATION</span></div>
+            <h2>Studio IDE</h2><p>Construis tes générations, retrouve tes sources et examine chaque résultat dans un espace de travail dédié.</p>
+            <Link href={withChallenge('/studio')}>Ouvrir Studio IDE<ArrowRight size={16} aria-hidden="true" /></Link>
+            <Link href="/ai-library" className="v2-create-library"><ListMusic size={16} aria-hidden="true" />Retrouver mes créations</Link>
+          </aside>
         </div>
       </main>
     </SynauraAppShell>

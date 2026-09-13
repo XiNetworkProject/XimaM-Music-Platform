@@ -1,0 +1,163 @@
+/* Experience Chambre: listening scene and navigation, never transport ownership. */
+.synaura-chambre .v2-route-enter { animation-name:experience-route-in; }
+/* Moving the route wrapper creates a containing block for its fixed dock/sheets. */
+@keyframes experience-route-in { from { opacity:.85; } to { opacity:1; } }
+.synaura-chambre .experience-topbar { padding:16px 0; margin-bottom:12px; background:var(--v2-bg); }
+.experience-topbar .v2-topbar-row { gap:20px; }
+.experience-topbar .v2-topbar-brand { flex-direction:column; align-items:flex-start; gap:5px; max-width:184px; }
+.experience-brand-caption { font-size:9px; letter-spacing:.045em; color:var(--v2-faint); font-weight:400; }
+.experience-topbar .v2-topbar-search { max-width:500px; border:1px solid var(--v2-line); border-radius:30px; background:linear-gradient(115deg,var(--v2-raised),var(--v2-surface)); transition:border-color 200ms ease; }
+.experience-topbar .v2-topbar-search:focus-within { border-color:var(--v2-accent); box-shadow:0 0 0 3px var(--v2-selected); }
+.experience-topbar .v2-topbar-search input { background:transparent!important; border:0!important; box-shadow:none!important; padding-block:13px; }
+.experience-topbar .v2-topbar-tools { gap:5px; }
+.experience-topbar .v2-topbar-tools > :is(button,a) { border-radius:50%; }
+.experience-topbar .experience-create-shortcuts > summary { background:var(--v2-accent-fill); color:white; border-color:transparent; border-radius:26px; min-height:42px; }
+.experience-account-menu > summary { background:var(--v2-surface); border-color:var(--v2-line); padding:3px; min-height:40px; }
+.experience-account-menu .v2-account-panel { max-height:calc(100dvh - 110px); overflow-y:auto; overscroll-behavior:contain; background:var(--v2-surface)!important; backdrop-filter:none; border-radius:16px; }
+.synaura-chambre .experience-route-nav { display:flex; width:fit-content; max-width:100%; flex-wrap:wrap; padding:4px; gap:3px; border:1px solid var(--v2-line); border-radius:30px; margin:0 0 28px; background:linear-gradient(120deg,var(--v2-surface),var(--v2-bg)); }
+.synaura-chambre .experience-route-nav a { min-height:40px; padding:0 19px; border:0; border-radius:24px; font-size:12px; gap:8px; }
+.synaura-chambre .experience-route-nav a:first-child { padding-left:19px; }
+.synaura-chambre .experience-route-nav a[aria-current=page] { background:var(--v2-raised); color:var(--v2-text); box-shadow:inset 0 0 0 1px var(--v2-line); }
+.synaura-chambre .experience-route-nav a::after { left:20px; right:20px; bottom:3px; }
+.experience-route-nav .v2-nav-index { display:none; }
+.experience-route-nav a > svg { display:block!important; color:var(--v2-faint); }
+.experience-route-nav a[aria-current=page] > svg { color:var(--v2-accent); }
+.synaura-chambre .experience-dock { background:linear-gradient(180deg,#0b1018f5,var(--v2-bg))!important; border-color:var(--v2-line)!important; }
+.experience-dock > div { padding-inline:8px; }
+.experience-dock :is(a,button) { font-weight:550; }
+.experience-dock a[aria-current=page]::before { content:''; position:absolute; width:48px; height:40px; border-radius:16px; top:7px; background:var(--v2-selected); z-index:-1; }
+.synaura-chambre .experience-dock button[aria-label="Ouvrir le menu Créer"] > span:first-child { width:42px; height:36px; border-radius:12px; background:linear-gradient(145deg,var(--v2-accent-fill),#2448b4); border:1px solid #86afff66; box-shadow:0 4px 20px #315fea30; }
+.synaura-chambre .experience-dock-desktop { top:16px; max-width:600px; border-radius:32px; padding:5px; background:linear-gradient(115deg,var(--v2-raised),var(--v2-surface))!important; box-shadow:0 12px 40px #0005!important; }
+.experience-dock-desktop :is(a,button) { border-radius:24px; height:42px; font-weight:500; }
+.experience-dock-desktop a[aria-current=page] { background:var(--v2-selected); }
+.experience-dock-desktop button[aria-label="Ouvrir le menu Créer"] > span:first-child { background:var(--v2-accent-fill); color:#fff; border:1px solid #86afff66; width:28px; height:28px; }
+.experience-dock-desktop a > span:last-child.absolute { left:28px; right:28px; height:1px; }
+.synaura-chambre .experience-live .v2-live-header { padding-top:max(18px,env(safe-area-inset-top)); padding-inline:36px; }
+.synaura-chambre .experience-live .v2-live-filters { width:fit-content; max-width:100%; gap:4px; margin-top:20px; padding:3px; border:1px solid var(--v2-line); border-radius:24px; background:var(--v2-surface); }
+.synaura-chambre .experience-live .v2-live-filters > button { height:36px; border:0; padding:6px 16px; border-radius:20px; font-size:12px; }
+.synaura-chambre .experience-live .v2-live-filters > button[aria-pressed=true] { background:var(--v2-raised)!important; box-shadow:inset 0 0 0 1px var(--v2-line); color:var(--v2-accent)!important; }
+.experience-live .experience-live-pulse { top:142px; left:36px; padding:10px 14px; border-radius:12px; }
+
+/* A listening object in its own light. Decorative rings never replace waveforms. */
+.experience-live .synaura-scroll-feed > section:has(> .experience-listening-scene) { overflow:clip; }
+.synaura-chambre .experience-live .experience-listening-scene { padding:154px clamp(32px,5vw,90px) 64px; grid-template:'art meta' minmax(0,1fr) 'art rail' auto / minmax(0,1.15fr) minmax(0,1fr); gap:24px 7%; }
+.experience-listening-scene .live-track-artwork { position:relative; isolation:isolate; }
+.experience-record-halo { position:absolute; inset:1%; display:grid; place-items:center; pointer-events:none; z-index:-1; }
+.experience-record-halo > span { position:absolute; width:min(106cqw,106cqh); aspect-ratio:1; border-radius:50%; border:1px solid #86afff55; background:repeating-radial-gradient(circle,transparent 0 11px,#86afff0a 12px 13px),conic-gradient(from 25deg,transparent,#315fea18,transparent 42%,#86afff22,transparent 75%); box-shadow:0 0 100px #315fea18,inset 0 0 60px #315fea20; }
+.experience-record-halo > i { position:absolute; width:min(112cqw,112cqh); aspect-ratio:1; border-radius:50%; border:1px solid #86afff14; transform:rotate(-22deg) scaleY(.92); }
+.synaura-chambre .experience-live .experience-listening-scene .live-track-artwork > button { width:min(80cqw,80cqh,610px); border:1px solid #b4caff44; padding:7px; border-radius:14px; background:linear-gradient(135deg,#d9e6ff20,#0b1018); transform:rotate(-3deg); box-shadow:0 35px 100px #000c,18px 18px 0 -17px #86afff55; overflow:hidden; }
+.experience-listening-scene .live-track-artwork > button > img { border-radius:8px; }
+.synaura-chambre .experience-live .experience-listening-scene .live-track-metadata { align-self:center; }
+.synaura-chambre .experience-live .v2-live-track-copy { max-height:none; overflow:visible; overscroll-behavior:auto; padding:0 4px 12px; }
+.synaura-chambre .experience-live .v2-live-caption { display:flex; align-items:center; gap:10px; margin-bottom:24px; font-size:10px; letter-spacing:.16em; color:var(--v2-accent); }
+.experience-signal-dot { display:block; width:6px; height:6px; border:1px solid var(--v2-accent); border-radius:50%; }
+.experience-listening-scene[data-playing=true] .experience-signal-dot { background:var(--v2-accent); box-shadow:0 0 18px var(--v2-accent); }
+.synaura-chambre .experience-live .v2-live-track-copy h2 { font-size:clamp(36px,4.4vw,76px); font-weight:650; line-height:1.04; letter-spacing:-.055em; padding-block:12px; }
+.experience-listening-scene .v2-live-track-copy > div:first-of-type > button { align-self:flex-end; min-width:54px; height:54px; margin-bottom:8px; box-shadow:0 5px 30px #315fea40; }
+.experience-track-position { display:flex; justify-content:space-between; gap:16px; margin-top:18px!important; padding-top:12px; border-top:1px solid var(--v2-line); font-size:10px; letter-spacing:.08em; }
+.experience-live .live-moment-actions > div { position:static; }
+.synaura-chambre .experience-live .experience-listening-scene > .live-track-actions { padding:10px; border:1px solid var(--v2-line); border-radius:18px; background:linear-gradient(115deg,var(--v2-surface),var(--v2-bg)); gap:6px; }
+.synaura-chambre .experience-live .experience-listening-scene > .live-track-actions > button { border-radius:12px; min-width:44px; background:var(--v2-soft); }
+.experience-listening-scene .v2-live-artwork-transport > span { width:64px; height:64px; background:#030508bb; border:1px solid #c8ddff55; backdrop-filter:none; }
+
+/* Prelude: a compact stage plus a usable listening shelf, with all original actions. */
+.chambre-live-start[data-experience] .chambre-live-stage { max-width:1560px; padding-inline:36px; padding-bottom:28px; }
+.chambre-live-start[data-experience] .chambre-live-composition { align-items:stretch; padding-top:26px; gap:32px; grid-template-columns:minmax(0,1.14fr) minmax(0,1fr); }
+.chambre-live-start[data-experience] .chambre-live-current { position:relative; isolation:isolate; align-self:center; border:1px solid var(--v2-line); border-radius:24px; padding:0 26px; background:linear-gradient(145deg,#16264088,var(--v2-surface) 60%); }
+.experience-prelude-light { position:absolute; inset:0; z-index:-1; pointer-events:none; overflow:hidden; border-radius:inherit; }
+.experience-prelude-light > span { position:absolute; width:90%; aspect-ratio:1; border:1px solid #86afff22; border-radius:50%; left:-30%; top:-25%; }
+.experience-prelude-light > span:nth-child(2) { width:100%; top:-30%; left:-35%; }
+.experience-prelude-light > span:nth-child(3) { width:110%; top:-35%; left:-40%; border-color:#86afff0f; box-shadow:0 0 100px #315fea18; }
+.chambre-live-start[data-experience] .chambre-live-current-body { padding-top:22px; }
+.chambre-live-start[data-experience] .chambre-live-record { grid-template-columns:minmax(110px,.84fr) minmax(0,1fr); gap:24px; }
+.chambre-live-start[data-experience] .chambre-live-artwork { padding:5px; border-radius:10px; transform:rotate(-3deg); box-shadow:0 18px 40px #0006,9px 9px 0 -8px var(--v2-line); }
+.chambre-live-start[data-experience] .chambre-live-artwork img { border-radius:5px; }
+.chambre-live-start[data-experience] .chambre-live-track-link h1 { font-size:clamp(30px,3.5vw,52px); }
+.chambre-live-start[data-experience] .chambre-live-primary-actions { margin-top:24px; }
+.chambre-live-start[data-experience] .chambre-live-primary-actions > button { border-radius:14px; min-height:52px; }
+.chambre-live-start[data-experience] .chambre-live-play { background:var(--v2-text); color:var(--v2-bg); border-color:var(--v2-text); }
+.chambre-live-start[data-experience] .chambre-live-current-footer { margin-top:20px; }
+.chambre-live-start[data-experience] .chambre-live-around { justify-content:center; gap:16px; }
+.chambre-live-start[data-experience] .chambre-live-around-heading h2 { max-width:12ch; font-size:clamp(32px,3.2vw,48px); }
+.chambre-live-start[data-experience] .chambre-live-ticker { border:0; padding:10px 14px; background:var(--v2-surface); border-radius:9px; }
+.chambre-live-start[data-experience] .chambre-live-card { border-radius:16px; }
+.chambre-live-start[data-experience] .chambre-live-music-card { position:relative; }
+.chambre-live-start[data-experience] .chambre-live-shortcuts { gap:0 18px; }
+
+@media(min-width:1024px) and (max-width:1250px) {
+  .experience-brand-caption { display:none; }
+  .experience-topbar .v2-topbar-row { gap:12px; }
+  .chambre-live-start[data-experience] .chambre-live-greeting { max-width:90px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+}
+@media(max-width:1023px) {
+  .experience-live .experience-live-pulse { top:144px; left:24px; max-width:220px; }
+  .synaura-chambre .experience-live .experience-listening-scene { grid-template:'art' minmax(120px,1fr) 'meta' auto 'rail' auto / minmax(0,1fr); padding:142px 24px calc(var(--synaura-primary-dock-space,84px) + 14px); gap:16px; }
+  .synaura-chambre .experience-live .v2-live-track-copy { max-height:none; }
+  .synaura-chambre .experience-live .v2-live-track-copy h2 { font-size:32px; }
+  .synaura-chambre .experience-live .v2-live-caption { margin-bottom:10px; }
+  .synaura-chambre .experience-live .experience-listening-scene > .live-track-actions { max-width:620px; justify-content:center; margin:auto; width:100%; }
+}
+@media(max-width:767px) {
+  .synaura-chambre .experience-topbar { padding:8px 0 12px; margin-bottom:16px; }
+  .experience-topbar .v2-topbar-row { gap:8px; }
+  .experience-topbar .v2-topbar-brand { max-width:116px; }
+  .experience-topbar .v2-topbar-brand [data-chambre-wordmark] { font-size:21px!important; }
+  .experience-brand-caption { display:none; }
+  .experience-topbar .v2-topbar-tools { gap:0; }
+  .experience-topbar .v2-topbar-tools > :is(button,a:not(.v2-action)) { width:38px; min-width:38px; height:42px; }
+  .experience-topbar .v2-topbar-tools > a.v2-action { width:auto; min-height:42px; border-radius:22px; }
+  .experience-topbar .v2-topbar-search { border-radius:14px; }
+  .synaura-chambre .experience-route-nav { display:none; }
+  .synaura-chambre .experience-live .v2-live-header { padding:calc(env(safe-area-inset-top,0px) + 10px) 16px 8px; }
+  .synaura-chambre .experience-live .v2-live-filters { margin-top:10px; }
+  .synaura-chambre .experience-live .v2-live-filters > button { padding:6px 12px; font-size:11px; }
+  .synaura-chambre .experience-live .experience-listening-scene { padding:132px 18px calc(var(--synaura-primary-dock-space,84px) + 10px); gap:12px; }
+  .synaura-chambre .experience-live .experience-listening-scene .live-track-artwork > button { width:min(83cqw,83cqh,340px); padding:5px; border-radius:11px; }
+  .synaura-chambre .experience-live .v2-live-track-copy { max-height:none; padding-bottom:0; }
+  .synaura-chambre .experience-live .v2-live-track-copy h2 { font-size:clamp(26px,8vw,34px); line-height:1.06; padding-block:6px; }
+  .synaura-chambre .experience-live .v2-live-caption { margin-bottom:8px; font-size:9px; }
+  .experience-listening-scene .v2-live-track-copy > div:first-of-type > button { min-width:46px; height:46px; }
+  .experience-track-position { padding-top:8px; margin-top:10px!important; }
+  .synaura-chambre .experience-live .experience-listening-scene > .live-track-actions { flex-wrap:wrap; justify-content:space-between; padding:5px; gap:2px; border-radius:16px; }
+  .synaura-chambre .experience-live .experience-listening-scene > .live-track-actions > button { min-width:40px; width:40px; height:44px; }
+  .chambre-live-start[data-experience] .chambre-live-stage { padding:0 16px 16px; }
+  .chambre-live-start[data-experience] .chambre-live-composition { padding-top:2px; gap:18px; justify-content:flex-start; }
+  .chambre-live-start[data-experience] .chambre-live-current { align-self:stretch; padding:0 16px; border-radius:20px; }
+  .chambre-live-start[data-experience] .chambre-live-current-body { padding-top:12px; }
+  .chambre-live-start[data-experience] .chambre-live-record { grid-template-columns:86px minmax(0,1fr); gap:18px; }
+  .chambre-live-start[data-experience] .chambre-live-track-link h1 { font-size:28px; }
+  .chambre-live-start[data-experience] .chambre-live-primary-actions { margin-top:16px; gap:8px; }
+  .chambre-live-start[data-experience] .chambre-live-primary-actions > button { min-height:48px; padding-inline:8px; font-size:11px; border-radius:11px; }
+  .chambre-live-start[data-experience] .chambre-live-current-footer { margin-top:12px; }
+  .chambre-live-start[data-experience] .chambre-live-around { gap:12px; flex:1; justify-content:space-between; }
+  .chambre-live-start[data-experience] .chambre-live-around-heading h2 { font-size:26px; max-width:none; margin-top:6px; }
+}
+@media(max-height:650px) {
+  .synaura-chambre .experience-live .experience-listening-scene { padding-top:128px; gap:12px; }
+  .synaura-chambre .experience-live .v2-live-track-copy { max-height:none; }
+  .chambre-live-start[data-experience] .chambre-live-composition { padding-top:0; gap:14px; }
+  .chambre-live-start[data-experience] .chambre-live-current-body { padding-top:8px; }
+  .chambre-live-start[data-experience] .chambre-live-primary-actions { margin-top:10px; }
+  .chambre-live-start[data-experience] .chambre-live-current-footer { margin-top:6px; }
+}
+@media(max-height:600px) {
+  .synaura-chambre .experience-live .experience-listening-scene { grid-template:'art meta rail' minmax(0,1fr) / minmax(0,.7fr) minmax(0,1.2fr) 46px; padding:142px 20px calc(var(--synaura-primary-dock-space,60px) + 8px); gap:20px; }
+  .synaura-chambre .experience-live .v2-live-track-copy { max-height:none; }
+  .synaura-chambre .experience-live .experience-listening-scene > .live-track-actions { flex-direction:column; flex-wrap:nowrap; height:100%; overflow-y:auto; justify-content:flex-start; border:0; padding:0; }
+  .synaura-chambre .experience-live .experience-listening-scene > .live-track-actions > button { flex-shrink:0; }
+  .synaura-chambre .experience-live .experience-listening-scene > .live-track-actions > div:last-child { flex-direction:column; margin:0; }
+}
+@media(prefers-reduced-motion:no-preference) {
+  .experience-listening-scene .live-track-artwork > button { transition:transform 550ms var(--v2-ease),box-shadow 550ms var(--v2-ease); }
+  .experience-listening-scene .live-track-artwork > button:is(:hover,:focus-visible) { transform:rotate(0); }
+  .experience-live [data-active=true] .experience-record-halo { animation:experience-stage-arrival 850ms var(--v2-ease) backwards; }
+  .experience-live [data-active=true] .v2-live-track-copy { animation:experience-copy-arrival 500ms var(--v2-ease) backwards; }
+  .experience-topbar .v2-topbar-brand { transition:filter 200ms ease; }
+}
+@keyframes experience-stage-arrival { from { transform:scale(.92) rotate(-12deg); opacity:0; } to { transform:scale(1) rotate(0); opacity:1; } }
+@keyframes experience-copy-arrival { from { transform:translateY(12px); opacity:0; } to { transform:translateY(0); opacity:1; } }
+@media(prefers-reduced-motion:reduce) {
+  .experience-live *, .chambre-live-start[data-experience] *, .experience-topbar *, .experience-route-nav * { animation:none!important; transition:none!important; }
+  .synaura-chambre .experience-live .experience-listening-scene .live-track-artwork > button { transform:none; }
+  .chambre-live-start[data-experience] .chambre-live-artwork { transform:none; }
+}

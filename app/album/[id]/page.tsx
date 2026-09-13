@@ -1,5 +1,7 @@
 'use client';
 
+import '@/components/v2/music-v2.css';
+
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
@@ -39,7 +41,7 @@ interface AlbumData {
 
 function Skeleton() {
   return (
-    <div className="min-h-screen bg-[#0a0a14] text-white">
+    <div className="chambre-signature-collection-loading min-h-screen bg-[#0a0a14] text-white">
       <div className="max-w-4xl mx-auto px-4 pt-16 pb-32">
         <div className="flex flex-col sm:flex-row items-center sm:items-end gap-6 mb-8">
           <div className="w-48 h-48 sm:w-56 sm:h-56 rounded-2xl bg-white/5 animate-pulse" />
@@ -166,7 +168,7 @@ export default function AlbumPage() {
   if (loading) return <Skeleton />;
   if (error || !album) {
     return (
-      <div className="min-h-screen bg-[#0a0a14] text-white flex items-center justify-center">
+      <div className="chambre-signature-collection-unavailable min-h-screen bg-[#0a0a14] text-white flex items-center justify-center">
         <div className="text-center space-y-4">
           <Disc3 className="w-16 h-16 text-white/10 mx-auto" />
           <h1 className="text-xl font-bold text-white/60">{error || 'Album introuvable'}</h1>
@@ -177,7 +179,7 @@ export default function AlbumPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a14] text-white pb-32">
+    <div className="v2-album-page chambre-signature-album" data-chambre-music="album">
       {/* Background glow */}
       {album.coverUrl && (
         <div className="fixed inset-0 pointer-events-none z-0">
@@ -186,7 +188,7 @@ export default function AlbumPage() {
         </div>
       )}
 
-      <div className="relative z-10 max-w-4xl mx-auto px-4 pt-6 sm:pt-10">
+      <div className="v2-album-main">
         {/* Back button */}
         <button onClick={() => router.back()} className="mb-6 flex items-center gap-2 text-sm text-white/40 hover:text-white/70 transition">
           <ArrowLeft className="w-4 h-4" /> Retour
@@ -196,23 +198,27 @@ export default function AlbumPage() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex flex-col sm:flex-row items-center sm:items-end gap-6 mb-8"
+          className="v2-album-identity"
         >
           {/* Cover */}
-          <div className="w-48 h-48 sm:w-56 sm:h-56 rounded-2xl overflow-hidden shadow-2xl shadow-black/50 flex-shrink-0 border border-white/[0.06]">
+          <div className="chambre-signature-album-object">
+          <div className="chambre-signature-album-disc" aria-hidden="true"><span>SYNAURA</span></div>
+          <div className="v2-album-cover">
             {album.coverUrl ? (
-              <img src={album.coverUrl} alt={album.name} className="w-full h-full object-cover" />
+              <img src={album.coverUrl} alt={album.name} className="w-full h-full object-cover" onError={event => { event.currentTarget.src = '/default-cover.svg'; }} />
             ) : (
               <div className="w-full h-full bg-gradient-to-br from-violet-500/20 to-fuchsia-500/20 flex items-center justify-center">
                 <Disc3 className="w-16 h-16 text-white/20" />
               </div>
             )}
           </div>
+          <p className="chambre-signature-album-edition" aria-hidden="true">L’ALBUM / UNE TRAVERSÉE</p>
+          </div>
 
           {/* Info */}
-          <div className="text-center sm:text-left flex-1 min-w-0">
-            <span className="text-[10px] uppercase tracking-widest text-violet-400 font-semibold">Album</span>
-            <h1 className="text-2xl sm:text-4xl font-black mt-1 leading-tight">{album.name}</h1>
+          <div className="v2-album-copy">
+            <span className="v2-kicker">Album / une traversée</span>
+            <h1 className="v2-heading">{album.name}</h1>
             <p className="text-sm text-white/50 mt-1">{artistName}</p>
             <div className="flex items-center gap-3 mt-2 text-xs text-white/30 justify-center sm:justify-start">
               <span>{album.trackCount} titre{album.trackCount > 1 ? 's' : ''}</span>
@@ -222,7 +228,7 @@ export default function AlbumPage() {
               <span>{new Date(album.createdAt).toLocaleDateString('fr-FR', { year: 'numeric', month: 'short' })}</span>
             </div>
             {album.description && (
-              <p className="text-xs text-white/30 mt-2 line-clamp-2">{album.description}</p>
+              <p className="v2-album-description">{album.description}</p>
             )}
           </div>
         </motion.div>
@@ -232,22 +238,22 @@ export default function AlbumPage() {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="flex items-center gap-3 mb-6"
+          className="v2-album-actions"
         >
           <button
             onClick={() => isPlayingAlbum ? playTrack(currentTrack!) : playAlbum(0)}
-            className="h-11 px-6 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white text-sm font-semibold hover:opacity-90 transition flex items-center gap-2 shadow-lg shadow-violet-500/20"
+            className="v2-album-play"
           >
             {isPlayingAlbum ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 fill-current" />}
             {isPlayingAlbum ? 'Pause' : 'Lecture'}
           </button>
-          <button onClick={shuffleAlbum} className="h-11 w-11 rounded-full bg-white/[0.06] hover:bg-white/[0.1] transition flex items-center justify-center" title="Aleatoire">
+          <button onClick={shuffleAlbum} className="h-11 w-11 rounded-full bg-white/[0.06] hover:bg-white/[0.1] transition flex items-center justify-center" title="Aléatoire" aria-label="Lecture aléatoire">
             <Shuffle className="w-4 h-4 text-white/60" />
           </button>
-          <button onClick={addAllToQueue} className="h-11 w-11 rounded-full bg-white/[0.06] hover:bg-white/[0.1] transition flex items-center justify-center" title="Ajouter a la file">
+          <button onClick={addAllToQueue} className="h-11 w-11 rounded-full bg-white/[0.06] hover:bg-white/[0.1] transition flex items-center justify-center" title="Ajouter à la file" aria-label="Ajouter tout l’album à la file">
             <ListPlus className="w-4 h-4 text-white/60" />
           </button>
-          <button onClick={shareAlbum} className="h-11 w-11 rounded-full bg-white/[0.06] hover:bg-white/[0.1] transition flex items-center justify-center" title="Partager">
+          <button onClick={shareAlbum} className="h-11 w-11 rounded-full bg-white/[0.06] hover:bg-white/[0.1] transition flex items-center justify-center" title="Partager" aria-label="Partager cet album">
             <Share2 className="w-4 h-4 text-white/60" />
           </button>
         </motion.div>
@@ -257,8 +263,10 @@ export default function AlbumPage() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.2 }}
-          className="rounded-2xl border border-white/[0.04] overflow-hidden"
+          className="v2-album-tracklist"
         >
+          <p className="v2-kicker chambre-signature-album-list-kicker">Le livret / {album.tracks.length} pistes</p>
+          <h2 className="v2-collection-heading">L’ordre du voyage.</h2>
           {/* Header */}
           <div className="hidden sm:flex items-center gap-3 px-4 py-2 text-[10px] uppercase tracking-wider text-white/20 border-b border-white/[0.04]">
             <span className="w-8 text-center">#</span>
@@ -276,7 +284,7 @@ export default function AlbumPage() {
                 type="button"
                 onClick={() => playAlbum(idx)}
                 className={[
-                  'w-full flex items-center gap-3 px-4 py-3 text-left transition group',
+                  'v2-album-track-row group',
                   isActive ? 'bg-violet-500/8' : 'hover:bg-white/[0.03]',
                 ].join(' ')}
               >

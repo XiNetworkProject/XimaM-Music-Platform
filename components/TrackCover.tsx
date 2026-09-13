@@ -5,12 +5,12 @@ import { Music2 } from 'lucide-react';
 import { sameMediaUrl, toLegacyMediaFallback, toPublicMediaUrl } from '@/lib/mediaUrls';
 
 const FALLBACK_GRADIENTS: [string, string][] = [
-  ['#7c3aed', '#3b82f6'],
-  ['#ec4899', '#8b5cf6'],
-  ['#06b6d4', '#6366f1'],
-  ['#f59e0b', '#ef4444'],
-  ['#10b981', '#06b6d4'],
-  ['#8b5cf6', '#ec4899'],
+  ['#303047', '#172433'],
+  ['#383040', '#1b1c30'],
+  ['#233849', '#252a40'],
+  ['#343746', '#172130'],
+  ['#27343d', '#202c40'],
+  ['#30304a', '#362d3c'],
 ];
 
 function getGradient(seed?: string): [string, string] {
@@ -162,7 +162,7 @@ export default function TrackCover({
   if (showPlaceholder) {
     return (
       <div
-        className={`relative overflow-hidden flex items-center justify-center ${rounded} ${className}`}
+        className={`chambre-cover-placeholder relative overflow-hidden flex items-center justify-center ${rounded} ${className}`}
         style={{
           background: `linear-gradient(135deg, ${from}, ${to})`,
           width: size ? size : undefined,

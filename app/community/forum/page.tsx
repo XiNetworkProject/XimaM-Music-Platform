@@ -201,8 +201,8 @@ function CommunityForumContent() {
       />
       <SynauraRouteNav />
 
-      <div className="space-y-5 pb-36 sm:pb-28">
-        <SynauraInkPanel className="p-3.5 sm:p-7">
+      <div className="chambre-forum space-y-5 pb-36 sm:pb-28">
+        <SynauraInkPanel className="v2-community-hero">
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1.2fr)_360px] lg:items-end">
             <div>
               <Link href="/community" className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-xs font-black text-white/58 transition hover:bg-white/14 hover:text-white">
@@ -251,7 +251,7 @@ function CommunityForumContent() {
           </div>
         </SynauraInkPanel>
 
-        <section className="synaura-no-scrollbar -mx-2 flex snap-x gap-3 overflow-x-auto px-2 pb-1 md:mx-0 md:grid md:grid-cols-2 md:px-0 xl:grid-cols-6">
+        <section className="v2-community-categories" aria-label="Thèmes de discussion">
           {CATEGORIES.map((item) => {
             const Icon = item.icon;
             const active = selectedCategory === item.id;
@@ -372,7 +372,7 @@ function CommunityForumContent() {
               </div>
             </div>
           ) : posts.length ? (
-            <div className="grid gap-3">
+            <div className="chambre-forum-posts grid gap-3">
               {posts.map((post) => {
                 const meta = categoryMeta(post.category);
                 const Icon = meta.icon;

@@ -38,14 +38,15 @@ export default function AdminSidebar({ isOwner }: { isOwner: boolean }) {
         </div>
       </div>
 
-      <div className="p-2">
-        {items.map((it) => {
+      <nav className="chambre-admin-nav p-2" aria-label="Administration Synaura">
+        {items.map((it, index) => {
           const Icon = it.icon;
           const active = isActive(it.href);
           return (
             <Link
               key={it.href}
               href={it.href}
+              aria-current={active ? 'page' : undefined}
               className={cx(
                 'flex items-center gap-2 px-3 h-11 rounded-2xl border transition',
                 active
@@ -53,12 +54,12 @@ export default function AdminSidebar({ isOwner }: { isOwner: boolean }) {
                   : 'border-transparent bg-transparent text-foreground-secondary hover:bg-overlay-on-primary hover:border-border-secondary/60',
               )}
             >
-              <Icon className="h-4 w-4" />
+              <span aria-hidden="true" className="v2-nav-index">{String(index + 1).padStart(2, '0')}</span><Icon className="h-4 w-4" />
               <span className="text-sm font-semibold">{it.label}</span>
             </Link>
           );
         })}
-      </div>
+      </nav>
 
       <div className="p-4 border-t border-border-secondary/60 text-xs text-foreground-tertiary">
         Astuce: ajoute un admin par email/username, puis il aura accès à <span className="text-foreground-primary font-semibold">/admin</span>.

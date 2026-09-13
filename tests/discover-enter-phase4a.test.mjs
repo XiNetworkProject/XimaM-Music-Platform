@@ -7,10 +7,10 @@ import { getRouteChrome, shouldRenderGlobalMiniPlayer } from '../lib/routeChrome
 const read = (path) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 const readBuffer = (path) => readFile(new URL(`../${path}`, import.meta.url));
 
-test('la racine décide Discover ou Live côté serveur sans flash de session client', async () => {
+test('la racine décide la Chambre publique ou Live côté serveur sans flash de session client', async () => {
   const source = await read('app/page.tsx');
   assert.match(source, /getServerSession/);
-  assert.match(source, /if \(!userId\) return <DiscoverSynaura/);
+  assert.match(source, /if \(!userId\) return <PublicChamberEntry/);
   assert.match(source, /redirect\('\/live'\)/);
   assert.doesNotMatch(source, /useSession/);
 });
@@ -18,7 +18,8 @@ test('la racine décide Discover ou Live côté serveur sans flash de session cl
 test('Discover public ne détourne jamais la route musicale /discover', async () => {
   const publicSource = await read('components/discover/DiscoverSynaura.tsx');
   const musicDiscover = await read('app/discover/page.tsx');
-  assert.match(publicSource, /href="#experience"/);
+  assert.match(publicSource, /goToChapter/);
+  assert.match(publicSource, /href="\/discover"/);
   assert.match(musicDiscover, /Discover/);
   assert.doesNotMatch(publicSource, /router\.push\('\/discover'\)/);
 });
@@ -165,15 +166,17 @@ test('la timeline visuelle attend le démarrage audio réel et conserve reduced 
   assert.doesNotMatch(frameLoop, /(?<!\.)\bset[A-Z][A-Za-z0-9_]*\s*\(/);
 });
 
-test('le logo 2026 a une source de vérité, une safe zone et aucun crop', async () => {
+test('la V2 réutilise exactement le raster fourni, isolé et sans nouveau symbole', async () => {
   const brand = await read('lib/brand.ts');
   const component = await read('components/brand/SynauraLogo.tsx');
-  assert.match(brand, /symbol: '\/brand\/2026\/synaura-symbol-2026\.png'/);
-  assert.match(component, /SYNAURA_BRAND\.symbol/);
+  assert.match(brand, /symbol: '\/brand\/v2\/reference-symbol\.svg'/);
+  assert.match(component, /SYNAURA_V2_REFERENCE/);
   assert.match(component, /data-synaura-logo-safe-zone/);
-  assert.match(component, /object-contain/);
-  assert.match(component, /overflow-visible/);
-  assert.doesNotMatch(component, /object-cover|overflow-hidden/);
+  const reference = await read('lib/brandV2.ts');
+  assert.match(reference, /data:image\/png;base64/);
+  const symbol = await read('public/brand/v2/reference-symbol.svg');
+  assert.match(symbol, /<image href="data:image\/png;base64/);
+  assert.doesNotMatch(symbol, /<path|<circle|<text/);
 });
 
 test('les surfaces web actives ne référencent plus les anciens logos', async () => {
@@ -197,13 +200,15 @@ test('les surfaces web actives ne référencent plus les anciens logos', async (
   assert.doesNotMatch(source, /favicon\.svg|synaura_logotype\.svg|synaura-brand-lockup\.png/);
 });
 
-test('Discover a une narration réelle et des données de démonstration isolées', async () => {
+test('Entry V2 est une scène native progressive, avec contenus publics et zéro fausse réaction', async () => {
   const source = await read('components/discover/DiscoverSynaura.tsx');
-  assert.match(source, /DISCOVER_DEMO/);
-  assert.match(source, /Écouter devient un lieu/);
-  assert.match(source, /Quelqu’un écoute avec toi/);
-  assert.match(source, /Elle peut devenir un son/);
-  assert.match(source, /Ton monde prend une couleur/);
+  assert.doesNotMatch(source, /DISCOVER_DEMO|WaveSurfer|new Audio|playTrack\(|\.seek\(/);
+  assert.match(source, /fetch\('\/api\/tracks\?limit=3'/);
+  for (const name of ['Seuil', 'Musique', 'Découverte', 'Création', 'Moment social', 'Entrer']) assert.ok(source.includes(`name: '${name}'`));
+  assert.match(source, /addEventListener\('scroll', schedule, \{ passive: true \}\)/);
+  assert.match(source, /cancelAnimationFrame\(frame\)/);
+  assert.match(source, /element\.inert = chapter !==/);
+  assert.match(await read('components/discover/DiscoverSynaura.module.css'), /position:sticky/);
 });
 
 test('première visite, retour et reduced motion ont des contrats explicites', async () => {
@@ -275,7 +280,7 @@ test('SEO public a canonical, OpenGraph, social image et une legacy landing cons
   assert.match(home, /alternates: \{ canonical: '\/' \}/);
   assert.match(home, /openGraph/);
   assert.match(legacy, /canonical: '\/'/);
-  assert.match(legacy, /<DiscoverSynaura legacy/);
+  assert.match(legacy, /<PublicChamberEntry legacy/);
   assert.match(social, /ImageResponse/);
   assert.doesNotMatch(social, /#[0-9a-f]+ 0 3%/i);
 });

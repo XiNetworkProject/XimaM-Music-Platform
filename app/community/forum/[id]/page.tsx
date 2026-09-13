@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { SynauraImage } from '@/components/ui/SynauraImage';
 import Link from '@/components/navigation/HandoffLink';
 import { useParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
@@ -126,8 +127,8 @@ export default function CommunityPostDetailPage() {
       <SynauraTopBar searchLabel="Chercher dans Community..." primaryHref="/community/forum/new?category=feedback" primaryLabel="Demander un avis" />
       <SynauraRouteNav />
 
-      <div className="space-y-5 pb-28">
-        <SynauraInkPanel className="p-5 sm:p-7">
+      <div className="chambre-forum-thread space-y-5 pb-28">
+        <SynauraInkPanel className="v2-community-hero">
           <Link href="/community/forum" className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-xs font-black text-white/58 transition hover:bg-white/14 hover:text-white">
             <ArrowLeft className="h-3.5 w-3.5" />
             Retour au forum
@@ -187,7 +188,7 @@ export default function CommunityPostDetailPage() {
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
                   <div className="relative h-28 w-full overflow-hidden rounded-[1.25rem] bg-black/[0.06] sm:h-24 sm:w-24 sm:shrink-0">
                     {post.track.coverUrl || post.track.cover_url ? (
-                      <img src={post.track.coverUrl || post.track.cover_url} alt="" className="h-full w-full object-cover" />
+                      <SynauraImage src={post.track.coverUrl || post.track.cover_url} alt="" className="h-full w-full object-cover" />
                     ) : (
                       <div className="grid h-full w-full place-items-center">
                         <Music2 className="h-8 w-8 text-black/24" />

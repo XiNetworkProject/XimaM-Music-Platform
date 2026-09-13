@@ -2,6 +2,16 @@ import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import './suno.css';
+import './v2.css';
+import '@/components/v2/personal-v2.css';
+import '@/components/v2/creation-v2.css';
+import '@/components/v2/music-v2.css';
+import '@/components/v2/contexts-v2.css';
+import '@/components/v2/chambre-signature.css';
+import '@/components/v2/experience-live-navigation.css';
+import '@/components/v2/experience-collection.css';
+import '@/components/v2/experience-creation.css';
+import '@/components/v2/experience-account.css';
 import Providers from './providers';
 import { ConditionalNav, ConditionalNavbar, ConditionalBottomNav } from '@/components/ConditionalNav';
 import LayoutContent from '@/components/LayoutContent';
@@ -29,7 +39,7 @@ declare global {
   }
 }
 
-const inter = Inter({ subsets: ['latin'] });
+const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'https://synaura.fr'),
@@ -45,8 +55,8 @@ export const metadata: Metadata = {
     title: 'Synaura',
   },
   icons: {
-    icon: [{ url: '/brand/2026/synaura-symbol-2026-white.png', type: 'image/png' }],
-    apple: '/brand/2026/synaura-symbol-2026-white.png',
+    icon: [{ url: '/brand/v2/reference-symbol.svg', type: 'image/svg+xml' }],
+    apple: '/brand/v2/reference-symbol.svg',
   },
 };
 
@@ -110,10 +120,10 @@ export default function RootLayout({
       <head>
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var m=localStorage.getItem('${SYNAURA_THEME_STORAGE_KEY}');m=(m==='dark'||m==='light'||m==='system')?m:'system';var t=m==='system'?(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):m;var d=document.documentElement;d.dataset.synauraThemeMode=m;d.dataset.synauraTheme=t;d.classList.toggle('dark',t==='dark');d.classList.toggle('light',t==='light');d.style.colorScheme=t;}catch(e){}})();`,
+            __html: `(function(){try{var m=localStorage.getItem('${SYNAURA_THEME_STORAGE_KEY}');m=(m==='dark'||m==='light'||m==='system')?m:'system';var t=m==='system'?(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):m;var d=document.documentElement;d.dataset.synauraThemeMode=m;d.dataset.synauraTheme=t;d.classList.toggle('dark',t==='dark');d.classList.toggle('light',t==='light');d.style.colorScheme='dark';}catch(e){}})();`,
           }}
         />
-        <meta name="theme-color" content="#0D0D0D" />
+        <meta name="theme-color" content="#030508" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="Synaura" />
@@ -121,14 +131,14 @@ export default function RootLayout({
         {process.env.NEXT_PUBLIC_ADSENSE_CLIENT ? (
           <meta name="google-adsense-account" content={process.env.NEXT_PUBLIC_ADSENSE_CLIENT} />
         ) : null}
-        <link rel="apple-touch-icon" href="/brand/2026/synaura-symbol-2026-white.png" />
+        <link rel="apple-touch-icon" href="/brand/v2/reference-symbol.svg" />
         <link rel="manifest" href="/manifest.json" />
         {/* Précharger le DNS et la connexion au CDN Bunny */}
         <link rel="dns-prefetch" href={`https://${process.env.NEXT_PUBLIC_CDN_DOMAIN || 'synaura-cdn.b-cdn.net'}`} />
         <link rel="preconnect" href={`https://${process.env.NEXT_PUBLIC_CDN_DOMAIN || 'synaura-cdn.b-cdn.net'}`} crossOrigin="anonymous" />
         <AdSenseScript />
       </head>
-          <body className={`theme-suno ${inter.className} overflow-hidden max-w-full h-full`}>
+      <body className={`theme-suno synaura-v2 synaura-chambre ${inter.className} ${inter.variable} overflow-hidden max-w-full h-full`}>
         <SynauraThemeProvider>
         <Providers>
           <ContextSurfaceProvider>

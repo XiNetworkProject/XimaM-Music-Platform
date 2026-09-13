@@ -1135,13 +1135,13 @@ export default function LibraryClient() {
     audioState.isPlaying,
   );
   const nativeLibraryHeader = (
-    <header className="mb-5 space-y-4">
-      <div className="flex flex-wrap items-end justify-between gap-3 px-1 pt-1">
+    <header className="v2-library-header chambre-collection-header signature-collection-header experience-collection-header" data-library-tab={tab}>
+      <div className="v2-library-title flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="text-[10px] font-black uppercase text-[var(--syn-text-secondary)]">Tout ce que tu gardes</p>
-          <h1 className="mt-1 text-3xl font-black text-[var(--syn-text-primary)] sm:text-4xl">Bibliothèque</h1>
+          <p className="v2-kicker">Chambre Sonore / Bibliothèque</p>
+          <h1 className="mt-3 text-[var(--syn-text-primary)]">Votre<br /><span className="chambre-type-accent">discothèque.</span></h1>
           <p className="mt-1 text-sm font-semibold text-[var(--syn-text-secondary)]">
-            Favoris, historique, playlists et file d&apos;attente.
+            Garder. Classer. Réécouter.
           </p>
         </div>
         {tab === 'playlists' && !selectedPlaylistId ? (
@@ -1156,6 +1156,7 @@ export default function LibraryClient() {
                   : 'text-[var(--syn-text-secondary)]',
               )}
               aria-label="Vue grille"
+              aria-pressed={viewMode === 'grid'}
               title="Vue grille"
             >
               <Grid className="h-4 w-4" />
@@ -1170,6 +1171,7 @@ export default function LibraryClient() {
                   : 'text-[var(--syn-text-secondary)]',
               )}
               aria-label="Vue liste"
+              aria-pressed={viewMode === 'list'}
               title="Vue liste"
             >
               <List className="h-4 w-4" />
@@ -1178,13 +1180,14 @@ export default function LibraryClient() {
         ) : null}
       </div>
 
-      <div className="relative">
+      <div className="v2-library-search signature-library-search relative">
         <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--syn-text-secondary)]" />
         <input
           value={search}
+          aria-label="Rechercher dans ta bibliothèque"
           onChange={(event) => setSearch(event.target.value)}
           placeholder={selectedPlaylist ? 'Rechercher dans cette playlist' : 'Rechercher dans ta bibliothèque'}
-          className="h-12 w-full rounded-[12px] border border-[var(--syn-border)] bg-[var(--syn-surface)] pl-10 pr-10 text-sm font-semibold text-[var(--syn-text-primary)] outline-none placeholder:text-[var(--syn-text-secondary)] focus:border-[var(--syn-accent)] focus:ring-2 focus:ring-[#7357C6]/10"
+          className="signature-library-search-input h-12 w-full border border-[var(--syn-border)] bg-[var(--syn-surface)] pl-10 pr-10 text-sm text-[var(--syn-text-primary)] outline-none placeholder:text-[var(--syn-text-secondary)] focus:border-[var(--syn-accent)]"
         />
         {search ? (
           <button
@@ -1198,56 +1201,67 @@ export default function LibraryClient() {
         ) : null}
       </div>
 
-      <div className="overflow-x-auto pb-1 [scrollbar-width:thin]">
-        <div className="flex min-w-max gap-1 rounded-[12px] border border-[var(--syn-border)] bg-[var(--syn-soft)] p-1">
+      <nav aria-label="Collections de la bibliothèque" className="experience-collection-index">
+        <div className="v2-library-categories">
           <TabButton active={tab === 'playlists'} onClick={() => { setTab('playlists'); setSelectedPlaylistId(null); }}>
+            <span className="signature-library-tab-index" aria-hidden="true">01</span>
             Playlists
+            <span className="experience-collection-count">{playlists.length}</span>
           </TabButton>
           <TabButton active={tab === 'favorites'} onClick={() => { setTab('favorites'); setSelectedPlaylistId(null); }}>
+            <span className="signature-library-tab-index" aria-hidden="true">02</span>
             Favoris
+            <span className="experience-collection-count">{favoriteTracks.length}</span>
           </TabButton>
           <TabButton active={tab === 'recent'} onClick={() => { setTab('recent'); setSelectedPlaylistId(null); }}>
+            <span className="signature-library-tab-index" aria-hidden="true">03</span>
             Récents
+            <span className="experience-collection-count">{recentTracks.length}</span>
           </TabButton>
           <TabButton active={tab === 'downloads'} onClick={() => { setTab('downloads'); setSelectedPlaylistId(null); }}>
+            <span className="signature-library-tab-index" aria-hidden="true">04</span>
             Hors ligne
+            <span className="experience-collection-count">{downloadedTracks.length}</span>
           </TabButton>
           <TabButton active={tab === 'queue'} onClick={() => { setTab('queue'); setSelectedPlaylistId(null); }}>
+            <span className="signature-library-tab-index" aria-hidden="true">05</span>
             File
+            <span className="experience-collection-count">{upNextTracks.length}</span>
           </TabButton>
         </div>
-      </div>
+      </nav>
 
       {resumeTrack ? (
         <button
           type="button"
           onClick={() => void playTracks(recentTracks, 0, 'library-resume')}
-          className="flex min-h-[88px] w-full items-center gap-3 rounded-[14px] border border-[var(--syn-border)] border-l-[3px] border-l-[var(--syn-accent-blue)] bg-[#151515] p-3 text-left text-white transition hover:bg-[#1d1d1d]"
+          className="v2-library-resume signature-library-resume"
+          aria-label={`Reprendre l’écoute de ${resumeTrack.title}`}
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <SynauraImage
             src={resumeTrack.coverUrl || '/default-cover.svg'}
             alt=""
-            className="h-[62px] w-[62px] shrink-0 rounded-[10px] object-cover"
+            className="signature-library-resume-cover shrink-0 object-cover"
           />
           <span className="min-w-0 flex-1">
-            <span className="block text-[9px] font-black uppercase text-[#6BB4BE]">Reprendre l&apos;écoute</span>
-            <span className="mt-1 block truncate text-sm font-black">{resumeTrack.title}</span>
-            <span className="mt-0.5 block truncate text-xs font-semibold text-white/55">
+            <span className="signature-library-resume-label">Reprendre l&apos;écoute</span>
+            <span className="signature-library-resume-title">{resumeTrack.title}</span>
+            <span className="signature-library-resume-artist">
               {resumeTrack.artist?.name || resumeTrack.artist?.username || 'Artiste Synaura'}
             </span>
           </span>
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[11px] bg-[#F7F6F3] text-[#111111]">
+          <span className="signature-library-resume-play">
             {resumeActive ? <Pause className="h-4 w-4" /> : <Play className="ml-0.5 h-4 w-4" />}
           </span>
         </button>
       ) : null}
 
       {tab !== 'playlists' && tab !== 'queue' ? (
-        <div className="flex flex-wrap gap-2">
+        <div className="experience-collection-filters flex flex-wrap gap-2">
           <label className="inline-flex h-10 items-center gap-2 rounded-[10px] border border-[var(--syn-border)] bg-[var(--syn-surface)] px-3 text-xs font-bold text-[var(--syn-text-secondary)]">
             <Clock3 className="h-4 w-4" />
-            <select value={trackSort} onChange={(event) => setTrackSort(event.target.value as typeof trackSort)} className="bg-transparent outline-none">
+            <select aria-label="Trier les morceaux" value={trackSort} onChange={(event) => setTrackSort(event.target.value as typeof trackSort)} className="bg-transparent outline-none">
               <option value="recent">Récent</option>
               <option value="title">Titre</option>
               <option value="plays">Écoutes</option>
@@ -1256,7 +1270,7 @@ export default function LibraryClient() {
           </label>
           <label className="inline-flex h-10 items-center gap-2 rounded-[10px] border border-[var(--syn-border)] bg-[var(--syn-surface)] px-3 text-xs font-bold text-[var(--syn-text-secondary)]">
             <Grid className="h-4 w-4" />
-            <select value={genreFilter} onChange={(event) => setGenreFilter(event.target.value)} className="bg-transparent outline-none">
+            <select aria-label="Filtrer par genre" value={genreFilter} onChange={(event) => setGenreFilter(event.target.value)} className="bg-transparent outline-none">
               <option value="all">Tous les genres</option>
               {Array.from(
                 new Set(
@@ -1296,22 +1310,25 @@ export default function LibraryClient() {
         <SynauraTopBar searchHref="/discover" searchLabel="Explorer le catalogue Synaura..." />
       <SynauraRouteNav />
       <SynauraAnnouncementStrip />
-      <div className={cx(LIBRARY_SCOPE_CLASS, 'min-h-[70vh] px-4 py-10')}>
-        <SynauraPanel className="mx-auto max-w-xl p-6 text-center">
-          <div className="mx-auto h-12 w-12 rounded-2xl bg-background-tertiary border border-border-secondary grid place-items-center">
-            <Music className="h-6 w-6 text-foreground-secondary" />
+      <div className={cx(LIBRARY_SCOPE_CLASS, 'signature-library-guest-wrap experience-collection-guest')}>
+        <SynauraPanel className="signature-library-guest">
+          <div className="signature-library-guest-art" aria-hidden="true">
+            <span /><span /><span /><Music className="signature-library-guest-symbol" />
           </div>
-          <div className="mt-4 text-lg font-semibold text-foreground-primary">Connecte-toi</div>
-          <div className="mt-1 text-sm text-foreground-secondary">
-            Ta bibliothèque (dossiers, favoris, historiques) est liée à ton compte.
-          </div>
+          <div className="signature-library-guest-copy">
+          <p className="signature-personal-eyebrow">Chambre Sonore / Bibliothèque</p>
+          <h1>Les sons passent.<br /><span>Gardez les vôtres.</span></h1>
+          <p>
+            Retrouvez vos favoris, composez vos playlists et reprenez le fil de vos écoutes en vous connectant.
+          </p>
           <button
             type="button"
             onClick={() => router.push('/auth')}
-            className="mt-5 h-11 px-4 rounded-2xl bg-overlay-on-primary text-foreground-primary hover:opacity-90 transition"
+            className="signature-personal-primary"
           >
             Se connecter
           </button>
+          </div>
         </SynauraPanel>
       </div>
       <style jsx global>{LIBRARY_SCOPE_CSS}</style>
@@ -1326,8 +1343,10 @@ export default function LibraryClient() {
       <SynauraRouteNav />
       <SynauraAnnouncementStrip />
       <div className={cx(LIBRARY_SCOPE_CLASS, 'min-h-[70vh] px-4 py-10')}>
-        <SynauraPanel className="mx-auto max-w-xl p-6">
-          <div className="text-lg font-semibold text-foreground-primary">Erreur</div>
+        <SynauraPanel className="signature-library-error mx-auto max-w-xl p-6">
+          <p className="signature-personal-eyebrow">Bibliothèque</p>
+          <h1>La collection attend.</h1>
+          <p className="signature-library-error-label">Le chargement n’a pas abouti.</p>
           <div className="mt-1 text-sm text-foreground-secondary">{error}</div>
           <div className="mt-4 flex gap-2">
             <button
@@ -1350,16 +1369,16 @@ export default function LibraryClient() {
       <SynauraTopBar searchHref="/discover" searchLabel="Explorer le catalogue Synaura..." />
       <SynauraRouteNav />
       <SynauraAnnouncementStrip />
-      <div className={cx(LIBRARY_SCOPE_CLASS, 'grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px] xl:items-start')}>
+      <div className={cx(LIBRARY_SCOPE_CLASS, 'space-y-8 experience-collection')}>
         <main className="min-w-0">
-          <div className="min-h-screen bg-background-primary text-foreground-primary">
+          <div className="v2-library-layout signature-library-layout text-foreground-primary">
             {nativeLibraryHeader}
 
-            <div className="mx-auto max-w-6xl px-4 py-6">
+            <div className="v2-library-content signature-library-content">
         {/* Playlist detail */}
         {tab === 'playlists' && selectedPlaylistId && selectedPlaylist ? (
           <div>
-            <div className="flex items-start gap-4">
+            <div className="chambre-library-detail flex items-start gap-4">
               <button
                 type="button"
                 onClick={() => setSelectedPlaylistId(null)}
@@ -1371,7 +1390,7 @@ export default function LibraryClient() {
 
               <div className="flex-1 min-w-0">
                 <div className="flex items-start gap-3">
-                  <div className="h-16 w-16 rounded-3xl bg-background-tertiary border border-border-secondary overflow-hidden shrink-0">
+                  <div className="signature-library-detail-cover bg-background-tertiary border border-border-secondary overflow-hidden shrink-0">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <SynauraImage
                       src={selectedPlaylist.coverUrl || '/default-cover.svg'}
@@ -1381,7 +1400,7 @@ export default function LibraryClient() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
-                      <div className="text-xl font-semibold truncate">{selectedPlaylist.name}</div>
+                      <h2 className="signature-library-detail-title">{selectedPlaylist.name}</h2>
                       {selectedPlaylist.isPublic ? (
                         <span className="inline-flex items-center gap-1 text-xs text-foreground-tertiary">
                           <Globe className="h-3 w-3" /> Public
@@ -1393,7 +1412,7 @@ export default function LibraryClient() {
                       )}
                     </div>
                     {selectedPlaylist.description ? (
-                      <div className="mt-1 text-sm text-foreground-secondary line-clamp-2">
+                      <div className="signature-library-detail-description mt-1 text-sm text-foreground-secondary">
                         {selectedPlaylist.description}
                       </div>
                     ) : (
@@ -1405,7 +1424,7 @@ export default function LibraryClient() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="chambre-library-detail-actions flex items-center gap-2">
                     <button
                       type="button"
                       onClick={() => playTracks(selectedPlaylist.tracks || [], 0, 'library-playlist')}
@@ -1492,14 +1511,15 @@ export default function LibraryClient() {
                 exit={{ opacity: 0, y: -6 }}
                 transition={{ duration: 0.18 }}
               >
-                <div className="flex items-center justify-between">
+                <div className="signature-library-collection-bar flex items-center justify-between">
                   <div className="text-sm text-foreground-secondary">
-                    {visiblePlaylists.length} dossier{visiblePlaylists.length > 1 ? 's' : ''}
+                    <p className="v2-kicker">Votre classement personnel</p>
+                    <h2>Les dossiers <span className="experience-collection-total">{visiblePlaylists.length}</span></h2>
                   </div>
                   <button
                     type="button"
                     onClick={() => setShowCreate(true)}
-                    className="h-11 px-4 rounded-2xl bg-overlay-on-primary text-foreground-primary hover:opacity-90 transition inline-flex items-center gap-2"
+                    className="signature-personal-primary"
                   >
                     <FolderPlus className="h-4 w-4" />
                     Nouveau dossier
@@ -1507,7 +1527,7 @@ export default function LibraryClient() {
                 </div>
 
                 {visiblePlaylists.length ? (
-                  <div className={cx('mt-4', viewMode === 'grid' ? 'grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3' : 'space-y-2')}>
+                  <div className={cx('signature-library-records', viewMode === 'grid' ? 'signature-library-records--grid' : 'signature-library-records--list')}>
                     {visiblePlaylists.map((p) => (
                       <PlaylistCard
                         key={p._id}
@@ -1520,20 +1540,20 @@ export default function LibraryClient() {
                     ))}
                   </div>
                 ) : (
-                  <div className="mt-10 rounded-3xl border border-border-secondary bg-background-fog-thin p-8 text-center">
-                    <div className="mx-auto h-12 w-12 rounded-2xl bg-background-tertiary border border-border-secondary grid place-items-center">
-                      <FolderPlus className="h-6 w-6 text-foreground-secondary" />
+                  <div className="signature-library-empty">
+                    <div className="signature-library-empty-art" aria-hidden="true">
+                      <FolderPlus className="h-8 w-8" />
                     </div>
-                    <div className="mt-4 text-lg font-semibold">Aucun dossier</div>
+                    <div className="mt-4 text-lg font-semibold">{search ? 'Aucun dossier ne correspond.' : 'Une collection commence par un son.'}</div>
                     <div className="mt-1 text-sm text-foreground-secondary">
-                      Crée un dossier pour organiser tes morceaux.
+                      {search ? 'Essayez un autre nom dans la recherche.' : 'Un trajet, une humeur, une obsession. Créez un dossier pour les morceaux que vous voulez garder ensemble.'}
                     </div>
                     <button
                       type="button"
                       onClick={() => setShowCreate(true)}
-                      className="mt-5 h-11 px-4 rounded-2xl bg-overlay-on-primary text-foreground-primary hover:opacity-90 transition"
+                      className="signature-personal-primary"
                     >
-                      Créer mon premier dossier
+                      {playlists.length ? 'Créer un dossier' : 'Créer mon premier dossier'}
                     </button>
                   </div>
                 )}
@@ -1582,8 +1602,10 @@ export default function LibraryClient() {
                       <div ref={favSentinelRef} className="h-10" />
                     </div>
                   ) : (
-                    <div className="p-8 text-center text-sm text-foreground-secondary">
-                      Aucun favori pour l’instant.
+                    <div className="experience-collection-empty-state p-8 text-center text-sm text-foreground-secondary">
+                      <Heart size={28} aria-hidden="true" />
+                      <h3>{search || genreFilter !== 'all' ? 'Aucun favori dans cette sélection.' : 'Les coups de cœur se gardent ici.'}</h3>
+                      <p>{search || genreFilter !== 'all' ? 'Ajustez votre recherche ou le filtre de genre.' : 'Ajoutez un morceau à vos favoris pour le retrouver en un instant.'}</p>
                     </div>
                   )}
                 </div>
@@ -1696,7 +1718,7 @@ export default function LibraryClient() {
                 />
 
                 <div className="mt-4 rounded-3xl border border-border-secondary bg-background-fog-thin overflow-hidden">
-                  <p className="p-4 text-sm text-foreground-secondary">File active du lecteur. Les actions restent explicites.</p>
+                  <p className="p-4 text-sm text-foreground-secondary">La suite de votre écoute, dans l’ordre que vous avez choisi.</p>
 
                   <div className="px-4 py-3 text-sm text-foreground-secondary border-b border-border-secondary/60">
                     Prochains titres
@@ -1780,8 +1802,10 @@ export default function LibraryClient() {
                       <div ref={recentSentinelRef} className="h-10" />
                     </div>
                   ) : (
-                    <div className="p-8 text-center text-sm text-foreground-secondary">
-                      Rien ici pour l’instant.
+                    <div className="experience-collection-empty-state p-8 text-center text-sm text-foreground-secondary">
+                      <Clock3 size={28} aria-hidden="true" />
+                      <h3>{search || genreFilter !== 'all' ? 'Aucune écoute dans cette sélection.' : 'Votre prochaine écoute commence ici.'}</h3>
+                      <p>{search || genreFilter !== 'all' ? 'Ajustez votre recherche ou le filtre de genre.' : 'Les morceaux écoutés apparaîtront ici pour reprendre votre exploration.'}</p>
                     </div>
                   )}
                 </div>
@@ -1793,21 +1817,10 @@ export default function LibraryClient() {
           </div>
         </main>
 
-        <aside className="hidden space-y-4 xl:block">
-          <SynauraInkPanel className="p-4">
-            <p className="mb-3 text-sm font-black">Bibliothèque vivante</p>
-            <div className="rounded-[1.4rem] bg-white/8 p-4">
-              <p className="text-2xl font-black leading-tight">Tes morceaux.</p>
-              <p className="text-2xl font-black leading-tight text-white/70">À retrouver ici.</p>
-              <p className="mt-3 text-sm leading-6 text-white/45">
-                Retrouve tes favoris, reprends une écoute et organise tes playlists à ton rythme.
-              </p>
-            </div>
-          </SynauraInkPanel>
-
-          <SynauraPanel className="p-4">
+        <aside aria-label="Repères de ta bibliothèque" className="experience-collection-ledger border-t border-[var(--syn-border)] pt-6">
+          <div>
             <p className="mb-3 text-sm font-black">Repères rapides</p>
-            <div className="grid gap-2">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               <div className="rounded-2xl bg-black/[0.045] p-3">
                 <p className="text-xl font-black">{playlists.length}</p>
                 <p className="text-xs text-black/40">dossiers</p>
@@ -1825,7 +1838,7 @@ export default function LibraryClient() {
                 <p className="text-xs text-black/40">a suivre</p>
               </div>
             </div>
-          </SynauraPanel>
+          </div>
         </aside>
       </div>
 
@@ -1835,7 +1848,7 @@ export default function LibraryClient() {
             <AnimatePresence>
               {showCreate ? (
                 <motion.div
-                  className="fixed inset-0 z-[220] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+                  className="chambre-library-backdrop fixed inset-0 z-[220]"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
@@ -1846,65 +1859,71 @@ export default function LibraryClient() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 18 }}
                     transition={{ duration: 0.18 }}
-                    className={cx(LIBRARY_MODAL_CLASS, 'w-[92vw] max-w-md rounded-3xl border border-border-secondary bg-background-tertiary shadow-2xl overflow-hidden')}
+                    className={cx(LIBRARY_MODAL_CLASS, 'chambre-library-dialog')}
                     onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                    role="dialog"
+                    aria-labelledby="chambre-library-create-title"
                   >
-                    <div className="p-4 border-b border-border-secondary/60 flex items-center justify-between">
-                      <div className="text-sm font-semibold text-foreground-primary">Nouveau dossier</div>
+                    <div className="chambre-library-dialog-header">
+                      <div><p className="chambre-library-dialog-eyebrow">Bibliothèque</p><h2 id="chambre-library-create-title">Nouveau dossier</h2></div>
                       <button
                         type="button"
                         onClick={() => setShowCreate(false)}
-                        className="h-9 w-9 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition grid place-items-center"
+                        className="chambre-library-dialog-close"
+                        aria-label="Fermer la création de dossier"
                       >
                         <ChevronDown className="h-4 w-4" />
                       </button>
                     </div>
-                    <div className="p-4 space-y-3">
+                    <div className="chambre-library-dialog-body chambre-library-fields">
                       <div>
-                        <div className="text-xs text-foreground-tertiary mb-1">Nom</div>
+                        <label htmlFor="chambre-library-create-name">Nom</label>
                         <input
+                          id="chambre-library-create-name"
                           value={newPl.name}
                           onChange={(e) => setNewPl((p) => ({ ...p, name: e.target.value }))}
-                          className="w-full h-11 rounded-2xl border border-border-secondary bg-background-fog-thin px-3 text-sm outline-none"
+                          className="chambre-library-field"
                           placeholder="Mes coups de cœur"
                           autoFocus
                         />
                       </div>
                       <div>
-                        <div className="text-xs text-foreground-tertiary mb-1">Description</div>
+                        <label htmlFor="chambre-library-create-description">Description</label>
                         <textarea
+                          id="chambre-library-create-description"
                           value={newPl.description}
                           onChange={(e) => setNewPl((p) => ({ ...p, description: e.target.value }))}
-                          className="w-full min-h-[88px] rounded-2xl border border-border-secondary bg-background-fog-thin px-3 py-2 text-sm outline-none resize-none"
+                          className="chambre-library-field"
                           placeholder="Optionnel…"
                           maxLength={240}
                         />
                       </div>
-                      <div className="flex items-center justify-between rounded-2xl border border-border-secondary bg-background-fog-thin px-3 py-3">
+                      <div className="chambre-library-visibility">
                         <div className="text-sm text-foreground-secondary">Dossier public</div>
                         <button
                           type="button"
                           onClick={() => setNewPl((p) => ({ ...p, isPublic: !p.isPublic }))}
                           className={cx(
-                            'h-7 w-12 rounded-full border border-border-secondary transition relative',
+                            'chambre-library-public-toggle h-11 w-14 rounded-full border border-border-secondary transition relative',
                             newPl.isPublic ? 'bg-overlay-on-primary' : 'bg-background-tertiary',
                           )}
-                          aria-label="Toggle public"
+                          aria-label="Dossier public"
+                          aria-pressed={newPl.isPublic}
                         >
                           <span
                             className={cx(
-                              'absolute top-1/2 -translate-y-1/2 h-5 w-5 rounded-full bg-background-primary transition',
+                              'absolute top-1/2 -translate-y-1/2 h-5 w-5 rounded-full bg-[var(--v2-text)] transition',
                               newPl.isPublic ? 'left-6' : 'left-1',
                             )}
                           />
                         </button>
                       </div>
                     </div>
-                    <div className="p-4 border-t border-border-secondary/60 flex gap-2">
+                    <div className="chambre-library-dialog-footer">
                       <button
                         type="button"
                         onClick={() => setShowCreate(false)}
-                        className="flex-1 h-11 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition"
+                        className="chambre-library-secondary"
                       >
                         Annuler
                       </button>
@@ -1912,7 +1931,7 @@ export default function LibraryClient() {
                         type="button"
                         disabled={creating || !newPl.name.trim()}
                         onClick={createPlaylist}
-                        className="flex-1 h-11 rounded-2xl bg-overlay-on-primary text-foreground-primary hover:opacity-90 transition disabled:opacity-50"
+                        className="chambre-library-primary"
                       >
                         {creating ? 'Création…' : 'Créer'}
                       </button>
@@ -1931,7 +1950,7 @@ export default function LibraryClient() {
             <AnimatePresence>
               {activeTrackMenu ? (
                 <motion.div
-                  className="fixed inset-0 z-[230] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+                  className="chambre-library-backdrop fixed inset-0 z-[230]"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
@@ -1942,16 +1961,18 @@ export default function LibraryClient() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 22 }}
                     transition={{ duration: 0.18 }}
-                    className={cx(LIBRARY_MODAL_CLASS, 'w-[92vw] max-w-[460px] rounded-3xl border border-border-secondary bg-background-tertiary shadow-2xl overflow-hidden')}
+                    className={cx(LIBRARY_MODAL_CLASS, 'chambre-library-dialog chambre-library-dialog--actions')}
                     onClick={(e: React.MouseEvent) => e.stopPropagation()}
-                    style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+                    role="dialog"
+                    aria-labelledby="chambre-library-actions-title"
                   >
-              <div className="p-4 border-b border-border-secondary/60">
-                <div className="text-sm font-semibold text-foreground-primary truncate">{activeTrackMenu.track.title}</div>
-                <div className="mt-0.5 text-xs text-foreground-tertiary truncate">{activeTrackMenu.track.artist?.name}</div>
+              <div className="chambre-library-dialog-header">
+                <div className="min-w-0"><p className="chambre-library-dialog-eyebrow">Actions du morceau</p>
+                <h2 id="chambre-library-actions-title">{activeTrackMenu.track.title}</h2>
+                <p className="chambre-library-dialog-subtitle">{activeTrackMenu.track.artist?.name}</p></div>
               </div>
 
-              <div className="p-3 space-y-2">
+              <div className="chambre-library-dialog-body chambre-library-actions">
                 <button
                   type="button"
                   onClick={() => {
@@ -2076,11 +2097,11 @@ export default function LibraryClient() {
                 ) : null}
               </div>
 
-              <div className="p-3 border-t border-border-secondary/60">
+              <div className="chambre-library-dialog-footer">
                 <button
                   type="button"
                   onClick={() => setActiveTrackMenu(null)}
-                  className="w-full h-11 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition"
+                  className="chambre-library-secondary"
                 >
                   Fermer
                 </button>
@@ -2099,7 +2120,7 @@ export default function LibraryClient() {
             <AnimatePresence>
               {showEditPlaylist && selectedPlaylist ? (
                 <motion.div
-                  className="fixed inset-0 z-[250] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+                  className="chambre-library-backdrop fixed inset-0 z-[250]"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
@@ -2110,52 +2131,58 @@ export default function LibraryClient() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 22 }}
                     transition={{ duration: 0.18 }}
-                    className={cx(LIBRARY_MODAL_CLASS, 'w-[92vw] max-w-md rounded-3xl border border-border-secondary bg-background-tertiary shadow-2xl overflow-hidden')}
+                    className={cx(LIBRARY_MODAL_CLASS, 'chambre-library-dialog')}
                     onClick={(e: React.MouseEvent) => e.stopPropagation()}
+                    role="dialog"
+                    aria-labelledby="chambre-library-edit-title"
                   >
-              <div className="p-4 border-b border-border-secondary/60 flex items-center justify-between">
-                <div className="text-sm font-semibold text-foreground-primary">Options du dossier</div>
+              <div className="chambre-library-dialog-header">
+                <div><p className="chambre-library-dialog-eyebrow">Bibliothèque</p><h2 id="chambre-library-edit-title">Options du dossier</h2></div>
                 <button
                   type="button"
                   onClick={() => setShowEditPlaylist(false)}
-                  className="h-9 w-9 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition grid place-items-center"
+                  className="chambre-library-dialog-close"
+                  aria-label="Fermer les options du dossier"
                 >
                   <X className="h-4 w-4" />
                 </button>
               </div>
 
-              <div className="p-4 space-y-3">
+              <div className="chambre-library-dialog-body chambre-library-fields">
                 <div>
-                  <div className="text-xs text-foreground-tertiary mb-1">Nom</div>
+                  <label htmlFor="chambre-library-edit-name">Nom</label>
                   <input
+                    id="chambre-library-edit-name"
                     value={editPl.name}
                     onChange={(e) => setEditPl((p) => ({ ...p, name: e.target.value }))}
-                    className="w-full h-11 rounded-2xl border border-border-secondary bg-background-fog-thin px-3 text-sm outline-none"
+                    className="chambre-library-field"
                   />
                 </div>
                 <div>
-                  <div className="text-xs text-foreground-tertiary mb-1">Description</div>
+                  <label htmlFor="chambre-library-edit-description">Description</label>
                   <textarea
+                    id="chambre-library-edit-description"
                     value={editPl.description}
                     onChange={(e) => setEditPl((p) => ({ ...p, description: e.target.value }))}
-                    className="w-full min-h-[88px] rounded-2xl border border-border-secondary bg-background-fog-thin px-3 py-2 text-sm outline-none resize-none"
+                    className="chambre-library-field"
                     maxLength={240}
                   />
                 </div>
-                <div className="flex items-center justify-between rounded-2xl border border-border-secondary bg-background-fog-thin px-3 py-3">
+                <div className="chambre-library-visibility">
                   <div className="text-sm text-foreground-secondary">Dossier public</div>
                   <button
                     type="button"
                     onClick={() => setEditPl((p) => ({ ...p, isPublic: !p.isPublic }))}
                     className={cx(
-                      'h-7 w-12 rounded-full border border-border-secondary transition relative',
+                      'chambre-library-public-toggle h-11 w-14 rounded-full border border-border-secondary transition relative',
                       editPl.isPublic ? 'bg-overlay-on-primary' : 'bg-background-tertiary',
                     )}
-                    aria-label="Toggle public"
+                    aria-label="Dossier public"
+                    aria-pressed={editPl.isPublic}
                   >
                     <span
                       className={cx(
-                        'absolute top-1/2 -translate-y-1/2 h-5 w-5 rounded-full bg-background-primary transition',
+                        'absolute top-1/2 -translate-y-1/2 h-5 w-5 rounded-full bg-[var(--v2-text)] transition',
                         editPl.isPublic ? 'left-6' : 'left-1',
                       )}
                     />
@@ -2171,11 +2198,11 @@ export default function LibraryClient() {
                 </button>
               </div>
 
-              <div className="p-4 border-t border-border-secondary/60 flex gap-2">
+              <div className="chambre-library-dialog-footer">
                 <button
                   type="button"
                   onClick={() => setShowEditPlaylist(false)}
-                  className="flex-1 h-11 rounded-2xl border border-border-secondary bg-background-fog-thin hover:bg-overlay-on-primary transition"
+                  className="chambre-library-secondary"
                 >
                   Annuler
                 </button>
@@ -2183,7 +2210,7 @@ export default function LibraryClient() {
                   type="button"
                   disabled={savingPlaylist || !editPl.name.trim()}
                   onClick={saveEditPlaylist}
-                  className="flex-1 h-11 rounded-2xl bg-overlay-on-primary text-foreground-primary hover:opacity-90 transition disabled:opacity-50"
+                  className="chambre-library-primary"
                 >
                   {savingPlaylist ? 'Sauvegarde…' : 'Enregistrer'}
                 </button>
@@ -2213,6 +2240,7 @@ function TabButton({
     <button
       type="button"
       onClick={onClick}
+      aria-pressed={active}
       className={cx(
         'h-10 shrink-0 rounded-[8px] px-4 text-sm font-black transition',
         active
@@ -2263,7 +2291,7 @@ function PlaylistCard({
 
   if (viewMode === 'list') {
     return (
-      <div className="overflow-hidden rounded-[14px] border border-border-secondary bg-background-tertiary">
+      <div className="signature-library-list-record" data-library-playlist={playlist._id}>
         <div
           role="button"
           tabIndex={0}
@@ -2282,7 +2310,7 @@ function PlaylistCard({
               <SynauraImage src={cover} alt={playlist.name} className="h-full w-full object-cover" />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="truncate text-[15px] font-black text-[var(--syn-text-primary)]">{playlist.name}</div>
+              <div className="signature-library-record-title">{playlist.name}</div>
               <div className="mt-1 truncate text-xs text-foreground-secondary">
                 {count} piste{count > 1 ? 's' : ''} • {playlist.isPublic ? 'Public' : 'Privé'}
               </div>
@@ -2294,7 +2322,7 @@ function PlaylistCard({
                   e.stopPropagation();
                   onPlay();
                 }}
-                className="grid h-10 w-10 place-items-center rounded-full bg-[#171313] text-[#fffaf2] transition hover:scale-[1.03]"
+                className="chambre-library-play grid place-items-center rounded-full transition"
                 aria-label="Lire"
               >
                 <Play className="h-4 w-4" />
@@ -2318,7 +2346,7 @@ function PlaylistCard({
   }
 
   return (
-    <div className="group overflow-hidden rounded-[14px] border border-border-secondary bg-background-tertiary">
+    <div className="signature-library-record group" data-library-playlist={playlist._id}>
       <div
         role="button"
         tabIndex={0}
@@ -2331,14 +2359,15 @@ function PlaylistCard({
           }
         }}
       >
-        <div className="aspect-square bg-background-fog-thin border-b border-border-secondary/60 overflow-hidden">
+        <div className="experience-collection-sleeve-label" aria-hidden="true"><span>COLLECTION</span>{playlist.isPublic ? <Globe size={12} /> : <Lock size={12} />}</div>
+        <div className="signature-library-record-cover aspect-square overflow-hidden">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <SynauraImage src={cover} alt={playlist.name} className="h-full w-full object-cover" />
         </div>
-        <div className="p-3.5">
+        <div className="signature-library-record-info">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <div className="truncate text-[15px] font-black text-[var(--syn-text-primary)]">{playlist.name}</div>
+              <div className="signature-library-record-title">{playlist.name}</div>
               <div className="mt-1 text-xs text-foreground-secondary truncate">
                 {count} piste{count > 1 ? 's' : ''} • {playlist.isPublic ? 'Public' : 'Privé'}
               </div>
@@ -2349,7 +2378,7 @@ function PlaylistCard({
                 e.stopPropagation();
                 onPlay();
               }}
-              className="grid h-10 w-10 place-items-center rounded-full bg-[#171313] text-[#fffaf2] transition opacity-0 group-hover:opacity-100 hover:scale-[1.03]"
+              className="chambre-library-play grid place-items-center rounded-full transition"
               aria-label="Lire"
             >
               <Play className="h-4 w-4" />
@@ -2388,10 +2417,13 @@ function TrackRow({
   return (
     <div
       className={cx(
-        'flex items-center gap-3 rounded-[10px] px-3 py-2.5 transition',
+        'signature-library-track flex items-center gap-3 rounded-[10px] px-3 py-2.5 transition',
         isActive ? 'bg-[#171313] text-[#fffaf2]' : 'hover:bg-[var(--syn-soft)]',
         disabled && 'opacity-60',
       )}
+      data-track-active={isActive}
+      data-track-disabled={disabled}
+      data-library-track={track._id}
     >
       <div
         className={cx(
@@ -2416,7 +2448,7 @@ function TrackRow({
 
       <div
         className={cx(
-          'h-11 w-11 shrink-0 overflow-hidden rounded-[9px] border',
+          'signature-library-track-cover h-11 w-11 shrink-0 overflow-hidden rounded-[9px] border',
           isActive ? 'border-white/10 bg-white/10' : 'border-border-secondary bg-background-tertiary',
         )}
       >

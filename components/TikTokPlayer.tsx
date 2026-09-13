@@ -1,5 +1,8 @@
 'use client';
 
+import '@/components/v2/music-v2.css';
+import SynauraLogo from '@/components/brand/SynauraLogo';
+
 import React, {
   useCallback,
   useEffect,
@@ -30,6 +33,7 @@ import { useMomentComments, type MomentComment } from '@/hooks/useMomentComments
 import { useMomentReactions, type MomentReactionCluster } from '@/hooks/useMomentReactions';
 import { type MomentReactionType } from '@/lib/momentReactions';
 import { sendTrackEvents } from '@/lib/analyticsClient';
+import { alignExpandedPlayerQueue } from '@/lib/playerOpening';
 import { getCdnUrl } from '@/lib/cdn';
 import { applyCdnToTracks } from '@/lib/cdnHelpers';
 import Waveform from '@/components/player/Waveform';
@@ -356,7 +360,9 @@ function AuraVisualLayer({
   const animated = visualEnabled && playing && active && !reduceMotion;
 
   return (
-    <div className={`pointer-events-none absolute inset-0 overflow-hidden bg-[#100d0d] ${className}`} aria-hidden="true">
+    <div className={`chambre-aura-stage pointer-events-none absolute inset-0 overflow-hidden ${className}`} data-aura-enabled={visualEnabled} data-aura-moving={animated} aria-hidden="true">
+      <div className="chambre-aura-membrane" />
+      <div className="chambre-aura-horizon" />
       {visualEnabled && shouldRenderVideo && visual ? (
         <MusicVideoLayer
           src={visual}
@@ -364,25 +370,25 @@ function AuraVisualLayer({
           title={`${track.title} aura visual`}
           active={active}
           playing={playing}
-          className="absolute inset-0 h-full w-full scale-110 object-cover opacity-34 blur-2xl saturate-[1.08]"
+          className="chambre-aura-source absolute inset-0 h-full w-full object-cover"
         />
       ) : visualEnabled && (cover || poster) ? (
         <img
           src={poster || cover || ''}
           alt=""
-          className={`absolute inset-0 h-full w-full scale-125 object-cover opacity-44 blur-3xl saturate-[1.12] ${animated ? 'synaura-aura-drift' : ''}`}
+          className={`chambre-aura-source absolute inset-0 h-full w-full object-cover ${animated ? 'synaura-aura-drift' : ''}`}
         />
       ) : null}
 
       <div
-        className={`absolute inset-[-10%] opacity-28 mix-blend-screen ${animated ? 'synaura-aura-float-a' : ''}`}
+        className={`chambre-aura-light chambre-aura-light-a absolute inset-[-10%] ${animated ? 'synaura-aura-float-a' : ''}`}
         style={{ background: `linear-gradient(120deg, ${colors[0]} 0%, transparent 46%, ${colors[1] || '#4A9EAA'} 100%)` }}
       />
       <div
-        className={`absolute inset-[-8%] opacity-20 mix-blend-screen ${animated ? 'synaura-aura-float-b' : ''}`}
+        className={`chambre-aura-light chambre-aura-light-b absolute inset-[-8%] ${animated ? 'synaura-aura-float-b' : ''}`}
         style={{ background: `linear-gradient(240deg, transparent 0%, ${colors[2] || '#D96D63'} 52%, transparent 100%)` }}
       />
-      <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(12,10,10,0.60),rgba(12,10,10,0.18)_38%,rgba(12,10,10,0.84))]" />
+      <div className="chambre-aura-shade absolute inset-0" />
     </div>
   );
 }
@@ -1088,6 +1094,7 @@ const ActionBtn = memo(function ActionBtn({
     <button
       onClick={onClick}
       disabled={disabled}
+      aria-label={Icon === Heart ? (active ? 'Retirer des favoris' : 'Aimer ce morceau') : Icon === MessageCircle ? 'Commentaires du morceau' : Icon === Share2 ? 'Partager le morceau' : Icon === Download ? 'Télécharger le morceau' : Icon === Lock ? 'Téléchargement indisponible' : Icon === ListPlus ? 'Ajouter à la file' : String(label)}
       className={`group/btn relative flex flex-col items-center gap-1.5 transition-all duration-200 active:scale-90 ${disabled ? 'opacity-30 pointer-events-none' : ''}`}
     >
       <div
@@ -1572,7 +1579,7 @@ const MinimalTrackSlide = memo(function MinimalTrackSlide(props: TrackSlideProps
     <div
       ref={itemRef}
       data-index={index}
-      className="relative h-[100dvh] w-full snap-start overflow-hidden px-4 pb-[max(env(safe-area-inset-bottom,16px),16px)] pt-[112px] md:px-8"
+      className="v2-expanded-slide relative h-[100dvh] w-full snap-start overflow-hidden"
       style={{
         scrollSnapAlign: 'start',
         scrollSnapStop: 'always',
@@ -1582,14 +1589,17 @@ const MinimalTrackSlide = memo(function MinimalTrackSlide(props: TrackSlideProps
     >
       <AuraVisualLayer track={t} active={isActive} playing={isPlaying} enabled={auraVisualsEnabled} />
 
-      <div className="relative z-10 mx-auto flex h-full max-w-6xl items-center justify-center">
-        <div className="grid w-full items-end gap-5 md:grid-cols-[minmax(0,1fr)_82px]">
+      <div className="v2-expanded-stage">
+        <p className="chambre-player-room-label" aria-hidden="true">SYNAURA <span>LA CHAMBRE D’ÉCOUTE</span></p>
+        <div className="v2-expanded-grid">
           <div className="min-w-0">
             <button
               type="button"
               onClick={e => { e.stopPropagation(); if (isActive) onCoverTap(t); }}
               onDoubleClick={e => { e.stopPropagation(); if (isActive && !isRadio) onDoubleTapLike(); }}
-              className={`group/cover relative mx-auto block overflow-hidden rounded-[2rem] border border-white/[0.12] bg-white/[0.06] shadow-[0_32px_110px_rgba(0,0,0,0.44)] ${musicVideo ? 'aspect-[9/16] h-[min(72dvh,720px)] max-h-[720px] w-auto max-w-[min(88vw,420px)]' : 'aspect-square w-[min(78vw,520px)] md:w-[min(54vh,520px)]'}`}
+              className="v2-expanded-artwork group/cover"
+              data-video={Boolean(musicVideo)}
+              aria-label={`${isPlaying ? 'Mettre en pause' : 'Écouter'} ${displayTitle}`}
             >
               {musicVideo ? (
                 <MusicVideoLayer
@@ -1642,7 +1652,7 @@ const MinimalTrackSlide = memo(function MinimalTrackSlide(props: TrackSlideProps
               </div>
             </button>
 
-            <div className="mx-auto mt-4 w-full max-w-[760px] rounded-[1.6rem] border border-white/[0.1] bg-black/34 p-4 shadow-[0_22px_80px_rgba(0,0,0,0.32)] backdrop-blur-2xl">
+            <div className="v2-expanded-copy">
               <div className="flex items-start gap-3">
                 <div className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-full bg-white/10 ring-1 ring-white/12">
                   {isRadio && t.coverUrl ? (
@@ -1678,7 +1688,7 @@ const MinimalTrackSlide = memo(function MinimalTrackSlide(props: TrackSlideProps
                       </a>
                     ) : null}
                   </div>
-                  <h2 className="mt-2 line-clamp-2 text-2xl font-black leading-tight text-white md:text-3xl">{displayTitle}</h2>
+                  <h2 className="v2-heading">{displayTitle}</h2>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <p className="text-sm font-bold text-white/66">{displayArtist}</p>
                     {t.artist?._id && t.artist?.username && !isRadio ? (
@@ -1748,7 +1758,7 @@ const MinimalTrackSlide = memo(function MinimalTrackSlide(props: TrackSlideProps
             </div>
           </div>
 
-          <aside className="mx-auto flex flex-row items-center justify-center gap-3 md:flex-col md:justify-end">
+          <aside className="v2-expanded-actions" aria-label="Actions du morceau">
             <ActionBtn
               icon={Heart}
               label={likesCount}
@@ -1786,7 +1796,8 @@ const MinimalTrackSlide = memo(function MinimalTrackSlide(props: TrackSlideProps
             <button
               type="button"
               onClick={e => { e.stopPropagation(); onPlayPause(t); }}
-              className="grid h-12 w-12 place-items-center rounded-full bg-[#fffaf2] text-[#171313] shadow-[0_16px_40px_rgba(0,0,0,0.28)] transition active:scale-95"
+              className="v2-expanded-play grid h-12 w-12 place-items-center"
+              aria-label={isPlaying ? 'Mettre en pause' : 'Écouter'}
             >
               {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="ml-0.5 h-5 w-5 fill-current" />}
             </button>
@@ -1816,7 +1827,7 @@ const MinimalTrackSlide = memo(function MinimalTrackSlide(props: TrackSlideProps
           >
             <div className="flex items-center justify-between gap-3">
               <p className="text-sm font-black text-white">Paroles</p>
-              <button type="button" onClick={onToggleLyrics} className="grid h-9 w-9 place-items-center rounded-full bg-white/8 text-white/62">
+              <button type="button" onClick={onToggleLyrics} aria-label="Fermer les paroles" className="grid h-9 w-9 place-items-center rounded-full bg-white/8 text-white/62">
                 <X className="h-4 w-4" />
               </button>
             </div>
@@ -1984,7 +1995,7 @@ function PlayerCommentsDrawer({
 
   return (
     <AnimatePresence>
-      <motion.div key="comments-drawer" className="fixed inset-0 z-[135]">
+      <motion.div key="comments-drawer" className="v2-expanded-dialog fixed inset-0 z-[135]">
         <motion.button
           type="button"
           aria-label="Fermer les commentaires"
@@ -2016,6 +2027,7 @@ function PlayerCommentsDrawer({
                   type="button"
                   onClick={onClose}
                   className="grid h-10 w-10 place-items-center rounded-full border border-white/10 bg-white/8 text-white/68 transition hover:bg-white/12 hover:text-white"
+                  aria-label="Réduire les commentaires"
                 >
                   <ChevronDown className="h-5 w-5" />
                 </button>
@@ -2177,7 +2189,7 @@ function PlayerShareDrawer({
 
   return (
     <AnimatePresence>
-      <motion.div key="share-drawer" className="fixed inset-0 z-[134]">
+      <motion.div key="share-drawer" className="v2-expanded-dialog fixed inset-0 z-[134]">
         <motion.button
           type="button"
           aria-label="Fermer le partage"
@@ -2480,47 +2492,13 @@ function FeedScrollGuide({
 
 const LoadingScreen = memo(function LoadingScreen() {
   return (
-    <div className="fixed inset-0 z-[100] grid place-items-center overflow-hidden bg-[#fff3e4] text-[#171313]">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_15%,rgba(255,111,97,0.28),transparent_30%),radial-gradient(circle_at_82%_22%,rgba(124,92,255,0.16),transparent_32%),radial-gradient(circle_at_50%_95%,rgba(0,194,203,0.14),transparent_34%)]" />
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(23,19,19,0.045)_1px,transparent_1px),linear-gradient(90deg,rgba(23,19,19,0.04)_1px,transparent_1px)] bg-[size:38px_38px] opacity-55" />
-
-      <motion.div
-        initial={{ opacity: 0, y: 14, scale: 0.98 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.32, ease: 'easeOut' }}
-        className="relative flex w-[min(88vw,360px)] flex-col items-center rounded-[2rem] border border-black/[0.08] bg-[#fffaf2]/88 px-7 py-8 text-center shadow-[0_28px_90px_rgba(44,33,19,0.16)] backdrop-blur-2xl"
-      >
-        <motion.div
-          animate={{ y: [0, -4, 0], rotate: [0, -1.5, 1.5, 0] }}
-          transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
-          className="relative grid h-24 w-24 place-items-center rounded-[1.8rem] bg-white shadow-[0_18px_54px_rgba(44,33,19,0.14)]"
-        >
-          <div className="absolute -inset-4 rounded-[2.2rem] bg-[radial-gradient(circle,rgba(255,111,97,0.22),transparent_62%)] blur-xl" />
-          <img
-            src="/brand/2026/synaura-symbol-2026.png"
-            alt="Synaura"
-            className="relative h-16 w-16 object-contain"
-            draggable={false}
-          />
-        </motion.div>
-
-        <div className="mt-6 flex h-9 items-end gap-1.5">
-          {[0, 1, 2, 3, 4].map((bar) => (
-            <motion.span
-              key={bar}
-              animate={{ height: ['34%', '100%', '48%', '82%', '34%'] }}
-              transition={{ duration: 0.9, repeat: Infinity, delay: bar * 0.09, ease: 'easeInOut' }}
-              className="w-2 rounded-full bg-[#171313]"
-            />
-          ))}
-        </div>
-
-        <p className="mt-5 text-[11px] font-black uppercase tracking-[0.24em] text-black/38">TikTok player</p>
-        <p className="mt-2 text-xl font-black tracking-tight">Préparation du feed</p>
-        <p className="mt-2 text-sm font-semibold leading-6 text-black/48">
-          On cale les sons, les transitions et la file pour un scroll propre.
-        </p>
-      </motion.div>
+    <div className="v2-expanded-loading fixed inset-0 z-[100] grid place-items-center" role="status">
+      <div>
+        <SynauraLogo variant="wordmark" size={48} />
+        <p className="v2-kicker">Lecture Synaura</p>
+        <p className="v2-heading">Un instant pour la musique.</p>
+        <p className="v2-intro">Votre sélection est en cours de préparation.</p>
+      </div>
     </div>
   );
 });
@@ -2787,6 +2765,7 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
     if (!isOpen || feedLoadedRef.current === loadKey) return;
     feedLoadedRef.current = loadKey;
     let mounted = true;
+    let settled = false;
     const requestId = ++loadRequestRef.current;
     didBootRef.current = false;
     bootingRef.current = true;
@@ -2819,14 +2798,9 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
         }
         const startIndex = 0;
 
-        setTracks(merged as any);
+        alignExpandedPlayerQueue(audioState, merged as any, startIndex, { setQueueOnly, setQueueAndPlay });
 
-        const curr = audioState.tracks?.[audioState.currentTrackIndex];
-        const alreadyPlaying = Boolean(audioState.isPlaying && trackId(curr) === trackId(merged[startIndex]));
-        if (alreadyPlaying) setQueueOnly(merged as any, startIndex);
-        else setQueueAndPlay(merged as any, startIndex);
-        setCurrentTrackIndex(startIndex);
-
+        settled = true;
         dispatch({
           type: 'LOAD_SUCCESS',
           tracks: merged,
@@ -2847,13 +2821,21 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
         });
       } catch {
         if (mounted && requestId === loadRequestRef.current) {
+          settled = true;
           dispatch({ type: 'LOAD_FAIL' });
           bootingRef.current = false;
           suppressAutoplayRef.current = false;
         }
       }
     })();
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+      // StrictMode replays setup after cleanup. Only a completed request owns
+      // this cache key; an abandoned request must allow the next setup to load.
+      if (!settled && requestId === loadRequestRef.current && feedLoadedRef.current === loadKey) {
+        feedLoadedRef.current = '';
+      }
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, feedMode, feedSeedGenre, initialTrackId]);
 
@@ -3013,14 +2995,15 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
       <AnimatePresence>
         <motion.div
           key="tiktok-root"
-          className="fixed inset-0 z-[100] overflow-hidden bg-[#130d11] text-white select-none"
+          className="v2-expanded-player fixed inset-0 z-[100] overflow-hidden text-white select-none"
+          data-chambre-music="expanded-player"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
         >
           {/* Background blur */}
-          <div className="absolute inset-0 -z-10 overflow-hidden">
+          <div className="chambre-player-base absolute inset-0 -z-10 overflow-hidden" aria-hidden="true">
             <AnimatePresence mode="wait">
               <motion.div
                 key={bgUrl}
@@ -3047,12 +3030,13 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
           </div>
 
           {/* Header */}
-          <header className="absolute left-0 right-0 top-0 z-[120] px-4 pt-[max(env(safe-area-inset-top,12px),12px)]">
+          <header className="v2-expanded-header absolute left-0 right-0 top-0 z-[120] px-4 pt-[max(env(safe-area-inset-top,12px),12px)]">
             <div className="mx-auto grid max-w-4xl grid-cols-[44px_minmax(0,1fr)_44px] items-center gap-3">
               <button
                 onClick={closeHandler}
                 className="grid h-11 w-11 place-items-center rounded-full border border-white/12 bg-black/32 backdrop-blur-xl transition-all hover:bg-black/48 active:scale-90"
                 title="Fermer"
+                aria-label="Réduire le lecteur"
               >
                 <ChevronDown size={22} className="text-white/90" />
               </button>
@@ -3065,6 +3049,7 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
                       key={mode}
                       type="button"
                       onClick={() => handleFeedModeChange(mode)}
+                      aria-pressed={active}
                       className={`h-9 flex-1 rounded-full px-2 text-xs font-black transition ${
                         active
                           ? 'bg-white text-[#171313] shadow-[0_10px_30px_rgba(0,0,0,0.2)]'
@@ -3093,8 +3078,8 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
           <style>{`
             .synaura-tiktok-scroll::-webkit-scrollbar { display: none; }
             @keyframes synauraAuraDrift {
-              0%, 100% { transform: scale(1.18) translate3d(0,0,0); opacity: .42; }
-              50% { transform: scale(1.26) translate3d(-1.5%,1.2%,0); opacity: .52; }
+              0%, 100% { transform: scale(1.18) translate3d(0,0,0); }
+              50% { transform: scale(1.26) translate3d(-1.5%,1.2%,0); }
             }
             @keyframes synauraAuraFloatA {
               0%, 100% { transform: translate3d(0,0,0) scale(1); }

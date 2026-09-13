@@ -3,7 +3,8 @@ import { getApiSession } from '@/lib/getApiSession';
 import { dbAdmin } from '@/lib/database';
 import { getEntitlements } from '@/lib/entitlements';
 import { CREDITS_PER_GENERATION } from '@/lib/credits';
-import { uploadAndCoverAudio, SunoUploadCoverRequest } from '@/lib/suno';
+import { uploadAndCoverAudio, SunoUploadCoverRequest, SunoProviderRejectedError } from '@/lib/suno';
+import { DEFAULT_SUNO_MODEL, normalizeGenerationModel } from '@/lib/sunoModels';
 import { validateSunoGenerationInput, validateSunoTuningInput, validateUploadCoverExtra } from '@/lib/sunoValidation';
 import { buildSunoCallbackUrl } from '@/lib/sunoWebhook';
 import { enforceRequestRateLimit, readLimitedJson, rejectUntrustedMutationOrigin } from '@/lib/security/requestSecurity';
@@ -27,39 +28,48 @@ export async function POST(req: NextRequest) {
   if (!process.env.SUNO_API_KEY) return NextResponse.json({ error: 'Service IA indisponible' }, { status: 503 });
 
   let debited = false;
+  let refundAttempted = false;
   const refundCredits = async (userId: string) => {
-    if (!debited) return;
+    if (!debited || refundAttempted) return;
+    refundAttempted = true;
     try {
-      await (dbAdmin as any).rpc('ai_add_credits', {
+      const { error } = await (dbAdmin as any).rpc('ai_add_credits', {
         p_user_id: userId, p_amount: CREDITS_PER_GENERATION,
         p_source: 'refund', p_description: 'Remboursement échec upload-cover',
       });
-    } catch {}
+      if (error) console.error('[suno/upload-cover] remboursement impossible');
+    } catch {
+      console.error('[suno/upload-cover] remboursement impossible');
+    }
   };
 
   try {
     const parsed = await readLimitedJson<Body>(req, 64 * 1024);
     if (!parsed.ok) return parsed.response;
     const body = parsed.value;
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+      return NextResponse.json({ error: 'Paramètres de génération invalides' }, { status: 400 });
+    }
 
     // Entitlements: vérif modèle autorisé
     const { data: profile } = await dbAdmin.from('profiles').select('plan').eq('id', session.user.id).maybeSingle();
     const plan = (profile?.plan || 'free') as any;
     const entitlements = getEntitlements(plan);
-    const allowedModels = entitlements.ai.availableModels || ["V4_5"];
-    const requestedModel = body.model || "V4_5";
-    const effectiveModel = allowedModels.includes(requestedModel) ? requestedModel : (allowedModels.includes("V4_5") ? "V4_5" : allowedModels[0]);
+    const allowedModels = entitlements.ai.availableModels || [DEFAULT_SUNO_MODEL];
+    const requestedModel = typeof body.model === 'string' && body.model.trim() ? body.model.trim() : DEFAULT_SUNO_MODEL;
+    const effectiveModel = normalizeGenerationModel(requestedModel, allowedModels);
 
     const tuningValidated = validateSunoTuningInput({
       styleWeight: body.styleWeight,
       weirdnessConstraint: body.weirdnessConstraint,
       audioWeight: body.audioWeight,
       vocalGender: body.vocalGender as any,
+      negativeTags: body.negativeTags,
     });
     if (!tuningValidated.ok) {
       return NextResponse.json({ error: tuningValidated.error }, { status: 400 });
     }
-    if (!body.uploadUrl) {
+    if (typeof body.uploadUrl !== 'string' || !body.uploadUrl) {
       return NextResponse.json({ error: 'uploadUrl requis' }, { status: 400 });
     }
     try {
@@ -70,6 +80,27 @@ export async function POST(req: NextRequest) {
     } catch {
       return NextResponse.json({ error: 'uploadUrl invalide' }, { status: 400 });
     }
+
+    const validated = validateSunoGenerationInput({
+      customMode: body.customMode,
+      instrumental: body.instrumental,
+      model: effectiveModel,
+      prompt: body.prompt,
+      style: body.style,
+      title: body.title,
+      duration: body.duration,
+      hasUploadUrl: true,
+    });
+    if (!validated.ok) return NextResponse.json({ error: validated.error }, { status: 400 });
+    const uploadValidated = validateUploadCoverExtra(effectiveModel, body.sourceDurationSec);
+    if (!uploadValidated.ok) return NextResponse.json({ error: uploadValidated.error }, { status: 400 });
+
+    // Callback configuration must be valid before spending credits.
+    const payload: Body = {
+      ...body,
+      model: effectiveModel,
+      callBackUrl: buildSunoCallbackUrl(req, '/api/suno/callback'),
+    };
 
     // Crédits: vérifier et débiter (après validation des paramètres)
     const { data: balanceRow } = await dbAdmin
@@ -102,38 +133,11 @@ export async function POST(req: NextRequest) {
     }
     debited = true;
 
-    // Validation alignée docs Suno
-    const validated = validateSunoGenerationInput({
-      customMode: !!body.customMode,
-      instrumental: !!body.instrumental,
-      model: effectiveModel,
-      prompt: body.prompt,
-      style: body.style,
-      title: body.title,
-      hasUploadUrl: true,
-    });
-    if (!validated.ok) {
-      await refundCredits(session.user.id);
-      return NextResponse.json({ error: validated.error }, { status: 400 });
-    }
-    const uploadValidated = validateUploadCoverExtra(effectiveModel, body.sourceDurationSec);
-    if (!uploadValidated.ok) {
-      await refundCredits(session.user.id);
-      return NextResponse.json({ error: uploadValidated.error }, { status: 400 });
-    }
-
     // Appel Suno upload-cover
     // Utiliser directement l'URL média publique comme uploadUrl, conformément à la doc
-    const payload: Body = {
-      ...body,
-      model: effectiveModel,
-      callBackUrl: buildSunoCallbackUrl(req, '/api/suno/callback'),
-    };
-
     const sunoRes = await uploadAndCoverAudio(payload);
     const taskId = sunoRes?.data?.taskId;
     if (!taskId) {
-      await refundCredits(session.user.id);
       return NextResponse.json(
         { error: 'Reponse du service IA invalide' },
         { status: 502 }
@@ -155,6 +159,7 @@ export async function POST(req: NextRequest) {
           style: payload.customMode ? (payload.style || '') : '',
           instrumental: payload.instrumental,
           customMode: payload.customMode,
+          ...(payload.duration != null ? { duration: payload.duration } : {}),
           uploadUrl: payload.uploadUrl
         },
         created_at: new Date().toISOString()
@@ -176,7 +181,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       taskId,
       code: sunoRes?.code,
-      msg: sunoRes?.msg,
       model: effectiveModel,
       requestedModel,
       modelAdjusted: requestedModel !== effectiveModel,
@@ -186,8 +190,9 @@ export async function POST(req: NextRequest) {
       }
     });
 
-  } catch {
-    await refundCredits(session.user.id);
+  } catch (error) {
+    if (error instanceof SunoProviderRejectedError) await refundCredits(session.user.id);
+    // An ambiguous timeout/acceptance needs reconciliation, not a blind refund.
     console.error('[suno/upload-cover] generation impossible');
     return NextResponse.json({ error: 'Service IA temporairement indisponible' }, { status: 502 });
   }

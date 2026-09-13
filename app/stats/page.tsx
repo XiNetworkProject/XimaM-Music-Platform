@@ -1,6 +1,7 @@
 ﻿'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { SynauraImage } from '@/components/ui/SynauraImage';
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import {
@@ -197,7 +198,7 @@ function MetricCard({
     mint: 'bg-[#0f766e] text-white',
   };
   return (
-    <div className={`relative overflow-hidden rounded-[1.4rem] p-4 shadow-[0_16px_44px_rgba(30,25,20,0.12)] ${tones[tone]}`}>
+    <div className={`v2-stats-metric relative overflow-hidden p-4 ${tones[tone]}`}>
       <div className="absolute -right-8 -top-10 h-28 w-28 rounded-full bg-white/14 blur-2xl" />
       <div className="relative flex items-start justify-between gap-3">
         <div>
@@ -261,27 +262,27 @@ function MiniArea({
         <svg viewBox="0 0 520 170" className="h-[210px] w-full">
           <defs>
             <linearGradient id="statsArea" x1="0" x2="0" y1="0" y2="1">
-              <stop offset="0%" stopColor="#ff6f61" stopOpacity="0.34" />
-              <stop offset="100%" stopColor="#7c5cff" stopOpacity="0.02" />
+              <stop offset="0%" stopColor="var(--v2-accent)" stopOpacity="0.34" />
+              <stop offset="100%" stopColor="var(--v2-accent-fill)" stopOpacity="0.02" />
             </linearGradient>
           </defs>
           <path d={`${path} L 520 170 L 0 170 Z`} fill="url(#statsArea)" />
           {comparePath ? (
-            <path d={comparePath} fill="none" stroke="#7c5cff" strokeDasharray="8 8" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+            <path d={comparePath} fill="none" stroke="var(--v2-muted)" strokeDasharray="8 8" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
           ) : null}
-          <path d={path} fill="none" stroke="#171313" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
+          <path d={path} fill="none" stroke="var(--v2-accent)" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" />
           {values.map((value, index) => {
             if (index % Math.max(1, Math.ceil(values.length / 9)) !== 0 && index !== values.length - 1) return null;
             const max = Math.max(1, ...values);
             const x = (index / Math.max(1, values.length - 1)) * 520;
             const y = 170 - 18 - (value / max) * (170 - 34);
-            return <circle key={index} cx={x} cy={y} r="4" fill="#ff6f61" stroke="#fffaf2" strokeWidth="2" />;
+            return <circle key={index} cx={x} cy={y} r="4" fill="var(--v2-accent)" stroke="var(--v2-bg)" strokeWidth="2" />;
           })}
         </svg>
         {comparePath ? (
           <div className="mt-2 flex items-center gap-2 text-xs font-black text-black/44">
-            <span className="h-1 w-8 rounded-full bg-[#171313]" /> Sélection
-            <span className="ml-2 h-1 w-8 rounded-full border-t-2 border-dashed border-[#7c5cff]" /> Comparaison
+            <span className="h-1 w-8 rounded-full bg-[var(--v2-accent)]" /> Sélection
+            <span className="ml-2 h-1 w-8 rounded-full border-t-2 border-dashed border-[var(--v2-muted)]" /> Comparaison
       </div>
         ) : null}
     </div>
@@ -311,7 +312,7 @@ function TypeBreakdown({ data }: { data: Record<string, number> }) {
                 <span>{value}</span>
               </div>
               <div className="h-2 overflow-hidden rounded-full bg-black/[0.06]">
-                <div className="h-full rounded-full bg-[#171313]" style={{ width: `${width}%` }} />
+                <div className="chambre-metric-bar h-full rounded-full bg-[var(--v2-accent-fill)]" style={{ width: `${width}%` }} />
       </div>
     </div>
           );
@@ -327,7 +328,7 @@ function DataQualityNotice({ overview, series }: { overview: OverviewData | null
   return (
     <div className={`rounded-[1.2rem] border p-4 ${hasRealRetention ? 'border-emerald-700/10 bg-emerald-500/10' : 'border-amber-500/20 bg-amber-400/12'}`}>
       <div className="flex items-start gap-3">
-        <div className={`grid h-9 w-9 shrink-0 place-items-center rounded-full ${hasRealRetention ? 'bg-emerald-500/14 text-emerald-700' : 'bg-amber-500/18 text-amber-700'}`}>
+        <div className={`grid h-9 w-9 shrink-0 place-items-center rounded-full ${hasRealRetention ? 'bg-emerald-500/14 text-[var(--syn-success)]' : 'bg-amber-500/18 text-[var(--syn-warning)]'}`}>
           {hasRealRetention ? <CheckCircle className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
           </div>
         <div>
@@ -498,7 +499,7 @@ function DailyBreakdown({ trackSeries, postSeries, metric }: { trackSeries: Trac
               <span>{fmt(track.plays)}</span>
               <span>{fmt(post.posts)}</span>
               <span>{fmt((track.likes || 0) + (post.likes || 0))}</span>
-              <span className={track.dataQuality === 'real' ? 'text-emerald-700' : 'text-black/28'}>
+              <span className={track.dataQuality === 'real' ? 'text-[var(--syn-success)]' : 'text-black/28'}>
                 {track.retention == null ? '—' : `${fmt(track.retention)}%`}
               </span>
               <span className="sr-only">Métrique active: {formatMetric(metric, active)}</span>
@@ -573,7 +574,7 @@ function AudienceBreakdown({ audience }: { audience: any }) {
               <span>{fmt(row.value)}%</span>
                           </div>
             <div className="h-2 overflow-hidden rounded-full bg-black/[0.06]">
-              <div className="h-full rounded-full bg-[#7c5cff]" style={{ width: `${Math.max(4, row.value)}%` }} />
+              <div className="chambre-metric-bar h-full rounded-full bg-[var(--v2-accent-fill)]" style={{ width: `${Math.max(4, row.value)}%` }} />
                       </div>
                                 </div>
         )) : <p className="text-sm font-semibold text-black/42">Pas assez de données audience.</p>}
@@ -601,7 +602,7 @@ function HeatmapPanel({ matrix }: { matrix: number[][] }) {
                   key={hour}
                   title={`${days[dayIndex]} ${hour}h: ${value}`}
                   className="h-3 rounded-[3px]"
-                  style={{ background: value ? `rgba(255,111,97,${0.16 + (value / max) * 0.74})` : 'rgba(0,0,0,0.05)' }}
+                  style={{ background: value ? `color-mix(in srgb, var(--v2-accent) ${16 + (value / max) * 74}%, var(--v2-bg))` : 'var(--v2-surface)' }}
                 />
                     ))}
                   </div>
@@ -645,7 +646,7 @@ function FunnelPanel({ detail, selectedTrack }: { detail: TrackDetail | null; se
                 <span>{fmt(step.value)}{step.suffix}</span>
                 </div>
               <div className="h-2 overflow-hidden rounded-full bg-black/[0.06]">
-                <div className="h-full rounded-full bg-[#171313]" style={{ width: `${Math.max(3, Math.min(100, (step.value / step.max) * 100))}%` }} />
+                <div className="chambre-metric-bar h-full rounded-full bg-[var(--v2-accent-fill)]" style={{ width: `${Math.max(3, Math.min(100, (step.value / step.max) * 100))}%` }} />
                   </div>
               </div>
           ))}
@@ -672,11 +673,11 @@ function TrackRow({ track, maxPlays }: { track: TrackStat; maxPlays: number }) {
   return (
     <Link href={`/track/${track.id}`} className="group flex items-center gap-3 rounded-[1.2rem] border border-black/[0.06] bg-white/62 p-3 transition hover:-translate-y-0.5 hover:bg-white">
       <img
-        src={track.coverUrl || '/brand/2026/synaura-symbol-2026-white.png'}
+        src={track.coverUrl || '/default-cover.svg'}
         alt=""
         className="h-14 w-14 shrink-0 rounded-[1rem] object-cover"
         onError={(event) => {
-          event.currentTarget.src = '/brand/2026/synaura-symbol-2026-white.png';
+          event.currentTarget.src = '/default-cover.svg';
         }}
       />
       <div className="min-w-0 flex-1">
@@ -685,7 +686,7 @@ function TrackRow({ track, maxPlays }: { track: TrackStat; maxPlays: number }) {
           {track.isAI ? <span className="rounded-full bg-[#7c5cff]/12 px-2 py-0.5 text-[10px] font-black text-[#7c5cff]">IA</span> : null}
                     </div>
         <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-black/[0.06]">
-          <div className="h-full rounded-full bg-[#ff6f61]" style={{ width: `${width}%` }} />
+          <div className="chambre-metric-bar h-full rounded-full bg-[var(--v2-accent-fill)]" style={{ width: `${width}%` }} />
                 </div>
               </div>
       <div className="hidden text-right sm:block">
@@ -709,7 +710,7 @@ function PostRow({ post }: { post: PostStat }) {
           </p>
           {post.content && post.trackTitle ? <p className="mt-1 line-clamp-1 text-xs font-semibold text-black/42">{post.content}</p> : null}
                     </div>
-        {post.imageUrl ? <img src={post.imageUrl} alt="" className="h-14 w-14 rounded-[1rem] object-cover" /> : null}
+        {post.imageUrl ? <SynauraImage src={post.imageUrl} alt="" className="h-14 w-14 rounded-[1rem] object-cover" /> : null}
                     </div>
       <div className="mt-4 flex items-center justify-between text-xs font-black text-black/42">
         <span>{safeDate(post.createdAt)}</span>
@@ -849,10 +850,10 @@ export default function StatsPage() {
     <SynauraAppShell>
       <SynauraTopBar primaryHref="/upload" primaryLabel="Publier" secondaryHref="/studio" secondaryLabel="Studio" />
 
-      <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+      <div className="v2-stats-intro mb-7">
         <div>
-          <p className="text-xs font-black uppercase tracking-[0.2em] text-black/36">Tableau de bord</p>
-          <h1 className="mt-2 text-4xl font-black tracking-tight sm:text-5xl">Stats Synaura</h1>
+          <p className="v2-kicker">Statistiques · Ton parcours</p>
+          <h1 className="mt-3">Mesure <span className="chambre-type-accent">l’écho.</span></h1>
           <p className="mt-2 max-w-2xl text-sm font-semibold text-black/48">
             Sons, posts, audience et engagement au même endroit.
           </p>
@@ -864,6 +865,7 @@ export default function StatsPage() {
               key={item.key}
               type="button"
               onClick={() => setRange(item.key)}
+              aria-pressed={range === item.key}
               className={`h-10 rounded-full px-4 text-xs font-black transition ${
                 range === item.key ? 'bg-[#171313] text-white' : 'bg-[#fffaf2]/88 text-black/52 hover:bg-white'
               }`}
@@ -874,7 +876,7 @@ export default function StatsPage() {
       </div>
         </div>
 
-      <SynauraInkPanel className="mb-4 p-5 sm:p-6">
+      <SynauraInkPanel className="v2-stats-summary mb-6 py-5">
         <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr] lg:items-end">
           <div>
             <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-xs font-black text-white/60">
@@ -903,19 +905,20 @@ export default function StatsPage() {
         </div>
       </SynauraInkPanel>
 
-      <div className="mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <div className="chambre-stats-metrics mb-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard icon={Headphones} label="Écoutes" value={fmt(overview?.plays)} hint={pct(overview?.playsVariation)} tone="dark" />
         <MetricCard icon={Heart} label="Likes sons" value={fmt(overview?.likes)} hint={pct(overview?.likesVariation)} tone="coral" />
         <MetricCard icon={PenLine} label="Posts publiés" value={fmt(posts?.postsInRange)} hint={`${fmt(posts?.totalPosts)} au total`} tone="violet" />
         <MetricCard icon={MessageCircle} label="Interactions posts" value={fmt((posts?.likes || 0) + (posts?.comments || 0))} hint={`${fmt(posts?.engagement)} / post`} tone="mint" />
       </div>
 
-      <div className="mb-4 flex gap-2 overflow-x-auto rounded-[1.4rem] border border-black/[0.08] bg-[#fffaf2]/84 p-2">
+      <div className="chambre-stats-tabs mb-4 flex gap-2 overflow-x-auto rounded-[1.4rem] border border-black/[0.08] bg-[#fffaf2]/84 p-2" role="group" aria-label="Contenu des statistiques">
         {VIEWS.map((item) => (
           <button
             key={item.key}
             type="button"
             onClick={() => setView(item.key)}
+            aria-pressed={view === item.key}
             className={`h-10 shrink-0 rounded-full px-4 text-sm font-black transition ${
               view === item.key ? 'bg-[#171313] text-white' : 'text-black/48 hover:bg-black/[0.06]'
             }`}
@@ -925,14 +928,15 @@ export default function StatsPage() {
             ))}
           </div>
 
-      <div className="mb-4 flex gap-2 overflow-x-auto rounded-[1.4rem] border border-black/[0.08] bg-[#fffaf2]/70 p-2">
+      <div className="chambre-stats-tabs chambre-stats-tabs--metrics mb-4 flex gap-2 overflow-x-auto rounded-[1.4rem] border border-black/[0.08] bg-[#fffaf2]/70 p-2" role="group" aria-label="Mesure affichée">
         {METRICS.map((item) => (
           <button
             key={item.key}
             type="button"
             onClick={() => setMetric(item.key)}
+            aria-pressed={metric === item.key}
             className={`h-9 shrink-0 rounded-full px-3 text-xs font-black transition ${
-              metric === item.key ? 'bg-[#ff6f61] text-white' : 'text-black/48 hover:bg-black/[0.06]'
+              metric === item.key ? 'bg-[var(--v2-accent-fill)] text-white' : 'text-black/48 hover:bg-black/[0.06]'
             }`}
           >
             {item.label}

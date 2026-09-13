@@ -316,8 +316,8 @@ html[data-synaura-theme='dark'] .synaura-shell-atmosphere {
 /* The native app uses semantic colors throughout. Older web surfaces still
  * contain a handful of cream/ink utility classes, so this compatibility layer
  * keeps those screens readable when the shared theme resolves to dark. */
-.synaura-shell-root,
-.synaura-shell-root * {
+body:not(.synaura-chambre) .synaura-shell-root,
+body:not(.synaura-chambre) .synaura-shell-root * {
   letter-spacing: 0 !important;
 }
 
@@ -456,8 +456,8 @@ html[data-synaura-theme='dark'] .synaura-shell-root [class~="bg-[#fffaf2]"][clas
   color: var(--syn-contrast-text) !important;
 }
 
-.synaura-player-surface,
-.synaura-player-surface * {
+body:not(.synaura-chambre) .synaura-player-surface,
+body:not(.synaura-chambre) .synaura-player-surface * {
   letter-spacing: 0 !important;
 }
 

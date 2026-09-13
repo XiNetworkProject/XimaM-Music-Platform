@@ -1,4 +1,6 @@
 'use client';
+
+import '@/components/v2/music-v2.css';
 import { SynauraImage } from '@/components/ui/SynauraImage';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -320,7 +322,7 @@ export default function SynauraProfile() {
 
   /* ═══════════ LOADING ═══════════ */
   if (loading) return (
-    <SynauraAppShell contentClassName="max-w-[1180px]">
+    <SynauraAppShell contentClassName="v2-music-shell v2-profile-shell">
       <SynauraTopBar
         searchLabel="Rechercher un profil, un son ou une playlist..."
         secondaryHref="/upload"
@@ -328,8 +330,8 @@ export default function SynauraProfile() {
         primaryHref="/ai-generator"
         primaryLabel="Studio"
       />
-      <div className="space-y-4 pb-32">
-        <SynauraInkPanel className="overflow-hidden">
+      <div className="v2-profile-page" data-chambre-music="profile">
+        <SynauraInkPanel className="v2-profile-hero">
           <div className="h-[280px] animate-pulse bg-[linear-gradient(135deg,rgba(255,255,255,0.08),rgba(255,255,255,0.02))]" />
           <div className="px-5 pb-6 sm:px-7">
             <div className="-mt-16 flex flex-col gap-4 sm:flex-row sm:items-end">
@@ -346,7 +348,7 @@ export default function SynauraProfile() {
             </div>
           </div>
         </SynauraInkPanel>
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1.55fr)_360px]">
+        <div className="v2-profile-content-grid">
           <SynauraPanel className="p-5 sm:p-6">
             <div className="space-y-3">
               <div className="h-6 w-40 rounded-full bg-black/[0.06] animate-pulse" />
@@ -370,7 +372,7 @@ export default function SynauraProfile() {
   );
 
   if (error || !profile) return (
-    <SynauraAppShell contentClassName="max-w-[1180px]">
+    <SynauraAppShell contentClassName="v2-music-shell v2-profile-shell">
       <SynauraTopBar
         searchLabel="Rechercher un profil, un son ou une playlist..."
         secondaryHref="/upload"
@@ -411,7 +413,7 @@ export default function SynauraProfile() {
 
   /* ═══════════ RENDER ═══════════ */
   return (
-    <SynauraAppShell contentClassName="max-w-[1180px]">
+    <SynauraAppShell contentClassName="v2-music-shell v2-profile-shell">
       <SynauraTopBar
         searchLabel="Rechercher un profil, un son ou une playlist..."
         secondaryHref="/upload"
@@ -420,10 +422,11 @@ export default function SynauraProfile() {
         primaryLabel="Studio"
       />
       <SynauraRouteNav />
-      <div className="space-y-4 pb-32">
-        <SynauraInkPanel className="overflow-hidden">
+      <div className="v2-profile-page" data-chambre-music="profile">
+        <div className="chambre-signature-profile-entrance">
+        <SynauraInkPanel className="v2-profile-hero">
           <div className="relative">
-            <div className="relative h-44 overflow-hidden sm:h-52 lg:h-64">
+            <div className="v2-profile-banner">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <SynauraImage src={toPublicMediaUrl(profile.banner) || '/default-cover.svg'} alt="" className="h-full w-full object-cover" />
               <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(23,19,19,0.08)_0%,rgba(23,19,19,0.18)_34%,rgba(23,19,19,0.76)_76%,#171313_100%)]" />
@@ -442,6 +445,7 @@ export default function SynauraProfile() {
                 <>
                   <button
                     className="absolute right-4 top-4 z-10 inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/12 bg-black/28 text-white/80 backdrop-blur-xl transition hover:bg-black/40 hover:text-white"
+                    aria-label="Modifier la bannière du profil"
                     onClick={() => bannerInputRef.current?.click()}
                   >
                     <Camera size={16} />
@@ -451,11 +455,11 @@ export default function SynauraProfile() {
               )}
             </div>
 
-            <div className="relative px-5 pb-6 sm:px-7 sm:pb-7">
-              <div className="-mt-16 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-                <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-end">
+            <div className="v2-profile-identity">
+              <div className="v2-profile-identity-grid">
+                <div className="v2-profile-person">
                   <div className="relative shrink-0 group">
-                    <div className="h-28 w-28 overflow-hidden rounded-[2rem] border border-white/10 bg-white/10 shadow-[0_24px_80px_rgba(0,0,0,0.35)] sm:h-32 sm:w-32 md:h-36 md:w-36">
+                    <div className="v2-profile-avatar">
                       <Avatar src={profile.avatar} name={profile.name} username={profile.username} size="2xl" className="h-full w-full" />
                     </div>
                     {isOwnProfile && (
@@ -472,11 +476,11 @@ export default function SynauraProfile() {
                   </div>
 
                   <div className="min-w-0">
-                    <div className="inline-flex w-fit items-center gap-2 rounded-full border border-white/10 bg-white/8 px-3 py-1 text-[11px] font-black uppercase tracking-[0.18em] text-white/58">
-                      Profil Synaura
+                    <div className="v2-kicker">
+                      {profile.isArtist ? 'Synaura / l’artiste & son univers' : 'Synaura / profil & découvertes'}
                     </div>
                     <div className="mt-3 flex flex-wrap items-center gap-2.5">
-                      <h1 className="break-words text-3xl font-black tracking-tight text-white sm:text-4xl">{profile.name}</h1>
+                      <h1 className="v2-heading">{profile.artistName || profile.name}</h1>
                       {profile.isVerified && (
                         <div className="grid h-7 w-7 place-items-center rounded-full bg-[#4f7cff] text-white shadow-[0_10px_24px_rgba(79,124,255,0.35)]">
                           <Check size={14} />
@@ -510,8 +514,8 @@ export default function SynauraProfile() {
                         ) : null}
                       </div>
                     )}
-                    {profile.artistName && <p className="mt-1 text-sm font-medium text-white/56">{profile.artistName}</p>}
-                    <div className="mt-3 flex flex-wrap gap-2">
+                    {profile.artistName && profile.name !== profile.artistName && <p className="mt-1 text-sm font-medium text-white/56">{profile.name}</p>}
+                    <div className="v2-profile-statistics">
                       <StatPill value={fmtK(totalPlays)} label="ecoutes" />
                       <StatPill value={fmtK(profile.totalLikes || 0)} label="likes" />
                       <StatPill value={fmtK(followerCount)} label="followers" />
@@ -520,7 +524,7 @@ export default function SynauraProfile() {
                       {playlists.length > 0 && <StatPill value={String(playlists.length)} label={`playlist${playlists.length !== 1 ? 's' : ''}`} />}
                     </div>
                     {profile.bio?.trim() && (
-                      <p className="mt-4 max-w-2xl text-sm leading-6 text-white/66">{profile.bio}</p>
+                      <p className="v2-profile-bio">{profile.bio}</p>
                     )}
                     {(profile.location?.trim() || profile.website?.trim() || memberSince) && (
                       <div className="mt-4 flex flex-wrap gap-2.5 text-xs text-white/50">
@@ -569,7 +573,7 @@ export default function SynauraProfile() {
                   </div>
                 </div>
 
-                <div className="flex flex-wrap gap-2 lg:max-w-[360px] lg:justify-end">
+                <div className="v2-profile-hero-actions">
                   {isOwnProfile ? (
                     <>
                       <HeroActionPrimary onClick={handleEdit}>
@@ -633,9 +637,9 @@ export default function SynauraProfile() {
         </SynauraInkPanel>
 
         {spotlightTrack ? (
-          <SynauraPanel className="overflow-hidden p-0">
+          <SynauraPanel className="v2-profile-spotlight">
             <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:p-5">
-              <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-[1.4rem] bg-black/[0.06] shadow-[0_16px_40px_rgba(20,15,10,0.14)] sm:h-28 sm:w-28">
+              <div className="v2-profile-spotlight-art">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <SynauraImage src={spotlightTrack.cover_url || spotlightTrack.coverUrl || '/default-cover.svg'} alt="" className="h-full w-full object-cover" />
               </div>
@@ -671,29 +675,13 @@ export default function SynauraProfile() {
             </div>
           </SynauraPanel>
         ) : null}
+        </div>
 
-        <SynauraPanel className="p-4 sm:p-5">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex min-w-0 items-center gap-3">
-              <div className="grid h-14 w-14 shrink-0 place-items-center rounded-[1rem] bg-[#171313] text-xl font-black text-white">{artistProgress.level}</div>
-              <div className="min-w-0">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#7c5cff]">Progression artiste</p>
-                <h2 className="mt-1 truncate text-xl font-black text-[#171313]">{artistProgress.levelName}</h2>
-                <p className="mt-1 text-xs font-bold text-black/42">{userTracks.length} sons · {fmtK(totalPlays)} ecoutes · {fmtK(followerCount)} fans</p>
-              </div>
-            </div>
-            <button onClick={() => router.push('/city')} className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-full bg-black/[0.055] px-4 text-xs font-black text-black/58 transition hover:bg-[#171313] hover:text-white">
-              <Sparkles size={14} /> Voir les Events
-            </button>
-          </div>
-          <SynauraPulseBar value={artistProgressPercent} className="mt-4" />
-          <p className="mt-2 text-[10px] font-black text-black/35">{Math.max(0, artistProgress.nextLevelXp - artistProgress.xp)} XP avant le prochain niveau</p>
-        </SynauraPanel>
 
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1.55fr)_360px]">
+        <div className="v2-profile-content-grid">
           <div className="min-w-0 space-y-4">
             {(topProfileTracks.length > 0 || latestPost) && (
-              <SynauraPanel className="p-4 sm:p-5">
+              <SynauraPanel className="chambre-signature-profile-records p-4 sm:p-5">
                 <div className="mb-4 flex items-end justify-between gap-3">
                   <div>
                     <p className="text-xs font-black uppercase tracking-[0.18em] text-black/40">À partager</p>
@@ -705,9 +693,9 @@ export default function SynauraProfile() {
                     </button>
                   ) : null}
                 </div>
-                <div className="grid gap-3 md:grid-cols-3">
+                <div className="chambre-signature-profile-record-grid grid gap-3 md:grid-cols-3">
                   {topProfileTracks.map((track, index) => (
-                    <div key={track.id} className="rounded-[1.35rem] border border-black/[0.07] bg-black/[0.025] p-3">
+                    <div key={track.id} className="chambre-signature-profile-record rounded-[1.35rem] border border-black/[0.07] bg-black/[0.025] p-3">
                       <div className="mb-3 flex items-center gap-3">
                         <img src={track.cover_url || track.coverUrl || '/default-cover.svg'} alt="" className="h-12 w-12 rounded-[1rem] object-cover" />
                         <div className="min-w-0">
@@ -764,7 +752,7 @@ export default function SynauraProfile() {
               </SynauraPanel>
             )}
 
-            <SynauraPanel className="p-2 sm:p-2.5">
+            <SynauraPanel className="v2-profile-tabs">
               <div className="synaura-no-scrollbar flex gap-1.5 overflow-x-auto">
                 {([
                   ['sons', 'Sons'],
@@ -776,6 +764,7 @@ export default function SynauraProfile() {
                   <button
                     key={key}
                     onClick={() => setActiveSection(key)}
+                    aria-pressed={activeSection === key}
                     className={`shrink-0 rounded-full px-4 py-2.5 text-sm font-black transition ${
                       activeSection === key ? 'bg-[#171313] text-white' : 'bg-black/[0.045] text-black/56 hover:bg-black/[0.08] hover:text-[#171313]'
                     }`}
@@ -787,7 +776,7 @@ export default function SynauraProfile() {
             </SynauraPanel>
 
             {activeSection === 'sons' && (
-            <SynauraPanel className="p-4 sm:p-5">
+            <SynauraPanel className="chambre-signature-profile-discography p-4 sm:p-5">
               <div className="flex flex-col gap-4 border-b border-black/[0.08] pb-4 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                   <p className="text-xs font-black uppercase tracking-[0.18em] text-black/40">Musique</p>
@@ -850,7 +839,7 @@ export default function SynauraProfile() {
                     return (
                       <div
                         key={track.id}
-                        className="group relative flex cursor-pointer items-center gap-3 rounded-[1.35rem] border border-black/[0.06] bg-black/[0.025] px-3 py-3 transition hover:border-black/[0.10] hover:bg-black/[0.045]"
+                        className="v2-profile-track-row group relative flex cursor-pointer items-center gap-3"
                         onClick={() => setDrawerId(track.id)}
                       >
                         <div className="grid w-8 shrink-0 place-items-center">
@@ -1220,6 +1209,23 @@ export default function SynauraProfile() {
             )}
           </div>
         </div>
+        <SynauraPanel className="v2-profile-progression p-4 sm:p-5">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-center gap-3">
+              <div className="grid h-14 w-14 shrink-0 place-items-center rounded-[1rem] bg-[#171313] text-xl font-black text-white">{artistProgress.level}</div>
+              <div className="min-w-0">
+                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#7c5cff]">Progression artiste</p>
+                <h2 className="mt-1 truncate text-xl font-black text-[#171313]">{artistProgress.levelName}</h2>
+                <p className="mt-1 text-xs font-bold text-black/42">{userTracks.length} sons · {fmtK(totalPlays)} ecoutes · {fmtK(followerCount)} fans</p>
+              </div>
+            </div>
+            <button onClick={() => router.push('/city')} className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-full bg-black/[0.055] px-4 text-xs font-black text-black/58 transition hover:bg-[#171313] hover:text-white">
+              <Sparkles size={14} /> Voir les Events
+            </button>
+          </div>
+          <SynauraPulseBar value={artistProgressPercent} className="mt-4" />
+          <p className="mt-2 text-[10px] font-black text-black/35">{Math.max(0, artistProgress.nextLevelXp - artistProgress.xp)} XP avant le prochain niveau</p>
+        </SynauraPanel>
       </div>
 
       {/* ═══════ CONTEXT MENU (portal) ═══════ */}
@@ -1349,8 +1355,8 @@ export default function SynauraProfile() {
       {isOwnProfile ? (
         <div className="md:hidden fixed bottom-24 right-4 flex flex-col gap-2 z-[100]">
           <button onClick={() => setShowBoosterModal(true)} disabled={!canOpen} className={`flex h-12 w-12 items-center justify-center rounded-full shadow-[0_20px_45px_rgba(30,25,20,0.20)] ${canOpen ? 'bg-[linear-gradient(135deg,#ff6f61_0%,#7c5cff_55%,#00c2cb_100%)] text-white' : 'bg-black/[0.08] text-black/25'}`}><Sparkles size={16} /></button>
-          <button onClick={handleShareProfile} className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-[#171313] shadow-[0_20px_45px_rgba(30,25,20,0.20)]"><Share2 size={15} /></button>
-          <button onClick={handleEdit} className="flex h-12 w-12 items-center justify-center rounded-full bg-[#171313] text-white shadow-[0_20px_45px_rgba(30,25,20,0.20)]"><Edit size={15} /></button>
+          <button onClick={handleShareProfile} aria-label="Partager le profil" className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-[#171313] shadow-[0_20px_45px_rgba(30,25,20,0.20)]"><Share2 size={15} /></button>
+          <button onClick={handleEdit} aria-label="Modifier le profil" className="flex h-12 w-12 items-center justify-center rounded-full bg-[#171313] text-white shadow-[0_20px_45px_rgba(30,25,20,0.20)]"><Edit size={15} /></button>
               </div>
       ) : (
         <div className="md:hidden fixed bottom-24 right-4 flex flex-col gap-2 z-[100]">
@@ -1557,7 +1563,7 @@ function TrackCtxMenu({ track, anchorEl, isOwn, onClose, onEdit, onDelete, onSta
 
   if (typeof document === 'undefined') return null;
   return createPortal(
-    <div className="fixed z-[9999] w-[228px] rounded-[1.4rem] border border-black/[0.08] bg-[#fffaf2]/95 py-2 shadow-[0_22px_60px_rgba(30,25,20,0.18)] backdrop-blur-2xl animate-in fade-in-0 zoom-in-95 duration-100" style={{ top: pos.top, left: pos.left }} onClick={(e) => e.stopPropagation()}>
+    <div className="v2-profile-context-menu fixed z-[9999] w-[228px] rounded-[1.4rem] border border-black/[0.08] bg-[#fffaf2]/95 py-2 shadow-[0_22px_60px_rgba(30,25,20,0.18)] backdrop-blur-2xl animate-in fade-in-0 zoom-in-95 duration-100" style={{ top: pos.top, left: pos.left }} onClick={(e) => e.stopPropagation()}>
       <CtxItem icon={Play} label="Écouter" onClick={onPlay} />
       <CtxItem icon={ListPlus} label="Lire ensuite" onClick={handlePlayNext} />
       <CtxItem icon={ListEnd} label="Ajouter à la file" onClick={handleQueue} />
@@ -1608,10 +1614,10 @@ function DrawerContent({ track, playing, onPlay, onEdit, onDelete, isOwn, onLike
     return Number.isNaN(d.getTime()) ? null : d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
   })();
   return (
-    <div className="flex h-full flex-col bg-[#fffaf2] text-[#171313]">
+    <div className="v2-profile-detail flex h-full flex-col bg-[#fffaf2] text-[#171313]">
       {/* Header with big cover */}
       <div className="relative">
-        <button onClick={onClose} className="absolute right-3 top-3 z-10 inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/14 bg-black/30 text-white/80 backdrop-blur-xl transition hover:bg-black/44 hover:text-white"><X size={16} /></button>
+        <button onClick={onClose} aria-label="Fermer les détails du morceau" className="absolute right-3 top-3 z-10 inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/14 bg-black/30 text-white/80 backdrop-blur-xl transition hover:bg-black/44 hover:text-white"><X size={16} /></button>
         <div className="aspect-square max-h-[320px] w-full">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={track.cover_url || track.coverUrl || '/default-cover.svg'} alt="" className="w-full h-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.svg'; }} />

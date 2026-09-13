@@ -30,9 +30,10 @@ function applyTheme(mode: SynauraThemeMode) {
   root.dataset.synauraTheme = resolved;
   root.classList.toggle('dark', resolved === 'dark');
   root.classList.toggle('light', resolved === 'light');
-  root.style.colorScheme = resolved;
+  // V2 has two nocturnal brightness levels. Stored choices and system tracking stay compatible.
+  root.style.colorScheme = 'dark';
   document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]').forEach((meta) => {
-    meta.content = resolved === 'dark' ? '#0D0D0D' : '#F7F6F3';
+    meta.content = resolved === 'dark' ? '#06080e' : '#10141e';
   });
   return resolved;
 }
@@ -75,8 +76,8 @@ export function useSynauraTheme() {
 }
 
 const OPTIONS: Array<{ value: SynauraThemeMode; label: string; icon: typeof Moon }> = [
-  { value: 'dark', label: 'Sombre', icon: Moon },
-  { value: 'light', label: 'Clair', icon: Sun },
+  { value: 'dark', label: 'Nuit profonde', icon: Moon },
+  { value: 'light', label: 'Nuit douce', icon: Sun },
   { value: 'system', label: 'Système', icon: Monitor },
 ];
 
@@ -94,7 +95,7 @@ export function SynauraThemeSelector({ className = '' }: { className?: string })
             role="radio"
             aria-checked={selected}
             onClick={() => setMode(option.value)}
-            className={`inline-flex min-h-10 min-w-0 items-center justify-center gap-1.5 rounded-lg px-2 text-xs font-black transition ${selected ? 'bg-[var(--syn-contrast-bg)] text-[var(--syn-contrast-text)] shadow-sm' : 'text-[var(--syn-text-secondary)] hover:bg-[var(--syn-soft)] hover:text-[var(--syn-text-primary)]'}`}
+            className={`inline-flex min-h-11 min-w-0 flex-col items-center justify-center gap-1.5 rounded-lg px-2 py-2 text-[11px] font-medium transition sm:flex-row ${selected ? 'bg-[var(--syn-contrast-bg)] text-[var(--syn-contrast-text)] shadow-sm' : 'text-[var(--syn-text-secondary)] hover:bg-[var(--syn-soft)] hover:text-[var(--syn-text-primary)]'}`}
           >
             <Icon className="h-4 w-4 shrink-0" />
             <span className="truncate">{option.label}</span>

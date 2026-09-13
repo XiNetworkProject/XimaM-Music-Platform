@@ -1,7 +1,7 @@
 export const SYNAURA_BRAND = {
   name: 'Synaura',
-  symbol: '/brand/2026/synaura-symbol-2026.png',
-  symbolOnLight: '/brand/2026/synaura-symbol-2026-white.png',
+  symbol: '/brand/v2/reference-symbol.svg',
+  symbolOnLight: '/brand/v2/reference-symbol.svg',
   sonicLogo: '/audio/synaura-sonic-logo.wav',
 } as const;
 

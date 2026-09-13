@@ -10,7 +10,7 @@ interface PageTransitionProps {
 export default function PageTransition({ children }: PageTransitionProps) {
   const pathname = usePathname();
   return (
-    <div key={pathname} className="syn-page-enter relative min-h-screen">
+    <div key={pathname} className="v2-route-enter relative min-h-screen" data-v2-route={pathname}>
       {children}
     </div>
   );

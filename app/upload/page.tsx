@@ -145,17 +145,17 @@ function WaveformDisplay({ audioFile, currentTime = 0, duration = 0, onSeek }: {
 function Section({ title, icon: Icon, children, defaultOpen = true }: { title: string; icon: typeof Music; children: React.ReactNode; defaultOpen?: boolean }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
-    <div className="overflow-hidden rounded-[1.45rem] border border-white/[0.09] bg-white/[0.03] shadow-[0_18px_50px_rgba(5,4,12,0.18)]">
+    <div className="overflow-hidden rounded-[1.45rem] border border-white/[0.09] bg-[var(--v2-raised)] shadow-[0_18px_50px_rgba(5,4,12,0.18)]">
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="flex w-full items-center gap-2.5 px-4 py-3.5 text-left transition hover:bg-white/[0.04]"
+        className="flex w-full items-center gap-2.5 px-4 py-3.5 text-left transition hover:bg-[var(--v2-raised)]"
       >
-        <div className="grid h-8 w-8 shrink-0 place-items-center rounded-2xl bg-white/[0.06]">
+        <div className="grid h-8 w-8 shrink-0 place-items-center rounded-2xl bg-[var(--v2-raised)]">
           <Icon className="h-4 w-4 text-violet-300" />
         </div>
         <span className="flex-1 text-sm font-semibold text-white/86">{title}</span>
-        {open ? <ChevronDown className="w-4 h-4 text-white/30" /> : <ChevronRight className="w-4 h-4 text-white/30" />}
+        {open ? <ChevronDown className="w-4 h-4 text-[var(--v2-muted)]" /> : <ChevronRight className="w-4 h-4 text-[var(--v2-muted)]" />}
       </button>
       {open && <div className="space-y-3 px-4 pb-4">{children}</div>}
     </div>
@@ -593,7 +593,7 @@ export default function UploadPage() {
       : 'Immediatement';
 
   return (
-    <SynauraAppShell contentClassName="max-w-[1540px]">
+    <SynauraAppShell contentClassName="v2-creation v2-upload chambre-signature-upload !max-w-[1680px]">
       <SynauraTopBar
         searchLabel="Rechercher avant de publier..."
         secondaryHref="/ai-generator"
@@ -606,82 +606,37 @@ export default function UploadPage() {
       <CreateArrivalBanner context={challengeId ? 'challenge' : 'upload'} title={challengeId ? challengeTitle : null} className="mb-4" />
       <SynauraEventsRail variant="compact" className="mb-4" />
 
-      <section className="mb-4 overflow-hidden rounded-[1.75rem] border border-black/[0.08] bg-[#171313] text-white shadow-[0_28px_80px_rgba(20,15,10,0.22)]">
-        <div className="grid gap-4 p-4 sm:p-5 lg:grid-cols-[minmax(0,1fr)_420px] lg:items-stretch">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-[#171313]">Upload Synaura</span>
-              <span className="rounded-full border border-white/12 bg-white/[0.08] px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-white/62">
-                {releaseLabel}
-              </span>
-              <span className="rounded-full border border-white/12 bg-white/[0.08] px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-white/62">
-                {selectedTrackCount} piste{selectedTrackCount > 1 ? 's' : ''}
-              </span>
-            </div>
-            <h1 className="mt-4 max-w-3xl text-3xl font-black leading-[0.94] tracking-[-0.07em] sm:text-5xl">
-              Prepare ta sortie sans te perdre dans les reglages.
-            </h1>
-            <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-white/56 sm:text-base">
-              Ajoute tes fichiers, verifie les infos, choisis le bon moment et publie proprement sur Synaura.
-            </p>
-            <div className="mt-5 grid gap-2 sm:flex sm:flex-wrap">
-              <button
-                type="button"
-                onClick={() => router.push('/ai-generator')}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-white px-5 text-sm font-black text-[#171313] transition hover:scale-[1.02]"
-              >
-                <Wand2 className="h-4 w-4" />
-                Ouvrir le Studio
-              </button>
-              <button
-                type="button"
-                onClick={() => router.push('/library')}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-white/12 bg-white/[0.08] px-5 text-sm font-black text-white transition hover:bg-white/[0.14]"
-              >
-                <Library className="h-4 w-4" />
-                Bibliothèque
-              </button>
-            </div>
+      <header className="v2-upload-header chambre-upload-cover">
+        <div className="v2-creative-header">
+          <div>
+            <p className="v2-kicker">L’atelier / Publication · {releaseLabel}</p>
+            <h1>TON SON.<br /><span>SA PROCHAINE VIE.</span></h1>
+            <p>Importe tes fichiers, soigne leur présentation et choisis comment ils seront diffusés.</p>
           </div>
-
-          <div className="grid min-w-0 gap-2 sm:grid-cols-3 lg:grid-cols-1">
-            {[
-              { label: 'Importer', value: `${selectedTrackCount || 0} piste(s)`, active: currentStep === 1, done: step1Valid },
-              { label: 'Presenter', value: title.trim() || 'Metadata', active: currentStep === 2, done: step2Valid },
-              { label: 'Diffuser', value: scheduledLabel, active: currentStep === 3, done: currentStep === 3 },
-            ].map((item) => (
-              <div
-                key={item.label}
-                className={[
-                  'min-w-0 rounded-[1.15rem] border p-3 transition',
-                  item.active ? 'border-white/32 bg-white text-[#171313]' : item.done ? 'border-emerald-200/24 bg-emerald-300/10 text-white' : 'border-white/10 bg-white/[0.06] text-white',
-                ].join(' ')}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <p className={['text-[10px] font-black uppercase tracking-[0.16em]', item.active ? 'text-black/45' : 'text-white/38'].join(' ')}>{item.label}</p>
-                  <span className={['grid h-7 w-7 place-items-center rounded-full', item.active ? 'bg-[#171313] text-white' : item.done ? 'bg-emerald-300/16 text-emerald-100' : 'bg-white/[0.08] text-white/40'].join(' ')}>
-                    {item.done ? <Check className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-                  </span>
-                </div>
-                <p className="mt-2 truncate text-sm font-black">{item.value}</p>
-              </div>
-            ))}
+          <div className="chambre-signature-upload-destinations flex flex-wrap gap-3">
+            <button type="button" onClick={() => router.push('/ai-generator')} className="inline-flex min-h-11 items-center gap-2 text-sm"><Wand2 size={16} />AI Generator</button>
+            <button type="button" onClick={() => router.push('/library')} className="inline-flex min-h-11 items-center gap-2 text-sm"><Library size={16} />Bibliothèque</button>
           </div>
         </div>
-      </section>
+        <div className="v2-upload-facts" aria-label="Résumé de la sortie">
+          <span>{selectedTrackCount} piste{selectedTrackCount > 1 ? 's' : ''}</span>
+          <span>{uploadLimitLabel}</span>
+          <span>{scheduledLabel}</span>
+        </div>
+      </header>
 
-      <main className="grid gap-3 lg:grid-cols-[250px_minmax(0,1fr)_330px] xl:grid-cols-[270px_minmax(0,1fr)_360px]">
-        <aside className="min-w-0 space-y-3">
-          <SynauraPanel className="p-3 sm:p-4">
+      <main className="v2-upload-layout" data-release-step={currentStep}>
+        <aside className="chambre-signature-release-navigation min-w-0 space-y-3">
+          <SynauraPanel className="chambre-signature-release-stepper p-3 sm:p-4">
             <div className="flex items-center justify-between gap-3">
-              <HandoffReturn fallbackHref="/" fallbackLabel="Retour à l'accueil" iconOnly className="h-10 w-10 shrink-0 bg-black/[0.06] text-black/58 hover:bg-[#171313] hover:text-white" />
+              <HandoffReturn fallbackHref="/" fallbackLabel="Retour à l'accueil" iconOnly className="h-10 w-10 shrink-0 bg-[var(--v2-raised)] text-[var(--v2-muted)] hover:bg-[var(--v2-surface)] hover:text-white" />
               <div className="min-w-0 flex-1">
-                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-black/38">Publication</p>
-                <h1 className="truncate text-xl font-black tracking-[-0.04em] text-[#171313]">Nouvelle sortie</h1>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--v2-muted)]">Publication</p>
+                <h2 className="truncate text-xl font-normal tracking-[-0.04em] text-[var(--v2-text)]">Ta sortie</h2>
               </div>
             </div>
 
-            <div className="mt-4 grid gap-2">
+            <div className="chambre-signature-release-progress mt-4 grid gap-2">
               {STEPS.map((step) => {
                 const enabled = step.k === 1 || (step.k === 2 && step1Valid) || (step.k === 3 && step1Valid && step2Valid);
                 const active = currentStep === step.k;
@@ -691,19 +646,20 @@ export default function UploadPage() {
                   <button
                     key={step.k}
                     type="button"
+                    aria-current={active ? 'step' : undefined}
                     disabled={!enabled}
                     onClick={() => setCurrentStep(step.k)}
                     className={[
                       'flex min-w-0 items-center gap-3 rounded-[1.15rem] px-3 py-3 text-left transition disabled:cursor-not-allowed',
-                      active ? 'bg-[#171313] text-white' : done ? 'bg-emerald-500/10 text-[#171313]' : 'bg-black/[0.045] text-black/48',
+                      active ? 'bg-[var(--v2-surface)] text-white' : done ? 'bg-emerald-500/10 text-[var(--v2-text)]' : 'bg-[var(--v2-raised)] text-[var(--v2-muted)]',
                     ].join(' ')}
                   >
-                    <span className={['grid h-7 w-7 shrink-0 place-items-center rounded-full text-[11px] font-black', active ? 'bg-white text-[#171313]' : 'bg-white/70 text-[#171313]'].join(' ')}>
+                    <span className={['grid h-7 w-7 shrink-0 place-items-center rounded-full text-[11px] font-semibold', active ? 'bg-[var(--v2-raised)] text-[var(--v2-text)]' : 'bg-[var(--v2-raised)] text-[var(--v2-text)]'].join(' ')}>
                       {done ? <Check className="h-3.5 w-3.5" /> : step.k}
                     </span>
                     <span className="min-w-0">
-                      <span className="block truncate text-sm font-black">{step.label}</span>
-                      <span className={['block truncate text-[11px] font-semibold', active ? 'text-white/54' : 'text-black/38'].join(' ')}>
+                      <span className="block truncate text-sm font-semibold">{step.label}</span>
+                      <span className={['block truncate text-[11px] font-semibold', active ? 'text-[var(--v2-muted)]' : 'text-[var(--v2-muted)]'].join(' ')}>
                         {step.k === 1 ? `${selectedTrackCount || 0} piste(s)` : step.k === 2 ? (title.trim() || 'Titre et cover') : visibility}
                       </span>
                     </span>
@@ -713,43 +669,43 @@ export default function UploadPage() {
             </div>
 
             <div className="mt-4">
-              <div className="mb-2 flex items-center justify-between text-[11px] font-black uppercase tracking-[0.16em] text-black/34">
-                <span>Avancee</span>
+              <div className="mb-2 flex items-center justify-between text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--v2-muted)]">
+                <span>Avancée</span>
                 <span>{progressPercent}%</span>
               </div>
-              <div className="h-2 overflow-hidden rounded-full bg-black/[0.07]">
+              <div className="h-2 overflow-hidden rounded-full bg-[var(--v2-raised)]">
                 <div
-                  className="h-full rounded-full bg-[#171313] transition-all duration-500"
+                  className="chambre-signature-upload-progress h-full rounded-full bg-[var(--v2-surface)] transition-all duration-500"
                   style={{ width: `${progressPercent}%` }}
                 />
               </div>
             </div>
           </SynauraPanel>
 
-          <SynauraPanel className="p-3 sm:p-4">
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-black/38">Contexte</p>
+          <SynauraPanel className="chambre-signature-release-context p-3 sm:p-4">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--v2-muted)]">Contexte</p>
             <div className="mt-3 grid grid-cols-2 gap-2 lg:grid-cols-1">
-              <div className="rounded-[1rem] bg-black/[0.045] p-3">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-black/34">Format</p>
-                <p className="mt-1 text-sm font-black text-[#171313]">{releaseLabel}</p>
+              <div className="rounded-[1rem] bg-[var(--v2-raised)] p-3">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--v2-muted)]">Format</p>
+                <p className="mt-1 text-sm font-semibold text-[var(--v2-text)]">{releaseLabel}</p>
               </div>
-              <div className="rounded-[1rem] bg-black/[0.045] p-3">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-black/34">Limite</p>
-                <p className="mt-1 text-sm font-black text-[#171313]">{uploadLimitLabel}</p>
+              <div className="rounded-[1rem] bg-[var(--v2-raised)] p-3">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--v2-muted)]">Limite</p>
+                <p className="mt-1 text-sm font-semibold text-[var(--v2-text)]">{uploadLimitLabel}</p>
               </div>
-              <div className="rounded-[1rem] bg-black/[0.045] p-3">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-black/34">Sortie</p>
-                <p className="mt-1 truncate text-sm font-black text-[#171313]">{scheduledLabel}</p>
+              <div className="rounded-[1rem] bg-[var(--v2-raised)] p-3">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--v2-muted)]">Sortie</p>
+                <p className="mt-1 truncate text-sm font-semibold text-[var(--v2-text)]">{scheduledLabel}</p>
               </div>
-              <div className="rounded-[1rem] bg-black/[0.045] p-3">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-black/34">Plan</p>
-                <p className="mt-1 text-sm font-black capitalize text-[#171313]">{planKey}</p>
+              <div className="rounded-[1rem] bg-[var(--v2-raised)] p-3">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--v2-muted)]">Plan</p>
+                <p className="mt-1 text-sm font-semibold capitalize text-[var(--v2-text)]">{planKey}</p>
               </div>
             </div>
             <button
               type="button"
               onClick={() => router.push('/ai-generator')}
-              className="mt-3 inline-flex h-10 w-full items-center justify-center gap-2 rounded-full bg-[#171313] px-4 text-sm font-black text-white transition hover:scale-[1.01]"
+              className="mt-3 inline-flex h-10 w-full items-center justify-center gap-2 rounded-full bg-[var(--v2-surface)] px-4 text-sm font-semibold text-white transition hover:scale-[1.01]"
             >
               <Wand2 className="h-4 w-4" />
               Studio
@@ -757,30 +713,31 @@ export default function UploadPage() {
           </SynauraPanel>
         </aside>
 
-        <section className="min-w-0 overflow-hidden rounded-[1.5rem] bg-[#171313] text-white shadow-[0_24px_70px_rgba(20,15,10,0.22)] sm:rounded-[2rem]">
-          <div className="border-b border-white/[0.08] bg-[#1d1717] px-3 py-3 sm:px-5 sm:py-4">
+        <section className="chambre-signature-upload-workspace min-w-0 overflow-hidden rounded-[1.5rem] bg-[var(--v2-surface)] text-white shadow-[0_24px_70px_rgba(20,15,10,0.22)] sm:rounded-[2rem]">
+          <div className="border-b border-white/[0.08] bg-[var(--v2-surface)] px-3 py-3 sm:px-5 sm:py-4">
             <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
               <div className="min-w-0">
-                <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/34">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--v2-muted)]">
                   Etape {currentStep}/{totalSteps}
                 </p>
-                <h2 className="mt-1 truncate text-2xl font-black tracking-[-0.04em] text-white">
+                <h2 className="mt-1 truncate text-2xl font-semibold tracking-[-0.04em] text-white">
                   {currentStep === 1 ? 'Fichier audio' : currentStep === 2 ? 'Cover & informations' : 'Diffusion & droits de creation'}
                 </h2>
               </div>
-              <div className="grid grid-cols-3 gap-1 rounded-full bg-white/[0.06] p-1">
+              <div className="grid grid-cols-3 gap-1 rounded-full bg-[var(--v2-raised)] p-1">
                 {(['single', 'ep', 'album'] as ReleaseType[]).map((type) => (
                   <button
                     key={type}
                     type="button"
+                    aria-pressed={releaseType === type}
                     onClick={() => {
                       setReleaseType(type);
                       if (type === 'single') setTrackMetas([]);
                       else setAudioFile(null);
                     }}
                     className={[
-                      'h-9 rounded-full px-3 text-xs font-black capitalize transition',
-                      releaseType === type ? 'bg-white text-[#171313]' : 'text-white/46 hover:bg-white/[0.07] hover:text-white',
+                      'h-9 rounded-full px-3 text-xs font-semibold capitalize transition',
+                      releaseType === type ? 'bg-[var(--v2-raised)] text-[var(--v2-text)]' : 'text-[var(--v2-muted)] hover:bg-[var(--v2-raised)] hover:text-white',
                     ].join(' ')}
                   >
                     {type}
@@ -791,12 +748,12 @@ export default function UploadPage() {
           </div>
 
           {blockedMsg && (
-            <div className="mx-3 mt-3 flex flex-col gap-3 rounded-[1.1rem] border border-[#D96D63]/25 bg-[#D96D63]/10 p-3 sm:mx-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="mx-3 mt-3 flex flex-col gap-3 rounded-[1.1rem] border border-[var(--v2-line)] bg-[var(--v2-accent)] p-3 sm:mx-5 sm:flex-row sm:items-center sm:justify-between">
               <span className="text-xs font-semibold text-[#ffcfc9]">{blockedMsg}. Passe a un plan superieur.</span>
               <button
                 type="button"
                 onClick={() => router.push('/subscriptions')}
-                className="inline-flex h-9 items-center justify-center rounded-full bg-[#D96D63] px-3 text-xs font-black text-white"
+                className="inline-flex h-9 items-center justify-center rounded-full bg-[var(--v2-accent)] px-3 text-xs font-semibold text-white"
               >
                 Voir les plans
               </button>
@@ -821,29 +778,31 @@ export default function UploadPage() {
                   {releaseType === 'single' && !audioFile ? (
                     <div
                       {...getAudioRP()}
+                      data-signature-drop="audio"
+                      data-drag-active={isAudioDrag}
                       className={[
                         'cursor-pointer rounded-[1.25rem] border border-dashed p-6 text-center transition sm:p-10',
-                        isAudioDrag ? 'border-[#ff6f61] bg-[#ff6f61]/10' : 'border-white/[0.12] bg-white/[0.035] hover:border-white/24',
+                        isAudioDrag ? 'border-[var(--v2-line)] bg-[var(--v2-accent)]' : 'border-white/[0.12] bg-[var(--v2-raised)] hover:border-white/24',
                       ].join(' ')}
                     >
                       <input {...getAudioIP()} />
-                      <Upload className="mx-auto mb-3 h-10 w-10 text-white/32" />
-                      <p className="text-base font-black text-white">Ajoute ton morceau principal</p>
-                      <p className="mt-1 text-xs font-semibold text-white/36">MP3, WAV, FLAC - max {uploadLimitLabel}</p>
+                      <Upload className="mx-auto mb-3 h-10 w-10 text-[var(--v2-muted)]" />
+                      <p className="text-base font-semibold text-white">Ajoute ton morceau principal</p>
+                      <p className="mt-1 text-xs font-semibold text-[var(--v2-muted)]">MP3, WAV, FLAC - max {uploadLimitLabel}</p>
                     </div>
                   ) : releaseType === 'single' && audioFile ? (
                     <div className="space-y-3">
-                      <div className="flex items-center gap-3 rounded-[1.2rem] border border-white/[0.10] bg-white/[0.04] p-3">
+                      <div className="flex items-center gap-3 rounded-[1.2rem] border border-white/[0.10] bg-[var(--v2-raised)] p-3">
                         <button
                           type="button"
                           onClick={() => setIsPlaying(!isPlaying)}
-                          className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white text-[#171313] transition hover:scale-[1.03]"
+                          className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[var(--v2-raised)] text-[var(--v2-text)] transition hover:scale-[1.03]"
                         >
                           {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
                         </button>
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-sm font-black">{audioFile.name}</p>
-                          <p className="mt-0.5 text-[11px] font-semibold text-white/34">
+                          <p className="truncate text-sm font-semibold">{audioFile.name}</p>
+                          <p className="mt-0.5 text-[11px] font-semibold text-[var(--v2-muted)]">
                             {(audioFile.size / 1024 / 1024).toFixed(1)} MB - {Math.floor(duration / 60)}:{String(Math.floor(duration % 60)).padStart(2, '0')}
                           </p>
                         </div>
@@ -853,7 +812,7 @@ export default function UploadPage() {
                             setAudioFile(null);
                             setIsPlaying(false);
                           }}
-                          className="grid h-9 w-9 place-items-center rounded-full bg-white/[0.06] text-white/42 transition hover:bg-red-500/15 hover:text-red-200"
+                          className="grid h-9 w-9 place-items-center rounded-full bg-[var(--v2-raised)] text-[var(--v2-muted)] transition hover:bg-red-500/15 hover:text-red-200"
                           aria-label="Retirer le fichier"
                         >
                           <X className="h-4 w-4" />
@@ -875,22 +834,24 @@ export default function UploadPage() {
                     <div className="space-y-3">
                       <div
                         {...getAudioRP()}
+                        data-signature-drop="audio"
+                        data-drag-active={isAudioDrag}
                         className={[
                           'cursor-pointer rounded-[1.25rem] border border-dashed p-6 text-center transition',
-                          isAudioDrag ? 'border-[#ff6f61] bg-[#ff6f61]/10' : 'border-white/[0.12] bg-white/[0.035] hover:border-white/24',
+                          isAudioDrag ? 'border-[var(--v2-line)] bg-[var(--v2-accent)]' : 'border-white/[0.12] bg-[var(--v2-raised)] hover:border-white/24',
                         ].join(' ')}
                       >
                         <input {...getAudioIP()} />
-                        <Upload className="mx-auto mb-2 h-8 w-8 text-white/32" />
-                        <p className="text-sm font-black text-white">Ajouter les pistes</p>
-                        <p className="mt-1 text-[11px] font-semibold text-white/34">{releaseType === 'ep' ? '2 a 6 pistes' : '7 a 50 pistes'} - glisse ou clique</p>
+                        <Upload className="mx-auto mb-2 h-8 w-8 text-[var(--v2-muted)]" />
+                        <p className="text-sm font-semibold text-white">Ajouter les pistes</p>
+                        <p className="mt-1 text-[11px] font-semibold text-[var(--v2-muted)]">{releaseType === 'ep' ? '2 a 6 pistes' : '7 a 50 pistes'} - glisse ou clique</p>
                       </div>
 
                       {trackMetas.length > 0 && (
                         <div>
                           <div className="mb-2 flex items-center justify-between gap-2 text-xs">
-                            <span className="font-black text-white/46">{trackMetas.length} piste(s)</span>
-                            {!trackCountValid && <span className="text-[11px] font-black text-[#ffb3a8]">{releaseType === 'ep' ? 'EP: 2-6 pistes' : 'Album: 7+ pistes'}</span>}
+                            <span className="font-semibold text-[var(--v2-muted)]">{trackMetas.length} piste(s)</span>
+                            {!trackCountValid && <span className="text-[11px] font-semibold text-[#ffb3a8]">{releaseType === 'ep' ? 'EP: 2-6 pistes' : 'Album: 7+ pistes'}</span>}
                           </div>
                           <TrackListEditor tracks={trackMetas} onChange={setTrackMetas} />
                         </div>
@@ -905,9 +866,11 @@ export default function UploadPage() {
                   <div className="grid gap-4 md:grid-cols-[160px_minmax(0,1fr)]">
                     <div
                       {...getCoverRP()}
+                      data-signature-drop="cover"
+                      data-drag-active={isCoverDrag}
                       className={[
                         'aspect-square cursor-pointer overflow-hidden rounded-[1.2rem] border border-dashed transition',
-                        isCoverDrag ? 'border-[#ff6f61] bg-[#ff6f61]/10' : coverFile ? 'border-white/[0.10]' : 'border-white/[0.12] bg-white/[0.035] hover:border-white/24',
+                        isCoverDrag ? 'border-[var(--v2-line)] bg-[var(--v2-accent)]' : coverFile ? 'border-white/[0.10]' : 'border-white/[0.12] bg-[var(--v2-raised)] hover:border-white/24',
                       ].join(' ')}
                     >
                       <input {...getCoverIP()} />
@@ -920,9 +883,9 @@ export default function UploadPage() {
                       ) : (
                         <div className="grid h-full place-items-center text-center">
                           <div>
-                            <Image className="mx-auto h-7 w-7 text-white/28" />
-                            <p className="mt-2 px-3 text-xs font-black text-white/40">Cover image ou video</p>
-                            <p className="mt-1 px-3 text-[10px] font-bold text-white/28">Video 7s max</p>
+                            <Image className="mx-auto h-7 w-7 text-[var(--v2-muted)]" />
+                            <p className="mt-2 px-3 text-xs font-semibold text-[var(--v2-muted)]">Cover image ou video</p>
+                            <p className="mt-1 px-3 text-[10px] font-bold text-[var(--v2-muted)]">Video 7s max</p>
                           </div>
                         </div>
                       )}
@@ -935,34 +898,34 @@ export default function UploadPage() {
 
                     <div className="grid min-w-0 gap-3">
                       <label className="grid gap-1.5">
-                        <span className="text-xs font-black uppercase tracking-[0.14em] text-white/36">{releaseType === 'single' ? 'Titre' : releaseType === 'ep' ? "Nom de l'EP" : "Nom de l'album"}</span>
+                        <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--v2-muted)]">{releaseType === 'single' ? 'Titre' : releaseType === 'ep' ? "Nom de l'EP" : "Nom de l'album"}</span>
                         <input
                           type="text"
                           value={title}
                           onChange={(event) => setTitle(event.target.value)}
-                          className="h-12 rounded-[1rem] border border-white/[0.10] bg-white/[0.05] px-4 text-sm font-semibold text-white outline-none placeholder:text-white/20 focus:border-white/28"
+                          className="h-12 rounded-[1rem] border border-white/[0.10] bg-[var(--v2-raised)] px-4 text-sm font-semibold text-white outline-none placeholder:text-[var(--v2-muted)] focus:border-white/28"
                           placeholder="Titre de ta sortie"
                         />
                       </label>
                       <label className="grid gap-1.5">
-                        <span className="text-xs font-black uppercase tracking-[0.14em] text-white/36">Artiste</span>
+                        <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--v2-muted)]">Artiste</span>
                         <input
                           type="text"
                           value={user?.name || ''}
                           disabled
-                          className="h-12 cursor-not-allowed rounded-[1rem] border border-white/[0.08] bg-white/[0.035] px-4 text-sm font-semibold text-white/34"
+                          className="h-12 cursor-not-allowed rounded-[1rem] border border-white/[0.08] bg-[var(--v2-raised)] px-4 text-sm font-semibold text-[var(--v2-muted)]"
                         />
                       </label>
                     </div>
                   </div>
 
                   <label className="grid gap-1.5">
-                    <span className="text-xs font-black uppercase tracking-[0.14em] text-white/36">Description</span>
+                    <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--v2-muted)]">Description</span>
                     <textarea
                       value={description}
                       onChange={(event) => setDescription(event.target.value)}
                       rows={3}
-                      className="min-h-24 resize-none rounded-[1rem] border border-white/[0.10] bg-white/[0.05] px-4 py-3 text-sm font-semibold text-white outline-none placeholder:text-white/20 focus:border-white/28"
+                      className="min-h-24 resize-none rounded-[1rem] border border-white/[0.10] bg-[var(--v2-raised)] px-4 py-3 text-sm font-semibold text-white outline-none placeholder:text-[var(--v2-muted)] focus:border-white/28"
                       placeholder="Decris ta musique..."
                     />
                   </label>
@@ -973,11 +936,11 @@ export default function UploadPage() {
                   <Section title="Ambiance & tags" icon={Sparkles} defaultOpen={false}>
                     <div className="space-y-4">
                       <div>
-                        <p className="mb-2 text-xs font-black uppercase tracking-[0.14em] text-white/36">Mood</p>
+                        <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--v2-muted)]">Mood</p>
                         <MoodSelector value={mood} onChange={setMood} />
                       </div>
                       <div>
-                        <p className="mb-2 text-xs font-black uppercase tracking-[0.14em] text-white/36">Langue</p>
+                        <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--v2-muted)]">Langue</p>
                         <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
                           {(['fr', 'en', 'es', 'ar', 'pt', 'de', 'it', 'ja', 'ko', 'instrumental', 'other'] as const).map((key) => {
                             const labels: Record<string, string> = { fr: 'Francais', en: 'Anglais', es: 'Espagnol', ar: 'Arabe', pt: 'Portugais', de: 'Allemand', it: 'Italien', ja: 'Japonais', ko: 'Coreen', instrumental: 'Instrumental', other: 'Autre' };
@@ -987,7 +950,7 @@ export default function UploadPage() {
                                 key={key}
                                 type="button"
                                 onClick={() => setLanguage(active ? '' : key)}
-                                className={['rounded-full px-3 py-2 text-xs font-black transition', active ? 'bg-white text-[#171313]' : 'bg-white/[0.06] text-white/48 hover:bg-white/[0.10]'].join(' ')}
+                                className={['rounded-full px-3 py-2 text-xs font-semibold transition', active ? 'bg-[var(--v2-raised)] text-[var(--v2-text)]' : 'bg-[var(--v2-raised)] text-[var(--v2-muted)] hover:bg-[var(--v2-raised)]'].join(' ')}
                               >
                                 {labels[key]}
                               </button>
@@ -996,7 +959,7 @@ export default function UploadPage() {
                         </div>
                       </div>
                       <div>
-                        <p className="mb-2 text-xs font-black uppercase tracking-[0.14em] text-white/36">Tags</p>
+                        <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--v2-muted)]">Tags</p>
                         <TagsInput tags={tags} onChange={setTags} max={10} />
                       </div>
                     </div>
@@ -1007,7 +970,7 @@ export default function UploadPage() {
                         value={lyrics}
                         onChange={(event) => setLyrics(event.target.value)}
                         rows={7}
-                        className="w-full resize-none rounded-[1rem] border border-white/[0.10] bg-white/[0.05] px-4 py-3 text-sm font-semibold text-white outline-none placeholder:text-white/20 focus:border-white/28"
+                        className="w-full resize-none rounded-[1rem] border border-white/[0.10] bg-[var(--v2-raised)] px-4 py-3 text-sm font-semibold text-white outline-none placeholder:text-[var(--v2-muted)] focus:border-white/28"
                         placeholder="Ajoute les paroles..."
                       />
                     </Section>
@@ -1029,31 +992,31 @@ export default function UploadPage() {
                         key={key}
                         type="button"
                         onClick={() => setVisibility(key)}
-                        className={['h-11 rounded-full text-sm font-black transition', visibility === key ? 'bg-white text-[#171313]' : 'bg-white/[0.06] text-white/46 hover:bg-white/[0.10]'].join(' ')}
+                        className={['h-11 rounded-full text-sm font-semibold transition', visibility === key ? 'bg-[var(--v2-raised)] text-[var(--v2-text)]' : 'bg-[var(--v2-raised)] text-[var(--v2-muted)] hover:bg-[var(--v2-raised)]'].join(' ')}
                       >
                         {label}
                       </button>
                     ))}
                   </div>
 
-                  <label className="flex cursor-pointer items-center gap-3 rounded-[1.1rem] bg-white/[0.04] px-4 py-3 text-sm font-black text-white/68">
+                  <label className="flex cursor-pointer items-center gap-3 rounded-[1.1rem] bg-[var(--v2-raised)] px-4 py-3 text-sm font-semibold text-white/68">
                     <input
                       type="checkbox"
                       checked={isExplicit}
                       onChange={(event) => setIsExplicit(event.target.checked)}
-                      className="h-4 w-4 rounded border-white/20 bg-white/[0.04] text-[#ff6f61] focus:ring-[#ff6f61]/30"
+                      className="h-4 w-4 rounded border-white/20 bg-[var(--v2-raised)] text-[var(--v2-accent)] focus:ring-[#ff6f61]/30"
                     />
                     Contenu explicite
                   </label>
 
-                  <div className="rounded-[1.2rem] border border-[#4A9EAA]/25 bg-[#4A9EAA]/[0.06] p-4">
+                  <div className="rounded-[1.2rem] border border-[var(--v2-line)] bg-[var(--v2-accent)] p-4">
                     <div className="mb-3 flex items-center gap-2">
-                      <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#4A9EAA]/15 text-[#8fd3da]">
+                      <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[var(--v2-accent)] text-[#8fd3da]">
                         <Repeat2 className="h-3.5 w-3.5" />
                       </span>
                       <div>
-                        <p className="text-sm font-black text-white">Droits de creation</p>
-                        <p className="text-[11px] font-semibold text-white/40">Ce que les autres membres peuvent faire avec ce morceau.</p>
+                        <p className="text-sm font-semibold text-white">Droits de creation</p>
+                        <p className="text-[11px] font-semibold text-[var(--v2-muted)]">Ce que les autres membres peuvent faire avec ce morceau.</p>
                       </div>
                     </div>
                     <RemixPermissionsSection value={remixPermissions} onChange={setRemixPermissions} />
@@ -1066,16 +1029,16 @@ export default function UploadPage() {
                   <SynauraEventEntryPanel selectedEventId={selectedEventId} onChange={setSelectedEventId} dark />
 
                   <label className="grid max-w-xs gap-1.5">
-                    <span className="text-xs font-black uppercase tracking-[0.14em] text-white/36">Annee copyright</span>
+                    <span className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--v2-muted)]">Annee copyright</span>
                     <input
                       type="number"
                       value={copyrightYear}
                       onChange={(event) => setCopyrightYear(parseInt(event.target.value) || new Date().getFullYear())}
-                      className="h-11 rounded-[1rem] border border-white/[0.10] bg-white/[0.05] px-4 text-sm font-semibold text-white outline-none focus:border-white/28"
+                      className="h-11 rounded-[1rem] border border-white/[0.10] bg-[var(--v2-raised)] px-4 text-sm font-semibold text-white outline-none focus:border-white/28"
                     />
                   </label>
 
-                  <div className="rounded-[1.2rem] border border-white/[0.08] bg-white/[0.035] p-3">
+                  <div className="rounded-[1.2rem] border border-white/[0.08] bg-[var(--v2-raised)] p-3">
                     <UploadPreview
                       releaseType={releaseType}
                       title={title}
@@ -1110,32 +1073,32 @@ export default function UploadPage() {
               <div className="grid gap-2">
                 {uploadProgress.audio > 0 && (
                   <div>
-                    <div className="mb-1 flex justify-between text-[10px] font-black uppercase tracking-[0.14em] text-white/36"><span>Audio</span><span>{uploadProgress.audio}%</span></div>
-                    <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.08]"><div className="h-full rounded-full bg-white transition-all duration-300" style={{ width: `${uploadProgress.audio}%` }} /></div>
+                    <div className="mb-1 flex justify-between text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--v2-muted)]"><span>Audio</span><span>{uploadProgress.audio}%</span></div>
+                    <div className="h-1.5 overflow-hidden rounded-full bg-[var(--v2-raised)]"><div className="h-full rounded-full bg-[var(--v2-raised)] transition-all duration-300" style={{ width: `${uploadProgress.audio}%` }} /></div>
                   </div>
                 )}
                 {uploadProgress.cover > 0 && (
                   <div>
-                    <div className="mb-1 flex justify-between text-[10px] font-black uppercase tracking-[0.14em] text-white/36"><span>Pochette</span><span>{uploadProgress.cover}%</span></div>
-                    <div className="h-1.5 overflow-hidden rounded-full bg-white/[0.08]"><div className="h-full rounded-full bg-white transition-all duration-300" style={{ width: `${uploadProgress.cover}%` }} /></div>
+                    <div className="mb-1 flex justify-between text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--v2-muted)]"><span>Pochette</span><span>{uploadProgress.cover}%</span></div>
+                    <div className="h-1.5 overflow-hidden rounded-full bg-[var(--v2-raised)]"><div className="h-full rounded-full bg-[var(--v2-raised)] transition-all duration-300" style={{ width: `${uploadProgress.cover}%` }} /></div>
                   </div>
                 )}
               </div>
             </div>
           )}
 
-          <div className="sticky bottom-0 z-10 border-t border-white/[0.08] bg-[#171313]/94 px-3 py-3 backdrop-blur-xl sm:px-5">
+          <div className="sticky bottom-0 z-10 border-t border-white/[0.08] bg-[var(--v2-surface)] px-3 py-3 backdrop-blur-xl sm:px-5">
             {currentStepHint ? (
               <p className="mb-2 text-xs font-semibold text-[#ffb3a8]">{currentStepHint}</p>
             ) : null}
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex gap-2">
                 {currentStep > 1 && (
-                  <button type="button" onClick={() => setCurrentStep(currentStep - 1)} className="h-10 rounded-full bg-white/[0.06] px-4 text-sm font-black text-white/62 transition hover:bg-white/[0.10]">
+                  <button type="button" onClick={() => setCurrentStep(currentStep - 1)} className="h-10 rounded-full bg-[var(--v2-raised)] px-4 text-sm font-semibold text-white/62 transition hover:bg-[var(--v2-raised)]">
                     Retour
                   </button>
                 )}
-                <button type="button" onClick={cancelUpload} className="h-10 rounded-full bg-red-500/10 px-4 text-sm font-black text-red-200 transition hover:bg-red-500/18">
+                <button type="button" onClick={cancelUpload} className="h-10 rounded-full bg-red-500/10 px-4 text-sm font-semibold text-red-200 transition hover:bg-red-500/18">
                   Annuler
                 </button>
               </div>
@@ -1144,7 +1107,7 @@ export default function UploadPage() {
                   type="button"
                   onClick={() => setCurrentStep(currentStep + 1)}
                   disabled={(currentStep === 1 && !step1Valid) || (currentStep === 2 && !step2Valid) || !canUpload}
-                  className="h-11 rounded-full bg-[#7357C6] px-6 text-sm font-black text-white transition hover:scale-[1.01] hover:bg-[#6547b3] disabled:cursor-not-allowed disabled:opacity-30"
+                  className="h-11 rounded-full bg-[var(--v2-accent)] px-6 text-sm font-semibold text-white transition hover:scale-[1.01] hover:bg-[var(--v2-accent)] disabled:cursor-not-allowed disabled:opacity-30"
                 >
                   Suivant
                 </button>
@@ -1153,7 +1116,7 @@ export default function UploadPage() {
                   type="button"
                   onClick={handleSubmit}
                   disabled={isUploading || !canUpload}
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#7357C6] px-6 text-sm font-black text-white transition hover:scale-[1.01] hover:bg-[#6547b3] disabled:cursor-not-allowed disabled:opacity-30"
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[var(--v2-accent)] px-6 text-sm font-semibold text-white transition hover:scale-[1.01] hover:bg-[var(--v2-accent)] disabled:cursor-not-allowed disabled:opacity-30"
                 >
                   {isUploading ? <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/40 border-t-white" /> : <Sparkles className="h-4 w-4" />}
                   {isUploading ? 'Publication...' : `Publier ${releaseType === 'single' ? 'le morceau' : releaseType === 'ep' ? "l'EP" : "l'album"}`}
@@ -1165,7 +1128,7 @@ export default function UploadPage() {
 
         <aside className="min-w-0 space-y-3">
           <SynauraPanel className="p-3 sm:p-4">
-            <div className="aspect-square overflow-hidden rounded-[1.1rem] bg-[#171313]">
+            <div className="aspect-square overflow-hidden rounded-[1.1rem] bg-[var(--v2-surface)]">
               {coverPreviewUrl ? (
                 coverIsVideo ? (
                   <video src={coverPreviewUrl} className="h-full w-full object-cover" muted loop playsInline autoPlay />
@@ -1174,40 +1137,40 @@ export default function UploadPage() {
                 )
               ) : (
                 <div className="grid h-full place-items-center bg-[linear-gradient(135deg,#171313,#302545_58%,#0f3b42)]">
-                  <Music className="h-12 w-12 text-white/20" />
+                  <Music className="h-12 w-12 text-[var(--v2-muted)]" />
                 </div>
               )}
             </div>
             <div className="mt-3 min-w-0">
-              <p className="truncate text-xl font-black tracking-[-0.04em] text-[#171313]">{title.trim() || 'Sans titre'}</p>
-              <p className="mt-1 truncate text-sm font-semibold text-black/48">{user?.name || 'Artiste'}</p>
-              {featuring.length > 0 && <p className="mt-1 truncate text-xs font-semibold text-black/36">feat. {featuring.map((artist) => artist.name).join(', ')}</p>}
+              <p className="truncate text-xl font-semibold tracking-[-0.04em] text-[var(--v2-text)]">{title.trim() || 'Sans titre'}</p>
+              <p className="mt-1 truncate text-sm font-semibold text-[var(--v2-muted)]">{user?.name || 'Artiste'}</p>
+              {featuring.length > 0 && <p className="mt-1 truncate text-xs font-semibold text-[var(--v2-muted)]">feat. {featuring.map((artist) => artist.name).join(', ')}</p>}
             </div>
             <div className="mt-3 grid grid-cols-2 gap-2">
-              <div className="rounded-[1rem] bg-black/[0.045] p-3">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-black/34">Format</p>
-                <p className="mt-1 text-sm font-black text-[#171313]">{releaseLabel}</p>
+              <div className="rounded-[1rem] bg-[var(--v2-raised)] p-3">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--v2-muted)]">Format</p>
+                <p className="mt-1 text-sm font-semibold text-[var(--v2-text)]">{releaseLabel}</p>
               </div>
-              <div className="rounded-[1rem] bg-black/[0.045] p-3">
-                <p className="text-[10px] font-black uppercase tracking-[0.16em] text-black/34">Pistes</p>
-                <p className="mt-1 text-sm font-black text-[#171313]">{selectedTrackCount}</p>
+              <div className="rounded-[1rem] bg-[var(--v2-raised)] p-3">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--v2-muted)]">Pistes</p>
+                <p className="mt-1 text-sm font-semibold text-[var(--v2-text)]">{selectedTrackCount}</p>
               </div>
             </div>
           </SynauraPanel>
 
           <SynauraPanel className="p-3 sm:p-4">
-            <p className="text-[10px] font-black uppercase tracking-[0.18em] text-black/38">A verifier</p>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--v2-muted)]">A verifier</p>
             <div className="mt-3 grid gap-2">
               {[
                 { label: 'Audio', done: step1Valid },
                 { label: 'Pochette + titre', done: step2Valid },
                 { label: 'Publication', done: currentStep === 3 },
               ].map((item) => (
-                <div key={item.label} className="flex items-center gap-3 rounded-[1rem] bg-black/[0.045] px-3 py-2.5">
-                  <span className={['grid h-7 w-7 place-items-center rounded-full', item.done ? 'bg-emerald-500/14 text-emerald-700' : 'bg-black/[0.06] text-black/34'].join(' ')}>
+                <div key={item.label} className="flex items-center gap-3 rounded-[1rem] bg-[var(--v2-raised)] px-3 py-2.5">
+                  <span className={['grid h-7 w-7 place-items-center rounded-full', item.done ? 'bg-emerald-500/14 text-emerald-700' : 'bg-[var(--v2-raised)] text-[var(--v2-muted)]'].join(' ')}>
                     {item.done ? <Check className="h-3.5 w-3.5" /> : <X className="h-3.5 w-3.5" />}
                   </span>
-                  <span className="text-sm font-black text-[#171313]">{item.label}</span>
+                  <span className="text-sm font-semibold text-[var(--v2-text)]">{item.label}</span>
                 </div>
               ))}
             </div>
@@ -1237,7 +1200,7 @@ export default function UploadPage() {
               <button
                 type="button"
                 onClick={() => router.push('/ai-generator')}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[#171313] px-5 text-sm font-black text-white transition hover:scale-[1.02]"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[var(--v2-surface)] px-5 text-sm font-semibold text-white transition hover:scale-[1.02]"
               >
                 <Wand2 className="h-4 w-4" />
                 Ouvrir le studio
@@ -1245,7 +1208,7 @@ export default function UploadPage() {
               <button
                 type="button"
                 onClick={() => router.push('/library')}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-black/[0.06] px-5 text-sm font-black text-[#171313] transition hover:bg-black/[0.10]"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[var(--v2-raised)] px-5 text-sm font-semibold text-[var(--v2-text)] transition hover:bg-black/[0.10]"
               >
                 <Library className="h-4 w-4" />
                 Voir la biblio
@@ -1255,29 +1218,29 @@ export default function UploadPage() {
           aside={
             <SynauraInkPanel className="p-4 sm:p-5">
               <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
-                <div className="rounded-[1.35rem] border border-white/10 bg-white/[0.03] p-4">
-                  <div className="inline-flex items-center gap-2 rounded-full bg-white/[0.06] px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-white/58">
+                <div className="rounded-[1.35rem] border border-white/10 bg-[var(--v2-raised)] p-4">
+                  <div className="inline-flex items-center gap-2 rounded-full bg-[var(--v2-raised)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--v2-muted)]">
                     <Disc3 className="h-3.5 w-3.5" />
                     {releaseLabel}
                   </div>
-                  <div className="mt-3 text-3xl font-black leading-none text-white">{selectedTrackCount}</div>
-                  <p className="mt-1 text-xs text-white/44">piste(s) prete(s) pour la mise en ligne</p>
+                  <div className="mt-3 text-3xl font-semibold leading-none text-white">{selectedTrackCount}</div>
+                  <p className="mt-1 text-xs text-[var(--v2-muted)]">piste(s) prete(s) pour la mise en ligne</p>
                 </div>
-                <div className="rounded-[1.35rem] border border-white/10 bg-white/[0.03] p-4">
-                  <div className="inline-flex items-center gap-2 rounded-full bg-white/[0.06] px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-white/58">
+                <div className="rounded-[1.35rem] border border-white/10 bg-[var(--v2-raised)] p-4">
+                  <div className="inline-flex items-center gap-2 rounded-full bg-[var(--v2-raised)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--v2-muted)]">
                     <Clock3 className="h-3.5 w-3.5" />
                     Diffusion
                   </div>
-                  <div className="mt-3 text-sm font-black text-white">{scheduledLabel}</div>
-                  <p className="mt-1 text-xs text-white/44">visibilite {visibility === 'public' ? 'publique' : visibility === 'unlisted' ? 'non listee' : 'privee'}</p>
+                  <div className="mt-3 text-sm font-semibold text-white">{scheduledLabel}</div>
+                  <p className="mt-1 text-xs text-[var(--v2-muted)]">visibilite {visibility === 'public' ? 'publique' : visibility === 'unlisted' ? 'non listee' : 'privee'}</p>
                 </div>
-                <div className="rounded-[1.35rem] border border-white/10 bg-white/[0.03] p-4">
-                  <div className="inline-flex items-center gap-2 rounded-full bg-white/[0.06] px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-white/58">
+                <div className="rounded-[1.35rem] border border-white/10 bg-[var(--v2-raised)] p-4">
+                  <div className="inline-flex items-center gap-2 rounded-full bg-[var(--v2-raised)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--v2-muted)]">
                     <ShieldCheck className="h-3.5 w-3.5" />
                     Plan
                   </div>
-                  <div className="mt-3 text-sm font-black capitalize text-white">{planKey}</div>
-                  <p className="mt-1 text-xs text-white/44">limite par fichier: {uploadLimitLabel}</p>
+                  <div className="mt-3 text-sm font-semibold capitalize text-white">{planKey}</div>
+                  <p className="mt-1 text-xs text-[var(--v2-muted)]">limite par fichier: {uploadLimitLabel}</p>
                 </div>
               </div>
             </SynauraInkPanel>
@@ -1291,12 +1254,12 @@ export default function UploadPage() {
           <div className="sticky top-0 z-10 bg-[#0a0a14]/95 backdrop-blur-xl border-b border-white/[0.06]">
             <div className="p-3 sm:p-4 flex items-center justify-between gap-3">
               <div className="flex items-center gap-3 min-w-0">
-                <button type="button" onClick={() => router.push(currentHandoffReturn('/'))} className="h-10 w-10 rounded-2xl border border-white/[0.08] bg-white/[0.03] hover:bg-white/[0.06] transition grid place-items-center" aria-label="Retour">
-                  <ArrowLeft className="h-4 w-4 text-white/50" />
+                <button type="button" onClick={() => router.push(currentHandoffReturn('/'))} className="h-10 w-10 rounded-2xl border border-white/[0.08] bg-[var(--v2-raised)] hover:bg-[var(--v2-raised)] transition grid place-items-center" aria-label="Retour">
+                  <ArrowLeft className="h-4 w-4 text-[var(--v2-muted)]" />
                 </button>
                 <div className="min-w-0">
                   <div className="text-lg font-bold bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">Publier</div>
-                  <div className="text-[11px] text-white/30">
+                  <div className="text-[11px] text-[var(--v2-muted)]">
                     {releaseType === 'single' ? 'Single' : releaseType === 'ep' ? 'EP' : 'Album'}
                     {title && ` — ${title}`}
                   </div>
@@ -1314,7 +1277,7 @@ export default function UploadPage() {
                     }}
                     className={[
                       'px-3 py-1.5 rounded-full text-xs font-medium transition',
-                      currentStep === s.k ? 'bg-violet-500/20 text-violet-300 border border-violet-500/30' : currentStep > s.k ? 'bg-white/[0.04] text-white/50 border border-white/[0.08]' : 'text-white/20 border border-transparent',
+                      currentStep === s.k ? 'bg-violet-500/20 text-violet-300 border border-violet-500/30' : currentStep > s.k ? 'bg-[var(--v2-raised)] text-[var(--v2-muted)] border border-white/[0.08]' : 'text-[var(--v2-muted)] border border-transparent',
                     ].join(' ')}
                   >
                     {s.k}. {s.label}
@@ -1334,7 +1297,7 @@ export default function UploadPage() {
                   }}
                   className={[
                     'px-3 py-1.5 rounded-full text-xs font-medium transition whitespace-nowrap',
-                    currentStep === s.k ? 'bg-violet-500/20 text-violet-300 border border-violet-500/30' : 'text-white/30 border border-white/[0.06]',
+                    currentStep === s.k ? 'bg-violet-500/20 text-violet-300 border border-violet-500/30' : 'text-[var(--v2-muted)] border border-white/[0.06]',
                   ].join(' ')}
                 >
                   {s.k}. {s.label}
@@ -1343,7 +1306,7 @@ export default function UploadPage() {
               </div>
 
             {/* Progress bar */}
-            <div className="h-0.5 bg-white/[0.04]">
+            <div className="h-0.5 bg-[var(--v2-raised)]">
               <div className="h-full bg-gradient-to-r from-violet-500 to-fuchsia-500 transition-all duration-500" style={{ width: `${(currentStep / totalSteps) * 100}%` }} />
             </div>
           </div>
@@ -1375,21 +1338,21 @@ export default function UploadPage() {
                     {releaseType === 'single' && !audioFile ? (
                       <div {...getAudioRP()} className={`border-2 border-dashed rounded-2xl p-8 sm:p-12 text-center cursor-pointer transition ${isAudioDrag ? 'border-violet-500/60 bg-violet-500/5' : 'border-white/[0.08] hover:border-white/[0.16]'}`}>
                         <input {...getAudioIP()} />
-                        <Upload className="w-10 h-10 sm:w-14 sm:h-14 mx-auto text-white/20 mb-3" />
+                        <Upload className="w-10 h-10 sm:w-14 sm:h-14 mx-auto text-[var(--v2-muted)] mb-3" />
                         <p className="text-base sm:text-lg font-medium text-white/60">Glisse ton fichier audio ici</p>
-                        <p className="text-xs text-white/30 mt-1">MP3, WAV, FLAC — Max {planKey === 'starter' ? 200 : planKey === 'pro' ? 500 : planKey === 'enterprise' ? '1 Go' : '80'} MB</p>
+                        <p className="text-xs text-[var(--v2-muted)] mt-1">MP3, WAV, FLAC — Max {planKey === 'starter' ? 200 : planKey === 'pro' ? 500 : planKey === 'enterprise' ? '1 Go' : '80'} MB</p>
                       </div>
                     ) : releaseType === 'single' && audioFile instanceof File ? (
                       <div className="space-y-3">
-                        <div className="flex items-center gap-3 p-3 rounded-2xl border border-white/[0.08] bg-white/[0.02]">
-                          <button type="button" onClick={() => setIsPlaying(!isPlaying)} className="w-10 h-10 rounded-xl border border-white/[0.08] bg-white/[0.04] hover:bg-white/[0.08] flex items-center justify-center transition">
+                        <div className="flex items-center gap-3 p-3 rounded-2xl border border-white/[0.08] bg-[var(--v2-raised)]">
+                          <button type="button" onClick={() => setIsPlaying(!isPlaying)} className="w-10 h-10 rounded-xl border border-white/[0.08] bg-[var(--v2-raised)] hover:bg-[var(--v2-raised)] flex items-center justify-center transition">
                             {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
                           </button>
                           <div className="flex-1 min-w-0">
                             <div className="text-sm font-medium truncate">{audioFile?.name}</div>
-                            <div className="text-[10px] text-white/30">{((audioFile?.size || 0) / 1024 / 1024).toFixed(1)} MB - {Math.floor(duration / 60)}:{String(Math.floor(duration % 60)).padStart(2, '0')}</div>
+                            <div className="text-[10px] text-[var(--v2-muted)]">{((audioFile?.size || 0) / 1024 / 1024).toFixed(1)} MB - {Math.floor(duration / 60)}:{String(Math.floor(duration % 60)).padStart(2, '0')}</div>
                         </div>
-                          <button type="button" onClick={() => { setAudioFile(null); setIsPlaying(false); }} className="w-8 h-8 rounded-lg hover:bg-red-500/10 flex items-center justify-center transition text-white/30 hover:text-red-400"><X className="w-4 h-4" /></button>
+                          <button type="button" onClick={() => { setAudioFile(null); setIsPlaying(false); }} className="w-8 h-8 rounded-lg hover:bg-red-500/10 flex items-center justify-center transition text-[var(--v2-muted)] hover:text-red-400"><X className="w-4 h-4" /></button>
                       </div>
                         <WaveformDisplay audioFile={audioFile} currentTime={currentTime} duration={duration} onSeek={(t) => { if (audioRef.current) { audioRef.current.currentTime = t; setCurrentTime(t); } }} />
                   </div>
@@ -1398,9 +1361,9 @@ export default function UploadPage() {
                         <div className="space-y-3">
                         <div {...getAudioRP()} className={`border-2 border-dashed rounded-2xl p-6 text-center cursor-pointer transition ${isAudioDrag ? 'border-violet-500/60 bg-violet-500/5' : 'border-white/[0.08] hover:border-white/[0.16]'}`}>
                           <input {...getAudioIP()} />
-                          <Upload className="w-8 h-8 mx-auto text-white/20 mb-2" />
+                          <Upload className="w-8 h-8 mx-auto text-[var(--v2-muted)] mb-2" />
                           <p className="text-sm font-medium text-white/60">Ajouter des pistes</p>
-                          <p className="text-[10px] text-white/30 mt-1">
+                          <p className="text-[10px] text-[var(--v2-muted)] mt-1">
                             {releaseType === 'ep' ? '2 a 6 pistes' : '7 a 50 pistes'} — Glisse ou clique
                           </p>
                 </div>
@@ -1408,7 +1371,7 @@ export default function UploadPage() {
                         {trackMetas.length > 0 && (
                           <div>
                             <div className="flex items-center justify-between mb-2">
-                              <span className="text-xs text-white/40">{trackMetas.length} piste(s)</span>
+                              <span className="text-xs text-[var(--v2-muted)]">{trackMetas.length} piste(s)</span>
                               {!trackCountValid && (
                                 <span className="text-[10px] text-amber-400">
                                   {releaseType === 'ep' ? 'EP : 2-6 pistes requises' : 'Album : 7+ pistes requises'}
@@ -1445,8 +1408,8 @@ export default function UploadPage() {
                                     </div>
                         ) : (
                           <div className="w-full h-full flex flex-col items-center justify-center gap-1.5">
-                            <Image className="w-6 h-6 text-white/20" />
-                            <span className="text-[10px] text-white/30 text-center px-2">Cover image ou video *</span>
+                            <Image className="w-6 h-6 text-[var(--v2-muted)]" />
+                            <span className="text-[10px] text-[var(--v2-muted)] text-center px-2">Cover image ou video *</span>
                                       </div>
                                     )}
                       </div>
@@ -1454,22 +1417,22 @@ export default function UploadPage() {
                       {/* Title + Artist */}
                       <div className="flex-1 min-w-0 space-y-3">
                         <div>
-                          <label className="text-xs text-white/40 mb-1 block">
+                          <label className="text-xs text-[var(--v2-muted)] mb-1 block">
                             {releaseType === 'single' ? 'Titre *' : releaseType === 'ep' ? "Nom de l'EP *" : "Nom de l'album *"}
                           </label>
-                          <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} className="w-full h-11 px-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-sm text-white placeholder:text-white/20 outline-none focus:border-violet-500/40 focus:ring-1 focus:ring-violet-500/20 transition" placeholder="Titre de ta sortie" />
+                          <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} className="w-full h-11 px-3 rounded-xl bg-[var(--v2-raised)] border border-white/[0.08] text-sm text-white placeholder:text-[var(--v2-muted)] outline-none focus:border-violet-500/40 focus:ring-1 focus:ring-violet-500/20 transition" placeholder="Titre de ta sortie" />
                                     </div>
                         <div>
-                          <label className="text-xs text-white/40 mb-1 block">Artiste</label>
-                          <input type="text" value={user?.name || ''} disabled className="w-full h-11 px-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-sm text-white/30 cursor-not-allowed" />
+                          <label className="text-xs text-[var(--v2-muted)] mb-1 block">Artiste</label>
+                          <input type="text" value={user?.name || ''} disabled className="w-full h-11 px-3 rounded-xl bg-[var(--v2-raised)] border border-white/[0.08] text-sm text-[var(--v2-muted)] cursor-not-allowed" />
                                   </div>
                         </div>
                       </div>
 
                     {/* Description */}
                     <div>
-                      <label className="text-xs text-white/40 mb-1 block">Description</label>
-                      <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className="w-full px-3 py-2 rounded-xl bg-white/[0.04] border border-white/[0.08] text-sm text-white placeholder:text-white/20 outline-none focus:border-violet-500/40 resize-none" placeholder="Decris ta musique..." />
+                      <label className="text-xs text-[var(--v2-muted)] mb-1 block">Description</label>
+                      <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className="w-full px-3 py-2 rounded-xl bg-[var(--v2-raised)] border border-white/[0.08] text-sm text-white placeholder:text-[var(--v2-muted)] outline-none focus:border-violet-500/40 resize-none" placeholder="Decris ta musique..." />
                               </div>
 
                     {/* Genres */}
@@ -1489,7 +1452,7 @@ export default function UploadPage() {
                           const labels: Record<string, string> = { fr: 'Francais', en: 'Anglais', es: 'Espagnol', ar: 'Arabe', pt: 'Portugais', de: 'Allemand', it: 'Italien', ja: 'Japonais', ko: 'Coreen', instrumental: 'Instrumental', other: 'Autre' };
                           const active = language === k;
                           return (
-                            <button key={k} type="button" onClick={() => setLanguage(active ? '' : k)} className={['px-2.5 py-2 rounded-xl text-xs transition', active ? 'bg-violet-500/15 border border-violet-500/40 text-violet-300' : 'bg-white/[0.03] border border-white/[0.06] text-white/50 hover:bg-white/[0.06]'].join(' ')}>
+                            <button key={k} type="button" onClick={() => setLanguage(active ? '' : k)} className={['px-2.5 py-2 rounded-xl text-xs transition', active ? 'bg-violet-500/15 border border-violet-500/40 text-violet-300' : 'bg-[var(--v2-raised)] border border-white/[0.06] text-[var(--v2-muted)] hover:bg-[var(--v2-raised)]'].join(' ')}>
                               {labels[k]}
                   </button>
                           );
@@ -1505,7 +1468,7 @@ export default function UploadPage() {
                     {/* Lyrics (single only) */}
                     {releaseType === 'single' && (
                       <Section title="Paroles" icon={FileText} defaultOpen={false}>
-                        <textarea value={lyrics} onChange={(e) => setLyrics(e.target.value)} rows={6} className="w-full px-3 py-2 rounded-xl bg-white/[0.04] border border-white/[0.08] text-sm text-white placeholder:text-white/20 outline-none focus:border-violet-500/40 resize-none" placeholder="Ajoute les paroles..." />
+                        <textarea value={lyrics} onChange={(e) => setLyrics(e.target.value)} rows={6} className="w-full px-3 py-2 rounded-xl bg-[var(--v2-raised)] border border-white/[0.08] text-sm text-white placeholder:text-[var(--v2-muted)] outline-none focus:border-violet-500/40 resize-none" placeholder="Ajoute les paroles..." />
                       </Section>
                     )}
 
@@ -1530,30 +1493,30 @@ export default function UploadPage() {
                       <div className="space-y-4">
                         {/* Visibility */}
                         <div>
-                          <label className="text-xs text-white/40 mb-1.5 block">Visibilite</label>
+                          <label className="text-xs text-[var(--v2-muted)] mb-1.5 block">Visibilite</label>
                           <div className="grid grid-cols-3 gap-2">
                             {([['public', 'Public'], ['unlisted', 'Non-liste'], ['private', 'Prive']] as const).map(([k, l]) => (
-                              <button key={k} type="button" onClick={() => setVisibility(k)} className={['px-3 py-2 rounded-xl text-xs transition', visibility === k ? 'bg-violet-500/15 border border-violet-500/40 text-violet-300' : 'bg-white/[0.03] border border-white/[0.06] text-white/50 hover:bg-white/[0.06]'].join(' ')}>{l}</button>
+                              <button key={k} type="button" onClick={() => setVisibility(k)} className={['px-3 py-2 rounded-xl text-xs transition', visibility === k ? 'bg-violet-500/15 border border-violet-500/40 text-violet-300' : 'bg-[var(--v2-raised)] border border-white/[0.06] text-[var(--v2-muted)] hover:bg-[var(--v2-raised)]'].join(' ')}>{l}</button>
                             ))}
                     </div>
                   </div>
 
                         {/* Explicit */}
                         <label className="flex items-center gap-3 text-sm text-white/60 cursor-pointer">
-                          <input type="checkbox" checked={isExplicit} onChange={(e) => setIsExplicit(e.target.checked)} className="h-4 w-4 rounded border-white/20 bg-white/[0.04] text-violet-500 focus:ring-violet-500/30" />
+                          <input type="checkbox" checked={isExplicit} onChange={(e) => setIsExplicit(e.target.checked)} className="h-4 w-4 rounded border-white/20 bg-[var(--v2-raised)] text-violet-500 focus:ring-violet-500/30" />
                           Contenu explicite
                         </label>
 
                         {/* Schedule */}
                         <div>
-                          <label className="text-xs text-white/40 mb-1.5 block">Date de publication</label>
+                          <label className="text-xs text-[var(--v2-muted)] mb-1.5 block">Date de publication</label>
                           <ScheduleSelector mode={scheduleMode} scheduledAt={scheduledAt} onModeChange={setScheduleMode} onDateChange={setScheduledAt} />
                   </div>
 
                         {/* Copyright year */}
                         <div className="flex items-center gap-3">
-                          <label className="text-xs text-white/40">Annee copyright</label>
-                          <input type="number" value={copyrightYear} onChange={(e) => setCopyrightYear(parseInt(e.target.value) || new Date().getFullYear())} className="w-24 h-9 px-3 rounded-lg bg-white/[0.04] border border-white/[0.08] text-xs text-white outline-none focus:border-violet-500/40" />
+                          <label className="text-xs text-[var(--v2-muted)]">Annee copyright</label>
+                          <input type="number" value={copyrightYear} onChange={(e) => setCopyrightYear(parseInt(e.target.value) || new Date().getFullYear())} className="w-24 h-9 px-3 rounded-lg bg-[var(--v2-raised)] border border-white/[0.08] text-xs text-white outline-none focus:border-violet-500/40" />
                   </div>
                 </div>
                     </Section>
@@ -1594,7 +1557,7 @@ export default function UploadPage() {
             {/* ─── Desktop side preview ──────────────── */}
             <div className="hidden lg:block w-72 xl:w-80 border-l border-white/[0.06] p-4">
               <div className="sticky top-28 space-y-4">
-                <div className="text-xs text-white/30 font-medium uppercase tracking-wider">Apercu</div>
+                <div className="text-xs text-[var(--v2-muted)] font-medium uppercase tracking-wider">Apercu</div>
                 <div className="w-full aspect-square rounded-2xl overflow-hidden border border-white/[0.08] bg-gradient-to-br from-violet-500/10 to-fuchsia-500/10">
                           {coverFile ? (
                     coverIsVideo ? (
@@ -1603,22 +1566,22 @@ export default function UploadPage() {
                       <img src={coverPreviewUrl!} alt="" className="w-full h-full object-cover" />
                     )
                           ) : (
-                    <div className="w-full h-full flex items-center justify-center"><Music className="w-12 h-12 text-white/10" /></div>
+                    <div className="w-full h-full flex items-center justify-center"><Music className="w-12 h-12 text-[var(--v2-muted)]" /></div>
                           )}
                 </div>
                 <div>
                   <div className="text-sm font-bold truncate">{title || 'Sans titre'}</div>
-                  <div className="text-xs text-white/40">{user?.name || 'Artiste'}</div>
-                  {featuring.length > 0 && <div className="text-[10px] text-white/25 mt-0.5">feat. {featuring.map((f) => f.name).join(', ')}</div>}
+                  <div className="text-xs text-[var(--v2-muted)]">{user?.name || 'Artiste'}</div>
+                  {featuring.length > 0 && <div className="text-[10px] text-[var(--v2-muted)] mt-0.5">feat. {featuring.map((f) => f.name).join(', ')}</div>}
                           </div>
                 {genres.length > 0 && (
                   <div className="flex flex-wrap gap-1">
-                    {genres.slice(0, 3).map((g) => <span key={g} className="px-2 py-0.5 rounded-full bg-white/[0.04] border border-white/[0.06] text-[10px] text-white/40">{g}</span>)}
-                    {genres.length > 3 && <span className="text-[10px] text-white/20">+{genres.length - 3}</span>}
+                    {genres.slice(0, 3).map((g) => <span key={g} className="px-2 py-0.5 rounded-full bg-[var(--v2-raised)] border border-white/[0.06] text-[10px] text-[var(--v2-muted)]">{g}</span>)}
+                    {genres.length > 3 && <span className="text-[10px] text-[var(--v2-muted)]">+{genres.length - 3}</span>}
                         </div>
                       )}
                 {releaseType !== 'single' && trackMetas.length > 0 && (
-                  <div className="text-[10px] text-white/30">{trackMetas.length} piste(s) — {Math.floor(trackMetas.reduce((s, t) => s + t.duration, 0) / 60)} min</div>
+                  <div className="text-[10px] text-[var(--v2-muted)]">{trackMetas.length} piste(s) — {Math.floor(trackMetas.reduce((s, t) => s + t.duration, 0) / 60)} min</div>
                           )}
                         </div>
                           </div>
@@ -1629,14 +1592,14 @@ export default function UploadPage() {
             <div className="px-4 py-3 space-y-2 border-t border-white/[0.06]">
                 {uploadProgress.audio > 0 && (
                   <div>
-                  <div className="flex justify-between text-[10px] text-white/40 mb-1"><span>Audio</span><span>{uploadProgress.audio}%</span></div>
-                  <div className="h-1 rounded-full bg-white/[0.06] overflow-hidden"><div className="h-full bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-full transition-all duration-300" style={{ width: `${uploadProgress.audio}%` }} /></div>
+                  <div className="flex justify-between text-[10px] text-[var(--v2-muted)] mb-1"><span>Audio</span><span>{uploadProgress.audio}%</span></div>
+                  <div className="h-1 rounded-full bg-[var(--v2-raised)] overflow-hidden"><div className="h-full bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-full transition-all duration-300" style={{ width: `${uploadProgress.audio}%` }} /></div>
                 </div>
                 )}
                 {uploadProgress.cover > 0 && (
                   <div>
-                  <div className="flex justify-between text-[10px] text-white/40 mb-1"><span>Pochette</span><span>{uploadProgress.cover}%</span></div>
-                  <div className="h-1 rounded-full bg-white/[0.06] overflow-hidden"><div className="h-full bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-full transition-all duration-300" style={{ width: `${uploadProgress.cover}%` }} /></div>
+                  <div className="flex justify-between text-[10px] text-[var(--v2-muted)] mb-1"><span>Pochette</span><span>{uploadProgress.cover}%</span></div>
+                  <div className="h-1 rounded-full bg-[var(--v2-raised)] overflow-hidden"><div className="h-full bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-full transition-all duration-300" style={{ width: `${uploadProgress.cover}%` }} /></div>
                   </div>
                 )}
               </div>
@@ -1646,7 +1609,7 @@ export default function UploadPage() {
           <div className="flex items-center justify-between gap-3 p-3 sm:p-4 border-t border-white/[0.06] bg-[#0a0a14]/80 backdrop-blur-xl">
             <div className="flex gap-2">
               {currentStep > 1 && (
-                <button type="button" onClick={() => setCurrentStep(currentStep - 1)} className="h-10 px-4 rounded-full bg-white/[0.04] text-white/60 text-sm font-medium hover:bg-white/[0.08] transition">Retour</button>
+                <button type="button" onClick={() => setCurrentStep(currentStep - 1)} className="h-10 px-4 rounded-full bg-[var(--v2-raised)] text-white/60 text-sm font-medium hover:bg-[var(--v2-raised)] transition">Retour</button>
               )}
               <button type="button" onClick={cancelUpload} className="h-10 px-4 rounded-full bg-red-500/8 text-red-400/80 text-sm font-medium hover:bg-red-500/15 transition">Annuler</button>
             </div>

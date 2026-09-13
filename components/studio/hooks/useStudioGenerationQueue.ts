@@ -4,6 +4,68 @@ import { useCallback, useEffect } from 'react';
 import { useBackgroundGeneration } from '@/hooks/useBackgroundGeneration';
 import { useStudioStore } from '@/lib/studio/store';
 import { notify } from '@/components/NotificationCenter';
+import { getSunoModelLabel, normalizeGenerationModel, SUNO_GENERATION_LIMITS } from '@/lib/sunoModels';
+
+export function prepareStudioRequest(requestBody: any) {
+  const { _endpoint, _batchIndex, _batchTotal, _expectedVariants, _sourceTrackId, duration, durationHint, ...body } = requestBody || {};
+  body.model = normalizeGenerationModel(body.model);
+  if (body.customMode && duration != null) {
+    if (!Number.isInteger(duration) || duration < SUNO_GENERATION_LIMITS.minDuration || duration > SUNO_GENERATION_LIMITS.maxDuration) {
+      throw new Error('La durée doit être un nombre entier entre 10 et 360 secondes.');
+    }
+    body.duration = duration;
+  }
+  if (body.customMode && body.instrumental) {
+    delete body.prompt;
+    delete body.vocalGender;
+  }
+  return {
+    endpoint: _endpoint === 'upload-cover' ? '/api/suno/upload-cover' : '/api/suno/generate',
+    body,
+  };
+}
+
+export function makeStudioRequestFromForm(form: any) {
+  const requestBody: any = {
+    customMode: !!form.customMode,
+    instrumental: !!form.instrumental,
+    model: normalizeGenerationModel(form.model),
+    callBackUrl: typeof window !== 'undefined' ? `${window.location.origin}/api/suno/callback` : undefined,
+  };
+  const tags = (form.tags || []).filter(Boolean);
+  const withinLimit = (value: string, limit: number, label: string) => {
+    if (value.length > limit) throw new Error(`${label} : ${limit} caractères maximum, tags compris.`);
+    return value;
+  };
+  const weight = (value: unknown) => {
+    const number = Number(value);
+    return Math.round(Math.max(0, Math.min(100, Number.isFinite(number) ? number : 50))) / 100;
+  };
+  if (form.customMode) {
+    if (!form.style.trim()) throw new Error('Style manquant');
+    if (!form.instrumental && !form.lyrics.trim()) throw new Error('Paroles manquantes (ou coche Instrumental)');
+    requestBody.title = withinLimit(form.title.trim() || 'Nouvelle création', SUNO_GENERATION_LIMITS.title, 'Titre');
+    requestBody.style = withinLimit([form.style, ...tags].filter(Boolean).join(', '), SUNO_GENERATION_LIMITS.style, 'Style');
+    if (!form.instrumental) {
+      requestBody.prompt = withinLimit(form.lyrics, SUNO_GENERATION_LIMITS.prompt, 'Paroles');
+      if (form.vocalGender === 'm' || form.vocalGender === 'f') requestBody.vocalGender = form.vocalGender;
+    }
+    requestBody.styleWeight = weight(form.styleInfluence);
+    requestBody.weirdnessConstraint = weight(form.weirdness);
+    requestBody.audioWeight = weight(form.audioWeight);
+    requestBody.negativeTags = form.negativeTags || undefined;
+    if (form.duration != null) {
+      if (!Number.isInteger(form.duration) || form.duration < SUNO_GENERATION_LIMITS.minDuration || form.duration > SUNO_GENERATION_LIMITS.maxDuration) {
+        throw new Error('La durée doit être un nombre entier entre 10 et 360 secondes.');
+      }
+      requestBody.duration = form.duration;
+    }
+  } else {
+    if (!form.description.trim()) throw new Error('Description manquante');
+    requestBody.prompt = withinLimit([form.description, ...tags].filter(Boolean).join(', '), SUNO_GENERATION_LIMITS.simplePrompt, 'Description');
+  }
+  return requestBody;
+}
 
 export function useStudioGenerationQueue({
   onInsufficientCredits,
@@ -25,68 +87,31 @@ export function useStudioGenerationQueue({
 
   const { generations: bgGenerations, startBackgroundGeneration } = useBackgroundGeneration();
 
-  const prepareRequest = (requestBody: any) => {
-    const {
-      _endpoint,
-      _batchIndex,
-      _batchTotal,
-      _expectedVariants,
-      _sourceTrackId,
-      ...body
-    } = requestBody || {};
-    return {
-      endpoint: _endpoint === 'upload-cover' ? '/api/suno/upload-cover' : '/api/suno/generate',
-      body,
-    };
-  };
-
   const runGenerateRequest = useCallback(
     async (requestBody: any) => {
-      const { endpoint, body } = prepareRequest(requestBody);
+      const { endpoint, body } = prepareStudioRequest(requestBody);
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
       });
 
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         if (res.status === 402) onInsufficientCredits();
-        throw new Error('Erreur génération');
+        throw new Error(typeof data?.error === 'string' ? data.error : 'Erreur génération');
       }
 
-      const data = await res.json();
       if (data?.credits?.balance != null) onCreditsBalance(data.credits.balance);
+      if (data?.modelAdjusted) {
+        notify.info('Modèle ajusté', `${getSunoModelLabel(data.model)} a été utilisé selon les modèles disponibles pour votre compte.`);
+      }
       return data;
     },
     [onCreditsBalance, onInsufficientCredits]
   );
 
-  const makeRequestBodyFromForm = useCallback((form: any) => {
-    const requestBody: any = {
-      customMode: form.customMode,
-      instrumental: form.instrumental,
-      model: form.model,
-      callBackUrl: typeof window !== 'undefined' ? `${window.location.origin}/api/suno/callback` : undefined,
-    };
-
-    const tags = (form.tags || []).filter(Boolean);
-    if (form.customMode) {
-      if (!form.style.trim()) throw new Error('Style manquant');
-      if (!form.instrumental && !form.lyrics.trim()) throw new Error('Paroles manquantes (ou coche Instrumental)');
-      requestBody.title = form.title.trim() ? form.title.trim() : undefined;
-      requestBody.style = [form.style, ...tags].filter(Boolean).join(', ');
-      requestBody.prompt = form.instrumental ? undefined : (form.lyrics.trim() || undefined);
-      requestBody.styleWeight = Number((Math.round(form.styleInfluence) / 100).toFixed(2));
-      requestBody.weirdnessConstraint = Number((Math.round(form.weirdness) / 100).toFixed(2));
-      requestBody.audioWeight = Number((Math.round(form.audioWeight) / 100).toFixed(2));
-      requestBody.negativeTags = form.negativeTags || undefined;
-      requestBody.vocalGender = form.vocalGender || undefined;
-    } else {
-      if (!form.description.trim()) throw new Error('Description manquante');
-      requestBody.prompt = [form.description, ...tags].filter(Boolean).join(', ');
-    }
-    return requestBody;
-  }, []);
+  const makeRequestBodyFromForm = useCallback(makeStudioRequestFromForm, []);
 
   const enqueueFromCurrentForm = useCallback(() => {
     try {
@@ -95,7 +120,6 @@ export function useStudioGenerationQueue({
       const projectId = (st.activeProjectId || 'project_default') as string;
       const requestedVariants = Math.max(2, Math.min(8, Number((st.form as any).variations || 2)));
       const batchCount = Math.max(1, Math.ceil(requestedVariants / 2));
-      const expectedVariants = batchCount * 2;
       for (let i = 0; i < batchCount; i++) {
         enqueueQueueItem(
           {
@@ -107,9 +131,11 @@ export function useStudioGenerationQueue({
           projectId
         );
       }
-      notify.success('Queue', `${expectedVariants} variantes prevues (${batchCount} batch Suno)`);
+      notify.success('Queue', `${batchCount} génération(s) ajoutée(s). Le nombre de versions peut varier.`);
+      return true;
     } catch (e: any) {
       notify.error('Queue', e?.message || 'Erreur');
+      return false;
     }
   }, [enqueueQueueItem, makeRequestBodyFromForm]);
 
@@ -118,7 +144,7 @@ export function useStudioGenerationQueue({
       const st = useStudioStore.getState();
       const t = st.tracks.find((x) => x.id === trackId);
       if (!t) return;
-      const nextTitle = `${t.title || 'Musique'} (variante)`;
+      const nextTitle = `${(t.title || 'Musique').slice(0, SUNO_GENERATION_LIMITS.title - 11)} (variante)`;
       try {
         const sourceUrl = String(t.audioUrl || '').trim();
         if (!sourceUrl) {
@@ -126,15 +152,17 @@ export function useStudioGenerationQueue({
           return;
         }
 
-        const lyrics = String(t.lyrics || t.prompt || '').trim();
+        const lyrics = String(t.lyrics || t.prompt || '');
         const style = (t.tags || []).join(', ') || st.form.style || 'remix, polished, modern mix';
         const remixForm = {
           ...st.form,
           customMode: true,
-          instrumental: !lyrics,
+          model: normalizeGenerationModel(t.model),
+          instrumental: t.hasVocals === false || !lyrics.trim(),
           title: nextTitle,
           style,
           lyrics,
+          duration: null,
         };
         st.loadTrackIntoForm(trackId);
         const requestBody = makeRequestBodyFromForm(remixForm as any);
@@ -146,7 +174,6 @@ export function useStudioGenerationQueue({
             _sourceTrackId: t.id,
             uploadUrl: sourceUrl,
             sourceDurationSec: t.durationSec,
-            title: nextTitle,
             _expectedVariants: 2,
           },
           projectId
@@ -196,6 +223,8 @@ export function useStudioGenerationQueue({
     if (!pending.length) return;
 
     pending.slice(0, capacity).forEach((item) => {
+      // Read current state: a previous effect may already have claimed this item.
+      if (useStudioStore.getState().queueItems.find((q) => q.id === item.id)?.status !== 'pending') return;
       updateQueueItem(item.id, { status: 'running', progress: 0 });
       (async () => {
         try {
@@ -204,6 +233,7 @@ export function useStudioGenerationQueue({
           if (!taskId) throw new Error('taskId manquant');
 
           const projectId = item.projectId || 'project_default';
+          const submittedParams = { ...item.paramsSnapshot, model: normalizeGenerationModel(data.model || item.paramsSnapshot?.model) };
           bindTaskToProject(taskId, projectId);
           upsertJob({
             id: taskId,
@@ -211,9 +241,9 @@ export function useStudioGenerationQueue({
             createdAt: new Date().toISOString(),
             status: 'pending',
             progress: 0,
-            paramsSnapshot: item.paramsSnapshot,
+            paramsSnapshot: submittedParams,
           });
-          updateQueueItem(item.id, { taskId, status: 'running' });
+          updateQueueItem(item.id, { taskId, status: 'running', paramsSnapshot: submittedParams });
 
           const promptText = data.prompt || item.paramsSnapshot?.prompt || 'Musique générée';
           const title =

@@ -1,196 +1,99 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
-import { UserPlus, Upload, Sparkles, ArrowRight, CheckCircle2, Music2 } from 'lucide-react';
+import Link from '@/components/navigation/HandoffLink';
+import { ArrowRight, Upload } from 'lucide-react';
+import { SynauraAppShell, SynauraRouteNav, SynauraTopBar } from '@/components/synaura/SynauraShell';
+import HandoffReturn from '@/components/navigation/HandoffReturn';
 
 export const metadata: Metadata = {
   title: 'Publier ma musique — Synaura',
-  description:
-    'Artiste ? Publie ta musique sur Synaura en 3 étapes simples : crée ton compte, uploade tes sons et partage-les avec la communauté.',
+  description: 'Prépare ta prochaine sortie sur Synaura : fichiers, identité musicale, droits et diffusion.',
   alternates: { canonical: '/publish' },
-  openGraph: {
-    title: 'Publier ma musique sur Synaura',
-    description: 'Guide complet pour mettre en ligne tes sons en 3 étapes.',
-    type: 'website',
-    url: '/publish',
-  },
 };
 
 const STEPS = [
   {
-    number: '01',
-    icon: UserPlus,
-    title: 'Crée ton compte gratuitement',
-    description:
-      'Inscris-toi avec ton email ou ton compte Google en moins d\'une minute. Aucune carte bancaire requise.',
-    details: [
-      'Compte artiste gratuit, sans engagement',
-      'Pseudonyme + photo de profil personnalisables',
-      'Accès immédiat à l\'upload et au studio IA',
-    ],
+    number: '01', title: 'Un espace à ton nom.',
+    description: 'Connecte-toi ou crée ton compte pour retrouver tes morceaux et leur publication.',
+    details: ['Ton profil artiste et ses liens', 'Tes créations et ta bibliothèque'],
     cta: { label: 'Créer mon compte', href: '/auth/signup' },
-    gradient: 'from-violet-600/15 to-indigo-600/10',
-    border: 'border-violet-500/25',
-    iconBg: 'bg-violet-600/20',
-    iconColor: 'text-violet-300',
-    numberColor: 'text-violet-500/50',
   },
   {
-    number: '02',
-    icon: Upload,
-    title: 'Uploade ton son',
-    description:
-      'Dépose ton fichier audio (MP3, WAV, FLAC…) directement depuis ton dashboard. Ajoute une pochette, un titre, un genre et des tags.',
-    details: [
-      'Formats supportés : MP3, WAV, FLAC, AAC',
-      'Jusqu\'à 50 Mo par fichier (plan gratuit)',
-      'Métadonnées complètes (BPM, key, genre, mood…)',
-    ],
-    cta: { label: 'Accéder à l\'upload', href: '/upload' },
-    gradient: 'from-indigo-600/15 to-cyan-600/10',
-    border: 'border-indigo-500/25',
-    iconBg: 'bg-indigo-600/20',
-    iconColor: 'text-indigo-300',
-    numberColor: 'text-indigo-500/50',
+    number: '02', title: 'Le morceau, puis sa présentation.',
+    description: 'Importe ton audio. Choisis un single, un EP ou un album ; complète la pochette et les informations de ta sortie.',
+    details: ['Fichiers audio et ordre des pistes', 'Titre, artwork, genre, tags et métadonnées', 'Limites de fichier affichées selon ton compte'],
+    cta: { label: 'Préparer une sortie', href: '/upload' },
   },
   {
-    number: '03',
-    icon: Sparkles,
-    title: 'Partage & booste ta visibilité',
-    description:
-      'Ton son est instantanément visible dans le fil Découvrir. Utilise les boosters et le studio IA pour augmenter ta portée.',
-    details: [
-      'Apparition dans les sections Tendances & Pour toi',
-      'Studio : prepare des variations et des remixes',
-      'Boosters de visibilité disponibles dans ton espace',
-    ],
-    cta: { label: 'Voir les boosters', href: '/boosters' },
-    gradient: 'from-cyan-600/15 to-teal-600/10',
-    border: 'border-cyan-500/25',
-    iconBg: 'bg-cyan-600/20',
-    iconColor: 'text-cyan-300',
-    numberColor: 'text-cyan-500/50',
+    number: '03', title: 'Décide de sa place dans Synaura.',
+    description: 'Vérifie la visibilité, le moment de publication et les autorisations de création avant de partager.',
+    details: ['Diffusion et programmation', 'Autorisations Clip, remix et variation', 'Options de visibilité existantes'],
+    cta: { label: 'Découvrir les boosters', href: '/boosters' },
   },
-] as const;
+];
 
 export default function PublishPage() {
   return (
-    <div className="min-h-screen text-white">
-      <main className="mx-auto max-w-3xl px-4 py-10 space-y-8">
-
-        {/* ── Header ───────────────────────────────────────── */}
-        <section className="space-y-4">
-          <div className="inline-flex items-center gap-2 rounded-full border border-violet-500/30 bg-violet-500/10 px-3 py-1 text-xs font-medium text-violet-300">
-            <Music2 size={12} />
-            Pour les artistes
+    <SynauraAppShell contentClassName="v2-creation chambre-signature-publish experience-creation experience-publish !max-w-[1480px]">
+      <SynauraTopBar />
+      <SynauraRouteNav />
+      <div className="mb-6"><HandoffReturn fallbackHref="/create" fallbackLabel="Retour à l’atelier" /></div>
+      <main className="v2-publish experience-release-desk">
+      <header className="experience-release-heading">
+        <div className="chambre-signature-publish-copy">
+        <p className="v2-kicker">L’atelier / Le bureau des sorties</p>
+        <h1>Prêt à <span>sortir.</span></h1>
+        <p>Choisis ce que tu partages. Donne-lui une forme, puis décide du moment.</p>
+        </div>
+      </header>
+      <div className="experience-release-workspace">
+        <section className="experience-release-paths" aria-labelledby="release-format-title">
+          <div className="experience-desk-label"><p className="v2-kicker">01 / Le format</p><h2 id="release-format-title">Qu’est-ce qui sort ?</h2></div>
+          <Link href="/upload" className="experience-release-path experience-release-audio">
+            <span className="experience-release-path-index"><Upload size={22} aria-hidden="true" /><small>AUDIO</small></span>
+            <span className="experience-release-path-copy"><strong>Un morceau.</strong><span>Single, EP ou album. Tes fichiers, ta pochette, ta signature.</span><small>Préparer ma sortie <ArrowRight size={16} aria-hidden="true" /></small></span>
+            <span className="experience-release-grooves" aria-hidden="true" />
+          </Link>
+          <div className="experience-release-account">
+            <Link href="/auth/signin">J’ai déjà un compte</Link>
+            <Link href="/create">Explorer les outils de création</Link>
           </div>
-          <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
-            Publie ta musique sur Synaura
-          </h1>
-          <p className="text-sm md:text-base text-white/50 max-w-xl leading-relaxed">
-            Synaura est une plateforme musicale collaborative. En quelques minutes, tes sons
-            peuvent être écoutés par des milliers de personnes — c'est simple, gratuit et tu
-            gardes le contrôle.
-          </p>
+          <Link href="/clips/new" className="experience-release-path experience-release-clip">
+            <span className="experience-release-path-index"><span className="experience-format-frame" aria-hidden="true" /><small>CLIP</small></span>
+            <span className="experience-release-path-copy"><strong>Un instant en image.</strong><span>Ta vidéo verticale et un son Synaura, réunis dans un Clip.</span><small>Préparer un Clip <ArrowRight size={16} aria-hidden="true" /></small></span>
+          </Link>
+          <Link href="/posts?compose=true" className="experience-release-path experience-release-post">
+            <span className="experience-release-path-index"><span className="experience-format-lines" aria-hidden="true" /><small>POST</small></span>
+            <span className="experience-release-path-copy"><strong>Quelque chose à dire.</strong><span>Un texte, une image ou un son à partager avec ta communauté.</span><small>Écrire un post <ArrowRight size={16} aria-hidden="true" /></small></span>
+          </Link>
+          <Link href="/ai-library" className="experience-release-library"><span>Déjà créé avec l’IA ?<strong>Retrouver mes versions</strong></span><ArrowRight size={19} aria-hidden="true" /></Link>
         </section>
-
-        {/* ── 3 Steps ──────────────────────────────────────── */}
-        <section className="space-y-4">
-          {STEPS.map(({ number, icon: Icon, title, description, details, cta, gradient, border, iconBg, iconColor, numberColor }) => (
-            <div
-              key={number}
-              className={`rounded-2xl border ${border} bg-gradient-to-br ${gradient} p-5 md:p-6 space-y-4`}
-            >
-              <div className="flex items-start gap-4">
-                <div className={`shrink-0 rounded-xl ${iconBg} p-2.5`}>
-                  <Icon size={20} className={iconColor} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className={`text-4xl font-black ${numberColor} leading-none mb-1`}>
-                    {number}
-                  </div>
-                  <h2 className="text-base md:text-lg font-semibold text-white">{title}</h2>
-                  <p className="mt-1.5 text-sm text-white/50 leading-relaxed">{description}</p>
-                </div>
-              </div>
-
-              <ul className="space-y-1.5 pl-1">
-                {details.map((d) => (
-                  <li key={d} className="flex items-start gap-2 text-xs text-white/60">
-                    <CheckCircle2 size={13} className="mt-0.5 shrink-0 text-emerald-400/70" />
-                    {d}
-                  </li>
-                ))}
-              </ul>
-
-              <Link
-                href={cta.href}
-                className="inline-flex items-center gap-2 rounded-xl bg-white/8 border border-white/10 px-4 py-2 text-sm font-medium text-white hover:bg-white/14 transition"
-              >
-                {cta.label}
-                <ArrowRight size={14} />
-              </Link>
-            </div>
+        <aside className="experience-release-preview" aria-label="Préparer l’identité de ta sortie">
+          <div className="experience-desk-label"><p className="v2-kicker">02 / La signature</p><span>À personnaliser dans l’import</span></div>
+          <div className="chambre-publish-material" aria-hidden="true"><div className="chambre-signature-release-sleeve"><span>SYNAURA / ÉDITION ORIGINALE</span><img src="/brand/chambre/membrane-cobalt.png" alt="" loading="lazy" decoding="async" /><strong>À TON<br />NOM.</strong><span>SINGLE &nbsp; / &nbsp; EP &nbsp; / &nbsp; ALBUM</span></div></div>
+          <div className="experience-release-caption"><h2>Le son est à toi.<br />L’identité aussi.</h2><p>Ajoute ta propre pochette et les informations de ton morceau à l’étape suivante.</p></div>
+          <dl className="experience-release-specs"><div><dt>Identité</dt><dd>Titre, artiste, pochette</dd></div><div><dt>Diffusion</dt><dd>Visibilité et programmation</dd></div><div><dt>Création</dt><dd>Autorisations Clip et remix</dd></div></dl>
+        </aside>
+      </div>
+      <div className="chambre-signature-release-guide">
+        <div className="chambre-signature-section-heading"><p className="v2-kicker">Le parcours audio</p><h2>Trois étapes avant l’écoute.</h2><span>01 — 03</span></div>
+        <section className="chambre-signature-release-steps" aria-label="Les étapes de publication">
+          {STEPS.map(({ number, title, description, details, cta }) => (
+            <article key={number} className="v2-publish-step">
+              <header><span>{number}</span><div><h2>{title}</h2><p>{description}</p></div></header>
+              <ul>{details.map((detail) => <li key={detail}>{detail}</li>)}</ul>
+              <Link href={cta.href}>{cta.label}<ArrowRight size={16} aria-hidden="true" /></Link>
+            </article>
           ))}
         </section>
-
-        {/* ── Main CTA ─────────────────────────────────────── */}
-        <section className="rounded-2xl border border-violet-500/30 bg-gradient-to-br from-violet-600/15 to-indigo-600/10 p-6 md:p-8 text-center space-y-4">
-          <h2 className="text-xl font-bold">Prêt à partager ta musique ?</h2>
-          <p className="text-sm text-white/50 max-w-sm mx-auto">
-            Rejoins des milliers d'artistes qui publient déjà sur Synaura.
-            C'est gratuit, c'est maintenant.
-          </p>
-          <div className="flex flex-wrap justify-center gap-3">
-            <Link
-              href="/auth/signup"
-              className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-violet-500 transition"
-            >
-              <UserPlus size={15} />
-              Créer mon compte
-            </Link>
-            <Link
-              href="/auth/signin"
-              className="inline-flex items-center gap-2 rounded-xl border border-white/15 bg-white/5 px-6 py-2.5 text-sm font-medium text-white/70 hover:text-white hover:bg-white/10 transition"
-            >
-              J'ai déjà un compte
-              <ArrowRight size={14} />
-            </Link>
-          </div>
+        <section className="v2-publish-faq" aria-labelledby="publishing-faq">
+          <h2 id="publishing-faq" className="v2-kicker">Avant de partager</h2>
+          <details><summary>Quels fichiers puis-je importer ?</summary><p>Le formulaire de publication indique les formats et limites disponibles pour ton compte, avant l’envoi. Tu peux y préparer un single, un EP ou un album.</p></details>
+          <details><summary>Comment régler les autorisations de création ?</summary><p>Les réglages de diffusion permettent de choisir les autorisations Clip, remix audio et variation IA pour ta sortie. Vérifie que tu disposes des droits nécessaires sur les éléments importés.</p></details>
+          <details><summary>Où retrouver mes créations IA ?</summary><p>Ta bibliothèque IA conserve tes générations et propose les actions d’écoute, de téléchargement et de publication.</p><Link href="/ai-library" className="inline-flex min-h-11 items-center gap-2 text-sm text-[var(--v2-accent)]">Ouvrir la bibliothèque IA<ArrowRight size={14} /></Link></details>
+          <Link href="/community/faq" className="mt-6 inline-flex min-h-11 items-center gap-3 text-sm">Toutes les questions<ArrowRight size={14} /></Link>
         </section>
-
-        {/* ── FAQ rapide ───────────────────────────────────── */}
-        <section className="rounded-2xl border border-white/8 bg-white/3 p-5 space-y-4">
-          <h2 className="text-sm font-semibold text-white/70">Questions fréquentes</h2>
-          <div className="space-y-3">
-            {[
-              {
-                q: 'Est-ce que c\'est vraiment gratuit ?',
-                a: 'Oui. La création de compte et l\'upload de musique sont entièrement gratuits. Des options premium existent pour booster ta visibilité.',
-              },
-              {
-                q: 'Je garde mes droits sur ma musique ?',
-                a: 'Absolument. Synaura ne réclame aucun droit sur ton contenu. Tu restes seul propriétaire de tes œuvres.',
-              },
-              {
-                q: 'Quels formats audio sont acceptés ?',
-                a: 'MP3, WAV, FLAC et AAC sont supportés. La qualité maximale recommandée est 320 kbps / 44.1 kHz.',
-              },
-            ].map(({ q, a }) => (
-              <div key={q} className="space-y-1">
-                <p className="text-sm font-medium text-white/80">{q}</p>
-                <p className="text-xs text-white/45 leading-relaxed">{a}</p>
-              </div>
-            ))}
-          </div>
-          <Link
-            href="/community/faq"
-            className="inline-flex items-center gap-1.5 text-xs text-indigo-400 hover:text-indigo-300 transition"
-          >
-            Voir toutes les questions →
-          </Link>
-        </section>
-
-      </main>
-    </div>
+      </div>
+    </main>
+    </SynauraAppShell>
   );
 }

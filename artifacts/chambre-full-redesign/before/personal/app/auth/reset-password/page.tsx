@@ -1,0 +1,156 @@
+'use client';
+
+import { useState, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
+import { motion } from 'framer-motion';
+import { Lock, Mail, Hash, ArrowLeft, Check, AlertCircle } from 'lucide-react';
+import SynauraLogo from '@/components/brand/SynauraLogo';
+
+export const dynamic = 'force-dynamic';
+
+function ResetPasswordInner() {
+  const params = useSearchParams();
+  const token = params.get('token') || '';
+  const [email, setEmail] = useState('');
+  const [code, setCode] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
+
+  const onSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch('/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, code: code.trim(), password, email: email.trim() }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error || 'Erreur');
+      setSuccess(true);
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4 }}
+      className="w-full max-w-[420px]"
+    >
+      <div className="text-center mb-8">
+        <Link href="/" className="inline-flex rounded-[1.75rem] border border-white/10 bg-white/[0.04] px-5 py-3 shadow-[0_18px_60px_rgba(0,0,0,0.24)]">
+          <SynauraLogo variant="lockup" size={76} className="text-white" wordmarkClassName="text-[clamp(2rem,9vw,3.3rem)]" priority decorative />
+        </Link>
+        <p className="text-sm text-white/40 mt-2">
+          {success ? 'Mot de passe réinitialisé' : 'Nouveau mot de passe'}
+        </p>
+      </div>
+
+      <div className="rounded-2xl border border-white/[0.08] bg-white/[0.03] backdrop-blur-xl p-6 sm:p-8">
+        {success ? (
+          <div className="text-center py-4">
+            <div className="w-14 h-14 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mx-auto mb-4">
+              <Check className="w-7 h-7 text-emerald-400" />
+            </div>
+            <p className="text-sm text-white/60 mb-6">
+              Ton mot de passe a été réinitialisé avec succès.
+            </p>
+            <Link
+              href="/auth/signin"
+              className="block w-full h-11 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-bold transition-all text-center leading-[44px]"
+            >
+              Se connecter
+            </Link>
+          </div>
+        ) : (
+          <>
+            {error && (
+              <div className="mb-5 p-3 bg-red-500/10 border border-red-500/20 text-red-300 rounded-xl flex items-center gap-2.5 text-sm">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            <form onSubmit={onSubmit} className="space-y-4">
+              <div>
+                <label className="block text-[13px] font-medium text-white/70 mb-1.5">Email</label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/25" />
+                  <input
+                    type="email" value={email} onChange={e => setEmail(e.target.value)}
+                    className="w-full h-11 pl-10 pr-4 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/25 transition"
+                    placeholder="vous@example.com"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[13px] font-medium text-white/70 mb-1.5">Code de vérification</label>
+                <div className="relative">
+                  <Hash className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/25" />
+                  <input
+                    type="text" value={code} onChange={e => setCode(e.target.value)}
+                    className="w-full h-11 pl-10 pr-4 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/25 transition tracking-[0.3em]"
+                    placeholder="000000" maxLength={6}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[13px] font-medium text-white/70 mb-1.5">Nouveau mot de passe</label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/25" />
+                  <input
+                    type="password" value={password} onChange={e => setPassword(e.target.value)}
+                    className="w-full h-11 pl-10 pr-4 bg-white/[0.04] border border-white/[0.08] rounded-xl text-sm text-white placeholder:text-white/20 focus:outline-none focus:border-indigo-500/50 focus:ring-1 focus:ring-indigo-500/25 transition"
+                    placeholder="6 caractères min."
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit" disabled={loading}
+                className="w-full h-11 rounded-xl bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-bold transition-all hover:shadow-lg hover:shadow-indigo-500/25 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Validation...
+                  </span>
+                ) : 'Réinitialiser le mot de passe'}
+              </button>
+            </form>
+          </>
+        )}
+      </div>
+
+      <div className="mt-6 text-center">
+        <Link href="/auth/signin" className="inline-flex items-center gap-1.5 text-xs text-white/25 hover:text-white/50 transition">
+          <ArrowLeft className="w-3 h-3" />
+          Retour à la connexion
+        </Link>
+      </div>
+    </motion.div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={
+      <div className="text-center">
+        <div className="w-8 h-8 border-2 border-indigo-400 border-t-transparent rounded-full animate-spin mx-auto" />
+      </div>
+    }>
+      <ResetPasswordInner />
+    </Suspense>
+  );
+}

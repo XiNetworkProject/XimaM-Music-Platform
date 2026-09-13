@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { SynauraImage } from '@/components/ui/SynauraImage';
 import { useParams } from "next/navigation";
 import { useHandoffRouter as useRouter } from '@/hooks/useHandoffRouter';
 import { messageOriginReturn } from '@/lib/creationHandoffClient';
@@ -1097,7 +1098,7 @@ export default function ConversationPage() {
   }
 
   return (
-    <main className="relative flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-syn-background text-syn-textPrimary">
+    <main className="v2-conversation chambre-conversation relative flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-syn-background text-syn-textPrimary">
       {conversation?.preferences?.backgroundKey !== "quiet" ? (
         <div
           className="pointer-events-none absolute inset-0"
@@ -1289,7 +1290,7 @@ export default function ConversationPage() {
         }}
         className="relative z-10 min-h-0 flex-1 overflow-y-auto overscroll-contain"
       >
-        <div className="mx-auto flex min-h-full w-full max-w-4xl flex-col justify-end px-3 py-5 sm:px-5">
+        <div className="v2-conversation-log flex min-h-full flex-col justify-end px-3 py-5 sm:px-8 sm:py-8">
           {hasMore ? (
             <button
               type="button"
@@ -1740,7 +1741,7 @@ export default function ConversationPage() {
                 <button
                   type="button"
                   onClick={stopRecording}
-                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-syn-accentCoral text-white"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--v2-accent-fill)] text-white"
                   aria-label="Arrêter"
                 >
                   <Square className="h-4 w-4 fill-current" />
@@ -2277,7 +2278,7 @@ function MessageBubble({
         rel="noreferrer"
         className={`block overflow-hidden rounded-xl p-1 ${base}`}
       >
-        <img
+        <SynauraImage
           src={mediaUrl}
           alt="Image partagée"
           loading="lazy"
@@ -2374,7 +2375,7 @@ function MessageBubble({
         className={`flex min-w-[250px] max-w-sm items-center gap-3 rounded-xl p-2 text-left ${base}`}
       >
         {coverUrl ? (
-          <img
+          <SynauraImage
             src={coverUrl}
             alt=""
             className="h-14 w-14 shrink-0 rounded-lg object-cover"

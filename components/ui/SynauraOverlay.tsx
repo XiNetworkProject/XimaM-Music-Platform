@@ -225,13 +225,14 @@ export function SynauraOverlay({
           <div
             aria-hidden="true"
             data-synaura-overlay-backdrop
-            className="absolute inset-0 cursor-default bg-black/60 backdrop-blur-sm"
+            className="absolute inset-0 cursor-default bg-black/55"
             onClick={closeOnBackdrop ? onClose : undefined}
           />
           <OverlayContext.Provider value={context}>
             <motion.div
               ref={panelRef}
               role="dialog"
+              data-v2-overlay={resolvedPresentation}
               aria-modal="true"
               aria-label={ariaLabel}
               aria-labelledby={ariaLabel ? undefined : labelledBy || titleId}

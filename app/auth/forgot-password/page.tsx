@@ -39,12 +39,13 @@ export default function ForgotPasswordPage() {
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
-      className="w-full max-w-[420px]"
+      className="chambre-recovery w-full max-w-[420px]"
     >
       <div className="text-center mb-8">
         <Link href="/" className="inline-flex rounded-[1.75rem] border border-white/10 bg-white/[0.04] px-5 py-3 shadow-[0_18px_60px_rgba(0,0,0,0.24)]">
           <SynauraLogo variant="lockup" size={76} className="text-white" wordmarkClassName="text-[clamp(2rem,9vw,3.3rem)]" priority decorative />
         </Link>
+        <h1 className="chambre-recovery-title">Retrouve ton accès.</h1>
         <p className="text-sm text-white/40 mt-2">
           {success ? 'Email envoyé !' : 'Réinitialise ton mot de passe'}
         </p>

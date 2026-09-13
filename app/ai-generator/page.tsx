@@ -40,6 +40,10 @@ import {
 import SynauraStudioEventBar from '@/components/synaura/SynauraStudioEventBar';
 import CreateArrivalBanner from '@/components/create/CreateArrivalBanner';
 import { uploadLocalMedia } from '@/lib/clientMediaUpload';
+import { getEntitlements } from '@/lib/entitlements';
+import { CURRENT_SUNO_MODELS, DEFAULT_SUNO_MODEL, getSunoModelLabel, normalizeGenerationModel, SUNO_GENERATION_LIMITS } from '@/lib/sunoModels';
+import { buildSunoGeneratorPayload, restoreGeneratorDuration } from '@/lib/sunoGeneratorForm';
+import SunoV6Announcement from '@/components/ai-studio/SunoV6Announcement';
 
 const DEBUG_AI_STUDIO = process.env.NODE_ENV !== 'production';
 
@@ -144,7 +148,7 @@ function StudioStatusOrb({
     <div className="relative flex items-center justify-center">
       {/* Anneau externe */}
       <motion.div
-        className="absolute w-48 h-48 rounded-full border border-white/10 bg-gradient-to-br from-white/8 via-transparent to-transparent"
+        className="absolute w-48 h-48 rounded-full border border-white/10 bg-[var(--v2-raised)]"
         animate={{
           rotate: isActive ? [0, 180, 360] : 0,
         }}
@@ -165,7 +169,7 @@ function StudioStatusOrb({
       />
       {/* Noyau */}
       <motion.div
-        className="relative w-28 h-28 rounded-3xl bg-gradient-to-br from-[#0f061f] via-[#150b2a] to-[#050111] border border-white/15 shadow-[0_0_40px_rgba(120,95,255,0.65)] flex items-center justify-center overflow-hidden"
+        className="relative w-28 h-28 rounded-3xl bg-[var(--v2-raised)] border border-white/15 shadow-[0_0_40px_rgba(120,95,255,0.65)] flex items-center justify-center overflow-hidden"
         animate={{
           scale: isActive ? [0.98, 1.04, 0.98] : 1,
         }}
@@ -176,7 +180,7 @@ function StudioStatusOrb({
           {Array.from({ length: 14 }).map((_, i) => (
             <motion.div
               key={i}
-              className="absolute w-[2px] rounded-full bg-gradient-to-b from-cyan-300 via-fuchsia-400 to-violet-500"
+              className="absolute w-[2px] rounded-full bg-[var(--v2-raised)]"
               style={{ height: 20, transformOrigin: 'bottom center' }}
               animate={{
                 scaleY: isActive ? [0.4, 1.6, 0.6] : 0.7,
@@ -228,7 +232,7 @@ export default function AIGenerator() {
           <SynauraInkPanel className="grid min-h-[520px] place-items-center p-8">
             <div className="text-center">
               <div className="mx-auto h-12 w-12 animate-spin rounded-full border-2 border-white/20 border-t-white" />
-              <p className="mt-4 text-sm font-black text-white/50">Chargement du Studio IA...</p>
+              <p className="mt-4 text-sm font-semibold text-[var(--v2-muted)]">Chargement du Studio IA...</p>
             </div>
           </SynauraInkPanel>
         </SynauraAppShell>
@@ -290,7 +294,7 @@ function ModelDropdownPortal({
         type="button"
         onClick={onToggle}
         disabled={disabled}
-        className="flex items-center gap-1.5 rounded-xl border border-white/[0.06] bg-white/[0.03] px-2.5 py-1.5 text-[11px] font-semibold text-white/60 hover:bg-white/[0.06] hover:text-white/80 disabled:opacity-50 transition-all"
+        className="flex items-center gap-1.5 rounded-xl border border-white/[0.06] bg-[var(--v2-raised)] px-2.5 py-1.5 text-[11px] font-semibold text-white/60 hover:bg-[var(--v2-raised)] hover:text-white/80 disabled:opacity-50 transition-all"
       >
         {activeLabel}
         <ChevronRight className={`w-3 h-3 opacity-40 transition-transform ${open ? 'rotate-90' : ''}`} />
@@ -301,7 +305,7 @@ function ModelDropdownPortal({
           style={{ top: pos.top, left: pos.left }}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="px-3 py-1.5 text-[10px] font-semibold text-white/25 uppercase tracking-wider">Modèle IA</div>
+          <div className="px-3 py-1.5 text-[10px] font-semibold text-[var(--v2-muted)] uppercase tracking-wider">Modèle IA</div>
           {models.map((m) => {
             const isActive = modelVersion === m.id;
             const colorMap: Record<string, string> = {
@@ -321,13 +325,13 @@ function ModelDropdownPortal({
                 key={m.id}
                 type="button"
                 onClick={() => onSelect(m.id)}
-                className={`w-full px-3 py-2 text-left text-xs transition-colors flex items-center gap-2 ${isActive ? colorMap[m.color] : 'text-white/70 hover:bg-white/[0.05]'}`}
+                className={`w-full px-3 py-2 text-left text-xs transition-colors flex items-center gap-2 ${isActive ? colorMap[m.color] : 'text-white/70 hover:bg-[var(--v2-raised)]'}`}
               >
                 <span className="font-semibold">{m.label}</span>
-                <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full border ${isActive ? tagMap[m.color] : 'bg-white/[0.04] text-white/30 border-white/[0.06]'}`}>{m.tag}</span>
-                <span className="ml-auto text-[10px] text-white/20 tabular-nums">{ACTION_COSTS.generation.credits} cr.</span>
+                <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full border ${isActive ? tagMap[m.color] : 'bg-[var(--v2-raised)] text-[var(--v2-muted)] border-white/[0.06]'}`}>{m.tag}</span>
+                <span className="ml-auto text-[10px] text-[var(--v2-muted)] tabular-nums">{ACTION_COSTS.generation.credits} cr.</span>
                 {isActive && (
-                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" className="shrink-0 text-white/40">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor" className="shrink-0 text-[var(--v2-muted)]">
                     <path d="M9.99 16.901a1 1 0 0 1-1.414 0L4.29 12.615c-.39-.39-.385-1.029.006-1.42.39-.39 1.029-.395 1.42-.005l3.567 3.568 8.468-8.468c.39-.39 1.03-.385 1.42.006.39.39.396 1.029.005 1.42z" />
                   </svg>
                 )}
@@ -355,12 +359,12 @@ function RemixDirectionField({
   dark?: boolean;
 }) {
   return (
-    <div className={dark ? 'rounded-xl border border-white/[0.06] bg-white/[0.03] p-3' : 'rounded-[1.2rem] border border-[#7357C6]/18 bg-[#7357C6]/[0.06] p-3'}>
+    <div className={dark ? 'rounded-xl border border-white/[0.06] bg-[var(--v2-raised)] p-3' : 'rounded-[1.2rem] border border-[var(--v2-line)] bg-[var(--v2-accent)] p-3'}>
       <div className="mb-2 flex items-center justify-between gap-2">
-        <span className={dark ? 'text-[10px] font-black uppercase tracking-[0.16em] text-white/42' : 'text-[11px] font-black uppercase tracking-[0.16em] text-[#7357C6]'}>
+        <span className={dark ? 'text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--v2-muted)]' : 'text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--v2-accent)]'}>
           Type de remix
         </span>
-        <span className={dark ? 'text-[10px] font-semibold text-white/30' : 'text-[10px] font-black text-black/38'}>
+        <span className={dark ? 'text-[10px] font-semibold text-[var(--v2-muted)]' : 'text-[10px] font-semibold text-[var(--v2-muted)]'}>
           Credit automatique
         </span>
       </div>
@@ -374,8 +378,8 @@ function RemixDirectionField({
               onClick={() => onChange(option.id)}
               className={
                 dark
-                  ? `rounded-full border px-2.5 py-1 text-[10px] font-bold transition ${active ? 'border-[#7357C6]/70 bg-[#7357C6]/24 text-white' : 'border-white/[0.06] bg-white/[0.03] text-white/54 hover:bg-white/[0.07] hover:text-white/78'}`
-                  : `rounded-full border px-2.5 py-1 text-[10px] font-black transition ${active ? 'border-[#7357C6]/40 bg-[#7357C6] text-white' : 'border-black/[0.07] bg-white/70 text-black/54 hover:bg-white'}`
+                  ? `rounded-full border px-2.5 py-1 text-[10px] font-bold transition ${active ? 'border-[var(--v2-line)] bg-[var(--v2-accent)] text-white' : 'border-white/[0.06] bg-[var(--v2-raised)] text-[var(--v2-muted)] hover:bg-[var(--v2-raised)] hover:text-white/78'}`
+                  : `rounded-full border px-2.5 py-1 text-[10px] font-semibold transition ${active ? 'border-[var(--v2-line)] bg-[var(--v2-accent)] text-white' : 'border-[var(--v2-line)] bg-[var(--v2-raised)] text-[var(--v2-muted)] hover:bg-[var(--v2-raised)]'}`
               }
             >
               {option.shortLabel}
@@ -384,7 +388,7 @@ function RemixDirectionField({
         })}
       </div>
       {promptVisibility && onPromptVisibilityChange ? (
-        <div className={dark ? 'mt-3 flex rounded-lg border border-white/[0.06] bg-black/20 p-0.5' : 'mt-3 flex rounded-full border border-black/[0.06] bg-white/60 p-0.5'}>
+        <div className={dark ? 'mt-3 flex rounded-lg border border-white/[0.06] bg-black/20 p-0.5' : 'mt-3 flex rounded-full border border-[var(--v2-line)] bg-[var(--v2-raised)] p-0.5'}>
           {(['private', 'public'] as const).map((item) => {
             const active = promptVisibility === item;
             return (
@@ -394,8 +398,8 @@ function RemixDirectionField({
                 onClick={() => onPromptVisibilityChange(item)}
                 className={
                   dark
-                    ? `flex-1 rounded-md px-2.5 py-1.5 text-[10px] font-bold transition ${active ? 'bg-white text-[#111111]' : 'text-white/42 hover:text-white/70'}`
-                    : `flex-1 rounded-full px-2.5 py-1.5 text-[10px] font-black transition ${active ? 'bg-[#111111] text-white' : 'text-black/45 hover:text-black/70'}`
+                    ? `flex-1 rounded-md px-2.5 py-1.5 text-[10px] font-bold transition ${active ? 'bg-[var(--v2-raised)] text-[var(--v2-text)]' : 'text-[var(--v2-muted)] hover:text-white/70'}`
+                    : `flex-1 rounded-full px-2.5 py-1.5 text-[10px] font-semibold transition ${active ? 'bg-[var(--v2-surface)] text-white' : 'text-[var(--v2-muted)] hover:text-[var(--v2-muted)]'}`
                 }
               >
                 {item === 'private' ? 'Prompt prive' : 'Prompt public'}
@@ -439,8 +443,13 @@ function AIGeneratorContent() {
   const [cooldownTick, setCooldownTick] = useState(0);
   const [generationModeKind, setGenerationModeKind] = useState<'simple' | 'custom' | 'remix'>('simple');
   const [customMode, setCustomMode] = useState(false);
-  const [modelVersion, setModelVersion] = useState('V4_5');
-  const [generationDuration, setGenerationDuration] = useState<60 | 120 | 180>(120);
+  const [modelVersion, setModelVersion] = useState<string>(DEFAULT_SUNO_MODEL);
+  const [generationDuration, setGenerationDuration] = useState<number>(120);
+  const availableModels = getEntitlements(quota.plan_type === 'enterprise' ? 'pro' : quota.plan_type).ai.availableModels;
+
+  useEffect(() => {
+    if (!quotaLoading) setModelVersion((current) => normalizeGenerationModel(current, availableModels));
+  }, [quotaLoading, availableModels, modelVersion]);
   const [showModelDropdown, setShowModelDropdown] = useState(false);
   const [likedTrackIds, setLikedTrackIds] = useState<Set<string>>(new Set());
   const [trashedTrackIds, setTrashedTrackIds] = useState<Set<string>>(new Set());
@@ -534,8 +543,8 @@ function AIGeneratorContent() {
         if (!p?.aiStudio) return;
         const s = p.aiStudio;
         if (s.shellMode) setShellMode(s.shellMode);
-        if (s.modelVersion) setModelVersion(s.modelVersion);
-        if (s.generationDuration) setGenerationDuration(s.generationDuration);
+        if (s.modelVersion) setModelVersion(normalizeGenerationModel(s.modelVersion));
+        if (s.generationDuration) setGenerationDuration(restoreGeneratorDuration(s.generationDuration));
         if (s.generationModeKind) {
           setGenerationModeKind(s.generationModeKind);
           setCustomMode(s.generationModeKind !== 'simple');
@@ -1135,7 +1144,7 @@ function AIGeneratorContent() {
       duration: track.duration,
       audioUrl: playableUrl,
       backupAudioUrls,
-      coverUrl: media.imageUrl || '/brand/2026/synaura-symbol-2026-white.png',
+      coverUrl: media.imageUrl || '/default-cover.svg',
       musicVideoUrl: media.musicVideoUrl,
       musicVideoPosterUrl: media.musicVideoPosterUrl,
       createdAt: createdAt || track.created_at,
@@ -1588,9 +1597,9 @@ function AIGeneratorContent() {
     const savedConsole = typeof window !== 'undefined' ? window.localStorage.getItem('synaura.ai.consoleCollapsed') : null;
     if (savedConsole === '1') setConsoleCollapsed(true);
     const savedModel = typeof window !== 'undefined' ? window.localStorage.getItem('synaura.ai.defaultModel') : null;
-    if (savedModel === 'V5_5' || savedModel === 'V5' || savedModel === 'V4_5PLUS' || savedModel === 'V4_5') setModelVersion(savedModel);
+    if (savedModel) setModelVersion(normalizeGenerationModel(savedModel));
     const savedDuration = typeof window !== 'undefined' ? window.localStorage.getItem('synaura.ai.defaultDuration') : null;
-    if (savedDuration === '60' || savedDuration === '120' || savedDuration === '180') setGenerationDuration(Number(savedDuration) as 60 | 120 | 180);
+    if (savedDuration) setGenerationDuration(restoreGeneratorDuration(savedDuration));
     const savedLeftPx = typeof window !== 'undefined' ? window.localStorage.getItem('synaura.ai.leftPx') : null;
     const savedRightPx = typeof window !== 'undefined' ? window.localStorage.getItem('synaura.ai.rightPx') : null;
     const savedLeftRatio = typeof window !== 'undefined' ? window.localStorage.getItem('synaura.ai.leftRatio') : null;
@@ -2070,7 +2079,7 @@ function AIGeneratorContent() {
             (u) => typeof u === 'string' && u.trim().length > 0 && u.trim() !== playableDirect && !isPotentiallyExpiredProviderUrl(u, gt.createdAt)
           )
         : [],
-      coverUrl: gt.imageUrl || '/brand/2026/synaura-symbol-2026-white.png',
+      coverUrl: gt.imageUrl || '/default-cover.svg',
       duration: gt.duration || 120,
       likes: [],
       comments: [],
@@ -2149,22 +2158,28 @@ function AIGeneratorContent() {
   }, [pushLog]);
 
   const handleReuseTrackInfo = useCallback((track: GeneratedTrack) => {
+    const sourceLyrics = track.lyrics || track.prompt || '';
+    selectGenerationMode('custom');
+    setSourceContext(null);
+    setSelectedTags([]);
     setTitle(track.title || '');
     setStyle(track.style || '');
-    setLyrics(track.lyrics || track.prompt || '');
-    setCustomMode(true);
+    setLyrics(sourceLyrics);
+    setIsInstrumental(Boolean(track.isInstrumental) || !sourceLyrics.trim());
     notify.success('Formulaire', 'Titre, style et paroles réutilisés.');
     closeTrackPanel();
-  }, []);
+  }, [selectGenerationMode]);
 
   const useLibraryTrackForRemix = (track: AITrack) => {
     const media = resolveTrackMedia(track as any);
     const sourceUrl = media.audioUrl || media.streamUrl || media.playableUrl;
-    setRemixSourceTrackId(track.id);
     if (!sourceUrl) {
       notify.error('Remix', 'Aucune URL audio exploitable pour cette piste.');
       return;
     }
+    setRemixSourceTrackId(track.id);
+    setSourceContext(null);
+    setSelectedTags([]);
     setGenerationModeKind('remix');
     setCustomMode(true);
     setOpenStyleSection(true);
@@ -2174,10 +2189,10 @@ function AIGeneratorContent() {
     const label = getUploadedAssetName(track);
     setRemixSourceLabel(label);
 
-    if (track.title) setTitle(track.title);
-    if (track.style) setStyle(track.style);
-    else if (track.prompt) setStyle(track.prompt);
-    if (track.lyrics) setLyrics(track.lyrics);
+    setTitle(track.title || 'Remix');
+    setStyle(track.style || track.prompt || '');
+    setLyrics(track.lyrics || '');
+    setIsInstrumental(!track.lyrics?.trim());
 
     pushLog('info', `Source remix sélectionnée: ${label}`);
   };
@@ -2191,6 +2206,8 @@ function AIGeneratorContent() {
       notify.error('Remix', 'Aucune URL audio exploitable pour cette génération.');
       return;
     }
+    setSourceContext(null);
+    setSelectedTags([]);
     setGenerationModeKind('remix');
     setCustomMode(true);
     setOpenStyleSection(true);
@@ -2201,10 +2218,10 @@ function AIGeneratorContent() {
     setRemixSourceLabel(label);
     setRemixSourceTrackId(null);
 
-    if (track.title) setTitle(track.title);
-    if (track.style) setStyle(track.style);
-    else if (track.prompt) setStyle(track.prompt);
-    if (track.lyrics) setLyrics(track.lyrics);
+    setTitle(track.title || 'Remix');
+    setStyle(track.style || track.prompt || '');
+    setLyrics(track.lyrics || '');
+    setIsInstrumental(Boolean(track.isInstrumental) || !track.lyrics?.trim());
 
     pushLog('info', `Source remix sélectionnée: ${label}`);
   };
@@ -2349,7 +2366,7 @@ function AIGeneratorContent() {
       isInstrumental: aiTrack.prompt?.toLowerCase().includes('instrumental') || false,
       duration: aiTrack.duration || 120,
       createdAt: createdAt || aiTrack.created_at,
-      imageUrl: media.imageUrl || '/brand/2026/synaura-symbol-2026-white.png'
+      imageUrl: media.imageUrl || '/default-cover.svg'
     };
   };
 
@@ -2939,7 +2956,6 @@ function AIGeneratorContent() {
     pushLog('info', 'Génération lancée');
     
     try {
-      let prompt = '';
       const remixCreativePrompt = isRemixMode
         ? buildRemixPrompt({
             remixType,
@@ -2947,58 +2963,32 @@ function AIGeneratorContent() {
             sourceTitle: sourceContext?.title || remixSourceLabel,
           })
         : '';
-      if (generationModeKind === 'remix' && !remixUploadUrl && !remixSourceTrackId) {
-        notify.error('Audio remix requis', 'Ajoute un audio source avant de générer en mode Remix.');
-        setIsGenerating(false);
-        setGenerationStatus('idle');
-        return;
-      }
-      if (generationModeKind === 'remix' && !remixUploadUrl && remixSourceTrackId) {
-        notify.info('Source détectée', "Variation IA inspirée : aucun audio source n'est copié.");
-      }
-      
-      if (customMode) {
-        // Mode personnalisÃ© : le style est obligatoire, le titre est optionnel
-        if (!style.trim()) {
-          notify.error('Style manquant', 'Veuillez remplir le style de musique');
-          setIsGenerating(false);
-          setGenerationStatus('idle');
-          return;
-        }
-        const styleFinal = [style, ...selectedTags, remixCreativePrompt].filter(Boolean).join(', ');
-        prompt = `Titre: "${title}". Style: ${styleFinal}`;
-        if (lyrics.trim()) {
-          prompt += `. Paroles: ${lyrics}`;
-        }
-        if (isInstrumental) {
-          prompt += '. Musique instrumentale uniquement, sans voix';
-        }
-        prompt += `. Weirdness: ${weirdness}%. Style influence: ${styleInfluence}%`;
-      } else {
-        // Mode description : utiliser la description
-        if (!description.trim()) {
-          notify.error('Description manquante', 'Veuillez décrire la musique que vous souhaitez');
-          setIsGenerating(false);
-          setGenerationStatus('idle');
-          return;
-        }
-        const tags = selectedTags.length ? ` (tags: ${selectedTags.join(', ')})` : '';
-        prompt = `${description}${tags}`;
+      if (isRemixMode && !remixUploadUrl && !remixSourceTrackId) {
+        throw new Error('Ajoute un audio source avant de générer en mode Remix.');
       }
 
-      const effectiveInstrumental = isInstrumental || (generationModeKind === 'remix' && Boolean(remixUploadUrl) && !lyrics.trim());
-
-      // Convert sliders (0-100) to API expected 0.00â€“1.00 (step .01)
-      const styleWeightVal = customMode ? Math.round(styleInfluence) / 100 : 0.5;
-      const weirdnessVal = customMode ? Math.round(weirdness) / 100 : 0.5;
-      const audioWeightVal = customMode ? Math.round(audioWeight) / 100 : 0.5;
-
-      const requestBody: any = {
+      const effectiveInstrumental = isInstrumental || (isRemixMode && Boolean(remixUploadUrl) && !lyrics.trim());
+      const requestBody = buildSunoGeneratorPayload({
         customMode,
         instrumental: effectiveInstrumental,
         model: modelVersion,
-        callBackUrl: typeof window !== 'undefined' ? `${window.location.origin}/api/suno/callback` : undefined
-      };
+        allowedModels: availableModels,
+        description,
+        title,
+        style,
+        lyrics,
+        selectedTags,
+        remixPrompt: remixCreativePrompt,
+        duration: generationDuration,
+        styleInfluence,
+        weirdness,
+        audioWeight,
+        negativeTags,
+        vocalGender,
+        uploadUrl: remixUploadUrl,
+        sourceDurationSec: remixSourceDurationSec,
+      });
+      requestBody.callBackUrl = typeof window !== 'undefined' ? `${window.location.origin}/api/suno/callback` : undefined;
       if (sourceContext?.id) {
         requestBody.remixSource = {
           sourceTrackId: sourceContext.id,
@@ -3007,74 +2997,13 @@ function AIGeneratorContent() {
         requestBody.remixType = remixType;
         requestBody.remixPrompt = remixCreativePrompt;
         requestBody.remixPromptVisibility = remixPromptVisibility;
-        // Permet d'enregistrer la participation au défi même si la variation part en
-        // attente d'approbation (voir upsertDraftRemixesForGeneration + decision/route.ts).
-        if (challengeId) {
-          requestBody.challengeId = challengeId;
-        }
+        if (challengeId) requestBody.challengeId = challengeId;
       }
 
-      // Indice de durÃ©e pour Suno (lâ€™API ne garantit pas la durÃ©e exacte ; on lâ€™injecte dans le prompt / hints)
-      const durationHintBySec: Record<60 | 120 | 180, string> = {
-        60: 'short track, about 1 minute, compact structure',
-        120: 'radio edit 2:30â€“3:00 with intro / verse / pre / drop',
-        180: 'extended track, about 3 minutes, full structure',
-      };
-      const durationHint = durationHintBySec[generationDuration];
-
-      if (customMode) {
-        // Mode Custom : title, style, prompt (lyrics)
-        // Validation : si non-instrumental, les paroles sont requises
-        if (!effectiveInstrumental && !lyrics.trim()) {
-          notify.error('Paroles manquantes', 'Veuillez remplir les paroles ou cocher "Instrumental"');
-          setIsGenerating(false);
-          setGenerationStatus('idle');
-          return;
-        }
-        requestBody.title = title.trim() ? title : undefined; // undefined = Suno gÃ©nÃ¨re
-        requestBody.style = [style, ...selectedTags, remixCreativePrompt].filter(Boolean).join(', ');
-        requestBody.prompt = effectiveInstrumental ? undefined : (lyrics.trim() || undefined); // Lyrics si non-instrumental, undefined si instrumental
-        requestBody.styleWeight = Number(styleWeightVal.toFixed(2));
-        requestBody.weirdnessConstraint = Number(weirdnessVal.toFixed(2));
-        requestBody.audioWeight = Number(audioWeightVal.toFixed(2));
-        requestBody.negativeTags = negativeTags || undefined;
-        requestBody.vocalGender = vocalGender || undefined;
-        requestBody.durationHint = durationHint; // EnvoyÃ© Ã  createProductionPrompt cÃ´tÃ© API (mode Custom)
-      } else {
-        // Mode Simple : seulement prompt (description) + indication de durÃ©e dans le texte
-        requestBody.prompt = [description, ...selectedTags, remixCreativePrompt].filter(Boolean).join(', ') + ` (about ${generationDuration / 60} min)`;
-        // Pas de title, style, styleWeight, etc. en mode Simple selon la doc Suno
-      }
-
-      if (DEBUG_AI_STUDIO) console.log('ðŸŽµ RequÃªte gÃ©nÃ©ration:', { mode: generationModeKind, ...requestBody });
-
-      // Si un audio remix est fourni, utiliser le flux upload-cover
       const response = await fetch(remixUploadUrl ? '/api/suno/upload-cover' : '/api/suno/generate', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(
-          remixUploadUrl
-            ? {
-                uploadUrl: remixUploadUrl,
-                customMode: true,
-                instrumental: effectiveInstrumental,
-                model: modelVersion,
-                // En mode Custom: title/style requis; prompt=lyrics si non-instrumental
-                title: title.trim() ? title : 'Remix',
-                style: [style, ...selectedTags].filter(Boolean).join(', '),
-                prompt: effectiveInstrumental ? undefined : (lyrics.trim() ? lyrics : undefined),
-                negativeTags: negativeTags || undefined,
-                vocalGender: vocalGender || undefined,
-                styleWeight: Number((Math.round(styleInfluence) / 100).toFixed(2)),
-                weirdnessConstraint: Number((Math.round(weirdness) / 100).toFixed(2)),
-                audioWeight: Number((Math.round(audioWeight) / 100).toFixed(2)),
-                sourceDurationSec: remixSourceDurationSec,
-                callBackUrl: typeof window !== 'undefined' ? `${window.location.origin}/api/suno/callback` : undefined,
-              }
-            : requestBody
-        ),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
@@ -3101,7 +3030,7 @@ function AIGeneratorContent() {
             7000
           );
         }
-        setModelVersion(data.model);
+        setModelVersion(normalizeGenerationModel(data.model, availableModels));
       }
       
       console.log('ðŸŽµ RÃ©ponse API gÃ©nÃ©ration:', data);
@@ -3361,7 +3290,7 @@ function AIGeneratorContent() {
 
   // VÃ©rification d'authentification (mÃªme logique que ai-library)
   const studioModeLabel = shellMode === 'ide' ? 'IDE immersif' : 'Classic';
-  const studioModelLabel = modelVersion === 'V5_5' ? 'v5.5' : modelVersion === 'V5' ? 'v5' : modelVersion === 'V4_5PLUS' ? 'v4.5+' : 'v4.5';
+  const studioModelLabel = getSunoModelLabel(modelVersion);
   const studioInspectorTrack = selectedTrack ?? generatedTrack ?? null;
   const studioInspectorKey = String((studioInspectorTrack as any)?.id || (studioInspectorTrack as any)?._id || '');
 
@@ -3388,7 +3317,7 @@ function AIGeneratorContent() {
 
   if (!session) {
     return (
-      <SynauraAppShell>
+      <SynauraAppShell contentClassName="v2-creation experience-creation experience-generator-entry">
         <SynauraTopBar
           searchLabel="Rechercher une inspiration, un son ou un createur..."
           secondaryHref="/upload"
@@ -3396,11 +3325,17 @@ function AIGeneratorContent() {
           primaryHref="/ai-generator"
           primaryLabel="Studio"
         />
-        <div className="flex min-h-[70vh] items-center justify-center">
-          <div className="rounded-[2rem] border border-black/[0.08] bg-[#fffaf2]/88 px-8 py-10 text-center shadow-[0_20px_70px_rgba(20,15,10,0.12)]">
-            <Music className="mx-auto mb-4 h-16 w-16 text-[#171313]" />
-            <h2 className="mb-2 text-2xl font-black tracking-[-0.04em] text-[#171313]">Connexion requise</h2>
-            <p className="text-gray-400">Connectez-vous pour ouvrir votre Studio.</p>
+        <div className="experience-generator-entry-layout">
+          <div className="experience-generator-entry-copy">
+            <p className="v2-kicker">L’atelier / AI Generator</p>
+            <h1>Ce que tu entends.<br /><span>Prends-le au mot.</span></h1>
+            <p className="text-[var(--v2-muted)]">Connecte-toi pour retrouver tes créations et ouvrir ton espace de génération.</p>
+            <Link href="/auth/signin?callbackUrl=%2Fai-generator" className="v2-create-primary mt-8">Se connecter</Link>
+            <Link href="/create" className="mt-6 block text-sm text-[var(--v2-muted)]">Retour à Créer</Link>
+          </div>
+          <div className="experience-generator-entry-material" aria-hidden="true">
+            <img src="/brand/chambre/membrane-cobalt.png" alt="" decoding="async" />
+            <div className="experience-entry-track"><span>01 / INTENTION</span><strong>Quelques mots.<br />Une première forme.</strong><span>02 / ÉCOUTE & COMPARAISON</span></div>
           </div>
         </div>
       </SynauraAppShell>
@@ -3410,7 +3345,7 @@ function AIGeneratorContent() {
   const studioFocusTrack = selectedTrack ?? generatedTrack ?? generatedTracks[0] ?? studioLibraryTracks[0]?.track ?? null;
   const studioResultTracks = generatedTracks.length > 0 ? generatedTracks : (studioFocusTrack ? [studioFocusTrack] : []);
   const studioExpectedSlots = activeBgGeneration && activeBgGeneration.status !== 'completed'
-    ? Math.max(2, studioResultTracks.length || 0)
+    ? Math.max(1, studioResultTracks.length || 0)
     : studioResultTracks.length;
   const studioResultSlots = Array.from({ length: Math.max(studioResultTracks.length, studioExpectedSlots) });
   const studioTagSuggestions = Array.from(new Set(tagCategories.flatMap((cat) => cat.tags.slice(0, 8)))).slice(0, 28);
@@ -3419,16 +3354,16 @@ function AIGeneratorContent() {
     sunoState === 'first'
       ? 'Premier rendu disponible'
       : sunoState === 'pending'
-        ? isRemixMode ? 'Remix en cours' : 'Generation en cours'
+        ? isRemixMode ? 'Remix en cours' : 'Génération en cours'
         : sunoState === 'success'
-          ? 'Generation finalisee'
+          ? 'Génération terminée'
           : sunoState === 'error'
             ? 'Action requise'
-            : 'Pret a creer';
+            : 'Prêt à créer';
   const studioPromptLength = customMode ? style.length : description.length;
   const studioModeCopy =
     generationModeKind === 'simple'
-      ? 'Decris une idee, choisis quelques couleurs, puis lance la creation.'
+      ? 'Décris une idée, choisis quelques couleurs sonores, puis lance la génération.'
       : generationModeKind === 'custom'
         ? 'Pose le titre, le style et les paroles exactement comme tu les veux.'
         : 'Choisis une source et donne une nouvelle direction au morceau.';
@@ -3440,49 +3375,57 @@ function AIGeneratorContent() {
     : undefined;
 
   return (
-    <SynauraAppShell contentClassName="max-w-[1700px] flex h-[100dvh] flex-col overflow-hidden !px-2 !py-1.5 !pb-0 sm:!pb-0 lg:!py-2">
+    <SynauraAppShell contentClassName="v2-creation v2-ai-workspace chambre-signature-generator experience-creation experience-generator flex flex-col overflow-hidden !pb-0 sm:!pb-0">
       <SynauraTopBar
         searchLabel="Rechercher une inspiration, un son ou un createur..."
         secondaryHref="/upload"
         secondaryLabel="Upload"
         primaryHref="/ai-generator"
-        primaryLabel="Studio"
+        primaryLabel="AI Generator"
         compact
       />
-      <div className="flex min-h-0 flex-1 flex-col space-y-1.5 overflow-hidden pb-0 lg:space-y-2">
+      <div className="v2-ai-workspace-body">
         <div className="shrink-0">
           <CreateArrivalBanner context={sourceContext ? 'variation' : 'ai'} title={sourceContext?.title} />
         </div>
-        <section className="flex shrink-0 items-center justify-between gap-2 rounded-[1rem] border border-black/[0.08] bg-[radial-gradient(circle_at_12%_0%,rgba(255,111,97,0.24),transparent_34%),radial-gradient(circle_at_88%_12%,rgba(0,194,203,0.18),transparent_32%),linear-gradient(135deg,#211918_0%,#171313_48%,#0d1117_100%)] px-2.5 py-1.5 text-white shadow-[0_14px_38px_rgba(20,15,10,0.16)] lg:gap-3 lg:px-3 lg:py-2">
-          <div className="min-w-0 flex items-center gap-2">
-            <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] text-[#171313]">Studio</span>
-            <span className="truncate text-xs font-black text-white/76">{studioStateLabel}</span>
-            <span className="hidden text-xs font-semibold text-white/42 xl:inline">{studioModeCopy}</span>
+        <section className="v2-ai-toolbar chambre-workspace-toolbar">
+          <div className="v2-ai-identity">
+            <span className="chambre-workspace-kicker">L’ATELIER / IA</span>
+            <h1>AI Generator<span className="chambre-signature-tool-dot" aria-hidden="true">.</span></h1>
+            <p className="chambre-signature-tool-status" role="status"><span aria-hidden="true" />{studioStateLabel}</p>
           </div>
-          <div className="flex shrink-0 items-center gap-1.5 lg:gap-2">
+          <div className="v2-ai-toolbar-actions">
             <button
               type="button"
               onClick={() => setMobileCreateOpen(true)}
-              className="inline-flex h-8 items-center gap-1.5 rounded-full bg-white px-3 text-[11px] font-black text-[#171313] shadow-[0_10px_26px_rgba(255,255,255,0.10)] active:scale-95 lg:hidden"
+              className="v2-ai-mobile-create"
             >
-              <Sparkles className="h-3.5 w-3.5 text-[#ff6f61]" />
+              <Sparkles className="h-3.5 w-3.5" />
               Créer
             </button>
             <button
               type="button"
               onClick={() => setShowBuyCredits(true)}
-              className="inline-flex h-8 items-center gap-1.5 rounded-full border border-white/12 bg-white/[0.08] px-2.5 text-[11px] font-black text-white transition hover:bg-white/[0.14] sm:px-3"
+              aria-label={`Acheter des crédits — solde ${creditsBalance}`}
             >
-              <Coins className="h-3.5 w-3.5 text-[#ffd166]" />
+              <Coins className="h-3.5 w-3.5" />
               <span className="hidden min-[380px]:inline">{creditsBalance} cr.</span>
             </button>
-            <Link href="/ai-library" className="hidden h-8 items-center gap-1.5 rounded-full border border-white/12 bg-white/[0.08] px-3 text-[11px] font-black text-white transition hover:bg-white/[0.14] sm:inline-flex">
+            <Link href="/ai-library" className="v2-ai-library-link" aria-label="Bibliothèque des créations IA">
               <Library className="h-3.5 w-3.5" />
-              Bibliothèque
+              <span className="hidden sm:inline">Bibliothèque</span>
             </Link>
+            <Link href="/studio">Studio IDE <ChevronRight className="h-3.5 w-3.5" /></Link>
           </div>
         </section>
 
+        <div className="workspace-information">
+        <details className="workspace-news">
+          <summary>Suno V6 · les nouveautés</summary>
+          <SunoV6Announcement />
+        </details>
+        <details className="workspace-brief">
+        <summary>Défi musical · voir le brief</summary>
         <SynauraStudioEventBar
           trackId={selectedTrackForVisibility?.id ? String(selectedTrackForVisibility.id) : null}
           onApply={(event) => {
@@ -3493,24 +3436,26 @@ function AIGeneratorContent() {
             notify.success('Brief charge', `${event.title} est pret dans le Studio.`);
           }}
         />
+        </details>
+        </div>
 
-        <section className="hidden relative overflow-hidden rounded-[1.35rem] border border-black/[0.08] bg-[radial-gradient(circle_at_12%_0%,rgba(255,111,97,0.24),transparent_34%),radial-gradient(circle_at_88%_12%,rgba(0,194,203,0.18),transparent_32%),linear-gradient(135deg,#211918_0%,#171313_48%,#0d1117_100%)] p-3.5 text-white shadow-[0_28px_80px_rgba(20,15,10,0.22)] sm:rounded-[1.75rem] sm:p-5 lg:p-6">
-          <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_12%_15%,rgba(255,111,97,0.28),transparent_34%),radial-gradient(circle_at_84%_18%,rgba(0,194,203,0.18),transparent_34%),linear-gradient(135deg,rgba(255,255,255,0.08),transparent_42%)]" />
+        <section className="hidden relative overflow-hidden rounded-[1.35rem] border border-[var(--v2-line)] bg-[var(--v2-surface)] p-3.5 text-white shadow-[0_28px_80px_rgba(20,15,10,0.22)] sm:rounded-[1.75rem] sm:p-5 lg:p-6">
+          <div className="pointer-events-none absolute inset-0 bg-[var(--v2-surface)]" />
           <div className="relative grid gap-5 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
             <div className="min-w-0">
               <div className="mb-4 flex flex-wrap items-center gap-2">
-                <span className="rounded-full bg-white px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-[#171313]">Studio</span>
-                <span className="rounded-full border border-white/12 bg-white/[0.08] px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-white/70">{studioStateLabel}</span>
+                <span className="rounded-full bg-[var(--v2-raised)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--v2-text)]">Studio</span>
+                <span className="rounded-full border border-white/12 bg-[var(--v2-raised)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/70">{studioStateLabel}</span>
                 {activeGenerationCount > 0 && (
-                  <span className="rounded-full bg-[#ff6f61]/18 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-[#ffd6cf]">
+                  <span className="rounded-full bg-[var(--v2-accent)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#ffd6cf]">
                     {activeGenerationCount} job{activeGenerationCount > 1 ? 's' : ''}
                   </span>
                 )}
               </div>
-              <h1 className="max-w-3xl text-[2.05rem] font-black leading-[0.92] tracking-[-0.07em] text-white min-[380px]:text-4xl sm:text-5xl lg:text-6xl">
+              <h1 className="max-w-3xl text-[2.05rem] font-semibold leading-[0.92] tracking-[-0.07em] text-white min-[380px]:text-4xl sm:text-5xl lg:text-6xl">
                 Cree, ecoute et garde tout au meme endroit.
               </h1>
-              <p className="mt-4 max-w-2xl text-sm font-semibold leading-6 text-white/58 sm:text-base">
+              <p className="mt-4 max-w-2xl text-sm font-semibold leading-6 text-[var(--v2-muted)] sm:text-base">
                 Compose une idee, remixe une piste, retrouve chaque rendu dans ta bibliotheque et publie quand c'est pret.
               </p>
             </div>
@@ -3519,21 +3464,21 @@ function AIGeneratorContent() {
               <button
                 type="button"
                 onClick={() => setShowBuyCredits(true)}
-                className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-white/12 bg-white/[0.08] px-3 text-xs font-black text-white transition hover:bg-white/[0.14] sm:h-11 sm:px-4 sm:text-sm"
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-full border border-white/12 bg-[var(--v2-raised)] px-3 text-xs font-semibold text-white transition hover:bg-[var(--v2-raised)] sm:h-11 sm:px-4 sm:text-sm"
               >
-                <Coins className="h-4 w-4 text-[#ffd166]" />
+                <Coins className="h-4 w-4 text-[var(--v2-accent)]" />
                 {creditsBalance} cr.
               </button>
               <Link
                 href="/upload"
-                className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-white px-3 text-xs font-black text-[#171313] transition hover:scale-[1.02] sm:h-11 sm:px-4 sm:text-sm"
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-[var(--v2-raised)] px-3 text-xs font-semibold text-[var(--v2-text)] transition hover:scale-[1.02] sm:h-11 sm:px-4 sm:text-sm"
               >
                 <Upload className="h-4 w-4" />
                 Upload
               </Link>
               <Link
                 href="/ai-library"
-                className="col-span-2 inline-flex h-10 items-center justify-center gap-2 rounded-full border border-white/12 bg-white/[0.08] px-3 text-xs font-black text-white transition hover:bg-white/[0.14] sm:col-span-1 sm:h-11 sm:px-4 sm:text-sm"
+                className="col-span-2 inline-flex h-10 items-center justify-center gap-2 rounded-full border border-white/12 bg-[var(--v2-raised)] px-3 text-xs font-semibold text-white transition hover:bg-[var(--v2-raised)] sm:col-span-1 sm:h-11 sm:px-4 sm:text-sm"
               >
                 <Library className="h-4 w-4" />
                 Bibliothèque
@@ -3542,7 +3487,7 @@ function AIGeneratorContent() {
           </div>
         </section>
 
-        <section className="hidden synaura-no-scrollbar -mx-1 snap-x gap-1.5 overflow-x-auto px-1 md:mx-0 md:grid md:grid-cols-3 md:px-0 lg:gap-2">
+        <section className="workspace-status-strip hidden synaura-no-scrollbar -mx-1 snap-x gap-1.5 overflow-x-auto px-1 md:mx-0 md:grid md:grid-cols-3 md:px-0 lg:gap-2">
           {[
             { label: 'Composer', detail: generationModeKind === 'simple' ? 'Idee libre' : generationModeKind === 'custom' ? 'Piece controlee' : 'Remix source', status: studioStateLabel, active: true },
             { label: 'Ecouter', detail: studioFocusTrack?.title || 'Aucun rendu', status: studioLibraryTracks.length ? `${studioLibraryTracks.length} piste(s)` : 'En attente', active: Boolean(studioFocusTrack) },
@@ -3552,18 +3497,18 @@ function AIGeneratorContent() {
               key={step.label}
               className={[
                 'w-[min(72vw,280px)] shrink-0 snap-start rounded-[1rem] border px-2.5 py-2 shadow-[0_10px_26px_rgba(20,15,10,0.06)] md:w-auto lg:px-3 lg:py-2',
-                step.active ? 'border-black/[0.10] bg-[#fffaf2]' : 'border-black/[0.07] bg-[#fffaf2]/70',
+                step.active ? 'border-[var(--v2-line)] bg-[var(--v2-surface)]' : 'border-[var(--v2-line)] bg-[var(--v2-surface)]',
               ].join(' ')}
             >
               <div className="flex items-center justify-between gap-2">
-                <span className="rounded-full bg-black/[0.06] px-2 py-0.5 text-[8px] font-black uppercase tracking-[0.14em] text-black/45">{step.label}</span>
-                <span className={['grid h-6 w-6 place-items-center rounded-full', step.active ? 'bg-[#171313] text-white' : 'bg-black/[0.06] text-black/36'].join(' ')}>
+                <span className="rounded-full bg-[var(--v2-raised)] px-2 py-0.5 text-[8px] font-semibold uppercase tracking-[0.14em] text-[var(--v2-muted)]">{step.label}</span>
+                <span className={['grid h-6 w-6 place-items-center rounded-full', step.active ? 'bg-[var(--v2-surface)] text-white' : 'bg-[var(--v2-raised)] text-[var(--v2-muted)]'].join(' ')}>
                   {step.active ? <Check className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
                 </span>
               </div>
               <div className="mt-1 flex min-w-0 items-center gap-2">
-                <p className="truncate text-[13px] font-black tracking-[-0.03em] text-[#171313]">{step.detail}</p>
-                <span className="shrink-0 truncate text-[10px] font-bold text-black/42">{step.status}</span>
+                <p className="truncate text-[13px] font-semibold tracking-[-0.03em] text-[var(--v2-text)]">{step.detail}</p>
+                <span className="shrink-0 truncate text-[10px] font-bold text-[var(--v2-muted)]">{step.status}</span>
               </div>
             </div>
           ))}
@@ -3571,7 +3516,8 @@ function AIGeneratorContent() {
 
         <section
           ref={containerRef}
-          className="relative grid min-h-0 min-w-0 flex-1 items-stretch gap-4 overflow-hidden lg:h-full lg:gap-0"
+          data-mobile-composer-open={mobileCreateOpen || undefined}
+          className="v2-ai-columns relative grid min-h-0 min-w-0 flex-1 items-stretch gap-4 overflow-hidden lg:h-full lg:gap-0"
           style={studioGridTemplate ? { gridTemplateColumns: studioGridTemplate } : undefined}
         >
           {mobileCreateOpen ? (
@@ -3579,37 +3525,39 @@ function AIGeneratorContent() {
               type="button"
               aria-label="Fermer la création"
               onClick={() => setMobileCreateOpen(false)}
-              className="fixed inset-0 z-[109] bg-[#171313]/45 backdrop-blur-sm lg:hidden"
+              className="fixed inset-0 z-[109] bg-[var(--v2-surface)] backdrop-blur-sm lg:hidden"
             />
           ) : null}
           <aside
+            aria-label="Composer une intention musicale"
             className={cn(
-              'min-w-0 overflow-hidden border border-black/[0.08] bg-[#fff8ed] shadow-[0_20px_70px_rgba(20,15,10,0.10)] transition-transform duration-300 ease-out lg:static lg:z-auto lg:block lg:h-full lg:translate-y-0 lg:rounded-[1.5rem] lg:overflow-y-auto',
+              'v2-ai-composer min-w-0 overflow-hidden transition-transform duration-200 ease-out lg:static lg:z-auto lg:block lg:h-full lg:translate-y-0 lg:overflow-y-auto',
               mobileCreateOpen
                 ? 'fixed inset-x-0 bottom-0 z-[120] max-h-[88dvh] translate-y-0 rounded-t-[1.6rem] overflow-y-auto'
                 : 'fixed inset-x-0 bottom-0 z-[120] max-h-[88dvh] translate-y-full rounded-t-[1.6rem] overflow-y-auto pointer-events-none lg:pointer-events-auto',
             )}
           >
-            <div className="border-b border-black/[0.07] bg-[#f5eadb] p-4">
+            <div className="experience-composer-scroll">
+            <div className="v2-ai-composer-heading chambre-signature-composer-heading">
               <div className="flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[color-mix(in_srgb,var(--syn-accent)_65%,var(--syn-text-primary))]">1 &middot; Idee musicale</p>
-                  <h2 className="truncate text-xl font-black tracking-[-0.05em] text-[#171313]">Nouvelle session</h2>
+                  <p className="v2-kicker">01 / L’intention</p>
+                  <h2 className="mt-2">Donne le ton.</h2>
                 </div>
                 <button
                   type="button"
                   onClick={() => setMobileCreateOpen(false)}
-                  className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-black/[0.08] bg-white text-black/55 lg:hidden"
+                  className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-[var(--v2-line)] bg-[var(--v2-raised)] text-[var(--v2-muted)] lg:hidden"
                   aria-label="Fermer le composer"
                 >
                   <X className="h-4 w-4" />
                 </button>
               </div>
 
-              <div className="mt-4 grid grid-cols-3 gap-2">
+              <div className="experience-composer-modes mt-4 grid grid-cols-3 gap-2" role="group" aria-label="Mode de création">
                 {([
-                  { key: 'simple' as const, label: 'Idee', icon: Sparkles },
-                  { key: 'custom' as const, label: 'Piece', icon: SlidersHorizontal },
+                  { key: 'simple' as const, label: 'Idée', icon: Sparkles },
+                  { key: 'custom' as const, label: 'Sur mesure', icon: SlidersHorizontal },
                   { key: 'remix' as const, label: 'Remix', icon: Repeat },
                 ]).map((mode) => {
                   const active = generationModeKind === mode.key;
@@ -3619,10 +3567,11 @@ function AIGeneratorContent() {
                       key={mode.key}
                       type="button"
                       onClick={() => selectGenerationMode(mode.key)}
-                      className={`rounded-[1rem] border px-2 py-3 text-xs font-black transition ${
+                      aria-pressed={active}
+                      className={`chambre-ai-mode rounded-md border px-2 py-3 text-xs font-semibold transition ${
                         active
-                          ? 'border-[#171313] bg-[#171313] text-white shadow-[0_10px_24px_rgba(20,15,10,0.16)]'
-                          : 'border-black/[0.07] bg-white/70 text-[#6e5f54] hover:bg-white'
+                          ? 'border-[var(--v2-accent)] bg-[var(--v2-selected)] text-[var(--v2-text)]'
+                          : 'border-[var(--v2-line)] bg-[var(--v2-raised)] text-[var(--v2-muted)] hover:bg-[var(--v2-raised)]'
                       }`}
                     >
                       <Icon className="mx-auto mb-1 h-4 w-4" />
@@ -3631,35 +3580,35 @@ function AIGeneratorContent() {
                   );
                 })}
               </div>
-              <p className="mt-3 text-xs font-semibold leading-5 text-[#7f7065]">{studioModeCopy}</p>
+              <p className="mt-3 text-xs font-semibold leading-5 text-[var(--v2-muted)]">{studioModeCopy}</p>
               {sourceContext ? (
-                <div className="mt-3 rounded-[1rem] border border-[#7c5cff]/18 bg-white/70 p-3">
+                <div className="mt-3 rounded-[1rem] border border-[var(--v2-line)] bg-[var(--v2-raised)] p-3">
                   <div className="flex items-start justify-between gap-3">
                     {sourceContext.coverUrl ? (
                       <img src={sourceContext.coverUrl} alt="" className="h-14 w-14 shrink-0 rounded-xl object-cover" />
                     ) : null}
                     <div className="min-w-0">
-                      <p className="text-[10px] font-black uppercase tracking-[0.16em] text-[#7c5cff]">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--v2-accent)]">
                         Inspiré de {sourceContext.title} — par @{sourceContext.artistUsername || sourceContext.artist || 'artiste'}
                       </p>
-                      <p className="mt-1 truncate text-sm font-black text-[#171313]">{sourceContext.title}</p>
-                      {sourceContext.style ? <p className="mt-0.5 truncate text-xs font-semibold text-black/42">{sourceContext.style}</p> : null}
+                      <p className="mt-1 truncate text-sm font-semibold text-[var(--v2-text)]">{sourceContext.title}</p>
+                      {sourceContext.style ? <p className="mt-0.5 truncate text-xs font-semibold text-[var(--v2-muted)]">{sourceContext.style}</p> : null}
                       {sourceContext.trackUrl ? (
-                        <Link href={sourceContext.trackUrl} className="mt-2 inline-flex text-[11px] font-black text-[#7357C6]">
+                        <Link href={sourceContext.trackUrl} className="mt-2 inline-flex text-[11px] font-semibold text-[var(--v2-accent)]">
                           Voir le morceau original
                         </Link>
                       ) : null}
                     </div>
-                    <button type="button" onClick={clearRemixSource} className="shrink-0 rounded-full bg-black/[0.06] px-3 py-1 text-[11px] font-black text-black/55 transition hover:bg-black hover:text-white">
+                    <button type="button" onClick={clearRemixSource} className="shrink-0 rounded-full bg-[var(--v2-raised)] px-3 py-1 text-[11px] font-semibold text-[var(--v2-muted)] transition hover:bg-black hover:text-white">
                       Retirer la source
                     </button>
                   </div>
                   {sourceContext.warning ? (
-                    <p className="mt-2 rounded-[0.85rem] bg-[#fff4dc] px-3 py-2 text-xs font-semibold leading-5 text-[#8a5b00]">
+                    <p className="mt-2 rounded-[0.85rem] bg-[var(--v2-selected)] px-3 py-2 text-xs font-semibold leading-5 text-[var(--v2-warning)]">
                       {sourceContext.warning}
                     </p>
                   ) : sourceContext.mode === 'remix' ? (
-                    <p className="mt-2 text-xs font-semibold text-black/42">
+                    <p className="mt-2 text-xs font-semibold text-[var(--v2-muted)]">
                       {sourceContext.audioAttached ? 'Audio source attaché automatiquement.' : 'Recherche de la source audio en cours...'}
                     </p>
                   ) : null}
@@ -3674,53 +3623,56 @@ function AIGeneratorContent() {
                     onPromptVisibilityChange={setRemixPromptVisibility}
                   />
                   <label className="block">
-                    <span className="mb-2 block text-[11px] font-black uppercase tracking-[0.16em] text-[#8b7868]">Variation souhaitee</span>
+                    <span className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--v2-muted)]">La variation souhaitée</span>
                     <textarea
                       value={description}
+                      maxLength={SUNO_GENERATION_LIMITS.coverSimplePrompt}
                       onChange={(event) => setDescription(event.target.value)}
                       disabled={isGenerationDisabled}
                       placeholder="Ex: version plus intime, tempo plus rapide, garder les paroles mais changer la production..."
-                      className="min-h-[92px] w-full resize-none rounded-[1.1rem] border border-black/[0.08] bg-white px-4 py-3 text-sm font-semibold leading-6 text-[#171313] outline-none placeholder:text-[#9b8d82] focus:border-[#171313]"
+                      className="min-h-[92px] w-full resize-none rounded-[1.1rem] border border-[var(--v2-line)] bg-[var(--v2-raised)] px-4 py-3 text-sm font-semibold leading-6 text-[var(--v2-text)] outline-none placeholder:text-[var(--v2-faint)] focus:border-[var(--v2-line)]"
                     />
                   </label>
                 </div>
               ) : null}
             </div>
 
-            <div className="space-y-4 p-4">
+            <div className="experience-composer-fields space-y-4 p-4">
               {generationModeKind === 'simple' ? (
                 <label className="block">
-                  <span className="mb-2 flex items-center justify-between gap-2 text-[11px] font-black uppercase tracking-[0.16em] text-[#8b7868]">
-                    Prompt principal
+                  <span className="mb-2 flex items-center justify-between gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--v2-muted)]">
+                    Décris ton idée
                     <button
                       type="button"
                       onClick={(e) => { e.preventDefault(); clearPromptSection(); }}
                       aria-label="Supprimer le prompt principal"
                       title="Vider le prompt"
-                      className="rounded-full p-1.5 text-[#8b7868] transition hover:bg-red-50 hover:text-red-600"
+                      className="rounded-full p-1.5 text-[var(--v2-muted)] transition hover:bg-red-50 hover:text-red-600"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </span>
                   <textarea
                     value={description}
+                    maxLength={SUNO_GENERATION_LIMITS.simplePrompt}
                     onChange={(e) => setDescription(e.target.value)}
                     disabled={isGenerationDisabled}
-                    placeholder="Ex: pop solaire, refrains enormes, basse ronde, voix feminine, ambiance route de nuit..."
-                    className="min-h-[170px] w-full resize-none rounded-[1.2rem] border border-black/[0.08] bg-white px-4 py-3 text-sm font-semibold leading-6 text-[#171313] outline-none placeholder:text-[#9b8d82] focus:border-[#171313]"
+                    placeholder="Ex. : pop solaire, grand refrain, basse ronde, voix féminine, ambiance route de nuit…"
+                    className="min-h-[170px] w-full resize-none rounded-[1.2rem] border border-[var(--v2-line)] bg-[var(--v2-raised)] px-4 py-3 text-sm font-semibold leading-6 text-[var(--v2-text)] outline-none placeholder:text-[var(--v2-faint)] focus:border-[var(--v2-line)]"
                   />
+                  <span className="mt-1 block text-right text-[10px] text-[var(--v2-muted)]">{description.length} / {SUNO_GENERATION_LIMITS.simplePrompt} caractères</span>
                 </label>
               ) : (
                 <div className="space-y-3">
                   <label className="block">
-                    <span className="mb-2 flex items-center justify-between gap-2 text-[11px] font-black uppercase tracking-[0.16em] text-[#8b7868]">
+                    <span className="mb-2 flex items-center justify-between gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--v2-muted)]">
                       Titre
                       <button
                         type="button"
                         onClick={(e) => { e.preventDefault(); clearTitleSection(); }}
                         aria-label="Supprimer le titre"
                         title="Vider le titre"
-                        className="rounded-full p-1.5 text-[#8b7868] transition hover:bg-red-50 hover:text-red-600"
+                        className="rounded-full p-1.5 text-[var(--v2-muted)] transition hover:bg-red-50 hover:text-red-600"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
@@ -3728,66 +3680,70 @@ function AIGeneratorContent() {
                     <input
                       type="text"
                       value={title}
+                      maxLength={SUNO_GENERATION_LIMITS.title}
                       onChange={(e) => setTitle(e.target.value)}
                       disabled={isGenerationDisabled}
                       placeholder="Nom de travail"
-                      className="h-12 w-full rounded-full border border-black/[0.08] bg-white px-4 text-sm font-black text-[#171313] outline-none placeholder:text-[#9b8d82] focus:border-[#171313]"
+                      className="h-12 w-full rounded-full border border-[var(--v2-line)] bg-[var(--v2-raised)] px-4 text-sm font-semibold text-[var(--v2-text)] outline-none placeholder:text-[var(--v2-faint)] focus:border-[var(--v2-line)]"
                     />
                   </label>
                   <label className="block">
-                    <span className="mb-2 flex items-center justify-between gap-2 text-[11px] font-black uppercase tracking-[0.16em] text-[#8b7868]">
+                    <span className="mb-2 flex items-center justify-between gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--v2-muted)]">
                       Direction musicale
                       <button
                         type="button"
                         onClick={(e) => { e.preventDefault(); clearStyleSection(); }}
                         aria-label="Supprimer la direction musicale"
                         title="Vider la direction musicale"
-                        className="rounded-full p-1.5 text-[#8b7868] transition hover:bg-red-50 hover:text-red-600"
+                        className="rounded-full p-1.5 text-[var(--v2-muted)] transition hover:bg-red-50 hover:text-red-600"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </span>
                     <textarea
                       value={style}
+                      maxLength={SUNO_GENERATION_LIMITS.style}
                       onChange={(e) => setStyle(e.target.value)}
                       disabled={isGenerationDisabled}
-                      placeholder="Genre, instruments, energie, reference de production..."
-                      className="min-h-[125px] w-full resize-none rounded-[1.2rem] border border-black/[0.08] bg-white px-4 py-3 text-sm font-semibold leading-6 text-[#171313] outline-none placeholder:text-[#9b8d82] focus:border-[#171313]"
+                      placeholder="Genre, instruments, énergie, référence de production…"
+                      className="min-h-[125px] w-full resize-none rounded-[1.2rem] border border-[var(--v2-line)] bg-[var(--v2-raised)] px-4 py-3 text-sm font-semibold leading-6 text-[var(--v2-text)] outline-none placeholder:text-[var(--v2-faint)] focus:border-[var(--v2-line)]"
                     />
                   </label>
                   <label className="block">
-                    <span className="mb-2 flex items-center justify-between gap-2 text-[11px] font-black uppercase tracking-[0.16em] text-[#8b7868]">
+                    <span className="mb-2 flex items-center justify-between gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--v2-muted)]">
                       Paroles
                       <button
                         type="button"
                         onClick={(e) => { e.preventDefault(); clearLyricsSection(); }}
                         aria-label="Supprimer les paroles"
                         title="Vider les paroles"
-                        className="rounded-full p-1.5 text-[#8b7868] transition hover:bg-red-50 hover:text-red-600"
+                        className="rounded-full p-1.5 text-[var(--v2-muted)] transition hover:bg-red-50 hover:text-red-600"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
                     </span>
                     <textarea
                       value={lyrics}
+                      maxLength={SUNO_GENERATION_LIMITS.prompt}
                       onChange={(e) => setLyrics(e.target.value)}
                       disabled={isGenerationDisabled || isInstrumental}
-                      placeholder={isInstrumental ? 'Instrumental active' : 'Couplets, refrain, adlibs... ou laisse vide pour auto.'}
-                      className="min-h-[150px] w-full resize-none rounded-[1.2rem] border border-black/[0.08] bg-white px-4 py-3 text-sm font-semibold leading-6 text-[#171313] outline-none placeholder:text-[#9b8d82] focus:border-[#171313] disabled:bg-black/[0.04]"
+                      placeholder={isInstrumental ? 'Mode instrumental activé' : 'Couplets, refrain, adlibs… Écris tes paroles ou utilise le bouton Paroles.'}
+                      className="min-h-[150px] w-full resize-none rounded-[1.2rem] border border-[var(--v2-line)] bg-[var(--v2-raised)] px-4 py-3 text-sm font-semibold leading-6 text-[var(--v2-text)] outline-none placeholder:text-[var(--v2-faint)] focus:border-[var(--v2-line)] disabled:bg-[var(--v2-raised)]"
                     />
+                    <span className="mt-1 block text-right text-[10px] text-[var(--v2-muted)]">{lyrics.length} / {SUNO_GENERATION_LIMITS.prompt} caractères</span>
                   </label>
                 </div>
               )}
 
               {isRemixMode && (
-                <div className="rounded-[1.25rem] border border-[#00a6ad]/20 bg-[#eafffb] p-3">
+                <div className="rounded-[1.25rem] border border-[var(--v2-line)] bg-[var(--v2-surface)] p-3">
                   <div className="mb-2 flex items-center justify-between gap-2">
                     <div>
-                      <p className="text-[11px] font-black uppercase tracking-[0.14em] text-[#087b80]">Source remix</p>
-                      <p className="text-xs font-semibold text-[#416b6d]">Upload un son ou choisis une piste de ta bibliotheque.</p>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--v2-accent)]">Source remix</p>
+                      <p className="text-xs font-semibold text-[var(--v2-muted)]">Importe un son ou choisis une piste de ta bibliothèque.</p>
                     </div>
                     {remixUploadUrl && (
-                      <button type="button" onClick={clearRemixSource} className="rounded-full bg-white px-3 py-1 text-[11px] font-black text-[#087b80]">
+                      <button type="button" onClick={clearRemixSource} className="rounded-full bg-[var(--v2-raised)] px-3 py-1 text-[11px] font-semibold text-[var(--v2-accent)]">
                         Retirer
                       </button>
                     )}
@@ -3802,8 +3758,8 @@ function AIGeneratorContent() {
                     }}
                   />
                   {remixUploadUrl && (
-                    <div className="mt-2 rounded-xl bg-white px-3 py-2 text-xs font-black text-[#171313]">
-                      {remixSourceLabel ?? 'Source prete'}
+                    <div className="mt-2 rounded-xl bg-[var(--v2-raised)] px-3 py-2 text-xs font-semibold text-[var(--v2-text)]">
+                      {remixSourceLabel ?? 'Source prête'}
                     </div>
                   )}
                   {uploadedRemixAssets.length > 0 && (
@@ -3816,8 +3772,8 @@ function AIGeneratorContent() {
                             key={`new-remix-${track.id}`}
                             type="button"
                             onClick={() => useLibraryTrackForRemix(track)}
-                            className={`min-w-0 rounded-xl border px-3 py-2 text-left text-xs font-black transition ${
-                              picked ? 'border-[#00a6ad] bg-white text-[#087b80]' : 'border-black/[0.06] bg-white/70 text-[#5f5650] hover:bg-white'
+                            className={`min-w-0 rounded-xl border px-3 py-2 text-left text-xs font-semibold transition ${
+                              picked ? 'border-[var(--v2-line)] bg-[var(--v2-raised)] text-[var(--v2-accent)]' : 'border-[var(--v2-line)] bg-[var(--v2-raised)] text-[var(--v2-muted)] hover:bg-[var(--v2-raised)]'
                             }`}
                           >
                             <span className="block truncate">{getUploadedAssetName(track)}</span>
@@ -3833,8 +3789,9 @@ function AIGeneratorContent() {
                 <button
                   type="button"
                   onClick={() => setIsInstrumental((v) => !v)}
-                  className={`rounded-[1rem] border px-3 py-3 text-left text-xs font-black transition ${
-                    isInstrumental ? 'border-[#171313] bg-[#171313] text-white' : 'border-black/[0.07] bg-white text-[#5f5650]'
+                  aria-pressed={isInstrumental}
+                  className={`rounded-[1rem] border px-3 py-3 text-left text-xs font-semibold transition ${
+                    isInstrumental ? 'border-[var(--v2-line)] bg-[var(--v2-surface)] text-white' : 'border-[var(--v2-line)] bg-[var(--v2-raised)] text-[var(--v2-muted)]'
                   }`}
                 >
                   <Mic className="mb-2 h-4 w-4" />
@@ -3844,24 +3801,26 @@ function AIGeneratorContent() {
                   type="button"
                   onClick={generateAutoLyrics}
                   disabled={isGeneratingLyrics || isInstrumental}
-                  className="rounded-[1rem] border border-black/[0.07] bg-white px-3 py-3 text-left text-xs font-black text-[#5f5650] transition hover:bg-[#fffaf2] disabled:opacity-45"
+                  className="rounded-[1rem] border border-[var(--v2-line)] bg-[var(--v2-raised)] px-3 py-3 text-left text-xs font-semibold text-[var(--v2-muted)] transition hover:bg-[var(--v2-surface)] disabled:opacity-45"
                 >
                   <Wand2 className="mb-2 h-4 w-4" />
                   {isGeneratingLyrics ? 'Ecriture...' : 'Lyrics auto'}
                 </button>
               </div>
 
-              <div className="rounded-[1.25rem] border border-black/[0.07] bg-white p-3">
+              <details className="experience-composer-disclosure">
+                <summary><span>Couleurs sonores</span><small>{selectedTags.length} sélectionnée{selectedTags.length > 1 ? 's' : ''}</small><ChevronRight size={15} aria-hidden="true" /></summary>
+              <div className="rounded-[1.25rem] border border-[var(--v2-line)] bg-[var(--v2-raised)] p-3">
                 <div className="mb-3 flex items-center justify-between">
-                  <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#8b7868]">Couleurs sonores</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--v2-muted)]">Couleurs sonores</p>
                   <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-black text-[#171313]">{selectedTags.length} tags</span>
+                    <span className="text-[11px] font-semibold text-[var(--v2-text)]">{selectedTags.length} tags</span>
                     <button
                       type="button"
                       onClick={() => setSelectedTags([])}
                       aria-label="Supprimer les couleurs sonores"
                       title="Vider les tags"
-                      className="rounded-full p-1.5 text-[#8b7868] transition hover:bg-red-50 hover:text-red-600"
+                      className="rounded-full p-1.5 text-[var(--v2-muted)] transition hover:bg-red-50 hover:text-red-600"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
@@ -3875,8 +3834,9 @@ function AIGeneratorContent() {
                         key={`studio-tag-${tag}`}
                         type="button"
                         onClick={() => setSelectedTags((prev) => prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag])}
-                        className={`rounded-full border px-3 py-1.5 text-[11px] font-black transition ${
-                          active ? 'border-[#171313] bg-[#171313] text-white' : 'border-black/[0.07] bg-[#f7efe4] text-[#6e5f54] hover:bg-[#fff7ec]'
+                        aria-pressed={active}
+                        className={`rounded-full border px-3 py-1.5 text-[11px] font-semibold transition ${
+                          active ? 'border-[var(--v2-line)] bg-[var(--v2-surface)] text-white' : 'border-[var(--v2-line)] bg-[var(--v2-surface)] text-[var(--v2-muted)] hover:bg-[var(--v2-selected)]'
                         }`}
                       >
                         {tag}
@@ -3886,13 +3846,17 @@ function AIGeneratorContent() {
                 </div>
               </div>
 
-              <div className="rounded-[1.25rem] border border-black/[0.07] bg-[radial-gradient(circle_at_18%_0%,rgba(255,111,97,0.22),transparent_34%),radial-gradient(circle_at_92%_18%,rgba(124,92,255,0.22),transparent_36%),linear-gradient(135deg,#211918_0%,#171313_50%,#101116_100%)] p-3 text-white shadow-[0_18px_46px_rgba(20,15,10,0.16)]">
+              </details>
+
+              <details className="experience-composer-disclosure">
+                <summary><span>Partir d’une inspiration</span><small>{aiStudioPresets.length} directions</small><ChevronRight size={15} aria-hidden="true" /></summary>
+              <div className="rounded-[1.25rem] border border-[var(--v2-line)] bg-[var(--v2-surface)] p-3 text-white shadow-[0_18px_46px_rgba(20,15,10,0.16)]">
                 <div className="mb-3 flex items-center justify-between gap-3">
                   <div>
-                    <p className="text-[11px] font-black uppercase tracking-[0.16em] text-white/45">Demarrer vite</p>
-                    <p className="mt-0.5 text-[11px] font-semibold text-white/35">{aiStudioPresets.length} intentions pretes pour Suno</p>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--v2-muted)]">Un point de départ</p>
+                    <p className="mt-0.5 text-[11px] font-semibold text-[var(--v2-muted)]">{aiStudioPresets.length} intentions prêtes à explorer</p>
                   </div>
-                  <Sparkles className="h-4 w-4 text-[#ffd166]" />
+                  <Sparkles className="h-4 w-4 text-[var(--v2-accent)]" />
                 </div>
                 <div className="grid gap-2">
                   {aiStudioPresets.map((preset) => {
@@ -3905,22 +3869,22 @@ function AIGeneratorContent() {
                         onClick={() => handleApplyPreset(preset)}
                         className={`rounded-[1rem] border p-3 text-left transition ${
                           active
-                            ? 'border-white bg-white text-[#171313] shadow-[0_14px_34px_rgba(255,255,255,0.12)]'
-                            : 'border-white/10 bg-white/[0.06] text-white hover:bg-white/[0.10]'
+                            ? 'border-white bg-[var(--v2-raised)] text-[var(--v2-text)] shadow-[0_14px_34px_rgba(255,255,255,0.12)]'
+                            : 'border-white/10 bg-[var(--v2-raised)] text-white hover:bg-[var(--v2-raised)]'
                         }`}
                       >
                         <span className="flex min-w-0 items-start gap-2.5">
-                          <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl text-base ${active ? 'bg-[#171313] text-white' : 'bg-white/[0.08]'}`}>
+                          <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl text-base ${active ? 'bg-[var(--v2-surface)] text-white' : 'bg-[var(--v2-raised)]'}`}>
                             {preset.emoji}
                           </span>
                           <span className="min-w-0 flex-1">
-                            <span className="block truncate text-xs font-black">{preset.label}</span>
-                            <span className={`mt-0.5 block line-clamp-2 text-[10px] font-semibold leading-4 ${active ? 'text-[#6e5f54]' : 'text-white/45'}`}>
+                            <span className="block truncate text-xs font-semibold">{preset.label}</span>
+                            <span className={`mt-0.5 block line-clamp-2 text-[10px] font-semibold leading-4 ${active ? 'text-[var(--v2-muted)]' : 'text-[var(--v2-muted)]'}`}>
                               {preset.description}
                             </span>
                           </span>
                           {active ? (
-                            <span className="mt-0.5 inline-flex shrink-0 items-center gap-1 rounded-full bg-black/[0.06] px-2 py-1 text-[9px] font-black text-black/48">
+                            <span className="mt-0.5 inline-flex shrink-0 items-center gap-1 rounded-full bg-[var(--v2-raised)] px-2 py-1 text-[9px] font-semibold text-[var(--v2-muted)]">
                               <Check className="h-3 w-3" />
                               vider
                             </span>
@@ -3931,7 +3895,7 @@ function AIGeneratorContent() {
                             {presetTags.map((tag) => (
                               <span
                                 key={`${preset.id}-${tag}`}
-                                className={`rounded-full px-2 py-0.5 text-[9px] font-black ${active ? 'bg-black/[0.06] text-black/48' : 'bg-white/[0.07] text-white/42'}`}
+                                className={`rounded-full px-2 py-0.5 text-[9px] font-semibold ${active ? 'bg-[var(--v2-raised)] text-[var(--v2-muted)]' : 'bg-[var(--v2-raised)] text-[var(--v2-muted)]'}`}
                               >
                                 {tag}
                               </span>
@@ -3944,73 +3908,73 @@ function AIGeneratorContent() {
                 </div>
               </div>
 
+              </details>
+
               <div className="pt-2">
-                <p className="px-1 text-[10px] font-black uppercase tracking-[0.18em] text-[#4A9EAA]">2 &middot; Reglages</p>
+                <p className="chambre-ai-section-label px-1">Affiner le rendu</p>
               </div>
 
-              <div className="rounded-[1.25rem] border border-black/[0.07] bg-white p-3">
+              <div className="chambre-ai-render-settings rounded-md border border-[var(--v2-line)] bg-[var(--v2-raised)] p-3">
                 <div className="mb-3 flex items-center justify-between">
-                  <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#8b7868]">Modele &amp; duree</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--v2-muted)]">Modèle &amp; durée</p>
                   <div className="flex items-center gap-2">
-                    <span className="text-[11px] font-black text-[#171313]">{studioModelLabel}</span>
+                    <span className="text-[11px] font-semibold text-[var(--v2-text)]">{studioModelLabel}</span>
                     <button
                       type="button"
                       onClick={clearAdvancedSection}
-                      aria-label="Supprimer les reglages"
-                      title="Reinitialiser les reglages"
-                      className="rounded-full p-1.5 text-[#8b7868] transition hover:bg-red-50 hover:text-red-600"
+                      aria-label="Réinitialiser les réglages"
+                      title="Réinitialiser les réglages"
+                      className="rounded-full p-1.5 text-[var(--v2-muted)] transition hover:bg-red-50 hover:text-red-600"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  {(['V4_5', 'V4_5PLUS', 'V5', 'V5_5'] as const).map((model) => (
+                <div className="grid grid-cols-3 gap-2" role="group" aria-label="Modèle de génération">
+                  {CURRENT_SUNO_MODELS.map((model) => (
                     <button
-                      key={model}
+                      key={model.id}
                       type="button"
-                      onClick={() => setModelVersion(model)}
-                      className={`rounded-full px-3 py-2 text-[11px] font-black transition ${
-                        modelVersion === model ? 'bg-[#171313] text-white' : 'bg-[#f5eadb] text-[#6e5f54] hover:bg-[#efe0ce]'
+                      onClick={() => setModelVersion(model.id)}
+                      disabled={quotaLoading || !availableModels.includes(model.id)}
+                      aria-pressed={modelVersion === model.id}
+                      title={availableModels.includes(model.id) ? model.description : `${model.label} · disponible avec un abonnement`}
+                      className={`rounded-full px-2 py-2 text-[11px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                        modelVersion === model.id ? 'bg-[var(--v2-accent)] text-white' : 'bg-[var(--v2-surface)] text-[var(--v2-muted)] hover:bg-[var(--v2-selected)]'
                       }`}
                     >
-                      {model === 'V5_5' ? 'v5.5' : model === 'V5' ? 'v5' : model === 'V4_5PLUS' ? 'v4.5+' : 'v4.5'}
+                      {model.label}
                     </button>
                   ))}
                 </div>
-                <div className="mt-3 grid grid-cols-3 gap-2">
-                  {([60, 120, 180] as const).map((duration) => (
-                    <button
-                      key={duration}
-                      type="button"
-                      onClick={() => setGenerationDuration(duration)}
-                      className={`rounded-full px-3 py-2 text-[11px] font-black transition ${
-                        generationDuration === duration ? 'bg-[#ff6f61] text-white' : 'bg-[#f5eadb] text-[#6e5f54] hover:bg-[#efe0ce]'
-                      }`}
-                    >
-                      {duration}s
-                    </button>
-                  ))}
-                </div>
+                <p className="mt-2 text-[10px] leading-5 text-[var(--v2-muted)]">{CURRENT_SUNO_MODELS.find((model) => model.id === modelVersion)?.description}</p>
+                {availableModels.length < CURRENT_SUNO_MODELS.length && !quotaLoading ? <Link href="/subscriptions" className="mt-1 block text-[10px] text-[var(--v2-accent)] underline underline-offset-4">V6 et Wild sont inclus dans les abonnements.</Link> : null}
+                {customMode ? (
+                  <label className="mt-3 block">
+                    <span className="flex items-center justify-between gap-2 text-[11px] text-[var(--v2-muted)]"><span>Durée demandée</span><strong className="font-semibold text-[var(--v2-text)]">{formatTime(generationDuration)}</strong></span>
+                    <input type="range" min={SUNO_GENERATION_LIMITS.minDuration} max={SUNO_GENERATION_LIMITS.maxDuration} step={1} value={generationDuration} onChange={(event) => setGenerationDuration(Number(event.target.value))} aria-label="Durée demandée en secondes" aria-valuetext={`${generationDuration} secondes`} className="mt-2 w-full accent-[var(--v2-accent)]" />
+                    <span className="flex justify-between text-[10px] text-[var(--v2-muted)]"><span>10 s</span><span>6 min</span></span>
+                  </label>
+                ) : <p className="mt-3 text-[10px] leading-5 text-[var(--v2-muted)]">Durée libre en mode simple. Passe en mode sur mesure pour demander une durée précise.</p>}
                 {customMode && (
                   <div className="mt-3">
                     <button
                       type="button"
                       onClick={() => setAdvancedSettingsOpen((v) => !v)}
-                      className="flex w-full items-center justify-between rounded-full bg-[#f5eadb] px-3 py-2 text-[11px] font-black text-[#6e5f54] transition hover:bg-[#efe0ce]"
+                      className="flex w-full items-center justify-between rounded-full bg-[var(--v2-surface)] px-3 py-2 text-[11px] font-semibold text-[var(--v2-muted)] transition hover:bg-[var(--v2-selected)]"
                     >
-                      Reglages avances
+                      Réglages avancés
                       <ChevronRight className={`h-3.5 w-3.5 transition-transform ${advancedSettingsOpen ? 'rotate-90' : ''}`} />
                     </button>
                     {advancedSettingsOpen && (
                       <div className="mt-3 space-y-3">
                         {([
-                          ['Creativite', weirdness, setWeirdness],
+                          ['Créativité', weirdness, setWeirdness],
                           ['Style', styleInfluence, setStyleInfluence],
                           ['Audio', audioWeight, setAudioWeight],
                         ] as const).map(([label, value, setter]) => (
                           <label key={label} className="block">
-                            <span className="mb-1 flex items-center justify-between text-[11px] font-black text-[#6e5f54]">
+                            <span className="mb-1 flex items-center justify-between text-[11px] font-semibold text-[var(--v2-muted)]">
                               {label}
                               <span>{value}%</span>
                             </span>
@@ -4020,17 +3984,17 @@ function AIGeneratorContent() {
                               max={100}
                               value={value}
                               onChange={(e) => setter(Number(e.target.value))}
-                              className="w-full accent-[#171313]"
+                              className="w-full accent-[var(--v2-accent)]"
                             />
                           </label>
                         ))}
                         <label className="block">
-                          <span className="mb-1 block text-[11px] font-black text-[#6e5f54]">Tags a eviter</span>
+                          <span className="mb-1 block text-[11px] font-semibold text-[var(--v2-muted)]">Éléments à éviter</span>
                           <input
                             value={negativeTags}
                             onChange={(e) => setNegativeTags(e.target.value)}
                             placeholder="ex: noisy, distorted..."
-                            className="h-10 w-full rounded-full border border-black/[0.08] bg-[#fffaf2] px-4 text-xs font-semibold text-[#171313] outline-none"
+                            className="h-10 w-full rounded-full border border-[var(--v2-line)] bg-[var(--v2-surface)] px-4 text-xs font-semibold text-[var(--v2-text)] outline-none"
                           />
                         </label>
                       </div>
@@ -4039,52 +4003,56 @@ function AIGeneratorContent() {
                 )}
               </div>
 
-              <div className="pt-2">
-                <p className="px-1 text-[10px] font-black uppercase tracking-[0.18em] text-[#7357C6]">3 &middot; Publication</p>
-              </div>
-
-              <div className="rounded-[1.25rem] border border-[#7357C6]/20 bg-[#7357C6]/[0.06] p-3">
-                <p className="text-xs font-semibold leading-5 text-[#5b4a80]">
+            </div>
+            </div>
+              <div className="chambre-ai-generation-commit experience-generation-commit rounded-md border border-[var(--v2-line)] bg-[var(--v2-selected)] p-4">
+                <p className="chambre-ai-section-label">Lancer la génération</p>
+                <p className="text-xs font-semibold leading-5 text-[var(--v2-text)]">
                   {isRemixMode
-                    ? 'Une variation IA va etre creee a partir de la source ci-dessus.'
-                    : '2 versions vont etre generees a partir de ton idee.'}
+                    ? 'Une variation IA sera créée à partir de la source ci-dessus.'
+                    : 'Suno V6 donnera une forme musicale à ton idée.'}
                 </p>
-                <div className="mt-3 flex items-center justify-between gap-2 rounded-full bg-white/70 px-3 py-2">
-                  <span className="text-[11px] font-black text-[#5b4a80]">Cout de cette creation</span>
-                  <span className="inline-flex items-center gap-1 text-[11px] font-black text-[#171313]">
-                    <Coins className="h-3.5 w-3.5 text-[#4A9EAA]" />
+                <div className="mt-3 flex items-center justify-between gap-2 rounded-full bg-[var(--v2-raised)] px-3 py-2">
+                  <span className="text-[11px] font-semibold text-[var(--v2-muted)]">Coût de cette génération</span>
+                  <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[var(--v2-text)]">
+                    <Coins className="h-3.5 w-3.5 text-[var(--v2-accent)]" />
                     {ACTION_COSTS.generation.credits} cr.
                   </span>
                 </div>
                 <button
                   type="button"
                   onClick={generateMusic}
-                  disabled={isGenerationDisabled || isGenerating || rateLimitActive}
-                  className="mt-3 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-[#7357C6] px-5 text-sm font-black text-white shadow-[0_14px_34px_rgba(115,87,198,0.28)] transition hover:scale-[1.01] hover:bg-[#6547b3] disabled:cursor-not-allowed disabled:opacity-45"
+                  disabled={isGenerationDisabled || isGenerating || rateLimitActive || quotaLoading}
+                  className="mt-3 inline-flex h-12 w-full items-center justify-center gap-2 rounded-full bg-[var(--v2-accent-fill)] px-5 text-sm font-semibold text-white transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-45"
                 >
                   {isGenerating ? <span className="h-4 w-4 rounded-full border-2 border-white/60 border-t-transparent animate-spin" /> : <Sparkles className="h-4 w-4" />}
                   {isGenerating
-                    ? (isRemixMode ? 'Creation de la variation...' : 'Generation en cours...')
+                    ? (isRemixMode ? 'Création de la variation…' : 'Génération en cours…')
                     : rateLimitActive
-                      ? `Reessayer dans ${cooldownSecondsLeft}s`
-                      : (isRemixMode ? 'Creer une variation' : 'Generer 2 versions')}
+                      ? `Réessayer dans ${cooldownSecondsLeft}s`
+                      : (isRemixMode ? 'Créer une variation' : `Générer avec ${studioModelLabel}`)}
                 </button>
+                <p className="experience-generation-note mt-3 text-[11px] leading-5 text-[var(--v2-muted)]">Écoute tes versions, puis choisis quoi partager.</p>
               </div>
-            </div>
           </aside>
 
           <div
             role="separator"
             aria-orientation="vertical"
             onPointerDown={beginDrag('left')}
-            className="hidden w-2 cursor-col-resize items-center justify-center rounded-full transition hover:bg-black/[0.04] lg:flex"
+            className="hidden w-2 cursor-col-resize items-center justify-center rounded-full transition hover:bg-[var(--v2-raised)] lg:flex"
             title="Redimensionner composer"
           >
-            <div className="h-16 w-[2px] rounded-full bg-black/15" />
+            <div className="h-16 w-[2px] rounded-full bg-[var(--v2-raised)]" />
           </div>
 
-          <main className="h-full min-h-0 min-w-0 overflow-hidden">
-            <section className="h-full min-h-0 overflow-hidden rounded-[1.5rem] border border-black/[0.08] bg-[#fffaf2] shadow-[0_20px_70px_rgba(20,15,10,0.10)]">
+          <main className="experience-listening-desk h-full min-h-0 min-w-0 overflow-hidden">
+            <header className="experience-session-strip" data-generation-state={sunoState}>
+              <div className="experience-session-signal" aria-hidden="true"><span /><span /><span /><span /><span /><span /><span /><span /><span /></div>
+              <div><p className="v2-kicker">02 / Le salon d’écoute</p><h2>{isGenerating || sunoState === 'pending' ? 'Ton idée prend forme.' : studioFocusTrack ? 'Écoute. Compare. Garde.' : 'La première écoute commence ici.'}</h2></div>
+              <span className="experience-session-count">{allTracks.length}<small>version{allTracks.length > 1 ? 's' : ''}</small></span>
+            </header>
+            <section className="v2-ai-results chambre-signature-ai-collection min-h-0 overflow-hidden" aria-label="Versions et générations">
               <LibraryMiddlePanel
                 tracks={allTracks}
                 generationsById={generationsById}
@@ -4168,39 +4136,39 @@ function AIGeneratorContent() {
             role="separator"
             aria-orientation="vertical"
             onPointerDown={beginDrag('right')}
-            className="hidden w-2 cursor-col-resize items-center justify-center rounded-full transition hover:bg-black/[0.04] lg:flex"
+            className="hidden w-2 cursor-col-resize items-center justify-center rounded-full transition hover:bg-[var(--v2-raised)] lg:flex"
             title="Redimensionner inspecteur"
           >
-            <div className="h-16 w-[2px] rounded-full bg-black/15" />
+            <div className="h-16 w-[2px] rounded-full bg-[var(--v2-raised)]" />
           </div>
-          <aside className="hidden min-w-0 space-y-4 lg:block lg:h-full lg:overflow-y-auto">
-            <section className="rounded-[1.5rem] border border-black/[0.08] bg-[radial-gradient(circle_at_18%_0%,rgba(255,111,97,0.22),transparent_34%),radial-gradient(circle_at_92%_18%,rgba(0,194,203,0.18),transparent_36%),linear-gradient(135deg,#211918_0%,#171313_52%,#0d1117_100%)] p-4 text-white shadow-[0_20px_70px_rgba(20,15,10,0.18)]">
+          <aside className="v2-ai-inspector experience-ai-inspector hidden min-w-0 space-y-4 lg:block lg:h-full lg:overflow-y-auto" aria-label="Détails de la version sélectionnée">
+            <section className="rounded-[1.5rem] border border-[var(--v2-line)] bg-[var(--v2-surface)] p-4 text-white shadow-[0_20px_70px_rgba(20,15,10,0.18)]">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/42">Sortie</p>
-                  <h2 className="mt-1 truncate text-2xl font-black tracking-[-0.05em]">Inspecteur</h2>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--v2-muted)]">03 / Affiner</p>
+                  <h2 className="mt-1 truncate text-2xl font-semibold tracking-[-0.05em]">Dans le détail.</h2>
                 </div>
                 <button
                   type="button"
                   onClick={() => setInspectorDismissed(true)}
-                  className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-white/10 bg-white/[0.07] text-white/65 transition hover:bg-white hover:text-[#171313]"
+                  className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-white/10 bg-[var(--v2-raised)] text-white/65 transition hover:bg-[var(--v2-raised)] hover:text-[var(--v2-text)]"
                   aria-label="Fermer l'inspecteur"
                 >
                   <X className="h-4 w-4" />
                 </button>
               </div>
-              <div className="mt-4 overflow-hidden rounded-[1.25rem] border border-white/10 bg-white/[0.06]">
+              <div className="mt-4 overflow-hidden rounded-[1.25rem] border border-white/10 bg-[var(--v2-raised)]">
                 {studioInspectorTrack?.imageUrl ? (
                   <img src={studioInspectorTrack.imageUrl} alt="" className="aspect-square w-full object-cover" />
                 ) : (
-                  <div className="grid aspect-square w-full place-items-center bg-[radial-gradient(circle_at_40%_30%,rgba(255,111,97,0.35),transparent_42%),linear-gradient(135deg,rgba(255,255,255,0.12),rgba(255,255,255,0.02))]">
+                  <div className="grid aspect-square w-full place-items-center bg-[var(--v2-surface)]">
                     <Music className="h-12 w-12 text-white/60" />
                   </div>
                 )}
                 <div className="p-3">
-                  <h3 className="truncate text-lg font-black">{studioInspectorTrack?.title || 'Piste non selectionnee'}</h3>
-                  <p className="mt-1 line-clamp-2 text-xs font-semibold leading-5 text-white/45">
-                    {studioInspectorTrack?.prompt || studioInspectorTrack?.lyrics || 'Selectionne une piste pour acceder aux actions de sortie.'}
+                  <h3 className="truncate text-lg font-semibold">{studioInspectorTrack?.title || 'Aucune piste sélectionnée'}</h3>
+                  <p className="mt-1 line-clamp-2 text-xs font-semibold leading-5 text-[var(--v2-muted)]">
+                    {studioInspectorTrack?.prompt || studioInspectorTrack?.lyrics || 'Sélectionne une piste pour préparer son partage.'}
                   </p>
                 </div>
               </div>
@@ -4209,7 +4177,7 @@ function AIGeneratorContent() {
                   type="button"
                   disabled={!studioInspectorTrack}
                   onClick={() => studioInspectorTrack && playGenerated(studioInspectorTrack)}
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-white text-xs font-black text-[#171313] disabled:opacity-45"
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[var(--v2-raised)] text-xs font-semibold text-[var(--v2-text)] disabled:opacity-45"
                 >
                   <Play className="h-4 w-4 fill-current" />
                   Lire
@@ -4218,7 +4186,7 @@ function AIGeneratorContent() {
                   type="button"
                   disabled={!studioInspectorTrack}
                   onClick={() => studioInspectorTrack && downloadGenerated(studioInspectorTrack)}
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.07] text-xs font-black text-white disabled:opacity-45"
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-white/10 bg-[var(--v2-raised)] text-xs font-semibold text-white disabled:opacity-45"
                 >
                   <Download className="h-4 w-4" />
                   Export
@@ -4227,7 +4195,7 @@ function AIGeneratorContent() {
                   type="button"
                   disabled={!studioInspectorTrack}
                   onClick={() => studioInspectorTrack && shareGenerated(studioInspectorTrack)}
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.07] text-xs font-black text-white disabled:opacity-45"
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-white/10 bg-[var(--v2-raised)] text-xs font-semibold text-white disabled:opacity-45"
                 >
                   <Share2 className="h-4 w-4" />
                   Partager
@@ -4236,14 +4204,14 @@ function AIGeneratorContent() {
                   type="button"
                   disabled={!studioInspectorTrack}
                   onClick={() => studioInspectorTrack && useGeneratedTrackForRemix(studioInspectorTrack)}
-                  className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-[#00c2cb]/20 bg-[#00c2cb]/12 text-xs font-black text-[#c9fbff] disabled:opacity-45"
+                  className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-[var(--v2-line)] bg-[var(--v2-accent)] text-xs font-semibold text-[#c9fbff] disabled:opacity-45"
                 >
                   <Repeat className="h-4 w-4" />
                   Remix
                 </button>
               </div>
               {studioInspectorTrack ? (
-                <div className="mt-3 rounded-[1.2rem] border border-white/10 bg-white/[0.04] p-4">
+                <div className="mt-3 rounded-[1.2rem] border border-white/10 bg-[var(--v2-raised)] p-4">
                   <RemixPermissionsSection value={studioRemixPermissions} onChange={setStudioRemixPermissions} />
                 </div>
               ) : null}
@@ -4252,16 +4220,16 @@ function AIGeneratorContent() {
                 type="button"
                 disabled={!studioInspectorTrack || publishingVisibility}
                 onClick={toggleGenerationVisibility}
-                className="mt-3 inline-flex h-11 w-full items-center justify-center rounded-full bg-[#ff6f61] text-xs font-black text-white disabled:opacity-45"
+                className="mt-3 inline-flex h-11 w-full items-center justify-center rounded-full bg-[var(--v2-accent)] text-xs font-semibold text-white disabled:opacity-45"
               >
                 {publishingVisibility ? 'Publication...' : selectedVisibilityState?.is_public ? 'Retirer du profil' : 'Publier sur Synaura'}
               </button>
 
-              <div className="mt-3 rounded-[1.25rem] border border-[#00c2cb]/20 bg-[#00c2cb]/10 p-3">
+              <div className="mt-3 rounded-[1.25rem] border border-[var(--v2-line)] bg-[var(--v2-accent)] p-3">
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#c9fbff]/60">Paroles synchronisées</p>
-                    <p className="mt-0.5 text-[11px] font-semibold text-white/42">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#c9fbff]/60">Paroles synchronisées</p>
+                    <p className="mt-0.5 text-[11px] font-semibold text-[var(--v2-muted)]">
                       {timestampedWords.length ? `${timestampedWords.length} mots alignés` : 'Sync audio dans l’inspecteur'}
                     </p>
                   </div>
@@ -4269,7 +4237,7 @@ function AIGeneratorContent() {
                     type="button"
                     onClick={() => fetchTimestampedLyrics(false)}
                     disabled={timestampedLoading || !studioInspectorTrack || isInstrumental}
-                    className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-[#00c2cb]/25 bg-[#00c2cb]/12 px-3 text-[11px] font-black text-[#c9fbff] disabled:opacity-45"
+                    className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-[var(--v2-line)] bg-[var(--v2-accent)] px-3 text-[11px] font-semibold text-[#c9fbff] disabled:opacity-45"
                   >
                     {timestampedLoading ? 'Sync...' : 'Sync'}
                   </button>
@@ -4291,7 +4259,7 @@ function AIGeneratorContent() {
                               isActive
                                 ? 'bg-cyan-300/25 font-semibold text-cyan-50 shadow-[0_0_14px_rgba(34,211,238,0.3)]'
                                 : isPast
-                                  ? 'text-white/34'
+                                  ? 'text-[var(--v2-muted)]'
                                   : 'text-white/78'
                             }`}
                           >
@@ -4303,7 +4271,7 @@ function AIGeneratorContent() {
                   </div>
                 ) : (
                   <div className="rounded-xl border border-white/10 bg-black/20 px-3 py-3">
-                    <p className="line-clamp-6 whitespace-pre-wrap text-xs font-semibold leading-5 text-white/48">
+                    <p className="line-clamp-6 whitespace-pre-wrap text-xs font-semibold leading-5 text-[var(--v2-muted)]">
                       {studioInspectorTrack?.lyrics || lyrics || 'Aucune parole à afficher.'}
                     </p>
                   </div>
@@ -4311,17 +4279,17 @@ function AIGeneratorContent() {
               </div>
             </section>
 
-            <section className="rounded-[1.5rem] border border-black/[0.08] bg-[#fff8ed] p-4 shadow-[0_20px_70px_rgba(20,15,10,0.08)]">
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#8b7868]">Session</p>
-              <h2 className="mt-1 text-xl font-black tracking-[-0.05em] text-[#171313]">Apercu rapide</h2>
+            <section className="rounded-[1.5rem] border border-[var(--v2-line)] bg-[var(--v2-surface)] p-4 shadow-[0_20px_70px_rgba(20,15,10,0.08)]">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--v2-muted)]">Session</p>
+              <h2 className="mt-1 text-xl font-semibold tracking-[-0.05em] text-[var(--v2-text)]">Apercu rapide</h2>
               <div className="mt-3 grid grid-cols-2 gap-2">
-                <div className="rounded-[1rem] bg-white px-3 py-3">
-                  <p className="text-2xl font-black text-[#171313]">{studioLibraryTracks.length}</p>
-                  <p className="text-[11px] font-bold text-[#8b7868]">pistes en bibliotheque</p>
+                <div className="rounded-[1rem] bg-[var(--v2-raised)] px-3 py-3">
+                  <p className="text-2xl font-semibold text-[var(--v2-text)]">{studioLibraryTracks.length}</p>
+                  <p className="text-[11px] font-bold text-[var(--v2-muted)]">pistes en bibliothèque</p>
                 </div>
-                <div className="rounded-[1rem] bg-white px-3 py-3">
-                  <p className="text-2xl font-black text-[#171313]">{activeGenerationCount}</p>
-                  <p className="text-[11px] font-bold text-[#8b7868]">creation en cours</p>
+                <div className="rounded-[1rem] bg-[var(--v2-raised)] px-3 py-3">
+                  <p className="text-2xl font-semibold text-[var(--v2-text)]">{activeGenerationCount}</p>
+                  <p className="text-[11px] font-bold text-[var(--v2-muted)]">créations en cours</p>
                 </div>
               </div>
               <div className="mt-3 space-y-2">
@@ -4335,36 +4303,36 @@ function AIGeneratorContent() {
                       setGeneratedTrack(item.track);
                       playAITrack(item.source, item.generation);
                     }}
-                    className="flex w-full min-w-0 items-center gap-2 rounded-[1rem] bg-white px-3 py-2 text-left transition hover:bg-[#fffaf2]"
+                    className="flex w-full min-w-0 items-center gap-2 rounded-[1rem] bg-[var(--v2-raised)] px-3 py-2 text-left transition hover:bg-[var(--v2-surface)]"
                   >
                     {item.track.imageUrl ? (
                       <img src={item.track.imageUrl} alt="" className="h-9 w-9 shrink-0 rounded-xl object-cover" />
                     ) : (
-                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#171313] text-white">
+                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[var(--v2-surface)] text-white">
                         <Music className="h-4 w-4" />
                       </span>
                     )}
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-xs font-black text-[#171313]">{item.track.title || `Rendu ${item.index + 1}`}</span>
-                      <span className="block truncate text-[10px] font-bold text-[#8b7868]">{item.track.duration ? formatTime(item.track.duration) : 'Audio'}</span>
+                      <span className="block truncate text-xs font-semibold text-[var(--v2-text)]">{item.track.title || `Rendu ${item.index + 1}`}</span>
+                      <span className="block truncate text-[10px] font-bold text-[var(--v2-muted)]">{item.track.duration ? formatTime(item.track.duration) : 'Audio'}</span>
                     </span>
-                    <Play className="h-3.5 w-3.5 text-[#8b7868]" />
+                    <Play className="h-3.5 w-3.5 text-[var(--v2-muted)]" />
                   </button>
                 ))}
               </div>
             </section>
 
-            <section className="rounded-[1.5rem] border border-black/[0.08] bg-[#fff8ed] p-4 shadow-[0_20px_70px_rgba(20,15,10,0.08)]">
-              <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#8b7868]">Memoire</p>
-              <h2 className="mt-1 text-xl font-black tracking-[-0.05em] text-[#171313]">Journal</h2>
+            <section className="rounded-[1.5rem] border border-[var(--v2-line)] bg-[var(--v2-surface)] p-4 shadow-[0_20px_70px_rgba(20,15,10,0.08)]">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--v2-muted)]">Activité de la session</p>
+              <h2 className="mt-1 text-xl font-semibold tracking-[-0.05em] text-[var(--v2-text)]">Journal</h2>
               <div className="mt-3 max-h-56 space-y-2 overflow-y-auto">
                 {logs.slice(0, 8).map((line) => (
-                  <div key={line.id} className="rounded-[1rem] bg-white px-3 py-2">
-                    <p className="text-[10px] font-black uppercase tracking-[0.12em] text-[#8b7868]">{line.level} - {line.at}</p>
-                    <p className="mt-1 text-xs font-semibold text-[#171313]">{line.msg}</p>
+                  <div key={line.id} className="rounded-[1rem] bg-[var(--v2-raised)] px-3 py-2">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--v2-muted)]">{line.level} - {line.at}</p>
+                    <p className="mt-1 text-xs font-semibold text-[var(--v2-text)]">{line.msg}</p>
                   </div>
                 ))}
-                {logs.length === 0 && <p className="rounded-[1rem] bg-white px-3 py-4 text-center text-xs font-black text-[#8b7868]">Aucun evenement pour l'instant.</p>}
+                {logs.length === 0 && <p className="rounded-[1rem] bg-[var(--v2-raised)] px-3 py-4 text-center text-xs font-semibold text-[var(--v2-muted)]">Aucun événement pour l’instant.</p>}
               </div>
             </section>
           </aside>
@@ -4374,7 +4342,7 @@ function AIGeneratorContent() {
             <button
               type="button"
               onClick={() => setInspectorDismissed(false)}
-              className="absolute right-3 top-3 hidden h-9 items-center gap-2 rounded-full border border-black/[0.08] bg-[#fffaf2]/95 px-3 text-[11px] font-black text-[#171313] shadow-[0_12px_34px_rgba(20,15,10,0.14)] transition hover:bg-white lg:inline-flex"
+              className="absolute right-3 top-3 hidden h-9 items-center gap-2 rounded-full border border-[var(--v2-line)] bg-[var(--v2-surface)] px-3 text-[11px] font-semibold text-[var(--v2-text)] shadow-[0_12px_34px_rgba(20,15,10,0.14)] transition hover:bg-[var(--v2-raised)] lg:inline-flex"
             >
               <Music className="h-3.5 w-3.5" />
               Inspecteur
@@ -4421,65 +4389,65 @@ function AIGeneratorContent() {
               type="button"
               aria-label="Fermer l'inspecteur"
               onClick={closeTrackPanel}
-              className="absolute inset-0 bg-[#171313]/48 backdrop-blur-sm"
+              className="absolute inset-0 bg-[var(--v2-surface)] backdrop-blur-sm"
             />
             <motion.aside
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', stiffness: 360, damping: 34 }}
-              className="absolute right-0 top-0 flex h-full w-[min(92vw,430px)] flex-col overflow-y-auto border-l border-white/10 bg-[radial-gradient(circle_at_18%_0%,rgba(255,111,97,0.22),transparent_34%),radial-gradient(circle_at_92%_18%,rgba(0,194,203,0.18),transparent_36%),linear-gradient(135deg,#211918_0%,#171313_52%,#0d1117_100%)] p-4 pb-[calc(6rem+env(safe-area-inset-bottom,0px))] text-white shadow-[0_0_70px_rgba(20,15,10,0.34)]"
+              className="absolute right-0 top-0 flex h-full w-[min(92vw,430px)] flex-col overflow-y-auto border-l border-white/10 bg-[var(--v2-surface)] p-4 pb-[calc(6rem+env(safe-area-inset-bottom,0px))] text-white shadow-[0_0_70px_rgba(20,15,10,0.34)]"
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-[10px] font-black uppercase tracking-[0.18em] text-white/42">Sortie</p>
-                  <h2 className="mt-1 truncate text-2xl font-black tracking-[-0.05em]">Inspecteur</h2>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--v2-muted)]">Sortie</p>
+                  <h2 className="mt-1 truncate text-2xl font-semibold tracking-[-0.05em]">Inspecteur</h2>
                 </div>
                 <button
                   type="button"
                   onClick={closeTrackPanel}
-                  className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-white/10 bg-white/[0.07] text-white/65 transition active:scale-95"
+                  className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-white/10 bg-[var(--v2-raised)] text-white/65 transition active:scale-95"
                   aria-label="Fermer l'inspecteur"
                 >
                   <X className="h-4 w-4" />
                 </button>
               </div>
 
-              <div className="mt-4 overflow-hidden rounded-[1.25rem] border border-white/10 bg-white/[0.06]">
+              <div className="mt-4 overflow-hidden rounded-[1.25rem] border border-white/10 bg-[var(--v2-raised)]">
                 {studioInspectorTrack.imageUrl ? (
                   <img src={studioInspectorTrack.imageUrl} alt="" className="aspect-square w-full object-cover" />
                 ) : (
-                  <div className="grid aspect-square w-full place-items-center bg-[radial-gradient(circle_at_40%_30%,rgba(255,111,97,0.35),transparent_42%),linear-gradient(135deg,rgba(255,255,255,0.12),rgba(255,255,255,0.02))]">
+                  <div className="grid aspect-square w-full place-items-center bg-[var(--v2-surface)]">
                     <Music className="h-12 w-12 text-white/60" />
                   </div>
                 )}
                 <div className="p-3">
-                  <h3 className="truncate text-lg font-black">{studioInspectorTrack.title || 'Piste non selectionnee'}</h3>
-                  <p className="mt-1 line-clamp-2 text-xs font-semibold leading-5 text-white/45">
-                    {studioInspectorTrack.prompt || studioInspectorTrack.lyrics || 'Selectionne une piste pour acceder aux actions de sortie.'}
+                  <h3 className="truncate text-lg font-semibold">{studioInspectorTrack.title || 'Aucune piste sélectionnée'}</h3>
+                  <p className="mt-1 line-clamp-2 text-xs font-semibold leading-5 text-[var(--v2-muted)]">
+                    {studioInspectorTrack.prompt || studioInspectorTrack.lyrics || 'Sélectionne une piste pour préparer son partage.'}
                   </p>
                 </div>
               </div>
 
               <div className="mt-3 grid grid-cols-2 gap-2">
-                <button type="button" onClick={() => playGenerated(studioInspectorTrack)} className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-white text-xs font-black text-[#171313]">
+                <button type="button" onClick={() => playGenerated(studioInspectorTrack)} className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[var(--v2-raised)] text-xs font-semibold text-[var(--v2-text)]">
                   <Play className="h-4 w-4 fill-current" />
                   Lire
                 </button>
-                <button type="button" onClick={() => downloadGenerated(studioInspectorTrack)} className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.07] text-xs font-black text-white">
+                <button type="button" onClick={() => downloadGenerated(studioInspectorTrack)} className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-white/10 bg-[var(--v2-raised)] text-xs font-semibold text-white">
                   <Download className="h-4 w-4" />
                   Export
                 </button>
-                <button type="button" onClick={() => shareGenerated(studioInspectorTrack)} className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.07] text-xs font-black text-white">
+                <button type="button" onClick={() => shareGenerated(studioInspectorTrack)} className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-white/10 bg-[var(--v2-raised)] text-xs font-semibold text-white">
                   <Share2 className="h-4 w-4" />
                   Partager
                 </button>
-                <button type="button" onClick={() => useGeneratedTrackForRemix(studioInspectorTrack)} className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-[#00c2cb]/20 bg-[#00c2cb]/12 text-xs font-black text-[#c9fbff]">
+                <button type="button" onClick={() => useGeneratedTrackForRemix(studioInspectorTrack)} className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-[var(--v2-line)] bg-[var(--v2-accent)] text-xs font-semibold text-[#c9fbff]">
                   <Repeat className="h-4 w-4" />
                   Remix
                 </button>
               </div>
-              <div className="mt-3 rounded-[1.2rem] border border-white/10 bg-white/[0.04] p-4">
+              <div className="mt-3 rounded-[1.2rem] border border-white/10 bg-[var(--v2-raised)] p-4">
                 <RemixPermissionsSection value={studioRemixPermissions} onChange={setStudioRemixPermissions} />
               </div>
 
@@ -4487,16 +4455,16 @@ function AIGeneratorContent() {
                 type="button"
                 disabled={publishingVisibility}
                 onClick={toggleGenerationVisibility}
-                className="mt-3 inline-flex h-11 w-full items-center justify-center rounded-full bg-[#ff6f61] text-xs font-black text-white disabled:opacity-45"
+                className="mt-3 inline-flex h-11 w-full items-center justify-center rounded-full bg-[var(--v2-accent)] text-xs font-semibold text-white disabled:opacity-45"
               >
                 {publishingVisibility ? 'Publication...' : selectedVisibilityState?.is_public ? 'Retirer du profil' : 'Publier sur Synaura'}
               </button>
 
-              <div className="mt-3 rounded-[1.25rem] border border-[#00c2cb]/20 bg-[#00c2cb]/10 p-3">
+              <div className="mt-3 rounded-[1.25rem] border border-[var(--v2-line)] bg-[var(--v2-accent)] p-3">
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.18em] text-[#c9fbff]/60">Paroles synchronisées</p>
-                    <p className="mt-0.5 text-[11px] font-semibold text-white/42">
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#c9fbff]/60">Paroles synchronisées</p>
+                    <p className="mt-0.5 text-[11px] font-semibold text-[var(--v2-muted)]">
                       {timestampedWords.length ? `${timestampedWords.length} mots alignés` : 'Sync audio'}
                     </p>
                   </div>
@@ -4504,7 +4472,7 @@ function AIGeneratorContent() {
                     type="button"
                     onClick={() => fetchTimestampedLyrics(false)}
                     disabled={timestampedLoading || isInstrumental}
-                    className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-[#00c2cb]/25 bg-[#00c2cb]/12 px-3 text-[11px] font-black text-[#c9fbff] disabled:opacity-45"
+                    className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border border-[var(--v2-line)] bg-[var(--v2-accent)] px-3 text-[11px] font-semibold text-[#c9fbff] disabled:opacity-45"
                   >
                     {timestampedLoading ? 'Sync...' : 'Sync'}
                   </button>
@@ -4520,7 +4488,7 @@ function AIGeneratorContent() {
                           <span
                             key={`mobile-sync-word-${idx}-${w.startS}`}
                             ref={isActive ? activeLyricWordRef : undefined}
-                            className={`inline-block rounded-md px-1 py-px transition-all duration-200 ${isActive ? 'bg-cyan-300/25 font-semibold text-cyan-50 shadow-[0_0_14px_rgba(34,211,238,0.3)]' : isPast ? 'text-white/34' : 'text-white/78'}`}
+                            className={`inline-block rounded-md px-1 py-px transition-all duration-200 ${isActive ? 'bg-cyan-300/25 font-semibold text-cyan-50 shadow-[0_0_14px_rgba(34,211,238,0.3)]' : isPast ? 'text-[var(--v2-muted)]' : 'text-white/78'}`}
                           >
                             {w.word}{' '}
                           </span>
@@ -4530,7 +4498,7 @@ function AIGeneratorContent() {
                   </div>
                 ) : (
                   <div className="rounded-xl border border-white/10 bg-black/20 px-3 py-3">
-                    <p className="whitespace-pre-wrap text-xs font-semibold leading-5 text-white/48">
+                    <p className="whitespace-pre-wrap text-xs font-semibold leading-5 text-[var(--v2-muted)]">
                       {studioInspectorTrack.lyrics || lyrics || 'Aucune parole à afficher.'}
                     </p>
                   </div>
@@ -4547,34 +4515,34 @@ function AIGeneratorContent() {
     <SynauraAppShell contentClassName="max-w-[1660px]">
       <SynauraTopBar />
       <div className="space-y-3">
-        <section className="grid gap-3 rounded-[1.35rem] border border-black/[0.08] bg-[radial-gradient(circle_at_12%_0%,rgba(255,111,97,0.24),transparent_34%),radial-gradient(circle_at_88%_12%,rgba(0,194,203,0.18),transparent_32%),linear-gradient(135deg,#211918_0%,#171313_48%,#0d1117_100%)] p-3 text-white shadow-[0_18px_48px_rgba(20,15,10,0.18)] sm:rounded-[1.6rem] sm:p-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+        <section className="grid gap-3 rounded-[1.35rem] border border-[var(--v2-line)] bg-[var(--v2-surface)] p-3 text-white shadow-[0_18px_48px_rgba(20,15,10,0.18)] sm:rounded-[1.6rem] sm:p-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-full bg-white/[0.08] px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-white/46">Studio</span>
-              <span className="rounded-full bg-emerald-300/12 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-100">
+              <span className="rounded-full bg-[var(--v2-raised)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--v2-muted)]">Studio</span>
+              <span className="rounded-full bg-emerald-300/12 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-100">
                 {activeGenerationCount > 0 ? `${activeGenerationCount} en cours` : 'Pret'}
               </span>
             </div>
-            <h1 className="mt-2 truncate text-2xl font-black text-white">Creer, remixer, publier</h1>
-            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs font-semibold text-white/46">
+            <h1 className="mt-2 truncate text-2xl font-semibold text-white">Creer, remixer, publier</h1>
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs font-semibold text-[var(--v2-muted)]">
               <span>{studioModeLabel}</span>
-              <span className="h-1 w-1 rounded-full bg-white/24" />
+              <span className="h-1 w-1 rounded-full bg-[var(--v2-raised)]" />
               <span>{studioModelLabel}</span>
-              <span className="h-1 w-1 rounded-full bg-white/24" />
+              <span className="h-1 w-1 rounded-full bg-[var(--v2-raised)]" />
               <span>{creditsBalance} credits</span>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-2 sm:flex sm:items-center">
             <Link
               href="/upload"
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-white px-4 text-sm font-black text-[#171313] transition hover:scale-[1.02]"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-[var(--v2-raised)] px-4 text-sm font-semibold text-[var(--v2-text)] transition hover:scale-[1.02]"
             >
               <Upload className="h-4 w-4" />
               Upload
             </Link>
             <Link
               href="/library"
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-white/[0.08] px-4 text-sm font-black text-white transition hover:bg-white/[0.12]"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-full bg-[var(--v2-raised)] px-4 text-sm font-semibold text-white transition hover:bg-[var(--v2-raised)]"
             >
               <Library className="h-4 w-4" />
               Biblio
@@ -4583,30 +4551,30 @@ function AIGeneratorContent() {
         </section>
 
         <SynauraInkPanel className="overflow-hidden p-0">
-          <div className="studio-pro relative min-h-[calc(100dvh-9rem)] bg-[#07070a] text-white font-sans selection:bg-indigo-500/30 sm:min-h-screen">
+          <div className="studio-pro relative min-h-[calc(100dvh-9rem)] bg-[var(--v2-surface)] text-white font-sans selection:bg-indigo-500/30 sm:min-h-screen">
             <StudioBackground />
 
       {/* --- HEADER : "TRANSPORT BAR" --- */}
-      <header className="sticky top-[4.65rem] z-30 border-b border-white/[0.06] bg-[linear-gradient(180deg,rgba(10,10,18,0.96),rgba(10,10,18,0.88))] backdrop-blur-2xl sm:top-[5.75rem]">
+      <header className="sticky top-[4.65rem] z-30 border-b border-white/[0.06] bg-[var(--v2-surface)] backdrop-blur-2xl sm:top-[5.75rem]">
         <div className="flex h-[3.25rem] items-center justify-between px-2.5 sm:h-14 sm:px-5">
           {/* Left: Logo + Play */}
           <div className="flex items-center gap-3 min-w-0">
             <div className="flex items-center gap-2 text-white min-w-0">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+              <div className="w-8 h-8 rounded-xl bg-[var(--v2-raised)] flex items-center justify-center shadow-lg shadow-indigo-500/20">
                 <Zap className="w-4 h-4" fill="currentColor" />
               </div>
               <span className="font-bold tracking-tight text-sm hidden sm:block">
-                SYNAURA <span className="text-white/30 font-medium">STUDIO</span>
+                SYNAURA <span className="text-[var(--v2-muted)] font-medium">STUDIO</span>
               </span>
             </div>
 
-            <div className="h-5 w-px bg-white/[0.06] hidden sm:block" />
+            <div className="h-5 w-px bg-[var(--v2-raised)] hidden sm:block" />
 
-            <div className="flex items-center gap-0.5 rounded-full bg-white/[0.04] border border-white/[0.06] p-0.5">
+            <div className="flex items-center gap-0.5 rounded-full bg-[var(--v2-raised)] border border-white/[0.06] p-0.5">
               <button
                 type="button"
                 onClick={() => previousTrack()}
-                className="flex min-h-[36px] min-w-[36px] items-center justify-center rounded-full p-1.5 text-white/40 transition-colors hover:bg-white/[0.06] hover:text-white sm:min-h-0 sm:min-w-0"
+                className="flex min-h-[36px] min-w-[36px] items-center justify-center rounded-full p-1.5 text-[var(--v2-muted)] transition-colors hover:bg-[var(--v2-raised)] hover:text-white sm:min-h-0 sm:min-w-0"
                 aria-label="Piste précédente"
               >
                 <SkipBack className="w-4 h-4" />
@@ -4619,7 +4587,7 @@ function AIGeneratorContent() {
                   if (cur) { await play(); return; }
                   if (generatedTrack) playGenerated(generatedTrack);
                 }}
-                className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-black shadow-lg shadow-white/10 transition-all hover:scale-105"
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--v2-raised)] text-[var(--v2-text)] shadow-lg shadow-white/10 transition-all hover:scale-105"
                 aria-label={audioState.isPlaying ? 'Pause' : 'Lecture'}
               >
                 {audioState.isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
@@ -4627,7 +4595,7 @@ function AIGeneratorContent() {
               <button
                 type="button"
                 onClick={() => nextTrack()}
-                className="flex min-h-[36px] min-w-[36px] items-center justify-center rounded-full p-1.5 text-white/40 transition-colors hover:bg-white/[0.06] hover:text-white sm:min-h-0 sm:min-w-0"
+                className="flex min-h-[36px] min-w-[36px] items-center justify-center rounded-full p-1.5 text-[var(--v2-muted)] transition-colors hover:bg-[var(--v2-raised)] hover:text-white sm:min-h-0 sm:min-w-0"
                 aria-label="Piste suivante"
               >
                 <SkipForward className="w-4 h-4" />
@@ -4635,16 +4603,16 @@ function AIGeneratorContent() {
             </div>
 
             <div className="hidden md:flex items-center gap-2.5 min-w-0">
-              <span className="font-mono text-[11px] text-white/50 tabular-nums whitespace-nowrap">
+              <span className="font-mono text-[11px] text-[var(--v2-muted)] tabular-nums whitespace-nowrap">
                 {formatTime(audioState.currentTime)}
               </span>
-              <div className="w-28 lg:w-40 h-1 rounded-full bg-white/[0.06] overflow-hidden">
+              <div className="w-28 lg:w-40 h-1 rounded-full bg-[var(--v2-raised)] overflow-hidden">
                 <div
-                  className="h-full rounded-full bg-gradient-to-r from-indigo-400 to-violet-400 transition-all duration-300"
+                  className="h-full rounded-full bg-[var(--v2-raised)] transition-all duration-300"
                   style={{ width: `${Math.min(100, ((audioState.currentTime || 0) / Math.max(1, audioState.duration || 1)) * 100)}%` }}
                 />
               </div>
-              <span className="font-mono text-[11px] text-white/30 tabular-nums whitespace-nowrap">
+              <span className="font-mono text-[11px] text-[var(--v2-muted)] tabular-nums whitespace-nowrap">
                 {formatTime(audioState.duration || 0)}
               </span>
             </div>
@@ -4655,33 +4623,33 @@ function AIGeneratorContent() {
             <button
               type="button"
               onClick={() => setShowBuyCredits(true)}
-              className="flex min-h-[36px] items-center gap-1.5 rounded-full border border-white/[0.06] bg-white/[0.04] px-2.5 py-1.5 transition-all hover:bg-white/[0.08] sm:min-h-0 sm:px-3"
+              className="flex min-h-[36px] items-center gap-1.5 rounded-full border border-white/[0.06] bg-[var(--v2-raised)] px-2.5 py-1.5 transition-all hover:bg-[var(--v2-raised)] sm:min-h-0 sm:px-3"
               aria-label={`Crédits: ${creditsBalance}. Acheter des crédits`}
             >
               <Coins className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
               <span className="text-xs font-semibold text-white/80 tabular-nums">{creditsBalance}</span>
-              <span className="text-[10px] text-white/30 hidden sm:inline">cr.</span>
+              <span className="text-[10px] text-[var(--v2-muted)] hidden sm:inline">cr.</span>
             </button>
 
-            <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.06]">
+            <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-[var(--v2-raised)] border border-white/[0.06]">
               <div className={`w-2 h-2 rounded-full ${isGenerating || activeGenerationCount > 0 ? 'bg-indigo-400 animate-pulse' : 'bg-emerald-400'} shadow-[0_0_6px_currentColor]`} />
-              <span className="text-[10px] font-medium text-white/50">
+              <span className="text-[10px] font-medium text-[var(--v2-muted)]">
                 {isGenerating || activeGenerationCount > 0 ? `${activeGenerationCount || 1} en cours` : 'Prêt'}
               </span>
             </div>
 
-            <div className="hidden md:inline-flex items-center rounded-full border border-white/[0.06] bg-white/[0.03] p-0.5">
+            <div className="hidden md:inline-flex items-center rounded-full border border-white/[0.06] bg-[var(--v2-raised)] p-0.5">
               <button
                 type="button"
                 onClick={() => setShellMode('ide')}
-                className={`px-2.5 py-1 text-[10px] font-medium rounded-full transition-all ${shellMode === 'ide' ? 'bg-white text-black shadow-sm' : 'text-white/40 hover:text-white/70'}`}
+                className={`px-2.5 py-1 text-[10px] font-medium rounded-full transition-all ${shellMode === 'ide' ? 'bg-[var(--v2-raised)] text-[var(--v2-text)] shadow-sm' : 'text-[var(--v2-muted)] hover:text-white/70'}`}
               >
                 IDE
               </button>
               <button
                 type="button"
                 onClick={() => setShellMode('classic')}
-                className={`px-2.5 py-1 text-[10px] font-medium rounded-full transition-all ${shellMode === 'classic' ? 'bg-white text-black shadow-sm' : 'text-white/40 hover:text-white/70'}`}
+                className={`px-2.5 py-1 text-[10px] font-medium rounded-full transition-all ${shellMode === 'classic' ? 'bg-[var(--v2-raised)] text-[var(--v2-text)] shadow-sm' : 'text-[var(--v2-muted)] hover:text-white/70'}`}
               >
                 Classic
               </button>
@@ -4690,7 +4658,7 @@ function AIGeneratorContent() {
             <button
               type="button"
               onClick={() => setSettingsOpen(true)}
-              className="flex min-h-[36px] min-w-[36px] items-center justify-center rounded-full p-1.5 text-white/30 transition-all hover:bg-white/[0.06] hover:text-white/70 sm:min-h-0 sm:min-w-0 sm:p-2"
+              className="flex min-h-[36px] min-w-[36px] items-center justify-center rounded-full p-1.5 text-[var(--v2-muted)] transition-all hover:bg-[var(--v2-raised)] hover:text-white/70 sm:min-h-0 sm:min-w-0 sm:p-2"
               aria-label="Paramètres"
             >
               <Settings className="w-4 h-4" />
@@ -4719,8 +4687,8 @@ function AIGeneratorContent() {
                 onClick={() => setMobileTab(tab.key)}
                 className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-[13px] font-bold transition-all active:scale-[0.97] ${
                   active
-                    ? 'bg-gradient-to-r from-indigo-500/20 to-violet-500/20 text-white border border-indigo-500/20 shadow-sm shadow-indigo-500/10'
-                    : 'text-white/40 hover:text-white/60 border border-transparent'
+                    ? 'bg-[var(--v2-raised)] text-white border border-indigo-500/20 shadow-sm shadow-indigo-500/10'
+                    : 'text-[var(--v2-muted)] hover:text-white/60 border border-transparent'
                 }`}
               >
                 <Icon className={`w-4 h-4 ${active ? 'text-indigo-400' : ''}`} />
@@ -4734,7 +4702,7 @@ function AIGeneratorContent() {
         <div ref={containerRef} className="grid grid-cols-12 gap-3 lg:flex lg:items-stretch lg:gap-3">
           {/* LEFT PANEL: Generator / Remixer */}
           <aside
-            className={`col-span-12 md:col-span-3 lg:col-span-3 lg:shrink-0 flex flex-col rounded-3xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl overflow-hidden ${mobileTab === 'generate' ? 'flex' : 'hidden'} lg:!flex w-full lg:w-auto`}
+            className={`col-span-12 md:col-span-3 lg:col-span-3 lg:shrink-0 flex flex-col rounded-3xl border border-white/[0.06] bg-[var(--v2-raised)] backdrop-blur-xl overflow-hidden ${mobileTab === 'generate' ? 'flex' : 'hidden'} lg:!flex w-full lg:w-auto`}
             style={isDesktopLayout ? { width: leftPx } : { width: '100%', maxWidth: '100%' }}
           >
             {/* Sticky Generate Button + Mode Switch */}
@@ -4743,7 +4711,7 @@ function AIGeneratorContent() {
                 type="button"
                 onClick={generateMusic}
                 disabled={isGenerationDisabled || isGenerating || rateLimitActive}
-                className="group w-full flex items-center justify-center gap-2.5 rounded-xl py-3 text-sm font-bold text-white bg-gradient-to-r from-indigo-500 via-violet-500 to-purple-500 hover:from-indigo-400 hover:via-violet-400 hover:to-purple-400 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/35 hover:scale-[1.01] active:scale-[0.99]"
+                className="group w-full flex items-center justify-center gap-2.5 rounded-xl py-3 text-sm font-bold text-white bg-[var(--v2-raised)] hover:from-indigo-400 hover:via-violet-400 hover:to-purple-400 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-lg shadow-indigo-500/25 hover:shadow-indigo-500/35 hover:scale-[1.01] active:scale-[0.99]"
                 aria-label={rateLimitActive ? `Réessayez dans ${cooldownSecondsLeft}s` : 'Créer'}
               >
                 {isGenerating ? (
@@ -4755,15 +4723,15 @@ function AIGeneratorContent() {
                 )}
                 {isGenerating ? 'Génération…' : rateLimitActive ? `Réessayer dans ${cooldownSecondsLeft}s` : 'Créer'}
                 {!isGenerating && !rateLimitActive && (
-                  <span className="text-[10px] font-semibold text-white/40 bg-white/[0.08] px-1.5 py-0.5 rounded-full tabular-nums">{ACTION_COSTS.generation.credits} cr.</span>
+                  <span className="text-[10px] font-semibold text-[var(--v2-muted)] bg-[var(--v2-raised)] px-1.5 py-0.5 rounded-full tabular-nums">{ACTION_COSTS.generation.credits} cr.</span>
                 )}
               </button>
 
               <div className="flex items-center gap-2">
-                <div className="flex-1 flex rounded-lg bg-white/[0.03] border border-white/[0.06] p-0.5">
+                <div className="flex-1 flex rounded-lg bg-[var(--v2-raised)] border border-white/[0.06] p-0.5">
                   {([
-                    { key: 'simple' as const, label: 'Simple', activeClass: 'bg-white text-black shadow-sm' },
-                    { key: 'custom' as const, label: 'Custom', activeClass: 'bg-gradient-to-r from-indigo-500 to-violet-500 text-white shadow-sm shadow-indigo-500/20' },
+                    { key: 'simple' as const, label: 'Simple', activeClass: 'bg-[var(--v2-raised)] text-[var(--v2-text)] shadow-sm' },
+                    { key: 'custom' as const, label: 'Custom', activeClass: 'bg-[var(--v2-raised)] text-white shadow-sm shadow-indigo-500/20' },
                     { key: 'remix' as const, label: 'Remix', activeClass: 'bg-cyan-500/20 text-cyan-200 shadow-sm' },
                   ]).map((m) => (
                     <button
@@ -4771,7 +4739,7 @@ function AIGeneratorContent() {
                       type="button"
                       onClick={() => selectGenerationMode(m.key)}
                       disabled={isGenerationDisabled}
-                      className={`flex-1 rounded-md px-2 py-1.5 text-[11px] font-semibold transition-all ${generationModeKind === m.key ? m.activeClass : 'text-white/40 hover:text-white/70 hover:bg-white/[0.04]'} ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      className={`flex-1 rounded-md px-2 py-1.5 text-[11px] font-semibold transition-all ${generationModeKind === m.key ? m.activeClass : 'text-[var(--v2-muted)] hover:text-white/70 hover:bg-[var(--v2-raised)]'} ${isGenerationDisabled ? 'opacity-50 cursor-not-allowed' : ''}`}
                     >
                       {m.label}
                     </button>
@@ -4791,13 +4759,13 @@ function AIGeneratorContent() {
 
             <div className="flex-1 overflow-y-auto px-3 space-y-3 pb-4 lg:pb-3 pt-3">
               {false && shellMode === 'ide' && (
-                <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-2">
+                <div className="rounded-xl border border-white/[0.06] bg-[var(--v2-raised)] p-2">
                   <div className="flex items-center justify-between px-1 pb-2">
-                    <span className="text-[10px] uppercase tracking-[0.15em] text-white/30 font-semibold inline-flex items-center gap-1.5">
+                    <span className="text-[10px] uppercase tracking-[0.15em] text-[var(--v2-muted)] font-semibold inline-flex items-center gap-1.5">
                       <Layers className="w-3 h-3" />
                       Explorer
                     </span>
-                    <button type="button" onClick={() => setCmdOpen(true)} className="rounded-md bg-white/[0.04] border border-white/[0.06] px-2 py-0.5 text-[10px] font-medium text-white/35 hover:bg-white/[0.08] hover:text-white/50 transition-all">
+                    <button type="button" onClick={() => setCmdOpen(true)} className="rounded-md bg-[var(--v2-raised)] border border-white/[0.06] px-2 py-0.5 text-[10px] font-medium text-[var(--v2-muted)] hover:bg-[var(--v2-raised)] hover:text-[var(--v2-muted)] transition-all">
                       Ctrl+K
                     </button>
                   </div>
@@ -4815,7 +4783,7 @@ function AIGeneratorContent() {
                         className={`h-8 rounded-lg text-[10px] inline-flex items-center justify-center gap-1 font-medium transition-all ${
                           leftExplorerTab === key
                             ? 'bg-indigo-500/15 text-indigo-200 border border-indigo-400/20'
-                            : 'bg-white/[0.03] border border-white/[0.06] text-white/35 hover:bg-white/[0.06] hover:text-white/55'
+                            : 'bg-[var(--v2-raised)] border border-white/[0.06] text-[var(--v2-muted)] hover:bg-[var(--v2-raised)] hover:text-[var(--v2-muted)]'
                         }`}
                       >
                         <Icon className="w-3 h-3" />
@@ -4852,19 +4820,19 @@ function AIGeneratorContent() {
                   {customMode ? (
                     <>
                   {isRemixMode && sourceContext ? (
-                    <div className="rounded-xl border border-white/[0.08] bg-white/[0.04] p-3">
+                    <div className="rounded-xl border border-white/[0.08] bg-[var(--v2-raised)] p-3">
                       <div className="flex items-center gap-3">
                         {sourceContext!.coverUrl ? (
                           <img src={sourceContext!.coverUrl || undefined} alt="" className="h-12 w-12 shrink-0 rounded-xl object-cover" />
                         ) : (
-                          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-white/[0.06]">
-                            <Music className="h-4 w-4 text-white/35" />
+                          <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-[var(--v2-raised)]">
+                            <Music className="h-4 w-4 text-[var(--v2-muted)]" />
                           </div>
                         )}
                         <div className="min-w-0 flex-1">
-                          <p className="truncate text-[10px] font-black uppercase tracking-[0.14em] text-white/36">Morceau original</p>
-                          <p className="truncate text-sm font-black text-white">{sourceContext!.title}</p>
-                          <p className="truncate text-xs font-semibold text-white/42">@{sourceContext!.artistUsername || sourceContext!.artist || 'artiste'}</p>
+                          <p className="truncate text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--v2-muted)]">Morceau original</p>
+                          <p className="truncate text-sm font-semibold text-white">{sourceContext!.title}</p>
+                          <p className="truncate text-xs font-semibold text-[var(--v2-muted)]">@{sourceContext!.artistUsername || sourceContext!.artist || 'artiste'}</p>
                         </div>
                       </div>
                     </div>
@@ -4892,9 +4860,9 @@ function AIGeneratorContent() {
                           rows={3}
                           maxLength={1200}
                           disabled={isGenerationDisabled}
-                          className="w-full resize-none rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-white/20 outline-none disabled:opacity-50"
+                          className="w-full resize-none rounded-xl border border-white/[0.06] bg-[var(--v2-raised)] px-3 py-2 text-sm text-white placeholder:text-[var(--v2-muted)] focus:border-white/20 outline-none disabled:opacity-50"
                         />
-                        <div className="mt-1 text-right text-[10px] text-white/30">{description.length}/1200</div>
+                        <div className="mt-1 text-right text-[10px] text-[var(--v2-muted)]">{description.length}/1200</div>
                       </SunoAccordionSection>
                     </>
                   ) : null}
@@ -4911,7 +4879,7 @@ function AIGeneratorContent() {
                         onClick={(e) => { e.preventDefault(); clearTitleSection(); }}
                         aria-label="Supprimer la section titre"
                         title="Vider le titre"
-                        className="rounded-lg p-1.5 text-white/50 hover:bg-red-500/10 hover:text-red-200 transition"
+                        className="rounded-lg p-1.5 text-[var(--v2-muted)] hover:bg-red-500/10 hover:text-red-200 transition"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -4923,7 +4891,7 @@ function AIGeneratorContent() {
                       onChange={(e) => setTitle(e.target.value)}
                       placeholder="Ex: Summer Vibes"
                       disabled={isGenerationDisabled}
-                      className="w-full rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-white/20 outline-none disabled:opacity-50"
+                      className="w-full rounded-xl border border-white/[0.06] bg-[var(--v2-raised)] px-3 py-2 text-sm text-white placeholder:text-[var(--v2-muted)] focus:border-white/20 outline-none disabled:opacity-50"
                     />
                   </SunoAccordionSection>
 
@@ -4940,7 +4908,7 @@ function AIGeneratorContent() {
                         onClick={(e) => { e.preventDefault(); clearStyleSection(); }}
                         aria-label="Supprimer la section style"
                         title="Vider le style"
-                        className="rounded-lg p-1.5 text-white/50 hover:bg-red-500/10 hover:text-red-200 transition"
+                        className="rounded-lg p-1.5 text-[var(--v2-muted)] hover:bg-red-500/10 hover:text-red-200 transition"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -4953,15 +4921,15 @@ function AIGeneratorContent() {
                       rows={2}
                       maxLength={1000}
                       disabled={isGenerationDisabled}
-                      className="w-full resize-none rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-white/20 outline-none disabled:opacity-50"
+                      className="w-full resize-none rounded-xl border border-white/[0.06] bg-[var(--v2-raised)] px-3 py-2 text-sm text-white placeholder:text-[var(--v2-muted)] focus:border-white/20 outline-none disabled:opacity-50"
                     />
-                    <div className="text-[10px] text-white/40 mt-1 text-right">{style.length}/1000</div>
+                    <div className="text-[10px] text-[var(--v2-muted)] mt-1 text-right">{style.length}/1000</div>
 
                     <div className="mt-2">
                       <div className="mb-1 flex items-center justify-between">
-                        <span className="text-[10px] text-white/35 uppercase tracking-wider font-medium">Tags style</span>
+                        <span className="text-[10px] text-[var(--v2-muted)] uppercase tracking-wider font-medium">Tags style</span>
                         {selectedTags.length > 0 && (
-                          <button type="button" onClick={() => setSelectedTags([])} disabled={isGenerationDisabled} className="text-[10px] text-white/50 hover:text-white">
+                          <button type="button" onClick={() => setSelectedTags([])} disabled={isGenerationDisabled} className="text-[10px] text-[var(--v2-muted)] hover:text-white">
                             Tout effacer
                           </button>
                         )}
@@ -4972,10 +4940,10 @@ function AIGeneratorContent() {
                             {cat.tags.map((tag) => {
                               const active = selectedTags.includes(tag);
                               const colorMap: Record<string, string> = {
-                                genre: active ? 'bg-violet-500/20 text-violet-200 border-violet-400/30' : 'bg-white/[0.04] text-white/60 border-white/[0.06] hover:bg-white/[0.08] hover:text-white/80',
-                                mood: active ? 'bg-blue-500/20 text-blue-200 border-blue-400/30' : 'bg-white/[0.04] text-white/60 border-white/[0.06] hover:bg-white/[0.08] hover:text-white/80',
-                                production: active ? 'bg-emerald-500/20 text-emerald-200 border-emerald-400/30' : 'bg-white/[0.04] text-white/60 border-white/[0.06] hover:bg-white/[0.08] hover:text-white/80',
-                                vocal: active ? 'bg-amber-500/20 text-amber-200 border-amber-400/30' : 'bg-white/[0.04] text-white/60 border-white/[0.06] hover:bg-white/[0.08] hover:text-white/80',
+                                genre: active ? 'bg-violet-500/20 text-violet-200 border-violet-400/30' : 'bg-[var(--v2-raised)] text-white/60 border-white/[0.06] hover:bg-[var(--v2-raised)] hover:text-white/80',
+                                mood: active ? 'bg-blue-500/20 text-blue-200 border-blue-400/30' : 'bg-[var(--v2-raised)] text-white/60 border-white/[0.06] hover:bg-[var(--v2-raised)] hover:text-white/80',
+                                production: active ? 'bg-emerald-500/20 text-emerald-200 border-emerald-400/30' : 'bg-[var(--v2-raised)] text-white/60 border-white/[0.06] hover:bg-[var(--v2-raised)] hover:text-white/80',
+                                vocal: active ? 'bg-amber-500/20 text-amber-200 border-amber-400/30' : 'bg-[var(--v2-raised)] text-white/60 border-white/[0.06] hover:bg-[var(--v2-raised)] hover:text-white/80',
                               };
                               return (
                                 <button
@@ -4996,7 +4964,7 @@ function AIGeneratorContent() {
                     </div>
 
                     <div
-                      className={`mt-3 rounded-xl border p-2.5 ${isRemixMode ? 'border-cyan-400/40 bg-cyan-500/10' : 'border-white/10 bg-white/[0.02]'}`}
+                      className={`mt-3 rounded-xl border p-2.5 ${isRemixMode ? 'border-cyan-400/40 bg-cyan-500/10' : 'border-white/10 bg-[var(--v2-raised)]'}`}
                       ref={remixSectionRef}
                     >
                       <div className="mb-2 flex items-center justify-between">
@@ -5005,7 +4973,7 @@ function AIGeneratorContent() {
                         </span>
                         {isRemixMode && <span className="text-[10px] text-cyan-200/80">Requis</span>}
                       </div>
-                      <p className="text-[10px] text-white/50 mb-1.5">
+                      <p className="text-[10px] text-[var(--v2-muted)] mb-1.5">
                         Utilise uniquement un enregistrement dont tu détiens les droits. Suno bloque les contenus protégés par le droit d&apos;auteur.
                       </p>
                       <RemixDropzone
@@ -5042,7 +5010,7 @@ function AIGeneratorContent() {
                         }}
                       />
                       {remixUploadUrl && (
-                        <div className="mt-2 flex items-center justify-between gap-2 rounded-lg bg-white/5 px-2 py-1.5">
+                        <div className="mt-2 flex items-center justify-between gap-2 rounded-lg bg-[var(--v2-raised)] px-2 py-1.5">
                           <span className="truncate text-[11px] text-white/90">{remixSourceLabel ?? 'Fichier uploadé'}</span>
                           <button type="button" onClick={clearRemixSource} className="shrink-0 rounded px-1.5 py-0.5 text-[10px] text-red-300 hover:bg-red-500/20">
                             Retirer
@@ -5050,11 +5018,11 @@ function AIGeneratorContent() {
                         </div>
                       )}
                       {isRemixMode && !remixUploadUrl && !remixUploading && (
-                        <p className="mt-2 text-[10px] text-white/50">Dépose un fichier audio ou choisis une piste ci‑dessous.</p>
+                        <p className="mt-2 text-[10px] text-[var(--v2-muted)]">Dépose un fichier audio ou choisis une piste ci‑dessous.</p>
                       )}
                       {uploadedRemixAssets.length > 0 && (
                         <div className="mt-2">
-                          <div className="mb-1 text-[10px] text-white/50">Pistes déjà uploadées</div>
+                          <div className="mb-1 text-[10px] text-[var(--v2-muted)]">Pistes déjà uploadées</div>
                           <div className="max-h-28 overflow-y-auto divide-y divide-white/5 rounded-lg border border-white/5">
                             {uploadedRemixAssets.slice(0, 8).map((track) => {
                               const isSelected = remixUploadUrl && resolveTrackMedia(track).playableUrl === remixUploadUrl;
@@ -5063,10 +5031,10 @@ function AIGeneratorContent() {
                                   key={`remix-asset-${track.id}`}
                                   type="button"
                                   onClick={() => useLibraryTrackForRemix(track)}
-                                  className={`flex w-full items-center justify-between gap-2 px-2 py-1.5 text-left text-[11px] transition ${isSelected ? 'bg-cyan-500/15 text-cyan-100' : 'text-white/80 hover:bg-white/5'}`}
+                                  className={`flex w-full items-center justify-between gap-2 px-2 py-1.5 text-left text-[11px] transition ${isSelected ? 'bg-cyan-500/15 text-cyan-100' : 'text-white/80 hover:bg-[var(--v2-raised)]'}`}
                                 >
                                   <span className="truncate">{getUploadedAssetName(track)}</span>
-                                  <span className="text-[10px] text-white/40">{Number(track.duration || 0) > 0 ? `${Math.round(Number(track.duration))}s` : '—'}</span>
+                                  <span className="text-[10px] text-[var(--v2-muted)]">{Number(track.duration || 0) > 0 ? `${Math.round(Number(track.duration))}s` : '—'}</span>
                                 </button>
                               );
                             })}
@@ -5084,7 +5052,7 @@ function AIGeneratorContent() {
                     onToggle={() => setOpenLyricsSection((v) => !v)}
                     variant="bare"
                     rightActions={
-                      <button type="button" onClick={(e) => { e.preventDefault(); clearLyricsSection(); }} aria-label="Supprimer la section paroles" title="Vider les paroles" className="rounded-lg p-1.5 text-white/50 hover:bg-red-500/10 hover:text-red-200 transition">
+                      <button type="button" onClick={(e) => { e.preventDefault(); clearLyricsSection(); }} aria-label="Supprimer la section paroles" title="Vider les paroles" className="rounded-lg p-1.5 text-[var(--v2-muted)] hover:bg-red-500/10 hover:text-red-200 transition">
                         <Trash2 className="w-4 h-4" />
                       </button>
                     }
@@ -5092,12 +5060,12 @@ function AIGeneratorContent() {
                     <div className="flex items-center justify-between gap-2 mb-2">
                       <label className="flex cursor-pointer items-center gap-2">
                         <input type="checkbox" checked={isInstrumental} onChange={(e) => setIsInstrumental(e.target.checked)} disabled={isGenerationDisabled} className="sr-only" />
-                        <div className={`h-5 w-9 rounded-full transition-colors ${isInstrumental ? 'bg-cyan-500' : 'bg-white/10'}`}>
-                          <span className={`block h-4 w-4 mt-0.5 ml-0.5 rounded-full bg-white transition-transform ${isInstrumental ? 'translate-x-4' : 'translate-x-0'}`} />
+                        <div className={`h-5 w-9 rounded-full transition-colors ${isInstrumental ? 'bg-cyan-500' : 'bg-[var(--v2-raised)]'}`}>
+                          <span className={`block h-4 w-4 mt-0.5 ml-0.5 rounded-full bg-[var(--v2-raised)] transition-transform ${isInstrumental ? 'translate-x-4' : 'translate-x-0'}`} />
                         </div>
                         <span className="text-[11px] text-white/80">Instrumental</span>
                       </label>
-                      <span className="text-[10px] text-white/40">{lyrics.length}/5000</span>
+                      <span className="text-[10px] text-[var(--v2-muted)]">{lyrics.length}/5000</span>
                     </div>
                     <textarea
                       value={lyrics}
@@ -5106,7 +5074,7 @@ function AIGeneratorContent() {
                       rows={4}
                       maxLength={5000}
                       disabled={isGenerationDisabled}
-                      className="w-full resize-none rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-white/20 outline-none disabled:opacity-50"
+                      className="w-full resize-none rounded-xl border border-white/[0.06] bg-[var(--v2-raised)] px-3 py-2 text-sm text-white placeholder:text-[var(--v2-muted)] focus:border-white/20 outline-none disabled:opacity-50"
                     />
                   </SunoAccordionSection>
                   {/* Options avancÃ©es */}
@@ -5122,7 +5090,7 @@ function AIGeneratorContent() {
                         onClick={(e) => { e.preventDefault(); clearAdvancedSection(); }}
                         aria-label="Supprimer la section options avancees"
                         title="Reinitialiser les options avancees"
-                        className="rounded-lg p-1.5 text-white/50 hover:bg-red-500/10 hover:text-red-200 transition"
+                        className="rounded-lg p-1.5 text-[var(--v2-muted)] hover:bg-red-500/10 hover:text-red-200 transition"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -5152,12 +5120,12 @@ function AIGeneratorContent() {
                       />
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <label className="block text-[10px] text-white/50 mb-1">Voix</label>
+                          <label className="block text-[10px] text-[var(--v2-muted)] mb-1">Voix</label>
                           <select
                             value={vocalGender}
                             onChange={(e) => setVocalGender(e.target.value)}
                             disabled={isGenerationDisabled}
-                            className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-2 py-1.5 text-sm text-white focus:border-white/20 outline-none disabled:opacity-50"
+                            className="w-full rounded-lg border border-white/10 bg-[var(--v2-raised)] px-2 py-1.5 text-sm text-white focus:border-white/20 outline-none disabled:opacity-50"
                           >
                             <option value="">Auto</option>
                             <option value="m">Homme</option>
@@ -5165,13 +5133,13 @@ function AIGeneratorContent() {
                           </select>
                         </div>
                         <div>
-                          <label className="block text-[10px] text-white/50 mb-1">Exclure styles</label>
+                          <label className="block text-[10px] text-[var(--v2-muted)] mb-1">Exclure styles</label>
                           <input
                             value={negativeTags}
                             onChange={(e) => setNegativeTags(e.target.value)}
                             placeholder="Tags à éviter"
                             disabled={isGenerationDisabled}
-                            className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-2 py-1.5 text-sm text-white placeholder:text-white/30 focus:border-white/20 outline-none disabled:opacity-50"
+                            className="w-full rounded-lg border border-white/10 bg-[var(--v2-raised)] px-2 py-1.5 text-sm text-white placeholder:text-[var(--v2-muted)] focus:border-white/20 outline-none disabled:opacity-50"
                           />
                         </div>
                       </div>
@@ -5192,7 +5160,7 @@ function AIGeneratorContent() {
                           onClick={(e) => { e.preventDefault(); clearResultsSection(); }}
                           aria-label="Supprimer la section resultats"
                           title="Vider les resultats"
-                          className="rounded-lg p-1.5 text-white/50 hover:bg-red-500/10 hover:text-red-200 transition"
+                          className="rounded-lg p-1.5 text-[var(--v2-muted)] hover:bg-red-500/10 hover:text-red-200 transition"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -5221,7 +5189,7 @@ function AIGeneratorContent() {
                 </>
               ) : (
                 /* Mode Simple : description seule */
-                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 space-y-3">
+                <div className="rounded-2xl border border-white/10 bg-[var(--v2-raised)] p-3 space-y-3">
                   <div>
                     <div className="mb-0.5 flex items-center justify-between gap-2">
                       <h2 className="text-xs font-semibold text-white/90 flex items-center gap-1.5">
@@ -5233,12 +5201,12 @@ function AIGeneratorContent() {
                         onClick={clearPromptSection}
                         aria-label="Supprimer la section description"
                         title="Vider la description"
-                        className="rounded-lg p-1.5 text-white/50 hover:bg-red-500/10 hover:text-red-200 transition"
+                        className="rounded-lg p-1.5 text-[var(--v2-muted)] hover:bg-red-500/10 hover:text-red-200 transition"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
-                    <p className="text-[10px] text-white/50 mb-2">Décris l’ambiance, l’IA génère titre et paroles.</p>
+                    <p className="text-[10px] text-[var(--v2-muted)] mb-2">Décris l’ambiance, l’IA génère titre et paroles.</p>
                     <label className="block text-[10px] font-medium mb-1 text-white/60">Description de la chanson</label>
                     <textarea
                       value={description}
@@ -5247,14 +5215,14 @@ function AIGeneratorContent() {
                       rows={3}
                       maxLength={199}
                       disabled={isGenerationDisabled}
-                      className="w-full resize-none rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2 text-sm text-white placeholder:text-white/30 focus:border-white/20 outline-none disabled:opacity-50"
+                      className="w-full resize-none rounded-xl border border-white/[0.06] bg-[var(--v2-raised)] px-3 py-2 text-sm text-white placeholder:text-[var(--v2-muted)] focus:border-white/20 outline-none disabled:opacity-50"
                     />
-                    <div className="text-[10px] text-white/40 mt-1 text-right">{description.length}/199</div>
+                    <div className="text-[10px] text-[var(--v2-muted)] mt-1 text-right">{description.length}/199</div>
                     <div className="mt-2">
                       <div className="mb-1 flex items-center justify-between">
-                        <span className="text-[10px] text-white/50">Tags style</span>
+                        <span className="text-[10px] text-[var(--v2-muted)]">Tags style</span>
                         {selectedTags.length > 0 && (
-                          <button type="button" onClick={() => setSelectedTags([])} disabled={isGenerationDisabled} className="text-[10px] text-white/50 hover:text-white">
+                          <button type="button" onClick={() => setSelectedTags([])} disabled={isGenerationDisabled} className="text-[10px] text-[var(--v2-muted)] hover:text-white">
                             Tout effacer
                           </button>
                         )}
@@ -5265,10 +5233,10 @@ function AIGeneratorContent() {
                             {cat.tags.map((tag) => {
                               const active = selectedTags.includes(tag);
                               const colorMap: Record<string, string> = {
-                                genre: active ? 'bg-violet-500/20 text-violet-200 border-violet-400/30' : 'bg-white/[0.04] text-white/60 border-white/[0.06] hover:bg-white/[0.08] hover:text-white/80',
-                                mood: active ? 'bg-blue-500/20 text-blue-200 border-blue-400/30' : 'bg-white/[0.04] text-white/60 border-white/[0.06] hover:bg-white/[0.08] hover:text-white/80',
-                                production: active ? 'bg-emerald-500/20 text-emerald-200 border-emerald-400/30' : 'bg-white/[0.04] text-white/60 border-white/[0.06] hover:bg-white/[0.08] hover:text-white/80',
-                                vocal: active ? 'bg-amber-500/20 text-amber-200 border-amber-400/30' : 'bg-white/[0.04] text-white/60 border-white/[0.06] hover:bg-white/[0.08] hover:text-white/80',
+                                genre: active ? 'bg-violet-500/20 text-violet-200 border-violet-400/30' : 'bg-[var(--v2-raised)] text-white/60 border-white/[0.06] hover:bg-[var(--v2-raised)] hover:text-white/80',
+                                mood: active ? 'bg-blue-500/20 text-blue-200 border-blue-400/30' : 'bg-[var(--v2-raised)] text-white/60 border-white/[0.06] hover:bg-[var(--v2-raised)] hover:text-white/80',
+                                production: active ? 'bg-emerald-500/20 text-emerald-200 border-emerald-400/30' : 'bg-[var(--v2-raised)] text-white/60 border-white/[0.06] hover:bg-[var(--v2-raised)] hover:text-white/80',
+                                vocal: active ? 'bg-amber-500/20 text-amber-200 border-amber-400/30' : 'bg-[var(--v2-raised)] text-white/60 border-white/[0.06] hover:bg-[var(--v2-raised)] hover:text-white/80',
                               };
                               return (
                                 <button
@@ -5293,7 +5261,7 @@ function AIGeneratorContent() {
               )}
 
               {showLivePanel && (
-                <div className="mt-2 rounded-2xl border border-white/10 bg-white/[0.03] p-2.5 space-y-2.5">
+                <div className="mt-2 rounded-2xl border border-white/10 bg-[var(--v2-raised)] p-2.5 space-y-2.5">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <div className="text-xs font-semibold text-white">{isRemixMode ? 'Now remixing' : 'Now generating'}</div>
@@ -5311,21 +5279,21 @@ function AIGeneratorContent() {
                   </div>
 
                   <div className="space-y-1.5">
-                    <div className="h-2 w-full overflow-hidden rounded-full bg-white/10">
+                    <div className="h-2 w-full overflow-hidden rounded-full bg-[var(--v2-raised)]">
                       <motion.div
                         className={`h-full rounded-full ${
                           sunoState === 'first'
-                            ? 'bg-gradient-to-r from-cyan-400 to-indigo-400'
+                            ? 'bg-[var(--v2-raised)]'
                             : sunoState === 'error'
-                            ? 'bg-gradient-to-r from-red-400 to-red-500'
-                            : 'bg-gradient-to-r from-indigo-400 to-violet-400'
+                            ? 'bg-[var(--v2-raised)]'
+                            : 'bg-[var(--v2-raised)]'
                         }`}
                         initial={{ width: 0 }}
                         animate={{ width: `${liveProgressPct}%` }}
                         transition={{ duration: 0.35, ease: 'easeOut' }}
                       />
                     </div>
-                    <div className="flex items-center justify-between text-[10px] text-white/50">
+                    <div className="flex items-center justify-between text-[10px] text-[var(--v2-muted)]">
                       <span>
                         {activeBgGeneration?.status === 'first'
                           ? (isRemixMode ? 'Remix live dispo' : 'Playable now')
@@ -5359,8 +5327,8 @@ function AIGeneratorContent() {
                       disabled={!livePreviewTrack}
                       className={`h-8 px-3 rounded-lg text-[11px] inline-flex items-center gap-2 ${
                         livePreviewTrack
-                          ? 'bg-white text-black hover:bg-white/90'
-                          : 'border border-white/10 bg-white/[0.03] text-white/40 cursor-not-allowed'
+                          ? 'bg-[var(--v2-raised)] text-[var(--v2-text)] hover:bg-[var(--v2-raised)]'
+                          : 'border border-white/10 bg-[var(--v2-raised)] text-[var(--v2-muted)] cursor-not-allowed'
                       }`}
                     >
                       <Play className="w-3.5 h-3.5" />
@@ -5369,7 +5337,7 @@ function AIGeneratorContent() {
                         : (isRemixMode ? 'En attente du 1er remix' : 'En attente du 1er rendu')}
                     </button>
                     {generatedTracks.length > 0 && (
-                      <span className="text-[10px] text-white/55">
+                      <span className="text-[10px] text-[var(--v2-muted)]">
                         {generatedTracks.length} variation{generatedTracks.length > 1 ? 's' : ''} disponible{generatedTracks.length > 1 ? 's' : ''}
                       </span>
                     )}
@@ -5389,8 +5357,8 @@ function AIGeneratorContent() {
                             }}
                             className={`h-9 px-3 rounded-lg text-[11px] inline-flex items-center justify-between gap-2 ${
                               playable
-                                ? 'bg-white/10 text-white hover:bg-white/15'
-                                : 'border border-white/10 bg-white/[0.03] text-white/40'
+                                ? 'bg-[var(--v2-raised)] text-white hover:bg-[var(--v2-raised)]'
+                                : 'border border-white/10 bg-[var(--v2-raised)] text-[var(--v2-muted)]'
                             }`}
                           >
                             <span className="truncate text-left">
@@ -5415,26 +5383,26 @@ function AIGeneratorContent() {
                 {/* Bouton CrÃ©er dÃ©placÃ© en sticky top */}
 
                 {/* Mobile : Inspector / Models / Export */}
-                <div className="lg:hidden mt-2 rounded-2xl border border-white/10 bg-white/[0.03] p-2.5 space-y-2.5">
-                  <div className="inline-flex gap-1 rounded-xl border border-white/10 bg-white/5 p-1">
+                <div className="lg:hidden mt-2 rounded-2xl border border-white/10 bg-[var(--v2-raised)] p-2.5 space-y-2.5">
+                  <div className="inline-flex gap-1 rounded-xl border border-white/10 bg-[var(--v2-raised)] p-1">
                     <button
                       type="button"
                       onClick={() => setRightTab('inspector')}
-                      className={`h-8 px-3 rounded-lg text-[11px] ${rightTab === 'inspector' ? 'bg-white text-black' : 'text-zinc-300 hover:bg-white/10'}`}
+                      className={`h-8 px-3 rounded-lg text-[11px] ${rightTab === 'inspector' ? 'bg-[var(--v2-raised)] text-[var(--v2-text)]' : 'text-zinc-300 hover:bg-[var(--v2-raised)]'}`}
                     >
                       Inspector
                     </button>
                     <button
                       type="button"
                       onClick={() => setRightTab('models')}
-                      className={`h-8 px-3 rounded-lg text-[11px] ${rightTab === 'models' ? 'bg-white text-black' : 'text-zinc-300 hover:bg-white/10'}`}
+                      className={`h-8 px-3 rounded-lg text-[11px] ${rightTab === 'models' ? 'bg-[var(--v2-raised)] text-[var(--v2-text)]' : 'text-zinc-300 hover:bg-[var(--v2-raised)]'}`}
                     >
                       Models
                     </button>
                     <button
                       type="button"
                       onClick={() => setRightTab('export')}
-                      className={`h-8 px-3 rounded-lg text-[11px] ${rightTab === 'export' ? 'bg-white text-black' : 'text-zinc-300 hover:bg-white/10'}`}
+                      className={`h-8 px-3 rounded-lg text-[11px] ${rightTab === 'export' ? 'bg-[var(--v2-raised)] text-[var(--v2-text)]' : 'text-zinc-300 hover:bg-[var(--v2-raised)]'}`}
                     >
                       Export
                     </button>
@@ -5449,14 +5417,14 @@ function AIGeneratorContent() {
                             <button
                               type="button"
                               onClick={() => selectedTrack && playGenerated(selectedTrack)}
-                              className="flex-1 h-9 rounded-xl bg-white text-black text-xs font-semibold"
+                              className="flex-1 h-9 rounded-xl bg-[var(--v2-raised)] text-[var(--v2-text)] text-xs font-semibold"
                             >
                               Lire
                             </button>
                             <button
                               type="button"
                               onClick={() => selectedTrack && downloadGenerated(selectedTrack)}
-                              className="h-9 px-3 rounded-xl border border-white/10 bg-white/5 text-xs"
+                              className="h-9 px-3 rounded-xl border border-white/10 bg-[var(--v2-raised)] text-xs"
                             >
                               MP3
                             </button>
@@ -5475,7 +5443,7 @@ function AIGeneratorContent() {
                           key={m}
                           type="button"
                           onClick={() => setModelVersion(m as any)}
-                          className={`h-9 rounded-xl border text-xs ${modelVersion === m ? 'border-emerald-400/40 bg-emerald-400/10' : 'border-white/10 bg-white/5'}`}
+                          className={`h-9 rounded-xl border text-xs ${modelVersion === m ? 'border-emerald-400/40 bg-emerald-400/10' : 'border-white/10 bg-[var(--v2-raised)]'}`}
                         >
                           {m === 'V5_5' ? 'v5.5' : m === 'V4_5' ? 'v4.5' : m === 'V4_5PLUS' ? 'v4.5+' : 'v5'}
                         </button>
@@ -5494,7 +5462,7 @@ function AIGeneratorContent() {
                           }
                           downloadGenerated(generatedTrack);
                         }}
-                        className="w-full h-10 rounded-xl bg-white text-black text-sm font-semibold"
+                        className="w-full h-10 rounded-xl bg-[var(--v2-raised)] text-[var(--v2-text)] text-sm font-semibold"
                       >
                         Export MP3
                       </button>
@@ -5505,16 +5473,16 @@ function AIGeneratorContent() {
               </section>
               )}
               {shellMode === 'ide' && leftExplorerTab === 'presets' && (
-                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-2.5 space-y-2">
+                <div className="rounded-2xl border border-white/10 bg-[var(--v2-raised)] p-2.5 space-y-2">
                   <div className="flex items-center justify-between gap-2 px-1">
                     <div>
                       <div className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-white/60">
-                        <Sparkles className="h-3.5 w-3.5 text-[#ffd166]" />
+                        <Sparkles className="h-3.5 w-3.5 text-[var(--v2-accent)]" />
                         Presets recommandés
                       </div>
-                      <p className="mt-0.5 text-[10px] text-white/30">Applique une intention complète au builder</p>
+                      <p className="mt-0.5 text-[10px] text-[var(--v2-muted)]">Applique une intention complète au builder</p>
                     </div>
-                    <span className="rounded-full bg-white/[0.06] px-2 py-0.5 text-[10px] font-bold text-white/40">{aiStudioPresets.length}</span>
+                    <span className="rounded-full bg-[var(--v2-raised)] px-2 py-0.5 text-[10px] font-bold text-[var(--v2-muted)]">{aiStudioPresets.length}</span>
                   </div>
                   <div className="grid gap-1.5">
                     {aiStudioPresets.map((preset) => {
@@ -5528,11 +5496,11 @@ function AIGeneratorContent() {
                           className={`w-full rounded-xl border px-2.5 py-2.5 text-left transition ${
                             active
                               ? 'border-indigo-300/35 bg-indigo-500/15 shadow-[0_12px_30px_rgba(99,102,241,0.10)]'
-                              : 'border-white/10 bg-white/[0.03] hover:bg-white/[0.06]'
+                              : 'border-white/10 bg-[var(--v2-raised)] hover:bg-[var(--v2-raised)]'
                           }`}
                         >
                           <span className="flex min-w-0 items-start gap-2.5">
-                            <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl text-base ${active ? 'bg-white text-black' : 'bg-white/[0.06] text-white'}`}>
+                            <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl text-base ${active ? 'bg-[var(--v2-raised)] text-[var(--v2-text)]' : 'bg-[var(--v2-raised)] text-white'}`}>
                               {preset.emoji}
                             </span>
                             <span className="min-w-0 flex-1">
@@ -5540,13 +5508,13 @@ function AIGeneratorContent() {
                                 <span className="truncate text-[11px] font-semibold text-white/92">{preset.label}</span>
                                 {active ? <span className="shrink-0 text-[9px] font-bold text-indigo-200">vider</span> : null}
                               </span>
-                              <span className="mt-0.5 block line-clamp-2 text-[10px] leading-4 text-white/42">{preset.description}</span>
+                              <span className="mt-0.5 block line-clamp-2 text-[10px] leading-4 text-[var(--v2-muted)]">{preset.description}</span>
                             </span>
                           </span>
                           {presetTags.length > 0 ? (
                             <span className="mt-2 flex flex-wrap gap-1 pl-11">
                               {presetTags.map((tag) => (
-                                <span key={`${preset.id}-${tag}`} className="rounded-full bg-white/[0.06] px-2 py-0.5 text-[9px] font-semibold text-white/36">
+                                <span key={`${preset.id}-${tag}`} className="rounded-full bg-[var(--v2-raised)] px-2 py-0.5 text-[9px] font-semibold text-[var(--v2-muted)]">
                                   {tag}
                                 </span>
                               ))}
@@ -5559,8 +5527,8 @@ function AIGeneratorContent() {
                 </div>
               )}
               {shellMode === 'ide' && leftExplorerTab === 'assets' && (
-                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-2.5 space-y-2">
-                  <div className="text-[11px] text-white/50 inline-flex items-center gap-1.5 px-1"><Library className="w-3.5 h-3.5" /> Assets</div>
+                <div className="rounded-2xl border border-white/10 bg-[var(--v2-raised)] p-2.5 space-y-2">
+                  <div className="text-[11px] text-[var(--v2-muted)] inline-flex items-center gap-1.5 px-1"><Library className="w-3.5 h-3.5" /> Assets</div>
                   <input
                     value={assetQuery}
                     onChange={(e) => setAssetQuery(e.target.value)}
@@ -5568,7 +5536,7 @@ function AIGeneratorContent() {
                     className="w-full h-8 rounded-lg border border-white/10 bg-black/30 px-2 text-xs outline-none focus:border-white/20"
                   />
                   {filteredAssets.slice(0, 24).map((track) => (
-                    <div key={track.id} className="rounded-xl border border-white/10 bg-white/5 p-2">
+                    <div key={track.id} className="rounded-xl border border-white/10 bg-[var(--v2-raised)] p-2">
                       <div className="text-xs font-semibold truncate">{getUploadedAssetName(track)}</div>
                       <div className="text-[11px] text-zinc-400 truncate">{track.style || track.model_name || 'AI Track'}</div>
                       <div className="mt-2 flex gap-2">
@@ -5581,7 +5549,7 @@ function AIGeneratorContent() {
                             setShowTrackPanel(true);
                             pushLog('info', `Inspector: ${track.title || track.id}`);
                           }}
-                          className="h-7 px-2 rounded-lg text-[11px] bg-white/10 hover:bg-white/15"
+                          className="h-7 px-2 rounded-lg text-[11px] bg-[var(--v2-raised)] hover:bg-[var(--v2-raised)]"
                         >
                           Use
                         </button>
@@ -5621,8 +5589,8 @@ function AIGeneratorContent() {
                 </div>
               )}
               {shellMode === 'ide' && leftExplorerTab === 'history' && (
-                <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-2.5 space-y-2">
-                  <div className="text-[11px] text-white/50 inline-flex items-center gap-1.5 px-1"><History className="w-3.5 h-3.5" /> Historique</div>
+                <div className="rounded-2xl border border-white/10 bg-[var(--v2-raised)] p-2.5 space-y-2">
+                  <div className="text-[11px] text-[var(--v2-muted)] inline-flex items-center gap-1.5 px-1"><History className="w-3.5 h-3.5" /> Historique</div>
                   {visibleGenerations.slice(0, 20).map((g) => (
                     <button
                       key={g.id}
@@ -5631,7 +5599,7 @@ function AIGeneratorContent() {
                         handlePlayGeneration(g);
                         pushLog('info', `History play: ${g.id}`);
                       }}
-                      className="w-full text-left rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 p-2"
+                      className="w-full text-left rounded-xl border border-white/10 bg-[var(--v2-raised)] hover:bg-[var(--v2-raised)] p-2"
                     >
                       <div className="text-xs font-semibold truncate">{g.metadata?.title || g.tracks?.[0]?.title || 'Génération'}</div>
                       <div className="text-[11px] text-zinc-400 inline-flex items-center gap-1"><Clock3 className="w-3 h-3" /> {new Date(g.created_at).toLocaleString('fr-FR')}</div>
@@ -5647,18 +5615,18 @@ function AIGeneratorContent() {
             role="separator"
             aria-orientation="vertical"
             onPointerDown={beginDrag('left')}
-            className="hidden lg:flex w-2 shrink-0 cursor-col-resize items-center justify-center rounded-full hover:bg-white/10"
+            className="hidden lg:flex w-2 shrink-0 cursor-col-resize items-center justify-center rounded-full hover:bg-[var(--v2-raised)]"
             title="Redimensionner panneau gauche"
           >
-            <div className="h-16 w-[2px] rounded-full bg-white/20" />
+            <div className="h-16 w-[2px] rounded-full bg-[var(--v2-raised)]" />
           </div>
 
           {/* CENTER PANEL: Library */}
-          <main className={`col-span-12 md:col-span-6 lg:col-span-6 lg:flex-1 lg:min-w-0 min-w-0 flex flex-col rounded-3xl border border-white/[0.06] bg-white/[0.02] backdrop-blur-xl overflow-hidden ${mobileTab === 'library' ? 'flex' : 'hidden'} lg:!flex`}>
+          <main className={`col-span-12 md:col-span-6 lg:col-span-6 lg:flex-1 lg:min-w-0 min-w-0 flex flex-col rounded-3xl border border-white/[0.06] bg-[var(--v2-raised)] backdrop-blur-xl overflow-hidden ${mobileTab === 'library' ? 'flex' : 'hidden'} lg:!flex`}>
             <div className="flex-1 overflow-y-auto px-1 space-y-3 min-h-0 pb-4 lg:pb-0">
               {shellMode === 'ide' && (
                 <div className="w-full min-w-0 space-y-3 p-2">
-                  <div className="rounded-2xl border border-white/[0.06] bg-white/[0.02] px-4 py-2.5 flex items-center justify-between gap-2">
+                  <div className="rounded-2xl border border-white/[0.06] bg-[var(--v2-raised)] px-4 py-2.5 flex items-center justify-between gap-2">
                     <span className="text-xs font-medium text-white/60 inline-flex items-center gap-1.5">
                       <Layers className="w-3.5 h-3.5 text-indigo-400/60" />
                       Workspace
@@ -5666,7 +5634,7 @@ function AIGeneratorContent() {
                     <button
                       type="button"
                       onClick={refreshGenerations}
-                      className="h-7 px-2.5 rounded-lg border border-white/[0.06] bg-white/[0.03] text-[10px] hover:bg-white/[0.08] inline-flex items-center gap-1.5 text-white/50 hover:text-white/80 transition-all"
+                      className="h-7 px-2.5 rounded-lg border border-white/[0.06] bg-[var(--v2-raised)] text-[10px] hover:bg-[var(--v2-raised)] inline-flex items-center gap-1.5 text-[var(--v2-muted)] hover:text-white/80 transition-all"
                     >
                       <RefreshCw className="w-3 h-3" />
                       Actualiser
@@ -5675,7 +5643,7 @@ function AIGeneratorContent() {
 
                 <div className="grid w-full grid-cols-1 gap-3 lg:grid-cols-12">
                   <div className="min-w-0 space-y-3 lg:col-span-7">
-                    <div className="rounded-2xl border border-white/[0.06] bg-gradient-to-b from-white/[0.03] to-transparent p-3.5">
+                    <div className="rounded-2xl border border-white/[0.06] bg-[var(--v2-raised)] p-3.5">
                       <div className="mb-2.5 flex items-center justify-between">
                         <div className="text-[13px] font-semibold text-white/90">Prompt</div>
                         <div className="inline-flex items-center gap-1.5">
@@ -5684,14 +5652,14 @@ function AIGeneratorContent() {
                             onClick={customMode ? clearStyleSection : clearPromptSection}
                             aria-label="Supprimer la section prompt"
                             title="Vider le prompt"
-                            className="rounded-lg p-1.5 text-white/45 hover:bg-red-500/10 hover:text-red-200 transition"
+                            className="rounded-lg p-1.5 text-[var(--v2-muted)] hover:bg-red-500/10 hover:text-red-200 transition"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
                           <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-300/80 border border-indigo-500/20">
                             {modelVersion === 'V5_5' ? 'v5.5' : modelVersion === 'V5' ? 'v5' : modelVersion === 'V4_5PLUS' ? 'v4.5+' : 'v4.5'}
                           </span>
-                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/[0.04] text-white/40 border border-white/[0.06]">
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--v2-raised)] text-[var(--v2-muted)] border border-white/[0.06]">
                             {generationDuration}s
                           </span>
                         </div>
@@ -5699,10 +5667,10 @@ function AIGeneratorContent() {
                       <textarea
                         value={idePromptValue}
                         onChange={(e) => (customMode ? setStyle(e.target.value) : setDescription(e.target.value))}
-                        className="min-h-[120px] w-full resize-none rounded-xl border border-white/[0.06] bg-[#07070a]/60 px-3.5 py-3 text-sm outline-none placeholder:text-white/25 focus:border-indigo-500/30 focus:ring-1 focus:ring-indigo-500/10 transition-all"
+                        className="min-h-[120px] w-full resize-none rounded-xl border border-white/[0.06] bg-[var(--v2-surface)] px-3.5 py-3 text-sm outline-none placeholder:text-[var(--v2-muted)] focus:border-indigo-500/30 focus:ring-1 focus:ring-indigo-500/10 transition-all"
                         placeholder="Décris le style, l’ambiance, les instruments, la structure…"
                       />
-                      <div className="mt-2 flex items-center justify-between text-[10px] text-white/30">
+                      <div className="mt-2 flex items-center justify-between text-[10px] text-[var(--v2-muted)]">
                         <span>{customMode ? 'Custom : style + lyrics' : 'Simple : ce prompt pilote tout'}</span>
                         <span className="tabular-nums">{idePromptValue.length}</span>
                       </div>
@@ -5722,10 +5690,10 @@ function AIGeneratorContent() {
                       )}
                     </div>
 
-                    <div className="rounded-2xl border border-white/[0.06] bg-gradient-to-b from-white/[0.03] to-transparent p-3.5">
+                    <div className="rounded-2xl border border-white/[0.06] bg-[var(--v2-raised)] p-3.5">
                       <div className="mb-2.5 flex items-center justify-between">
                         <div className="text-[13px] font-semibold text-white/90">Timeline</div>
-                        <div className="font-mono text-[10px] text-white/40 tabular-nums">
+                        <div className="font-mono text-[10px] text-[var(--v2-muted)] tabular-nums">
                           {formatTime(playbackCurrentTime)} / {formatTime(playbackDuration || generatedTrack?.duration || 0)}
                         </div>
                       </div>
@@ -5744,7 +5712,7 @@ function AIGeneratorContent() {
                         <button
                           type="button"
                           onClick={() => seek(Math.max(0, playbackCurrentTime - 10))}
-                          className="rounded-lg border border-white/[0.06] bg-white/[0.03] px-2 py-1 text-[10px] text-white/50 hover:bg-white/[0.08] hover:text-white/80 transition-all"
+                          className="rounded-lg border border-white/[0.06] bg-[var(--v2-raised)] px-2 py-1 text-[10px] text-[var(--v2-muted)] hover:bg-[var(--v2-raised)] hover:text-white/80 transition-all"
                         >
                           -10s
                         </button>
@@ -5761,21 +5729,21 @@ function AIGeneratorContent() {
                             }
                             await play().catch(() => {});
                           }}
-                          className="rounded-full bg-white w-8 h-8 flex items-center justify-center text-black hover:scale-105 shadow-lg shadow-white/10 transition-all"
+                          className="rounded-full bg-[var(--v2-raised)] w-8 h-8 flex items-center justify-center text-[var(--v2-text)] hover:scale-105 shadow-lg shadow-white/10 transition-all"
                         >
                           {audioState.isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 fill-current ml-0.5" />}
                         </button>
                         <button
                           type="button"
                           onClick={() => seek(Math.min(playbackDuration || 0, playbackCurrentTime + 10))}
-                          className="rounded-lg border border-white/[0.06] bg-white/[0.03] px-2 py-1 text-[10px] text-white/50 hover:bg-white/[0.08] hover:text-white/80 transition-all"
+                          className="rounded-lg border border-white/[0.06] bg-[var(--v2-raised)] px-2 py-1 text-[10px] text-[var(--v2-muted)] hover:bg-[var(--v2-raised)] hover:text-white/80 transition-all"
                         >
                           +10s
                         </button>
                         <div className="ml-auto flex-1 max-w-[45%]">
-                          <div className="h-1 rounded-full bg-white/[0.06] overflow-hidden">
+                          <div className="h-1 rounded-full bg-[var(--v2-raised)] overflow-hidden">
                             <div
-                              className="h-full rounded-full bg-gradient-to-r from-indigo-400 to-violet-400 transition-all duration-300"
+                              className="h-full rounded-full bg-[var(--v2-raised)] transition-all duration-300"
                               style={{ width: `${Math.round(playbackProgress * 100)}%` }}
                             />
                           </div>
@@ -5785,7 +5753,7 @@ function AIGeneratorContent() {
                   </div>
 
                   <div className="min-w-0 w-full space-y-3 lg:col-span-5">
-                    <div className="flex h-[300px] w-full min-w-0 flex-col overflow-hidden rounded-2xl border border-white/[0.06] bg-gradient-to-b from-white/[0.03] to-transparent p-3.5 sm:h-[420px]">
+                    <div className="flex h-[300px] w-full min-w-0 flex-col overflow-hidden rounded-2xl border border-white/[0.06] bg-[var(--v2-raised)] p-3.5 sm:h-[420px]">
                       <div className="mb-2.5 flex shrink-0 items-center justify-between">
                         <div className="text-[13px] font-semibold text-white/90">Lyrics</div>
                         <div className="inline-flex items-center gap-1.5">
@@ -5794,7 +5762,7 @@ function AIGeneratorContent() {
                             onClick={clearLyricsSection}
                             aria-label="Supprimer la section lyrics"
                             title="Vider les lyrics"
-                            className="rounded-lg p-1.5 text-white/45 hover:bg-red-500/10 hover:text-red-200 transition"
+                            className="rounded-lg p-1.5 text-[var(--v2-muted)] hover:bg-red-500/10 hover:text-red-200 transition"
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </button>
@@ -5805,7 +5773,7 @@ function AIGeneratorContent() {
                         <textarea
                           value={lyrics}
                           onChange={(e) => setLyrics(e.target.value)}
-                          className="min-h-[180px] w-full resize-none rounded-xl border border-white/[0.06] bg-[#07070a]/60 px-3.5 py-3 text-sm outline-none placeholder:text-white/25 focus:border-indigo-500/30 focus:ring-1 focus:ring-indigo-500/10 transition-all"
+                          className="min-h-[180px] w-full resize-none rounded-xl border border-white/[0.06] bg-[var(--v2-surface)] px-3.5 py-3 text-sm outline-none placeholder:text-[var(--v2-muted)] focus:border-indigo-500/30 focus:ring-1 focus:ring-indigo-500/10 transition-all"
                           placeholder="Colle tes paroles ici (ou laisse vide pour auto)."
                         />
                         <div className="mt-2 flex gap-2">
@@ -5824,8 +5792,8 @@ function AIGeneratorContent() {
                           disabled={!lyrics.trim()}
                           className={`inline-flex items-center gap-2 rounded-2xl border px-3 py-2 text-xs ${
                             lyrics.trim()
-                              ? 'border-white/10 bg-white/[0.03] hover:bg-white/[0.06]'
-                              : 'border-white/10 bg-white/[0.03] text-white/40 cursor-not-allowed'
+                              ? 'border-white/10 bg-[var(--v2-raised)] hover:bg-[var(--v2-raised)]'
+                              : 'border-white/10 bg-[var(--v2-raised)] text-[var(--v2-muted)] cursor-not-allowed'
                           }`}
                         >
                           Copier
@@ -5836,8 +5804,8 @@ function AIGeneratorContent() {
                           disabled={isGeneratingLyrics || isInstrumental}
                           className={`inline-flex items-center gap-2 rounded-2xl border px-3 py-2 text-xs ${
                             isGeneratingLyrics || isInstrumental
-                              ? 'border-white/10 bg-white/[0.03] text-white/45 cursor-not-allowed'
-                              : 'border-white/10 bg-white/[0.03] hover:bg-white/[0.06]'
+                              ? 'border-white/10 bg-[var(--v2-raised)] text-[var(--v2-muted)] cursor-not-allowed'
+                              : 'border-white/10 bg-[var(--v2-raised)] hover:bg-[var(--v2-raised)]'
                           }`}
                         >
                           {isGeneratingLyrics ? 'Auto…' : 'Auto'}
@@ -5848,7 +5816,7 @@ function AIGeneratorContent() {
                           disabled={timestampedLoading || isInstrumental}
                           className={`inline-flex items-center gap-2 rounded-2xl border px-3 py-2 text-xs ${
                             timestampedLoading || isInstrumental
-                              ? 'border-white/10 bg-white/[0.03] text-white/45 cursor-not-allowed'
+                              ? 'border-white/10 bg-[var(--v2-raised)] text-[var(--v2-muted)] cursor-not-allowed'
                               : 'border-cyan-300/30 bg-cyan-400/10 text-cyan-100 hover:bg-cyan-400/20'
                           }`}
                         >
@@ -5876,7 +5844,7 @@ function AIGeneratorContent() {
                         if (currentLine.length) lines.push(currentLine);
                         let wordOffset = 0;
                         return (
-                          <div className="mt-3 flex h-[200px] flex-col overflow-hidden rounded-2xl border border-cyan-400/20 bg-gradient-to-b from-cyan-500/[0.08] to-cyan-600/[0.04] shadow-[0_0_24px_-4px_rgba(34,211,238,0.12)]">
+                          <div className="mt-3 flex h-[200px] flex-col overflow-hidden rounded-2xl border border-cyan-400/20 bg-[var(--v2-raised)] shadow-[0_0_24px_-4px_rgba(34,211,238,0.12)]">
                             <div className="flex shrink-0 items-center gap-2 border-b border-cyan-400/10 px-4 py-2.5">
                               <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-cyan-400/15 text-cyan-300">
                                 <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -5910,7 +5878,7 @@ function AIGeneratorContent() {
                                               isActive
                                                 ? 'bg-cyan-400/25 text-cyan-50 font-semibold shadow-[0_0_14px_rgba(34,211,238,0.3)]'
                                                 : isPast
-                                                  ? 'text-white/40'
+                                                  ? 'text-[var(--v2-muted)]'
                                                   : 'text-white/80'
                                             }`}
                                             style={isActive ? { textShadow: '0 0 14px rgba(34,211,238,0.45)' } : undefined}
@@ -5934,7 +5902,7 @@ function AIGeneratorContent() {
 
                   {/* Versions A/B : ligne pleine largeur */}
                   <div className="w-full min-w-0 lg:col-span-12">
-                    <div className="w-full rounded-2xl border border-white/[0.06] bg-gradient-to-b from-white/[0.03] to-transparent p-3.5">
+                    <div className="w-full rounded-2xl border border-white/[0.06] bg-[var(--v2-raised)] p-3.5">
                       <div className="mb-3 w-full">
                         <div className="mb-2.5 text-[13px] font-semibold text-white/90">Versions A/B</div>
                         <div className="grid w-full grid-cols-2 gap-2 lg:grid-cols-3">
@@ -5949,10 +5917,10 @@ function AIGeneratorContent() {
                           <button
                             type="button"
                             onClick={toggleABPlay}
-                            className="col-span-2 w-full rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2.5 text-xs font-medium hover:bg-white/[0.06] lg:col-span-1 transition-all text-white/70 hover:text-white"
+                            className="col-span-2 w-full rounded-xl border border-white/[0.06] bg-[var(--v2-raised)] px-3 py-2.5 text-xs font-medium hover:bg-[var(--v2-raised)] lg:col-span-1 transition-all text-white/70 hover:text-white"
                             title="Basculer A/B"
                           >
-                            Écouter {abSide === 'A' ? 'B' : 'A'} <span className="text-white/30">({abSide})</span>
+                            Écouter {abSide === 'A' ? 'B' : 'A'} <span className="text-[var(--v2-muted)]">({abSide})</span>
                           </button>
                         </div>
                       </div>
@@ -5989,8 +5957,8 @@ function AIGeneratorContent() {
                                       }}
                                       className={`rounded-xl p-2 ${
                                         firstReady
-                                          ? 'text-white hover:bg-white/15'
-                                          : 'text-white/35 cursor-not-allowed'
+                                          ? 'text-white hover:bg-[var(--v2-raised)]'
+                                          : 'text-[var(--v2-muted)] cursor-not-allowed'
                                       }`}
                                       title={firstReady ? 'Écouter le rendu live' : 'Disponible au premier rendu'}
                                     >
@@ -5998,12 +5966,12 @@ function AIGeneratorContent() {
                                     </button>
                                   </div>
                                 </div>
-                                <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
+                                <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-[var(--v2-raised)]">
                                   <div
                                     className={`h-full rounded-full ${
                                       g.status === 'first'
-                                        ? 'bg-gradient-to-r from-cyan-400 to-indigo-400'
-                                        : 'bg-gradient-to-r from-indigo-400 to-violet-400'
+                                        ? 'bg-[var(--v2-raised)]'
+                                        : 'bg-[var(--v2-raised)]'
                                     }`}
                                     style={{ width: `${progress}%` }}
                                   />
@@ -6027,8 +5995,8 @@ function AIGeneratorContent() {
                             tabIndex={0}
                             className={`w-full text-left flex min-w-0 flex-wrap items-center gap-3 rounded-xl border px-3 py-2.5 transition-all sm:flex-nowrap ${
                               selectedGeneration?.id === g.id
-                                ? 'border-indigo-400/30 bg-gradient-to-r from-indigo-500/10 to-violet-500/10 shadow-sm shadow-indigo-500/5'
-                                : 'border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/[0.10]'
+                                ? 'border-indigo-400/30 bg-[var(--v2-raised)] shadow-sm shadow-indigo-500/5'
+                                : 'border-white/[0.06] bg-[var(--v2-raised)] hover:bg-[var(--v2-raised)] hover:border-white/[0.10]'
                             }`}
                           >
                             <div className="min-w-0 flex-1">
@@ -6047,7 +6015,7 @@ function AIGeneratorContent() {
                                   e.stopPropagation();
                                   handlePlayGeneration(g);
                                 }}
-                                className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-indigo-500 to-violet-500 px-2.5 py-1.5 text-xs font-medium text-white hover:from-indigo-400 hover:to-violet-400 shadow-sm shadow-indigo-500/20 transition-all"
+                                className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--v2-raised)] px-2.5 py-1.5 text-xs font-medium text-white hover:from-indigo-400 hover:to-violet-400 shadow-sm shadow-indigo-500/20 transition-all"
                                 title="Lire ce titre"
                               >
                                 <Play className="w-3 h-3 fill-current" />
@@ -6060,7 +6028,7 @@ function AIGeneratorContent() {
                                   assignABSlot('A', g.id);
                                 }}
                                 className={`inline-flex h-7 min-w-[1.75rem] items-center justify-center rounded-lg px-2 text-[11px] font-bold transition-all ${
-                                  abA === g.id ? 'bg-indigo-500 text-white shadow-sm shadow-indigo-500/20' : 'border border-white/[0.08] bg-white/[0.03] text-white/60 hover:bg-white/[0.08]'
+                                  abA === g.id ? 'bg-indigo-500 text-white shadow-sm shadow-indigo-500/20' : 'border border-white/[0.08] bg-[var(--v2-raised)] text-white/60 hover:bg-[var(--v2-raised)]'
                                 }`}
                                 title="Mettre en slot A"
                               >
@@ -6073,7 +6041,7 @@ function AIGeneratorContent() {
                                   assignABSlot('B', g.id);
                                 }}
                                 className={`inline-flex h-7 min-w-[1.75rem] items-center justify-center rounded-lg px-2 text-[11px] font-bold transition-all ${
-                                  abB === g.id ? 'bg-violet-500 text-white shadow-sm shadow-violet-500/20' : 'border border-white/[0.08] bg-white/[0.03] text-white/60 hover:bg-white/[0.08]'
+                                  abB === g.id ? 'bg-violet-500 text-white shadow-sm shadow-violet-500/20' : 'border border-white/[0.08] bg-[var(--v2-raised)] text-white/60 hover:bg-[var(--v2-raised)]'
                                 }`}
                                 title="Mettre en slot B"
                               >
@@ -6085,7 +6053,7 @@ function AIGeneratorContent() {
                                   e.stopPropagation();
                                   selectGenerationInIde(g);
                                 }}
-                                className="rounded-lg border border-white/15 bg-white/5 p-1.5 text-white/80 hover:bg-white/15 hover:text-white"
+                                className="rounded-lg border border-white/15 bg-[var(--v2-raised)] p-1.5 text-white/80 hover:bg-[var(--v2-raised)] hover:text-white"
                                 title="Ouvrir dans l’inspector"
                               >
                                 <ExternalLink className="w-4 h-4" />
@@ -6187,7 +6155,7 @@ function AIGeneratorContent() {
           {/* RIGHT PANEL: Desktop aside + Mobile sheet */}
           {/* Desktop aside */}
           <aside
-            className="hidden lg:flex col-span-12 lg:col-span-3 lg:shrink-0 flex-col rounded-3xl border border-white/10 bg-white/[0.04] backdrop-blur overflow-hidden w-[409px]"
+            className="hidden lg:flex col-span-12 lg:col-span-3 lg:shrink-0 flex-col rounded-3xl border border-white/10 bg-[var(--v2-raised)] backdrop-blur overflow-hidden w-[409px]"
             style={{ width: showStudioInspector ? rightPx : 0, display: showStudioInspector ? undefined : 'none' }}
           >
             <React.Suspense fallback={null}>
@@ -6220,13 +6188,13 @@ function AIGeneratorContent() {
                 {generatedTrack?.imageUrl ? (
                   <img src={generatedTrack?.imageUrl || ''} alt="" className="w-11 h-11 rounded-xl object-cover shrink-0 ring-1 ring-white/[0.08]" />
                 ) : (
-                  <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-500/30 to-violet-500/30 shrink-0 flex items-center justify-center">
+                  <div className="w-11 h-11 rounded-xl bg-[var(--v2-raised)] shrink-0 flex items-center justify-center">
                     <Zap className="w-4 h-4 text-indigo-300" />
                   </div>
                 )}
                 <div className="flex-1 min-w-0 text-left">
                   <div className="truncate text-sm font-semibold text-white/90">{generatedTrack?.title || 'Piste'}</div>
-                  <div className="text-[11px] text-white/40 mt-0.5">{formatTime(audioState.currentTime)} / {formatTime(audioState.duration || generatedTrack?.duration || 0)}</div>
+                  <div className="text-[11px] text-[var(--v2-muted)] mt-0.5">{formatTime(audioState.currentTime)} / {formatTime(audioState.duration || generatedTrack?.duration || 0)}</div>
                 </div>
                 <button
                   type="button"
@@ -6234,7 +6202,7 @@ function AIGeneratorContent() {
                     e.stopPropagation();
                     audioState.isPlaying ? pause() : generatedTrack && playGenerated(generatedTrack);
                   }}
-                  className="w-10 h-10 flex items-center justify-center rounded-full bg-white text-black shadow-lg active:scale-95 transition-transform"
+                  className="w-10 h-10 flex items-center justify-center rounded-full bg-[var(--v2-raised)] text-[var(--v2-text)] shadow-lg active:scale-95 transition-transform"
                 >
                   {audioState.isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
                 </button>
@@ -6246,7 +6214,7 @@ function AIGeneratorContent() {
         </div>
 
         {shellMode === 'ide' && (
-          <footer className="hidden lg:block fixed bottom-0 left-0 right-0 z-30 border-t border-white/10 bg-[#07070a]/85 backdrop-blur">
+          <footer className="hidden lg:block fixed bottom-0 left-0 right-0 z-30 border-t border-white/10 bg-[var(--v2-surface)] backdrop-blur">
             <div className="mx-auto max-w-[1600px] px-4 py-3">
               <div className="grid grid-cols-12 gap-3 lg:flex lg:items-start lg:gap-3">
               <div className="hidden lg:block shrink-0" style={{ width: leftPx }} />
@@ -6261,7 +6229,7 @@ function AIGeneratorContent() {
                   <button
                     type="button"
                     onClick={() => setConsoleCollapsed((v) => !v)}
-                    className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/[0.04] px-2 py-1 text-[11px] text-zinc-300 hover:bg-white/10"
+                    className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-[var(--v2-raised)] px-2 py-1 text-[11px] text-zinc-300 hover:bg-[var(--v2-raised)]"
                   >
                     <ChevronRight className={`w-3.5 h-3.5 transition-transform ${consoleCollapsed ? '' : 'rotate-90'}`} />
                     {consoleCollapsed ? 'Développer' : 'Réduire'}
@@ -6286,7 +6254,7 @@ function AIGeneratorContent() {
                     <button
                       type="button"
                       onClick={() => pushLog('info', 'Upload (à brancher)')}
-                      className="rounded-xl p-2 text-zinc-400 hover:bg-white/10 hover:text-white"
+                      className="rounded-xl p-2 text-zinc-400 hover:bg-[var(--v2-raised)] hover:text-white"
                       title="Upload"
                     >
                       <Upload className="w-4 h-4" />
@@ -6294,7 +6262,7 @@ function AIGeneratorContent() {
                     <button
                       type="button"
                       onClick={() => pushLog('info', 'Download (à brancher)')}
-                      className="rounded-xl p-2 text-zinc-400 hover:bg-white/10 hover:text-white"
+                      className="rounded-xl p-2 text-zinc-400 hover:bg-[var(--v2-raised)] hover:text-white"
                       title="Download"
                     >
                       <Download className="w-4 h-4" />
@@ -6302,7 +6270,7 @@ function AIGeneratorContent() {
                   </div>
                 </div>
                 {!consoleCollapsed && (
-                <div className="mt-2 rounded-2xl border border-white/10 bg-white/[0.03] p-3">
+                <div className="mt-2 rounded-2xl border border-white/10 bg-[var(--v2-raised)] p-3">
                   <div className="flex items-center justify-between text-xs text-zinc-400">
                     <span>Playhead</span>
                     <span>{Math.round(Math.max(0, Math.min(1, (audioState.duration || 0) > 0 ? (audioState.currentTime || 0) / (audioState.duration || 1) : 0)) * 100)}%</span>
@@ -6327,7 +6295,7 @@ function AIGeneratorContent() {
                         if (audioState.isPlaying) pause();
                         else await play().catch(() => {});
                       }}
-                      className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-white px-3 py-2 text-xs font-semibold text-black hover:bg-white/90"
+                      className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-[var(--v2-raised)] px-3 py-2 text-xs font-semibold text-[var(--v2-text)] hover:bg-[var(--v2-raised)]"
                     >
                       {audioState.isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
                       {audioState.isPlaying ? 'Pause' : 'Play'}
@@ -6335,7 +6303,7 @@ function AIGeneratorContent() {
                     <button
                       type="button"
                       onClick={() => pause()}
-                      className="rounded-2xl border border-white/10 bg-white/[0.03] px-3 py-2 text-xs font-semibold text-white/80 hover:bg-white/[0.06]"
+                      className="rounded-2xl border border-white/10 bg-[var(--v2-raised)] px-3 py-2 text-xs font-semibold text-white/80 hover:bg-[var(--v2-raised)]"
                     >
                       Stop
                     </button>
@@ -6369,7 +6337,7 @@ function AIGeneratorContent() {
               >
                 <div className="flex items-center justify-between border-b border-white/[0.06] px-5 py-4">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-indigo-500/20 to-violet-500/20 flex items-center justify-center">
+                    <div className="w-8 h-8 rounded-xl bg-[var(--v2-raised)] flex items-center justify-center">
                       <Settings className="h-4 w-4 text-indigo-300" />
                     </div>
                     <h2 className="text-base font-semibold text-white/90">Paramètres du studio</h2>
@@ -6377,7 +6345,7 @@ function AIGeneratorContent() {
                   <button
                     type="button"
                     onClick={() => setSettingsOpen(false)}
-                    className="rounded-xl p-2 text-white/30 hover:bg-white/[0.06] hover:text-white/60 transition-all"
+                    className="rounded-xl p-2 text-[var(--v2-muted)] hover:bg-[var(--v2-raised)] hover:text-white/60 transition-all"
                     aria-label="Fermer"
                   >
                     <X className="h-4 w-4" />
@@ -6385,7 +6353,7 @@ function AIGeneratorContent() {
                 </div>
                 <div className="p-5 space-y-5 max-h-[70vh] overflow-y-auto">
                   <div className="space-y-2.5">
-                    <p className="text-[10px] uppercase tracking-[0.2em] text-white/35 font-semibold">Interface</p>
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-[var(--v2-muted)] font-semibold">Interface</p>
                     <div className="flex gap-2">
                       {([
                         { key: 'ide' as const, label: 'IDE', desc: 'Explorateur, onglets, timeline' },
@@ -6397,19 +6365,19 @@ function AIGeneratorContent() {
                           onClick={() => setShellMode(m.key)}
                           className={`flex-1 p-3 rounded-xl text-left transition-all ${
                             shellMode === m.key
-                              ? 'bg-white text-black shadow-lg shadow-white/10'
-                              : 'bg-white/[0.04] border border-white/[0.06] text-white/70 hover:bg-white/[0.08]'
+                              ? 'bg-[var(--v2-raised)] text-[var(--v2-text)] shadow-lg shadow-white/10'
+                              : 'bg-[var(--v2-raised)] border border-white/[0.06] text-white/70 hover:bg-[var(--v2-raised)]'
                           }`}
                         >
                           <span className="text-sm font-semibold block">{m.label}</span>
-                          <span className={`text-[10px] block mt-0.5 ${shellMode === m.key ? 'text-black/50' : 'text-white/30'}`}>{m.desc}</span>
+                          <span className={`text-[10px] block mt-0.5 ${shellMode === m.key ? 'text-[var(--v2-muted)]' : 'text-[var(--v2-muted)]'}`}>{m.desc}</span>
                         </button>
                       ))}
                     </div>
                   </div>
 
                   <div className="space-y-2.5">
-                    <p className="text-[10px] uppercase tracking-[0.2em] text-white/35 font-semibold">Onglet au démarrage</p>
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-[var(--v2-muted)] font-semibold">Onglet au démarrage</p>
                     <div className="grid grid-cols-4 gap-1.5">
                       {([
                         { key: 'builder' as const, label: 'Editor' },
@@ -6424,7 +6392,7 @@ function AIGeneratorContent() {
                           className={`py-2 rounded-lg text-[11px] font-medium transition-all ${
                             leftExplorerTab === tab.key
                               ? 'bg-indigo-500/20 text-indigo-200 border border-indigo-400/20'
-                              : 'bg-white/[0.04] border border-white/[0.06] text-white/50 hover:bg-white/[0.08]'
+                              : 'bg-[var(--v2-raised)] border border-white/[0.06] text-[var(--v2-muted)] hover:bg-[var(--v2-raised)]'
                           }`}
                         >
                           {tab.label}
@@ -6434,10 +6402,10 @@ function AIGeneratorContent() {
                   </div>
 
                   <div className="space-y-2.5">
-                    <p className="text-[10px] uppercase tracking-[0.2em] text-white/35 font-semibold">Génération</p>
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-[var(--v2-muted)] font-semibold">Génération</p>
                     <div className="grid grid-cols-2 gap-3">
                       <div className="space-y-1.5">
-                        <span className="text-[11px] text-white/40 font-medium">Modèle</span>
+                        <span className="text-[11px] text-[var(--v2-muted)] font-medium">Modèle</span>
                         <div className="flex gap-1.5">
                           {([
                             { id: 'V4_5' as const, label: 'v4.5' },
@@ -6451,8 +6419,8 @@ function AIGeneratorContent() {
                               onClick={() => setModelVersion(m.id)}
                               className={`flex-1 py-2 rounded-lg text-[11px] font-semibold transition-all ${
                                 modelVersion === m.id
-                                  ? 'bg-white text-black shadow-sm'
-                                  : 'bg-white/[0.04] border border-white/[0.06] text-white/50 hover:bg-white/[0.08]'
+                                  ? 'bg-[var(--v2-raised)] text-[var(--v2-text)] shadow-sm'
+                                  : 'bg-[var(--v2-raised)] border border-white/[0.06] text-[var(--v2-muted)] hover:bg-[var(--v2-raised)]'
                               }`}
                             >
                               {m.label}
@@ -6461,7 +6429,7 @@ function AIGeneratorContent() {
                         </div>
                       </div>
                       <div className="space-y-1.5">
-                        <span className="text-[11px] text-white/40 font-medium">Durée cible</span>
+                        <span className="text-[11px] text-[var(--v2-muted)] font-medium">Durée cible</span>
                         <div className="flex gap-1.5">
                           {([60, 120, 180] as const).map((d) => (
                             <button
@@ -6470,8 +6438,8 @@ function AIGeneratorContent() {
                               onClick={() => setGenerationDuration(d)}
                               className={`flex-1 py-2 rounded-lg text-[11px] font-semibold transition-all ${
                                 generationDuration === d
-                                  ? 'bg-white text-black shadow-sm'
-                                  : 'bg-white/[0.04] border border-white/[0.06] text-white/50 hover:bg-white/[0.08]'
+                                  ? 'bg-[var(--v2-raised)] text-[var(--v2-text)] shadow-sm'
+                                  : 'bg-[var(--v2-raised)] border border-white/[0.06] text-[var(--v2-muted)] hover:bg-[var(--v2-raised)]'
                               }`}
                             >
                               {d === 60 ? '1m' : d === 120 ? '2m' : '3m'}
@@ -6480,11 +6448,11 @@ function AIGeneratorContent() {
                         </div>
                       </div>
                     </div>
-                    <p className="text-[10px] text-white/25">Tous les modèles : {ACTION_COSTS.generation.credits} crédits/génération. Durée indicative.</p>
+                    <p className="text-[10px] text-[var(--v2-muted)]">Tous les modèles : {ACTION_COSTS.generation.credits} crédits/génération. Durée indicative.</p>
                   </div>
 
                   <div className="space-y-2.5">
-                    <p className="text-[10px] uppercase tracking-[0.2em] text-white/35 font-semibold">Console</p>
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-[var(--v2-muted)] font-semibold">Console</p>
                     <div className="flex gap-2">
                       <button
                         type="button"
@@ -6492,7 +6460,7 @@ function AIGeneratorContent() {
                         className={`flex-1 py-2 rounded-lg text-[11px] font-medium transition-all ${
                           !consoleCollapsed
                             ? 'bg-indigo-500/20 text-indigo-200 border border-indigo-400/20'
-                            : 'bg-white/[0.04] border border-white/[0.06] text-white/50 hover:bg-white/[0.08]'
+                            : 'bg-[var(--v2-raised)] border border-white/[0.06] text-[var(--v2-muted)] hover:bg-[var(--v2-raised)]'
                         }`}
                       >
                         Visible au démarrage
@@ -6503,7 +6471,7 @@ function AIGeneratorContent() {
                         className={`flex-1 py-2 rounded-lg text-[11px] font-medium transition-all ${
                           consoleCollapsed
                             ? 'bg-indigo-500/20 text-indigo-200 border border-indigo-400/20'
-                            : 'bg-white/[0.04] border border-white/[0.06] text-white/50 hover:bg-white/[0.08]'
+                            : 'bg-[var(--v2-raised)] border border-white/[0.06] text-[var(--v2-muted)] hover:bg-[var(--v2-raised)]'
                         }`}
                       >
                         Repliée au démarrage
@@ -6511,19 +6479,19 @@ function AIGeneratorContent() {
                     </div>
                   </div>
                   <div className="space-y-2.5">
-                    <p className="text-[10px] uppercase tracking-[0.2em] text-white/35 font-semibold">Raccourcis clavier</p>
-                    <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] divide-y divide-white/[0.04]">
+                    <p className="text-[10px] uppercase tracking-[0.2em] text-[var(--v2-muted)] font-semibold">Raccourcis clavier</p>
+                    <div className="rounded-xl border border-white/[0.06] bg-[var(--v2-raised)] divide-y divide-white/[0.04]">
                       <div className="flex items-center justify-between px-3.5 py-2.5">
-                        <span className="text-[11px] text-white/50">Palette de commandes</span>
-                        <kbd className="rounded-md px-2 py-1 bg-white/[0.06] border border-white/[0.06] font-mono text-[10px] text-white/40">Ctrl+K</kbd>
+                        <span className="text-[11px] text-[var(--v2-muted)]">Palette de commandes</span>
+                        <kbd className="rounded-md px-2 py-1 bg-[var(--v2-raised)] border border-white/[0.06] font-mono text-[10px] text-[var(--v2-muted)]">Ctrl+K</kbd>
                       </div>
                       <div className="flex items-center justify-between px-3.5 py-2.5">
-                        <span className="text-[11px] text-white/50">Lecture / Pause</span>
-                        <kbd className="rounded-md px-2 py-1 bg-white/[0.06] border border-white/[0.06] font-mono text-[10px] text-white/40">Espace</kbd>
+                        <span className="text-[11px] text-[var(--v2-muted)]">Lecture / Pause</span>
+                        <kbd className="rounded-md px-2 py-1 bg-[var(--v2-raised)] border border-white/[0.06] font-mono text-[10px] text-[var(--v2-muted)]">Espace</kbd>
                       </div>
                       <div className="flex items-center justify-between px-3.5 py-2.5">
-                        <span className="text-[11px] text-white/50">Fermer</span>
-                        <kbd className="rounded-md px-2 py-1 bg-white/[0.06] border border-white/[0.06] font-mono text-[10px] text-white/40">Échap</kbd>
+                        <span className="text-[11px] text-[var(--v2-muted)]">Fermer</span>
+                        <kbd className="rounded-md px-2 py-1 bg-[var(--v2-raised)] border border-white/[0.06] font-mono text-[10px] text-[var(--v2-muted)]">Échap</kbd>
                       </div>
                     </div>
                   </div>
@@ -6557,10 +6525,10 @@ function AIGeneratorContent() {
                 onClick={(e: React.MouseEvent<HTMLDivElement>) => e.stopPropagation()}
               >
                 <div className="flex items-center gap-2 px-4 pt-4 pb-2">
-                  <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-indigo-500/20 to-violet-500/20 flex items-center justify-center">
+                  <div className="w-6 h-6 rounded-lg bg-[var(--v2-raised)] flex items-center justify-center">
                     <Command className="w-3 h-3 text-indigo-300" />
                   </div>
-                  <span className="text-[11px] font-medium text-white/40 uppercase tracking-wider">Palette de commandes</span>
+                  <span className="text-[11px] font-medium text-[var(--v2-muted)] uppercase tracking-wider">Palette de commandes</span>
                 </div>
                 <div className="px-4 pb-3">
                   <input
@@ -6585,7 +6553,7 @@ function AIGeneratorContent() {
                         else executePaletteCommand(cmdQuery);
                       }
                     }}
-                    className="w-full h-10 rounded-xl border border-white/[0.06] bg-white/[0.03] px-3.5 text-sm text-white/80 outline-none placeholder:text-white/25 focus:border-indigo-400/30 focus:bg-white/[0.05] transition-all"
+                    className="w-full h-10 rounded-xl border border-white/[0.06] bg-[var(--v2-raised)] px-3.5 text-sm text-white/80 outline-none placeholder:text-[var(--v2-muted)] focus:border-indigo-400/30 focus:bg-[var(--v2-raised)] transition-all"
                   />
                 </div>
                 <div className="border-t border-white/[0.04] max-h-[320px] overflow-auto">
@@ -6596,28 +6564,28 @@ function AIGeneratorContent() {
                       className={`w-full px-4 py-3 text-left transition-colors flex items-center gap-3 ${
                         idx === cmdIndex
                           ? 'bg-indigo-500/10'
-                          : 'hover:bg-white/[0.04]'
+                          : 'hover:bg-[var(--v2-raised)]'
                       }`}
                     >
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-medium text-white/80">{cmd.label}</div>
-                        <div className="text-[11px] text-white/30 truncate">{cmd.desc}</div>
+                        <div className="text-[11px] text-[var(--v2-muted)] truncate">{cmd.desc}</div>
                       </div>
                       {idx === cmdIndex && (
-                        <kbd className="shrink-0 rounded-md px-2 py-1 bg-white/[0.06] border border-white/[0.06] font-mono text-[10px] text-white/35">Enter</kbd>
+                        <kbd className="shrink-0 rounded-md px-2 py-1 bg-[var(--v2-raised)] border border-white/[0.06] font-mono text-[10px] text-[var(--v2-muted)]">Enter</kbd>
                       )}
                     </button>
                   ))}
                   {filteredCommandItems.length === 0 && (
-                    <div className="px-4 py-6 text-center text-[12px] text-white/25">
+                    <div className="px-4 py-6 text-center text-[12px] text-[var(--v2-muted)]">
                       Aucune commande trouvée
                     </div>
                   )}
                 </div>
-                <div className="border-t border-white/[0.04] px-4 py-2.5 flex items-center gap-4 text-[10px] text-white/20">
-                  <span><kbd className="font-mono bg-white/[0.06] px-1.5 py-0.5 rounded text-white/30">â†‘â†“</kbd> naviguer</span>
-                  <span><kbd className="font-mono bg-white/[0.06] px-1.5 py-0.5 rounded text-white/30">Enter</kbd> valider</span>
-                  <span><kbd className="font-mono bg-white/[0.06] px-1.5 py-0.5 rounded text-white/30">Esc</kbd> fermer</span>
+                <div className="border-t border-white/[0.04] px-4 py-2.5 flex items-center gap-4 text-[10px] text-[var(--v2-muted)]">
+                  <span><kbd className="font-mono bg-[var(--v2-raised)] px-1.5 py-0.5 rounded text-[var(--v2-muted)]">↑↓</kbd> naviguer</span>
+                  <span><kbd className="font-mono bg-[var(--v2-raised)] px-1.5 py-0.5 rounded text-[var(--v2-muted)]">Enter</kbd> valider</span>
+                  <span><kbd className="font-mono bg-[var(--v2-raised)] px-1.5 py-0.5 rounded text-[var(--v2-muted)]">Esc</kbd> fermer</span>
                 </div>
               </motion.div>
             </motion.div>

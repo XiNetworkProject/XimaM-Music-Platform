@@ -1,0 +1,77 @@
+/* Presentation only: inherited surface sizing, focus and history remain unchanged. */
+.synaura-v2 .v2-profile-peek { background: var(--v2-surface); }
+.synaura-v2 .v2-profile-peek .v2-profile-peek-name { font-family: var(--v2-font-display); font-size: 27px; font-weight: 400; letter-spacing: -.035em; }
+.synaura-v2 .v2-profile-peek-identity > p { font-weight: 400; }
+.synaura-v2 .v2-profile-peek-stats dt { font-size: 10px; font-weight: 400; letter-spacing: .05em; text-transform: none; }
+.synaura-v2 .v2-profile-peek-stats dd { font-weight: 400; font-size: 16px; font-variant-numeric: tabular-nums; }
+.synaura-v2 .v2-profile-peek [data-profile-peek-full-profile] { border-radius: var(--v2-radius-sm); font-weight: 500; }
+.synaura-v2 .v2-profile-peek footer { background: var(--v2-surface); backdrop-filter: none; }
+.synaura-v2 .v2-profile-peek #profile-peek-tracks { font-weight: 500; letter-spacing: .015em; }
+.synaura-v2 .v2-profile-peek #profile-peek-tracks svg { color: var(--v2-muted); }
+.synaura-v2 .v2-actions-surface { background: var(--v2-surface); }
+.synaura-v2 .v2-actions-surface .v2-context-title { font-size: 23px; font-weight: 400; letter-spacing: -.035em; }
+.synaura-v2 .v2-actions-surface > header { border-bottom: 1px solid var(--v2-line); margin-bottom: 14px; }
+.synaura-v2 .v2-actions-surface [role=menu] { padding-block: 4px; }
+.synaura-v2 .v2-actions-surface [data-track-action=lyrics], .synaura-v2 .v2-actions-surface [data-track-action=track-remix] { border-top: 1px solid var(--v2-line); border-radius: 0; }
+.synaura-v2 .v2-actions-surface [data-track-lyrics] { font-family: var(--v2-font-display); font-size: 19px; line-height: 1.9; }
+.synaura-v2 .v2-actions-surface dl > div { display: grid; grid-template-columns: minmax(70px, .45fr) minmax(0, 1fr); gap: 20px; border-bottom: 1px solid var(--v2-line); padding-block: 4px 14px; }
+.synaura-v2 .v2-actions-surface dl dd { font-weight: 400; margin-top: 0; }
+.synaura-v2 .v2-actions-surface [data-playlist-id] { border-width: 0 0 1px; border-radius: 0; }
+.synaura-v2 .v2-actions-surface [data-playlist-id][aria-pressed=true] { background: var(--v2-selected); }
+.synaura-v2 .v2-actions-surface input { border-radius: var(--v2-radius-sm); background: var(--v2-bg); }
+.synaura-v2 .v2-context-action:hover { background: var(--v2-raised); }
+
+/* LA CHAMBRE SONORE — close listening planes.
+   Surface sizing, viewport/keyboard handling, focus and history remain canonical. */
+.synaura-v2 :is(.v2-profile-peek,.v2-comments,.v2-actions-surface) { color:var(--v2-text); background:var(--v2-surface); }
+.synaura-v2 :is(.v2-profile-peek,.v2-comments,.v2-actions-surface) :is(button,a,input,textarea,summary):focus-visible { outline:2px solid var(--v2-focus); outline-offset:3px; }
+.synaura-v2 :is(.v2-profile-peek,.v2-comments,.v2-actions-surface) :is(button,a) { -webkit-tap-highlight-color:transparent; }
+.synaura-v2 :is(.v2-profile-peek,.v2-comments,.v2-actions-surface) h2 { font-family:var(--v2-font-display); font-weight:600; line-height:1.06; letter-spacing:-.055em; }
+.synaura-v2 .v2-profile-peek-identity { position:relative; isolation:isolate; }
+.synaura-v2 .v2-profile-peek-identity::before { content:''; position:absolute; inset:-25px -8px 10px 30%; z-index:-1; pointer-events:none; background:url('/brand/chambre/membrane-cobalt.png') right center/contain no-repeat; opacity:.17; mask-image:linear-gradient(90deg,transparent,#000 45%,#000); }
+.synaura-v2 .v2-profile-peek-identity > div:first-child > div:first-child { border-radius:4px; transform:rotate(-3deg); box-shadow:0 10px 25px #0006; }
+.synaura-v2 .v2-profile-peek .v2-profile-peek-name { font-size:clamp(27px,3.5vw,34px); font-weight:600; letter-spacing:-.055em; white-space:normal; overflow-wrap:anywhere; text-overflow:clip; }
+.synaura-v2 .v2-profile-peek-identity > p { font-weight:400; line-height:1.75; }
+.synaura-v2 .v2-profile-peek-stats { gap:15px; border-color:var(--v2-line); }
+.synaura-v2 .v2-profile-peek-stats dt { font-size:10px; font-weight:400; letter-spacing:.03em; color:var(--v2-muted); }
+.synaura-v2 .v2-profile-peek-stats dd { font-weight:600; font-size:24px; letter-spacing:-.055em; font-variant-numeric:tabular-nums; }
+.synaura-v2 .v2-profile-peek #profile-peek-tracks { font-weight:600; letter-spacing:-.025em; font-size:17px; }
+.synaura-v2 .v2-profile-peek #profile-peek-tracks svg { color:var(--v2-accent); }
+.synaura-v2 .v2-profile-peek section > div > article { border:0; border-bottom:1px solid var(--v2-line); border-radius:0; background:transparent; }
+
+/* Conversation remains compact above its native scroll panel and composer. */
+.synaura-v2 .v2-comments-identity { gap:14px; }
+.synaura-v2 .v2-comments-cover { width:52px; height:52px; border-radius:3px; border:1px solid var(--v2-line); transform:rotate(-3deg); }
+.synaura-v2 .v2-comments h2 { font-size:25px; }
+.synaura-v2 .v2-comments > header > p:first-child { color:var(--v2-accent); letter-spacing:.16em; font-size:10px; }
+.synaura-v2 .v2-comments [role=tablist] { gap:24px; }
+.synaura-v2 .v2-comments [role=tab] { font-weight:500; letter-spacing:-.015em; min-height:44px; }
+.synaura-v2 .v2-comments [role=tab][aria-selected=true] { border-bottom-color:var(--v2-accent); color:var(--v2-text); }
+.synaura-v2 .v2-comments [data-comment-id] { border-bottom:1px solid var(--v2-line); background:transparent; padding-block:16px; }
+.synaura-v2 .v2-comments [data-comment-id] time { color:var(--v2-muted); }
+.synaura-v2 .v2-comments [data-moment-cluster-detail] { border:1px solid var(--v2-line); border-left:2px solid var(--v2-accent); background:var(--v2-selected); border-radius:4px; }
+.synaura-v2 .v2-comments [data-moment-cluster-detail] h3 { font-family:var(--v2-font-display); font-size:26px; font-weight:600; letter-spacing:-.05em; }
+.synaura-v2 .v2-comments > footer { background:var(--v2-surface); }
+.synaura-v2 .v2-comments textarea { border-radius:6px; background:var(--v2-bg); }
+.synaura-v2 .v2-comments button[type=submit] { background:var(--v2-accent-fill); border-radius:50%; }
+
+/* Identity before actions; existing roving menu and query gates are unchanged. */
+.v2-context-kicker { margin-bottom:16px; color:var(--v2-accent); font-size:9px; letter-spacing:.15em; text-transform:uppercase; line-height:1.5; }
+.v2-context-record { float:right; width:46px; height:46px; object-fit:cover; margin:0 0 10px 16px; border:1px solid var(--v2-line); border-radius:3px; transform:rotate(3deg); }
+.synaura-v2 .v2-actions-surface .v2-context-title { font-size:28px; font-weight:600; letter-spacing:-.055em; }
+.synaura-v2 .v2-context-action { border-radius:4px; font-weight:500; }
+.synaura-v2 .v2-actions-surface [role=menuitem] { min-height:50px; padding-inline:12px; transition:background-color 150ms ease; }
+.synaura-v2 .v2-actions-surface [role=menuitem] > svg:first-child { color:var(--v2-accent); }
+.synaura-v2 .v2-actions-surface [data-track-action=lyrics],.synaura-v2 .v2-actions-surface [data-track-action=track-remix] { margin-top:8px; padding-top:14px; }
+.synaura-v2 .v2-actions-surface [data-track-lyrics] { font-family:var(--v2-font-display); font-size:clamp(20px,3vw,27px); line-height:1.8; letter-spacing:-.035em; font-weight:500; }
+.synaura-v2 .v2-actions-surface [data-playlist-id] { min-height:68px; }
+.synaura-v2 .v2-actions-surface [data-queue-track] { min-height:84px; gap:12px; }
+.synaura-v2 .v2-actions-surface [data-queue-track] p:first-child { font-size:10px; color:var(--v2-accent); }
+@media(max-width:390px) {
+  .synaura-v2 .v2-profile-peek .v2-profile-peek-name { font-size:27px; }
+  .synaura-v2 .v2-actions-surface .v2-context-title { font-size:26px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .synaura-v2 :is(.v2-profile-peek,.v2-comments,.v2-actions-surface) * { animation:none!important; transition:none!important; scroll-behavior:auto!important; }
+  .synaura-v2 :is(.v2-context-record,.v2-comments-cover),.synaura-v2 .v2-profile-peek-identity > div:first-child > div:first-child { transform:none; }
+}
