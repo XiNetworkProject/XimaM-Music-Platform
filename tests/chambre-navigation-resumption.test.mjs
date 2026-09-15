@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 import ts from 'typescript';
+import { reviewedPilotV1 } from './helpers/reviewed-pilot-v1.mjs';
 import { getRouteChrome, shouldRenderGlobalMiniPlayer } from '../lib/routeChrome.ts';
 const read = file => fs.readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
 
@@ -34,7 +35,7 @@ test('Publish has one product frame with real routes and an explicit return', ()
 
 const beforePath = 'artifacts/chambre-resumption/before/foundation/lib/routeChrome.ts';
 test('Publish framing is the only route presentation change; musical visibility is identical', {skip: !fs.existsSync(new URL(`../${beforePath}`, import.meta.url))}, () => {
-  const before = read(beforePath), after = read('lib/routeChrome.ts');
+  const before = read(beforePath).replaceAll('\r\n', '\n'), after = reviewedPilotV1('lib/routeChrome.ts', read('lib/routeChrome.ts'));
   assert.equal(after.replace("pathname === '/publish' || startsWithAny(pathname, [", 'startsWithAny(pathname, ['), before);
   const exports = {};
   vm.runInNewContext(ts.transpileModule(before, {compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText, {exports});

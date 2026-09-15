@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { createHash } from 'node:crypto';
 import test from 'node:test';
+import { reviewedPilotV1 } from './helpers/reviewed-pilot-v1.mjs';
 
 const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 const require = createRequire(import.meta.url);
@@ -131,7 +132,7 @@ test('420 UI handlers and 212 protected calls match pre-redesign AST, allowing o
       }
     };`;
   for (const path of musicSources) {
-    let text = (await read(path)).replaceAll('\r\n', '\n');
+    let text = reviewedPilotV1(path, await read(path));
     if (path === 'components/FullScreenPlayer.tsx') {
       // V6 Studio correction: one keyboard dispatch, not a change to playback.
       // Both exact guards are asserted here; their behavior is executed in suno-v6-models.

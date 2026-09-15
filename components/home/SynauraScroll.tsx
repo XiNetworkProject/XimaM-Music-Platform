@@ -210,6 +210,7 @@ function ClipVideoLayer({ src, poster, active }: { src: string; poster?: string 
    ═══════════════════════════════════════════════════════════════ */
 
 interface FeedScrollSnapOpts {
+  pilot?: boolean;
   itemCount: number;
   activeIndex: number;
   locked: boolean;
@@ -220,7 +221,7 @@ interface FeedScrollSnapOpts {
 }
 
 function useFeedScrollSnap(opts: FeedScrollSnapOpts) {
-  const { itemCount, activeIndex, locked, ready, onNavigate, onTogglePlay, onReturnHome } = opts;
+  const { itemCount, activeIndex, locked, ready, onNavigate, onTogglePlay, onReturnHome, pilot = false } = opts;
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const itemRefs = useRef<(HTMLElement | null)[]>([]);
@@ -250,8 +251,14 @@ function useFeedScrollSnap(opts: FeedScrollSnapOpts) {
   const visibleIndex = useCallback(() => {
     const el = containerRef.current;
     if (!el || el.clientHeight <= 0) return activeIndex;
+    if (pilot) {
+      const anchor = el.scrollTop + Math.min(40, el.clientHeight * .15);
+      let visible = 0;
+      itemRefs.current.forEach((item, index) => { if (item && item.offsetTop <= anchor) visible = index; });
+      return visible;
+    }
     return clamp(Math.round(el.scrollTop / el.clientHeight), 0, Math.max(0, itemCount - 1));
-  }, [activeIndex, itemCount]);
+  }, [activeIndex, itemCount, pilot]);
 
   // Wheel (desktop) — un item par geste, listener natif pour garantir preventDefault
   useEffect(() => {
@@ -259,6 +266,7 @@ function useFeedScrollSnap(opts: FeedScrollSnapOpts) {
     if (!el) return;
     const handler = (e: WheelEvent) => {
       if (locked) return;
+      if (pilot && (itemRefs.current[activeIndex]?.offsetHeight || 0) > el.clientHeight + 2) return;
       e.preventDefault();
       if (wheelLockRef.current) return;
       if (Math.abs(e.deltaY) < 8) return;
@@ -278,12 +286,13 @@ function useFeedScrollSnap(opts: FeedScrollSnapOpts) {
     };
     el.addEventListener('wheel', handler, { passive: false });
     return () => el.removeEventListener('wheel', handler);
-  }, [ready, activeIndex, itemCount, locked, scrollTo, onNavigate, onReturnHome]);
+  }, [ready, activeIndex, itemCount, locked, scrollTo, onNavigate, onReturnHome, pilot]);
 
   // Clavier
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
+      if (pilot && (e.defaultPrevented || t?.closest('button, a, select, input, textarea, [role="slider"]'))) return;
       if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
       if (locked) return;
       switch (e.key) {
@@ -316,7 +325,7 @@ function useFeedScrollSnap(opts: FeedScrollSnapOpts) {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [activeIndex, itemCount, locked, scrollTo, onNavigate, onReturnHome, onTogglePlay]);
+  }, [activeIndex, itemCount, locked, scrollTo, onNavigate, onReturnHome, onTogglePlay, pilot]);
 
   const onTouchStart = useCallback(() => {
     isTouchingRef.current = true;
@@ -360,7 +369,31 @@ function useFeedScrollSnap(opts: FeedScrollSnapOpts) {
   return { containerRef, itemRefs, scrollTo, onTouchStart, onTouchEnd, onScroll };
 }
 
-export default function SynauraScroll() {
+/** Optional presentation boundary. V1 remains the default, with the same effects and handlers. */
+export type LivePilotModel = {
+  items: ScrollFeedItem[];
+  activeIndex: number;
+  filter: FeedFilter;
+  ready: boolean;
+  loading: boolean;
+  error: string | null;
+  scrollSnap: ReturnType<typeof useFeedScrollSnap>;
+  range: { lo: number; hi: number };
+  selectFilter: (filter: FeedFilter) => void;
+  jump: (index: number) => void;
+  playIndex: (index: number) => void;
+  retry: () => void;
+  waveform: ReturnType<typeof useTrackWaveform>;
+  moments: ReturnType<typeof useMomentComments>;
+  reactions: ReturnType<typeof useMomentReactions>;
+  react: (type: MomentReactionType, timestamp: number) => Promise<void>;
+  sharePost: (post: ScrollPost) => Promise<void>;
+  shareClip: (clip: ScrollClip) => Promise<void>;
+  launchCollection: (id: string, slug: string) => Promise<void>;
+  launchingCollectionId: string | null;
+};
+
+export default function SynauraScroll({ renderPilot }: { renderPilot?: (model: LivePilotModel) => React.ReactNode } = {}) {
   const router = useRouter();
   const { data: session } = useSession();
   const { audioState, setQueueAndPlay, playTrack, play, pause, seek, getAudioElement, handleLike } = useAudioPlayer();
@@ -383,6 +416,7 @@ export default function SynauraScroll() {
   const [accountOpen, setAccountOpen] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [homePreludeOpen, setHomePreludeOpen] = useState(() => {
+    if (renderPilot) return false;
     if (typeof window === 'undefined') return true;
     const params = new URLSearchParams(window.location.search);
     return !params.get('sourceTrackId') && !params.get('clipId') && params.get('filter') !== 'clips';
@@ -424,7 +458,7 @@ export default function SynauraScroll() {
   const liveRerankCountRef = useRef(0);
   const snapshotIdRef = useRef('');
   const continuityInitRef = useRef(false);
-  const suppressRestoredAutoplayRef = useRef(false);
+  const suppressRestoredAutoplayRef = useRef(Boolean(renderPilot));
   const persistBeforeNavigationRef = useRef<() => void>(() => {});
 
   const currentTrack = audioState.tracks[audioState.currentTrackIndex];
@@ -464,7 +498,7 @@ export default function SynauraScroll() {
       setTrackCursor(restore.snapshot.cursors.tracks);
       setTrackHasMore(restore.snapshot.hasMore.tracks);
       setActiveIndex(anchorIndex);
-      setHomePreludeOpen(restore.snapshot.contextSurface === 'prelude');
+      setHomePreludeOpen(!renderPilot && restore.snapshot.contextSurface === 'prelude');
       setLoading(restore.status === 'partial' || items.length === 0);
       for (const item of items.slice(0, restore.snapshot.frozenSeenBoundary + 1)) {
         if (item.type === 'track') impressionSeenRef.current.add(`track:${item.track._id}`);
@@ -889,11 +923,13 @@ export default function SynauraScroll() {
   }, []);
 
   const returnToHome = useCallback(() => {
+    if (renderPilot) return;
     if (filter !== 'foryou') return;
     setHomePreludeOpen(true);
   }, [filter]);
 
   const scrollSnap = useFeedScrollSnap({
+    pilot: Boolean(renderPilot),
     itemCount: feedItems.length,
     activeIndex,
     locked: contextDepth > 0,
@@ -1783,6 +1819,14 @@ export default function SynauraScroll() {
       </>
     );
   }
+
+  if (renderPilot) return renderPilot({
+    items: feedItems, activeIndex, filter, ready: continuityReady, loading, error,
+    scrollSnap, range: renderRange, selectFilter, jump, playIndex,
+    retry: () => setReloadKey(value => value + 1), waveform: trackWaveform,
+    moments: momentComments, reactions: momentReactions, react: submitMomentReaction,
+    sharePost, shareClip, launchCollection, launchingCollectionId,
+  });
 
   if (!continuityReady) {
     return <div className="fixed inset-0 z-[100] bg-[#171313]" aria-busy="true" aria-label="Restauration de Live" />;

@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import ts from 'typescript';
 import postcss from 'postcss';
+import { reviewedPilotV1 } from './helpers/reviewed-pilot-v1.mjs';
 
 const require = createRequire(import.meta.url);
 const read = file => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
@@ -19,7 +20,7 @@ test('Live metadata has no nested scroll at any breakpoint; artwork and audio bi
     }
   });
   assert.equal(count, 5);
-  const source = read('components/home/SynauraScroll.tsx');
+  const source = reviewedPilotV1('components/home/SynauraScroll.tsx', read('components/home/SynauraScroll.tsx'));
   const before = read('artifacts/live-reactions/before/components/home/SynauraScroll.tsx');
   const normalize = s => s.replace(/\s+celebrate\s+(?=open=)/, '\n                          ')
     .replace('live-moment-actions relative mt-2', 'mt-2').replaceAll('\r\n', '\n');

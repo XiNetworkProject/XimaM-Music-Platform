@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import ts from 'typescript';
 import postcss from 'postcss';
+import { reviewedPilotV1 } from './helpers/reviewed-pilot-v1.mjs';
 
 const read = name => fs.readFileSync(new URL(`../${name}`, import.meta.url), 'utf8').replaceAll('\r\n', '\n');
 const printer = ts.createPrinter({ removeComments: true });
@@ -38,7 +39,7 @@ function controls(tree) {
 for (const file of files) {
   const snapshot = `artifacts/chambre-experience/before/navigation-live/${file}`;
   test(`${file}: recomposition preserves controllers and every event, target and entity key`, {skip: !fs.existsSync(new URL(`../${snapshot}`, import.meta.url))}, () => {
-    const before = parse(file, read(snapshot)), after = parse(file, read(file));
+    const before = parse(file, read(snapshot)), after = parse(file, reviewedPilotV1(file, read(file)));
     assert.equal(behavior(after), behavior(before));
     assert.deepEqual(controls(after), controls(before));
   });

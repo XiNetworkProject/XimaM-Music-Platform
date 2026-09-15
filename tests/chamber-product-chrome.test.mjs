@@ -56,6 +56,6 @@ test('Global queue bubble uses the exact route predicate after all hooks', async
   assert.match(source, /isChamberProductRoute\(pathname\)/);
   const lastHook = source.indexOf('useEffect(() => setMounted(true), []);');
   const routeDecision = source.indexOf('const hiddenOnSynaura');
-  const earlyReturn = source.indexOf("if (!mounted || typeof document === 'undefined' || hiddenOnSynaura)");
+  const earlyReturn = source.indexOf("if (!mounted || typeof document === 'undefined' || hiddenOnSynaura || isV2PilotRoute(pathname))");
   assert.ok(lastHook > 0 && lastHook < routeDecision && routeDecision < earlyReturn);
 });

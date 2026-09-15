@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation';
 import { createPortal } from 'react-dom';
 import QueueBubble from '@/components/QueueBubble';
 import QueueDialog from '@/components/QueueDialog';
-import { isChamberProductRoute } from '@/lib/routeChrome';
+import { isChamberProductRoute, isV2PilotRoute } from '@/lib/routeChrome';
 
 export default function GlobalQueueBubble() {
   const [open, setOpen] = useState(false);
@@ -15,7 +15,7 @@ export default function GlobalQueueBubble() {
 
   const hiddenOnSynaura = pathname === '/' || pathname === '/landing' || pathname === '/live' || pathname?.startsWith('/discover') || pathname?.startsWith('/library') || isChamberProductRoute(pathname);
 
-  if (!mounted || typeof document === 'undefined' || hiddenOnSynaura) {
+  if (!mounted || typeof document === 'undefined' || hiddenOnSynaura || isV2PilotRoute(pathname)) {
     return null;
   }
 

@@ -19,6 +19,11 @@ export function isChamberProductRoute(pathname: string | null | undefined) {
   return pathname === '/dev/chambre' || Boolean(pathname?.startsWith('/dev/chambre/'));
 }
 
+/** Parallel pilot only; no similarly named or V1 route is captured. */
+export function isV2PilotRoute(pathname: string | null | undefined) {
+  return pathname === '/v2' || pathname === '/v2/live' || pathname === '/v2/discover';
+}
+
 export function getRouteChrome(pathname: string | null): RouteChrome {
   if (!pathname) {
     return {
@@ -32,7 +37,7 @@ export function getRouteChrome(pathname: string | null): RouteChrome {
     };
   }
 
-  if (isChamberProductRoute(pathname)) {
+  if (isChamberProductRoute(pathname) || isV2PilotRoute(pathname)) {
     return {
       kind: 'immersive',
       showSidebar: false,
@@ -117,7 +122,7 @@ export function getRouteChrome(pathname: string | null): RouteChrome {
 
 export function shouldRenderGlobalMiniPlayer(pathname: string | null) {
   if (!pathname) return true;
-  if (isChamberProductRoute(pathname)) return false;
+  if (isChamberProductRoute(pathname) || isV2PilotRoute(pathname)) return false;
   if (pathname === '/' || pathname === '/live' || pathname.startsWith('/swipe')) return false;
   if (/^\/messages\/[^/]+/.test(pathname)) return false;
   if (pathname.startsWith('/upload')) return false;
