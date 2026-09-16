@@ -19,9 +19,9 @@ export function isChamberProductRoute(pathname: string | null | undefined) {
   return pathname === '/dev/chambre' || Boolean(pathname?.startsWith('/dev/chambre/'));
 }
 
-/** Parallel pilot only; no similarly named or V1 route is captured. */
+/** Validated Live/Discover plus preview aliases; other routes keep their chrome. */
 export function isV2PilotRoute(pathname: string | null | undefined) {
-  return pathname === '/v2' || pathname === '/v2/live' || pathname === '/v2/discover';
+  return pathname === '/live' || pathname === '/discover' || pathname === '/v2' || pathname === '/v2/live' || pathname === '/v2/discover';
 }
 
 export function getRouteChrome(pathname: string | null): RouteChrome {

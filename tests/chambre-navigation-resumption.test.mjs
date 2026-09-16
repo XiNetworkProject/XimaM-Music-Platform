@@ -34,13 +34,14 @@ test('Publish has one product frame with real routes and an explicit return', ()
 });
 
 const beforePath = 'artifacts/chambre-resumption/before/foundation/lib/routeChrome.ts';
-test('Publish framing is the only route presentation change; musical visibility is identical', {skip: !fs.existsSync(new URL(`../${beforePath}`, import.meta.url))}, () => {
+test('outside promoted Live/Discover, Publish remains the only historical framing change', {skip: !fs.existsSync(new URL(`../${beforePath}`, import.meta.url))}, () => {
   const before = read(beforePath).replaceAll('\r\n', '\n'), after = reviewedPilotV1('lib/routeChrome.ts', read('lib/routeChrome.ts'));
   assert.equal(after.replace("pathname === '/publish' || startsWithAny(pathname, [", 'startsWithAny(pathname, ['), before);
   const exports = {};
   vm.runInNewContext(ts.transpileModule(before, {compilerOptions:{module:ts.ModuleKind.CommonJS}}).outputText, {exports});
   const inventory = JSON.parse(read('artifacts/chambre-full-redesign/inventory.json'));
   for (const route of [...inventory.routes.map(r=>r.route), null, '/publisher', '/publish/other', '/dev/chambre-extra']) {
+    if (route === '/live' || route === '/discover') continue; // Explicit promotion tested in v2-pilot.test.mjs.
     assert.equal(shouldRenderGlobalMiniPlayer(route), exports.shouldRenderGlobalMiniPlayer(route), route);
     if (route !== '/publish') assert.deepEqual(JSON.parse(JSON.stringify(getRouteChrome(route))), JSON.parse(JSON.stringify(exports.getRouteChrome(route))), route);
   }

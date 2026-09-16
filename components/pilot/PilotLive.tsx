@@ -15,6 +15,7 @@ import { trackFromScrollPost, type ScrollFeedItem, type ScrollTrack, type Scroll
 import PilotLink from './PilotLink';
 import PilotImage from './PilotImage';
 import PilotClipFavorite from './PilotClipFavorite';
+import PilotLiveEntry from './PilotLiveEntry';
 
 const filters = [{ id: 'foryou', name: 'Pour vous' }, { id: 'new', name: 'Nouveautés' }, { id: 'clips', name: 'Clips' }, { id: 'creators', name: 'Créateurs' }, { id: 'challenges', name: 'Défis' }] as const;
 const count = (value: number | string[]) => Array.isArray(value) ? value.length : value;
@@ -24,17 +25,31 @@ export default function PilotLive() { return <SynauraScroll renderPilot={model =
 
 function LiveScene({ model }: { model: LivePilotModel }) {
   const { items, activeIndex, filter, loading, ready, error, range, scrollSnap } = model;
+  const entryGuardUntil = useRef(0);
+  useEffect(() => {
+    const feed = scrollSnap.containerRef.current;
+    if (!feed) return;
+    const guard = (event: WheelEvent) => { if (performance.now() < entryGuardUntil.current) { event.preventDefault(); event.stopImmediatePropagation(); } };
+    feed.addEventListener('wheel', guard, { capture: true, passive: false });
+    return () => feed.removeEventListener('wheel', guard, true);
+  }, [loading, ready, scrollSnap.containerRef]);
+  const enterFeed = () => {
+    entryGuardUntil.current = performance.now() + 650;
+    model.enterFeed();
+    requestAnimationFrame(() => scrollSnap.containerRef.current?.focus({ preventScroll: true }));
+  };
   return <div className="pilot-live" data-active-item-id={items[activeIndex]?.id} data-filter={filter}>
-    <header className="pilot-live-heading"><h1>Live<span> / La salle d’écoute</span></h1>
+    <header className="pilot-live-heading" ref={node => { node?.toggleAttribute('inert', model.entryOpen); }} aria-hidden={model.entryOpen}><h1>Live<span> / La salle d’écoute</span></h1>
       <label className="pilot-filter"><span className="sr-only">Filtrer Live</span><select value={filter} onChange={event => model.selectFilter(event.target.value as typeof filter)}>{filters.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
     </header>
     {!ready || loading ? <div className="pilot-state" role="status">Le son approche<span>Votre salle d’écoute se prépare.</span></div> : error || !items.length ? <div className="pilot-state" role="status">{error || 'Cet espace attend ses prochains sons.'}<button onClick={model.retry}>Réessayer</button><button onClick={() => model.selectFilter('foryou')}>Revenir à Pour vous</button></div> :
-      <div ref={scrollSnap.containerRef} className="pilot-feed" tabIndex={-1} aria-label="Live Synaura" data-testid="synaura-scroll-feed" data-context-surface-origin="live" onTouchStart={scrollSnap.onTouchStart} onTouchEnd={scrollSnap.onTouchEnd} onScroll={scrollSnap.onScroll}>
+      <div ref={node => { scrollSnap.containerRef.current = node; node?.toggleAttribute('inert', model.entryOpen); }} className="pilot-feed" aria-hidden={model.entryOpen} tabIndex={-1} aria-label="Live Synaura" data-testid="synaura-scroll-feed" data-context-surface-origin="live" onTouchStart={scrollSnap.onTouchStart} onTouchEnd={scrollSnap.onTouchEnd} onScroll={scrollSnap.onScroll}>
         {items.map((item, index) => <section key={item.id} ref={element => { scrollSnap.itemRefs.current[index] = element; element?.toggleAttribute('inert', index !== activeIndex); }} className={`pilot-slide pilot-slide--${item.type}`} data-feed-item-id={item.id} data-feed-item-type={item.type} data-active={index === activeIndex} aria-hidden={index !== activeIndex}>
           {index >= range.lo && index <= range.hi && <PilotItem item={item} index={index} model={model} />}
         </section>)}
       </div>}
-    <footer className="pilot-live-position"><span aria-live="polite">{items.length ? String(activeIndex + 1).padStart(2, '0') : '—'}<i> / {items.length}</i></span><span>Suivez ce qui vous traverse.</span><div><button aria-label="Item précédent" disabled={!activeIndex} onClick={() => model.jump(activeIndex - 1)}><ArrowUp /></button><button aria-label="Item suivant" disabled={activeIndex >= items.length - 1} onClick={() => model.jump(activeIndex + 1)}><ArrowDown /></button></div></footer>
+    <footer className="pilot-live-position" ref={node => { node?.toggleAttribute('inert', model.entryOpen); }} aria-hidden={model.entryOpen}><span aria-live="polite">{items.length ? String(activeIndex + 1).padStart(2, '0') : '—'}<i> / {items.length}</i></span><span>Suivez ce qui vous traverse.</span><div><button aria-label="Item précédent" disabled={!activeIndex} onClick={() => model.jump(activeIndex - 1)}><ArrowUp /></button><button aria-label="Item suivant" disabled={activeIndex >= items.length - 1} onClick={() => model.jump(activeIndex + 1)}><ArrowDown /></button></div></footer>
+    {model.entryOpen && ready && !loading && !error && items.length > 0 && <PilotLiveEntry model={{ ...model, enterFeed }} />}
   </div>;
 }
 

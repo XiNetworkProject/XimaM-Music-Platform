@@ -5,14 +5,14 @@ import type { ComponentProps } from 'react';
 import { readLiveSnapshotId } from '@/lib/liveContinuity';
 import { validLiveReturn } from '@/lib/creationHandoffClient';
 
-/** Local pilot edges only. The established snapshot is carried, never copied or rewritten. */
+/** Promoted Live/Discover edges carry the established snapshot without rewriting it. */
 export default function PilotLink({ href, onClick, ...props }: ComponentProps<typeof Link>) {
   const router = useRouter();
   return <Link {...props} href={href} prefetch={false} onClick={event => {
     onClick?.(event);
     if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || props.target === '_blank' || typeof href !== 'string') return;
-    if (!href.startsWith('/v2/')) return;
-    const token = window.location.pathname === '/v2/live'
+    if (!['/live', '/discover', '/v2/live', '/v2/discover'].includes(href.split('?')[0])) return;
+    const token = ['/live', '/v2/live'].includes(window.location.pathname)
       ? readLiveSnapshotId(window.history.state)
       : new URLSearchParams(window.location.search).get('liveReturn');
     const url = new URL(href, window.location.origin);

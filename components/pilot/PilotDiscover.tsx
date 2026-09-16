@@ -16,8 +16,8 @@ type Artist = { _id: string; username: string; name: string; avatar?: string; bi
 type Discovery = { tracks: DiscoverTrackLite[]; artists: Artist[]; total: number };
 type Collection = { id: string; title: string; subtitle?: string; coverUrl?: string; bannerUrl?: string; publicUrl?: string; slug?: string; playlistId: string; trackCount: number };
 function usePilotData<T>(path: string, enabled = true) {
-  const { data: session } = useSession();
-  return useQuery<T>({ queryKey: ['v2-pilot', session?.user?.id || 'guest', path], enabled: enabled && Boolean(session?.user?.id), staleTime: 5 * 60_000, gcTime: 10 * 60_000, refetchOnWindowFocus: false, retry: 1,
+  const { data: session, status } = useSession();
+  return useQuery<T>({ queryKey: ['v2-pilot', session?.user?.id || 'guest', path], enabled: enabled && status !== 'loading', staleTime: 5 * 60_000, gcTime: 10 * 60_000, refetchOnWindowFocus: false, retry: 1,
     queryFn: async ({ signal }) => { const response = await fetch(path, { signal }); if (!response.ok) throw new Error('Cet espace est momentanément indisponible.'); return response.json(); } });
 }
 
@@ -61,6 +61,6 @@ export default function PilotDiscover() {
     {!!collections.data?.collections.length && <section className="pilot-collections"><p className="pilot-kicker">Des mondes à habiter</p>{collections.data.collections.filter(item => item.trackCount > 0).slice(0, 3).map(collection => <PilotLink key={collection.id} href={collection.publicUrl || `/playlists/${collection.slug || collection.playlistId}`}><PilotImage src={collection.bannerUrl || collection.coverUrl || '/default-cover.svg'} alt="" loading="lazy" /><div><span>{collection.trackCount} morceaux</span><h2>{collection.title}</h2><p>{collection.subtitle}</p></div><ArrowUpRight /></PilotLink>)}</section>}
     <section className="pilot-new-releases"><header><p className="pilot-kicker">04 / Tout juste arrivés</p><h2>Le prochain chapitre.</h2></header><div className="pilot-release-grid">{newest.isError ? <p role="alert">Nouveautés indisponibles. <button onClick={() => void newest.refetch()}>Réessayer</button></p> : newest.data?.tracks.slice(0, 6).map(track => <DiscoverRecord key={track._id} track={track} queue={newest.data!.tracks} />)}</div></section>
     <section className="pilot-community"><p className="pilot-kicker">La musique ne s’arrête pas aux morceaux.</p><h2>Et si on<br /><em>se rencontrait ?</em></h2><div>{COMMUNITY_CLUBS.map(club => <PilotLink key={club.slug} href={`/community/${club.slug}`}><span>{club.name}<small>{club.promise}</small></span><ArrowUpRight size={20} /></PilotLink>)}</div><PilotLink className="pilot-text-link" href="/city">Les événements de Synaura City <ArrowUpRight size={17} /></PilotLink></section>
-    <footer className="pilot-discover-footer"><span>SYNAURA / LE SON NOUS RAPPROCHE.</span><PilotLink href="/v2/live">Revenir dans Live <ArrowUpRight size={17} /></PilotLink></footer>
+    <footer className="pilot-discover-footer"><span>SYNAURA / LE SON NOUS RAPPROCHE.</span><PilotLink href="/live">Revenir dans Live <ArrowUpRight size={17} /></PilotLink></footer>
   </div>;
 }

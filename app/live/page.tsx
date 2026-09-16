@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
 import { getServerSession } from 'next-auth';
-import SynauraScroll from '@/components/home/SynauraScroll';
+import PilotLive from '@/components/pilot/PilotLive';
+import PilotShell from '@/components/pilot/PilotShell';
 import LiveHandoffEntry from '@/components/navigation/LiveHandoffEntry';
 import { authOptions } from '@/lib/authOptions';
 import { memberHasCompletedOnboarding } from '@/lib/server/memberEntry';
@@ -20,5 +21,5 @@ export default async function LiveSynauraPage() {
   const onboardingCompleted = await memberHasCompletedOnboarding(session.user.id);
   if (onboardingCompleted === false) redirect('/onboarding?callbackUrl=%2Flive');
 
-  return <LiveHandoffEntry><SynauraScroll /></LiveHandoffEntry>;
+  return <PilotShell><LiveHandoffEntry><PilotLive /></LiveHandoffEntry></PilotShell>;
 }

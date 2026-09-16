@@ -9,7 +9,7 @@ const read = (relative) => readFile(path.join(root, relative), 'utf8');
 
 test('les routes partagent un contrat de chrome explicite', () => {
   assert.equal(getRouteChrome('/').kind, 'immersive');
-  assert.equal(getRouteChrome('/discover').kind, 'wide');
+  assert.equal(getRouteChrome('/discover').kind, 'immersive');
   assert.equal(getRouteChrome('/studio').kind, 'studio');
   assert.equal(getRouteChrome('/auth/signin').kind, 'auth-public');
   assert.equal(getRouteChrome('/meteo').kind, 'subproduct');

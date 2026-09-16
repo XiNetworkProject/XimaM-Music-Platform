@@ -7,6 +7,22 @@ import postcss from 'postcss';
 import { getRouteChrome, isV2PilotRoute, shouldRenderGlobalMiniPlayer } from '../lib/routeChrome.ts';
 import { reviewedPilotV1 } from './helpers/reviewed-pilot-v1.mjs';
 const require = createRequire(import.meta.url);
+test('canonical promotion preserves member guards, public discovery and transparent vector identity', () => {
+  const live = read('app/live/page.tsx');
+  assert.match(live, /if \(!session\?\.user\?\.id\) redirect\('\/'\)/);
+  assert.match(live, /memberHasCompletedOnboarding\(session.user.id\)/);
+  assert.match(live, /<PilotShell><LiveHandoffEntry><PilotLive/);
+  const discover = read('app/discover/page.tsx');
+  assert.match(discover, /<PilotShell><PilotDiscover/);
+  assert.match(discover, /canonical: '\/discover'/);
+  assert.doesNotMatch(discover, /redirect\(|getServerSession/);
+  const shell = read('components/pilot/PilotShell.tsx');
+  assert.doesNotMatch(shell, /Version actuelle/);
+  assert.match(shell, /canonicalPath !== '\/live' && <PilotPlayer/);
+  const logo = read('public/brand/v2/synaura-lockup.svg');
+  assert.match(logo, /viewBox=/);
+  assert.doesNotMatch(logo, /<image|data:image|<rect/);
+});
 const read = file => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8').replaceAll('\r\n', '\n');
 const compile = (file, mocks, globals = {}) => {
   const module = { exports: {} };
@@ -15,13 +31,13 @@ const compile = (file, mocks, globals = {}) => {
   return module.exports;
 };
 
-test('pilot routes are exact, authenticated, noindex and do not inherit V1 navigation/player', () => {
-  for (const route of ['/v2','/v2/live','/v2/discover']) {
+test('promoted routes have one navigation/player; preview aliases remain authenticated and noindex', () => {
+  for (const route of ['/live','/discover','/v2','/v2/live','/v2/discover']) {
     assert.equal(isV2PilotRoute(route), true);
     assert.equal(getRouteChrome(route).showSidebar, false);
     assert.equal(shouldRenderGlobalMiniPlayer(route), false);
   }
-  for (const route of ['/live','/discover','/v2/live-other','/v2/discover/other','/v20',null]) assert.equal(isV2PilotRoute(route), false);
+  for (const route of ['/live-other','/discover/other','/v2/live-other','/v2/discover/other','/v20',null]) assert.equal(isV2PilotRoute(route), false);
   const layout = read('app/v2/layout.tsx');
   assert.match(layout, /getServerSession\(authOptions\)/);
   assert.match(layout, /if \(!session\?\.user\?\.id\) redirect/);
@@ -29,7 +45,7 @@ test('pilot routes are exact, authenticated, noindex and do not inherit V1 navig
   assert.doesNotMatch(read('components/pilot/PilotShell.tsx'), /AudioPlayerProvider|ContextSurfaceProvider/);
 });
 
-test('V1 presentation and feed logic remain byte-identical after exact opt-in adapter projection', () => {
+test('legacy renderer and other chrome remain identical after approved presentation boundary projection', () => {
   reviewedPilotV1('components/home/SynauraScroll.tsx', read('components/home/SynauraScroll.tsx'));
   reviewedPilotV1('lib/routeChrome.ts', read('lib/routeChrome.ts'));
 });
@@ -48,6 +64,7 @@ test('new renderers are distinct and share the existing feed and surface contrac
 test('Discover is lazy by route, uses normal APIs, scoped cached queries, cancellation and no prefetch', () => {
   const discover = read('components/pilot/PilotDiscover.tsx');
   assert.match(discover, /session\?\.user\?\.id \|\| 'guest'/);
+  assert.match(discover, /enabled: enabled && status !== 'loading'/);
   assert.match(discover, /staleTime: 5 \* 60_000/);
   assert.match(discover, /refetchOnWindowFocus: false/);
   assert.match(discover, /fetch\(path, \{ signal \}\)/);
@@ -68,6 +85,10 @@ test('pilot navigation carries a valid existing snapshot and review mode without
   PilotLink({ href: '/v2/discover' }).props.onClick(event);
   assert.equal(event.defaultPrevented, true);
   assert.deepEqual(pushes, [['/v2/discover?liveReturn=live-qa-safe&pilotReview=1', { scroll: false }]]);
+  pushes.length = 0;
+  window.location.pathname = '/live';
+  PilotLink({ href: '/discover' }).props.onClick({ button: 0, preventDefault() {} });
+  assert.deepEqual(pushes, [['/discover?liveReturn=live-qa-safe&pilotReview=1', { scroll: false }]]);
   pushes.length = 0;
   PilotLink({ href: '/track/real' }).props.onClick({ button: 0 });
   PilotLink({ href: '/v2/discover' }).props.onClick({ button: 0, ctrlKey: true });
@@ -125,4 +146,42 @@ test('no new musical element, dependency authority or auto social mutation in pi
   }
   const player = read('components/pilot/PilotPlayer.tsx');
   assert.doesNotMatch(player, /useEffect|setQueueAndPlay|playTrack/);
+});
+
+test('Live entry displays the actual feed anchor and entering never mutates audio or queue', () => {
+  const calls = [], enters = [];
+  const track = { _id: 'feed-first', title: 'Premier vrai morceau', artist: { name: 'Artiste réel' }, coverUrl: '/real.jpg' };
+  const audio = { audioState: { tracks: [], currentTrackIndex: 0, isPlaying: false }, pause: () => calls.push('pause'), play: () => calls.push('play') };
+  const { default: Entry } = compile('components/pilot/PilotLiveEntry.tsx', {
+    react: { useRef: () => ({ current: null }) },
+    'lucide-react': { ArrowDown: () => null, ArrowUpRight: () => null, Headphones: () => null, Heart: () => null, MessageCircle: () => null, Share2: () => null, Pause: () => null, Play: () => null },
+    '@/app/providers': { useAudioPlayer: () => audio }, './PilotImage': { default: () => null },
+  });
+  const model = { items: [{ id: 'first', type: 'track', track }, { id: 'next', type: 'track', track: { ...track, _id: 'other' } }], activeIndex: 0,
+    playIndex: index => calls.push(['queue-play', index]), enterFeed: () => enters.push('enter') };
+  const root = Entry({ model }), nodes = [];
+  const walk = node => { if (!node || typeof node !== 'object') return; if (Array.isArray(node)) return node.forEach(walk); nodes.push(node); walk(node.props?.children); };
+  walk(root);
+  assert.equal(root.props['data-pilot-entry-track'], 'feed-first');
+  assert.deepEqual(calls, []);
+  nodes.find(node => node.type === 'button' && node.props['aria-label']).props.onClick();
+  assert.deepEqual(calls, [['queue-play', 0]]);
+  calls.length = 0;
+  nodes.find(node => node.props?.className === 'pilot-entry-enter').props.onClick();
+  const end = { scrollTop: 0, clientHeight: 500, scrollHeight: 500 };
+  root.props.onWheel({ deltaY: 50, currentTarget: end, target: { closest: () => null } });
+  assert.equal(enters.length, 2);
+  root.props.onWheel({ deltaY: 50, currentTarget: { ...end, scrollHeight: 900 }, target: { closest: () => null } });
+  root.props.onWheel({ deltaY: 50, currentTarget: end, target: { closest: () => null } });
+  assert.equal(enters.length, 2, 'wheel inertia reaching the bottom does not dismiss the entry');
+  assert.deepEqual(calls, [], 'entry dismissal never seeks, pauses, starts or resets the queue');
+  audio.audioState = { tracks: [track], currentTrackIndex: 0, isPlaying: true };
+  const playingEntry = Entry({ model });
+  playingEntry.props.onTouchStart({ touches: [{ clientY: 500 }], currentTarget: end });
+  playingEntry.props.onTouchEnd({ changedTouches: [{ clientY: 200 }] });
+  assert.equal(enters.length, 3);
+  assert.deepEqual(calls, []);
+  playingEntry.props.onTouchStart({ touches: [{ clientY: 500 }], currentTarget: { ...end, scrollHeight: 900 } });
+  playingEntry.props.onTouchEnd({ changedTouches: [{ clientY: 200 }] });
+  assert.equal(enters.length, 3, 'reading entry content does not prematurely dismiss it');
 });

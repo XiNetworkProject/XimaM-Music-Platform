@@ -20,7 +20,7 @@
 .synaura-pilot .pilot-skip:focus { top: 10px; }
 .synaura-pilot .pilot-identity { position: fixed; z-index: 112; top: 0; left: 0; width: 100%; height: 94px; display: flex; align-items: center; padding: 0 42px; gap: 38px; background: linear-gradient(#050a11 35%,#050a11e8 80%,transparent); }
 .synaura-pilot .pilot-identity > a { min-height: 44px; display: flex; align-items: center; }
-.synaura-pilot .pilot-identity img { width: 143px; height: 40px; object-fit: contain; mix-blend-mode: screen; }
+.synaura-pilot .pilot-identity img { width: 164px; height: 40px; object-fit: contain; }
 .synaura-pilot .pilot-edition { color: var(--pilot-muted); font-size: 11px; letter-spacing: .08em; }
 .synaura-pilot .pilot-utilities { margin-left: auto; display: flex; gap: 10px; }
 .synaura-pilot .pilot-utilities a { display: grid; place-items: center; width: 44px; height: 44px; }
@@ -186,7 +186,7 @@
 @media (max-width: 800px) {
   .synaura-pilot .pilot-identity { height: 70px; padding: 0 20px; gap: 10px; }
   .synaura-pilot .pilot-edition { display: none; }
-  .synaura-pilot .pilot-identity img { width: 125px; height: 35px; }
+  .synaura-pilot .pilot-identity img { width: 130px; height: 35px; }
   .synaura-pilot .pilot-utilities { gap: 0; }
   .synaura-pilot .pilot-navigation { top: auto; bottom: 0; left: 0; right: 0; width: auto; height: calc(64px + env(safe-area-inset-bottom,0px)); padding: 0 10px env(safe-area-inset-bottom,0px); display: grid; grid-template-columns: repeat(5,minmax(0,1fr)); gap: 0; background: #080e18; border-top: 1px solid #273247; }
   .synaura-pilot .pilot-navigation a { min-height: 60px; font-size: 9px; gap: 5px; }
@@ -272,6 +272,70 @@
   .synaura-pilot .pilot-community h2 { font-size: 48px; }
   .synaura-pilot .pilot-community > div { grid-template-columns: 1fr; gap: 5px; }
   .synaura-pilot .pilot-discover-footer { flex-direction: column; align-items: flex-start; gap: 10px; }
+}
+.synaura-pilot .pilot-entry { position: absolute; inset: 0; z-index: 5; background: #050a11; display: grid; grid-template-columns: minmax(0,1.05fr) minmax(0,1fr); grid-template-rows: auto auto auto; align-items: center; align-content: start; gap: 44px 4vw; padding: 30px 4vw 28px 26px; overflow-y: auto; overscroll-behavior: contain; }
+.synaura-pilot .pilot-entry-copy h1 { font-size: clamp(44px,4.6vw,82px); margin: 24px 0; line-height: 1.04; }
+.synaura-pilot .pilot-entry-intent { color: var(--pilot-muted); font-size: 14px; line-height: 1.8; }
+.synaura-pilot .pilot-entry-record { min-width: 0; width: 100%; max-width: min(100%,43vh); justify-self: center; }
+.synaura-pilot .pilot-entry-art { position: relative; padding-top: 22px; }
+.synaura-pilot .pilot-entry-art img { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 48% 48% 2px 2px; }
+.synaura-pilot .pilot-entry-art > span { position: absolute; top: 0; left: 0; font-size: 8px; letter-spacing: .2em; color: #a9bad5; }
+.synaura-pilot .pilot-entry-track { display: flex; justify-content: space-between; align-items: center; gap: 20px; margin-top: 24px; }
+.synaura-pilot .pilot-entry-track > div { min-width: 0; }
+.synaura-pilot .pilot-entry-track h2 { font-size: clamp(23px,2.4vw,40px); overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.synaura-pilot .pilot-entry-track p { margin-top: 8px; font-size: 13px; color: var(--pilot-muted); }
+.synaura-pilot .pilot-entry-track button { display: grid; place-items: center; width: 58px; height: 58px; flex-shrink: 0; border: 1px solid #b4c9ed; border-radius: 50%; background: #18253c; }
+.synaura-pilot .pilot-entry-footer { grid-column: 1/-1; display: flex; align-items: center; justify-content: space-between; gap: 20px; border-top: 1px solid var(--pilot-line); padding-top: 24px; }
+.synaura-pilot .pilot-entry-footer > span { color: var(--pilot-muted); font-size: 10px; }
+.synaura-pilot .pilot-entry-enter { display: inline-flex; align-items: center; justify-content: center; gap: 20px; min-height: 50px; padding: 0 24px; border: 1px solid #607596; border-radius: 2px; font-size: 13px; }
+.synaura-pilot .pilot-entry-empty { padding: 40px; color: var(--pilot-muted); }
+.synaura-pilot .pilot-entry-direct { width: 100%; margin-top: 12px; }
+.synaura-pilot .pilot-entry-shortcuts { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 0 24px; margin-top: 28px; }
+.synaura-pilot .pilot-entry-shortcuts button { display: flex; align-items: center; justify-content: space-between; text-align: left; padding: 16px 0; border-top: 1px solid var(--pilot-line); font-size: 14px; min-height: 64px; gap: 8px; }
+.synaura-pilot .pilot-entry-shortcuts small { display: block; color: var(--pilot-muted); font-size: 11px; margin-top: 5px; }
+.synaura-pilot .pilot-entry-stats { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin-top: 16px; color: var(--pilot-muted); font-size: 11px; }
+.synaura-pilot .pilot-entry-stats > span { display: inline-flex; align-items: center; gap: 6px; }
+.synaura-pilot .pilot-entry-actions { display: flex; gap: 6px; margin-top: 8px; border-bottom: 1px solid var(--pilot-line); }
+.synaura-pilot .pilot-entry-actions button { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; gap: 7px; font-size: 11px; }
+.synaura-pilot .pilot-entry-actions button:last-child { margin-left: auto; }
+.synaura-pilot .pilot-entry-around { grid-column: 1/-1; display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 4vw; }
+.synaura-pilot .pilot-entry-section-title { border-top: 1px solid var(--pilot-line); padding-top: 20px; margin-bottom: 18px; }
+.synaura-pilot .pilot-entry-section-title h2 { font-size: 25px; }
+.synaura-pilot .pilot-entry-section-title > span { display: block; font-size: 12px; color: var(--pilot-muted); margin-top: 7px; }
+.synaura-pilot .pilot-entry-discoveries { display: grid; gap: 10px; }
+.synaura-pilot .pilot-entry-discoveries button { display: flex; gap: 14px; align-items: center; min-width: 0; text-align: left; padding: 8px 0; }
+.synaura-pilot .pilot-entry-discoveries img { width: 62px; height: 62px; object-fit: cover; border-radius: 2px; }
+.synaura-pilot .pilot-entry-discoveries button > span { flex: 1; min-width: 0; }
+.synaura-pilot .pilot-entry-discoveries strong { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 14px; }
+.synaura-pilot .pilot-entry-discoveries small { display: block; font-size: 11px; color: var(--pilot-muted); margin-top: 5px; }
+.synaura-pilot .pilot-entry-posts { display: grid; gap: 14px; }
+.synaura-pilot .pilot-entry-posts > button { text-align: left; padding: 16px; background: #0b131e; border: 1px solid var(--pilot-line); min-width: 0; }
+.synaura-pilot .pilot-entry-post-author { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+.synaura-pilot .pilot-entry-post-author img { width: 28px; height: 28px; object-fit: cover; border-radius: 50%; }
+.synaura-pilot .pilot-entry-post-author strong { flex: 1; overflow-wrap: anywhere; }
+.synaura-pilot .pilot-entry-post-excerpt { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; margin: 12px 0; font-size: 14px; line-height: 1.5; }
+.synaura-pilot .pilot-entry-posts small, .synaura-pilot .pilot-entry-note { font-size: 11px; color: var(--pilot-muted); }
+@media (max-width:800px) {
+  .synaura-pilot .pilot-entry { grid-template-columns: minmax(0,1fr); grid-template-rows: auto; gap: 26px; padding: 18px 24px; }
+  .synaura-pilot .pilot-entry-copy h1 { font-size: clamp(36px,9.7vw,64px); margin: 14px 0 0; }
+  .synaura-pilot .pilot-entry-copy .pilot-kicker { font-size: 8px; }
+  .synaura-pilot .pilot-entry-intent { display: none; }
+  .synaura-pilot .pilot-entry-record { max-width: min(100%,32dvh); }
+  .synaura-pilot .pilot-entry-copy { display: contents; }
+  .synaura-pilot .pilot-entry-copy > .pilot-kicker { margin-bottom: -16px; order: 0; }
+  .synaura-pilot .pilot-entry-copy h1 { order: 1; }
+  .synaura-pilot .pilot-entry-record { order: 2; }
+  .synaura-pilot .pilot-entry-shortcuts { order: 3; margin-top: 0; gap: 0 18px; }
+  .synaura-pilot .pilot-entry-around { order: 4; grid-template-columns: minmax(0,1fr); gap: 28px; }
+  .synaura-pilot .pilot-entry-footer { order: 5; }
+  .synaura-pilot .pilot-entry-art { padding-top: 18px; }
+  .synaura-pilot .pilot-entry-track { margin-top: 14px; gap: 12px; }
+  .synaura-pilot .pilot-entry-track h2 { font-size: 23px; }
+  .synaura-pilot .pilot-entry-track p { margin-top: 4px; font-size: 12px; }
+  .synaura-pilot .pilot-entry-track button { width: 48px; height: 48px; }
+  .synaura-pilot .pilot-entry-footer { flex-direction: column; gap: 8px; padding-top: 12px; }
+  .synaura-pilot .pilot-entry-footer > span:first-child { display: none; }
+  .synaura-pilot .pilot-entry-enter { width: 100%; }
 }
 /* Short displays and 200% zoom: the sole feed scrolls, never a nested metadata box. */
 @media (max-height: 720px) {

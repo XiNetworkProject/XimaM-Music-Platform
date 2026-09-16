@@ -391,6 +391,11 @@ export type LivePilotModel = {
   shareClip: (clip: ScrollClip) => Promise<void>;
   launchCollection: (id: string, slug: string) => Promise<void>;
   launchingCollectionId: string | null;
+  entryOpen: boolean;
+  enterFeed: () => void;
+  entryPosts: ScrollPost[];
+  entryUserName: string | null;
+  navigateFromEntry: (href: string) => void;
 };
 
 export default function SynauraScroll({ renderPilot }: { renderPilot?: (model: LivePilotModel) => React.ReactNode } = {}) {
@@ -416,7 +421,6 @@ export default function SynauraScroll({ renderPilot }: { renderPilot?: (model: L
   const [accountOpen, setAccountOpen] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [homePreludeOpen, setHomePreludeOpen] = useState(() => {
-    if (renderPilot) return false;
     if (typeof window === 'undefined') return true;
     const params = new URLSearchParams(window.location.search);
     return !params.get('sourceTrackId') && !params.get('clipId') && params.get('filter') !== 'clips';
@@ -498,7 +502,7 @@ export default function SynauraScroll({ renderPilot }: { renderPilot?: (model: L
       setTrackCursor(restore.snapshot.cursors.tracks);
       setTrackHasMore(restore.snapshot.hasMore.tracks);
       setActiveIndex(anchorIndex);
-      setHomePreludeOpen(!renderPilot && restore.snapshot.contextSurface === 'prelude');
+      setHomePreludeOpen(restore.snapshot.contextSurface === 'prelude');
       setLoading(restore.status === 'partial' || items.length === 0);
       for (const item of items.slice(0, restore.snapshot.frozenSeenBoundary + 1)) {
         if (item.type === 'track') impressionSeenRef.current.add(`track:${item.track._id}`);
@@ -932,7 +936,7 @@ export default function SynauraScroll({ renderPilot }: { renderPilot?: (model: L
     pilot: Boolean(renderPilot),
     itemCount: feedItems.length,
     activeIndex,
-    locked: contextDepth > 0,
+    locked: contextDepth > 0 || Boolean(renderPilot && homePreludeOpen && filter === 'foryou'),
     ready: !loading,
     onNavigate: navigateTo,
     onTogglePlay: useCallback(() => { audioState.isPlaying ? pause() : play(); }, [audioState.isPlaying, pause, play]),
@@ -1826,6 +1830,9 @@ export default function SynauraScroll({ renderPilot }: { renderPilot?: (model: L
     retry: () => setReloadKey(value => value + 1), waveform: trackWaveform,
     moments: momentComments, reactions: momentReactions, react: submitMomentReaction,
     sharePost, shareClip, launchCollection, launchingCollectionId,
+    entryOpen: homePreludeOpen && filter === 'foryou', enterFeed: enterFlow,
+    entryPosts: basePosts, entryUserName: (session?.user as any)?.name || username || null,
+    navigateFromEntry: navigateFromLive,
   });
 
   if (!continuityReady) {

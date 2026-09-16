@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="224" height="52" viewBox="0 0 224 52" fill="none">
+  <title>Synaura</title>
+  <defs>
+    <linearGradient id="pearl" x1="7" y1="5" x2="43" y2="47" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F4FAFF"/>
+      <stop offset=".5" stop-color="#BCD6F4"/>
+      <stop offset="1" stop-color="#7895BE"/>
+    </linearGradient>
+  </defs>
+  <path d="M39.8 10.2A21 21 0 1 0 44.9 20" stroke="url(#pearl)" stroke-width="1.5" stroke-linecap="round"/>
+  <path d="M34.7 13.9C31.9 10.3 24.1 10.7 20.8 15.5C17.2 20.9 23.3 24 27.2 27.2C32.6 31.6 29.7 39.8 22.6 40.1C19.1 40.3 16 38.4 15.6 35.6" stroke="url(#pearl)" stroke-width="3.2" stroke-linecap="round"/>
+  <path d="M31.4 9.8L29.3 15.5M21.1 37.6L19.5 42.1" stroke="url(#pearl)" stroke-width="1.1" stroke-linecap="round"/>
+  <circle cx="43.1" cy="14.6" r="1.7" fill="#D5E9FF"/>
+  <text x="59" y="37" fill="#F0F5FC" font-family="Arial, Helvetica, sans-serif" font-size="36" font-weight="500" letter-spacing="-1.4">Synaura</text>
+</svg>

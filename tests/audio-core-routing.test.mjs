@@ -38,7 +38,7 @@ test('les routes masquent seulement le mini-player, pas le moteur persistant', (
   const visibility = routes.map((pathname) => [pathname, shouldRenderGlobalMiniPlayer(pathname)]);
   assert.deepEqual(visibility, [
     ['/', false],
-    ['/discover', true],
+    ['/discover', false], // Promoted Discover owns its PilotPlayer; AudioCore remains global.
     ['/library', true],
     ['/notifications', true],
     ['/studio', true],

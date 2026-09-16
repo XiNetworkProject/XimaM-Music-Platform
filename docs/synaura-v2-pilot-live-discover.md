@@ -114,7 +114,7 @@ NVDA réel et clavier Android/Gboard réel ne sont pas présentés comme testés
 
 ## Validation et mesures
 
-Gates de la candidate : 668 tests PASS, TypeScript PASS et `git diff --check`
+Gates du pilote initial : 668 tests PASS, TypeScript PASS et `git diff --check`
 PASS. Le scan des 25 fichiers sélectionnés ne trouve aucune valeur sensible de
 l'environnement local ni signature de clé privée. Aucun fichier d'environnement,
 artifact, cache ou changement natif n'est inclus dans le commit.
@@ -136,8 +136,16 @@ secondaire. Discover charge les vrais contenus et médias après passage par le
 résolveur public. Les mesures dev (environ 540–600 nœuds DOM et 75–84 Mo de heap)
 ne sont pas une mesure de performance production ni une preuve d'absence de fuite.
 
-Réserves de revue à distinguer d'un PASS : matrice exhaustive des six tailles,
-zoom 200 %, cycles heap production et lecteur d'écran réel. Pas de validation
+Matrice locale compilée Live et Discover revue à 360×800, 390×844, 430×933
+(arrondi d'un pixel du navigateur), 768×1024, 1440×900 et 1920×1080 : pas de
+débordement horizontal, commandes Live accessibles, player mobile au-dessus de
+la navigation. Cinq allers-retours chauds Live/Discover conservent le morceau,
+la queue, les 14 listeners et un élément musical. Les requêtes Discover restent
+à deux et Radar à une sur ces cycles. Heap observé entre 21,46 et 34,90 Mo :
+variation mesurée sans GC forcé, pas une preuve d'absence de fuite. Retour Track
+vers Live : même ancre et génération AudioCore.
+
+Réserves de revue à distinguer d'un PASS : zoom 200 % et lecteur d'écran réel. Pas de validation
 Android/Gboard réel. Les clics de like/follow/réaction ne sont pas exécutés pour
 ne pas créer de faux signal social. Un clip absent des données n'est pas remplacé
 par un faux média. Les preuves HTTP, captures et contrôles de bascule sont
@@ -148,6 +156,32 @@ créative générale ou un remplacement de V1. Les contrôles après bascule son
 consignés dans le rapport opérateur `artifacts/v2-pilot/deployment.md`.
 
 ## Déploiement et retour arrière
+
+### Accueil Live enrichi — candidate locale du 16 septembre 2026
+
+La publication est suspendue pour revue de l'accueil. La production demeure sur
+`a0f554f90eb6ee412de931dbc673c9db1fdd9cb4` ; le timer de déploiement est
+temporairement arrêté pour empêcher la publication de la première candidate
+`373bef7656f9f2b3ea72c27c486ab48932918d56` déjà poussée. Il doit être réactivé
+à la reprise explicite de la publication, après push de la candidate finale.
+
+L'entrée expose l'item actif exact du feed : aucune sélection indépendante.
+Les statistiques, accès fiche/commentaires/partage via la fiche, trois autres
+morceaux, deux publications et raccourcis Découvrir/Radar/Studio IA/Événements
+réutilisent les données et la navigation existantes, sans nouvelle requête.
+Un seul conteneur défile ; pas de carrousel ni de zone interne scrollable.
+Le bouton direct révèle le même item. Au bas de l'accueil, un nouveau geste
+ouvre le fil ; l'inertie du geste qui atteint le bas ne doit pas le fermer.
+
+Revue navigateur à 1440×900 et 390×844 : contenu réel, pas de débordement
+horizontal, publications et bouton final lisibles. Scroll desktop vers le bas :
+accueil conservé, puis second geste : même ancre dans le fil. Lecture mobile
+vers le fil : même morceau, queue et génération (2), lecture continue de
+11,31 à 22,47 s. Preuves dans `artifacts/v2-pilot/entry-rich-*`.
+669 tests PASS, TypeScript PASS, diff check PASS, scan de 26 fichiers sans
+secret détecté. Build production de l'accueil enrichi PASS le 16 septembre :
+Live V2 8,23 ko / 416 ko au premier chargement (estimation Next).
+Téléphone tactile physique et lecteur d'écran non testés.
 
 Workflow canonique Freebox : commit isolé sur `migration/freebox-storage`, push,
 build d'une nouvelle release, preflight, bascule atomique, health puis rétention.
