@@ -42,6 +42,8 @@ export function reviewedPilotV1(file, raw) {
     replace("locked: contextDepth > 0 || Boolean(renderPilot && homePreludeOpen && filter === 'foryou')", 'locked: contextDepth > 0');
     assert.equal(createHash('sha256').update(text).digest('hex'), '92e64c39547c039a104c68ed5cbd5e567797d1fa2b3338fa778862bca58e5d43', 'V1 Live source remains identical after projecting the exact opt-in additions');
   } else if (file === 'lib/routeChrome.ts') {
+    // Offline Studio fixture only; production and all existing paths are unchanged.
+    replace("  if (process.env.NODE_ENV !== 'production' && pathname === '/dev/studio') return getRouteChrome('/studio');\n");
     replace(`
 /** Validated Live/Discover plus preview aliases; other routes keep their chrome. */
 export function isV2PilotRoute(pathname: string | null | undefined) {

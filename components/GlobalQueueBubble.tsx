@@ -13,7 +13,7 @@ export default function GlobalQueueBubble() {
   const pathname = usePathname();
   useEffect(() => setMounted(true), []);
 
-  const hiddenOnSynaura = pathname === '/' || pathname === '/landing' || pathname === '/live' || pathname?.startsWith('/discover') || pathname?.startsWith('/library') || isChamberProductRoute(pathname);
+  const hiddenOnSynaura = pathname === '/' || pathname === '/landing' || pathname?.startsWith('/landing/') || pathname === '/live' || pathname?.startsWith('/discover') || pathname?.startsWith('/library') || isChamberProductRoute(pathname);
 
   if (!mounted || typeof document === 'undefined' || hiddenOnSynaura || isV2PilotRoute(pathname)) {
     return null;

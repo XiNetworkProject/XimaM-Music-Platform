@@ -52,11 +52,16 @@ test('existing spaces controller and destinations are byte-identical outside dec
   assert.equal(current.replace(`${decorativeImport}\n`, '').replace('        <ChambreResonance className="chambre-spaces-resonance" />\n', ''), previous);
 });
 
-test('root integration adds only its stylesheet; support form behavior remains untouched', {skip: !fs.existsSync(new URL('../artifacts/chambre-signature/before/foundation/app/layout.tsx', import.meta.url))}, () => {
+test('root integration preserves providers with the reviewed decorative layer; support remains untouched', {skip: !fs.existsSync(new URL('../artifacts/chambre-signature/before/foundation/app/layout.tsx', import.meta.url))}, () => {
   const previous = read('artifacts/chambre-signature/before/foundation/app/layout.tsx').replaceAll('\r\n','\n');
   const current = read('app/layout.tsx').replaceAll('\r\n','\n');
   // The explicitly requested full experience redraw adds these presentation sheets only.
   let previousIntegration = current;
+  // Requested site-wide ambient layer: exactly one inert sibling, no provider change.
+  for (const fragment of ["import LivingAmbience from '@/components/ambient/LivingAmbience';\n", '          <LivingAmbience />\n']) {
+    assert.equal(previousIntegration.split(fragment).length, 2);
+    previousIntegration = previousIntegration.replace(fragment, '');
+  }
   for (const sheet of ['experience-live-navigation', 'experience-collection', 'experience-creation', 'experience-account']) {
     const line = `import '@/components/v2/${sheet}.css';\n`;
     assert.ok(previousIntegration.split(line).length <= 2, `${sheet}: no duplicate integration`);

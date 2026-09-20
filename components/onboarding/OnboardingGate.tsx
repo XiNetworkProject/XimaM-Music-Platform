@@ -18,7 +18,8 @@ export default function OnboardingGate({ children }: { children: ReactNode }) {
   const router = useRouter();
   const checkedUser = useRef<string | null>(null);
   const [gateState, setGateState] = useState<'checking' | 'ready' | 'redirecting'>('checking');
-  const excluded = pathname === '/' || pathname === '/live' || !pathname || EXCLUDED_PREFIXES.some((prefix) => pathname.startsWith(prefix));
+  const offlineStudioLab = process.env.NODE_ENV !== 'production' && pathname === '/dev/studio';
+  const excluded = offlineStudioLab || pathname === '/' || pathname === '/live' || !pathname || EXCLUDED_PREFIXES.some((prefix) => pathname.startsWith(prefix));
 
   useEffect(() => {
     if (excluded || status === 'unauthenticated') {

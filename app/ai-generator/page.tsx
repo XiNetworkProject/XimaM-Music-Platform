@@ -44,6 +44,7 @@ import { getEntitlements } from '@/lib/entitlements';
 import { CURRENT_SUNO_MODELS, DEFAULT_SUNO_MODEL, getSunoModelLabel, normalizeGenerationModel, SUNO_GENERATION_LIMITS } from '@/lib/sunoModels';
 import { buildSunoGeneratorPayload, restoreGeneratorDuration } from '@/lib/sunoGeneratorForm';
 import SunoV6Announcement from '@/components/ai-studio/SunoV6Announcement';
+import UnifiedStudio from '@/components/ai-studio/UnifiedStudio';
 
 const DEBUG_AI_STUDIO = process.env.NODE_ENV !== 'production';
 
@@ -412,7 +413,7 @@ function RemixDirectionField({
   );
 }
 
-function AIGeneratorContent() {
+function AIGeneratorContent({ unifiedStudio = true }: { unifiedStudio?: boolean } = {}) {
   const { data: session } = useSession();
   const searchParams = useSearchParams();
   const sourceParamKey = searchParams?.toString() || '';
@@ -1671,6 +1672,8 @@ function AIGeneratorContent() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // The unified surface uses native controls; legacy global shortcuts must not steal Space or Ctrl+K.
+      if (unifiedStudio) return;
       const target = e.target as HTMLElement | null;
       const inInput = !!target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable);
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
@@ -1690,7 +1693,7 @@ function AIGeneratorContent() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [audioState.isPlaying, cmdOpen, pause, play]);
+  }, [audioState.isPlaying, cmdOpen, pause, play, unifiedStudio]);
 
   useEffect(() => {
     if (!cmdOpen) return;
@@ -3314,6 +3317,62 @@ function AIGeneratorContent() {
       remixVisibility,
     });
   }, [studioInspectorKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // UNIFIED_STUDIO_PRESENTATION_START: adapter only, existing request/audio handlers stay unchanged.
+  const unifiedSongs = useMemo(() => allTracks.map(source => {
+    const generation = generationsById.get(String(source.generation_id));
+    return { track: convertAITrackToGenerated(source), liked: likedTrackIds.has(source.id), trashed: trashedTrackIds.has(source.id), published: source.is_public ?? generation?.is_public ?? false, folder: parseSourceLinks(source.source_links)?.library_folder, model: getSunoModelLabel(source.model_name || generation?.model) };
+  }), [allTracks, generationsById, likedTrackIds, trashedTrackIds]); // Media conversion depends only on tracks and their generations, not the audio clock.
+  if (unifiedStudio) {
+    const findSource = (track: GeneratedTrack) => allTracks.find(item => String(item.id) === track.id);
+    const select = (track: GeneratedTrack) => {
+      const source = findSource(track);
+      // Preserve stored remix permissions alongside the display model.
+      const selection = source ? { ...source, ...track } : track;
+      setSelectedTrack(selection);
+      setGeneratedTrack(selection);
+      setSelectedGeneration(source ? generationsById.get(String(source.generation_id)) || null : null);
+    };
+    return <UnifiedStudio
+      authenticated={Boolean(session)} quotaLoading={quotaLoading} credits={creditsBalance} buyCredits={() => setShowBuyCredits(true)}
+      form={{
+        mode: { value: generationModeKind, set: selectGenerationMode },
+        description: { value: description, set: setDescription }, title: { value: title, set: setTitle },
+        style: { value: style, set: setStyle }, lyrics: { value: lyrics, set: setLyrics },
+        instrumental: { value: isInstrumental, set: setIsInstrumental }, model: { value: modelVersion, set: value => setModelVersion(normalizeGenerationModel(value, availableModels)) }, allowedModels: availableModels,
+        duration: { value: generationDuration, set: setGenerationDuration }, weirdness: { value: weirdness, set: setWeirdness }, styleInfluence: { value: styleInfluence, set: setStyleInfluence }, audioWeight: { value: audioWeight, set: setAudioWeight },
+        negativeTags: { value: negativeTags, set: setNegativeTags }, vocalGender: { value: vocalGender, set: value => setVocalGender(value as '' | 'm' | 'f') }, tags: selectedTags, clearTags: () => setSelectedTags([]),
+        sourceCredit: sourceContext ? <div className="us-source-credit">À partir de {sourceContext.trackUrl ? <Link href={sourceContext.trackUrl}>{sourceContext.title}</Link> : sourceContext.title}{sourceContext.artist && ` · ${sourceContext.artist}`}{sourceContext.warning && <p role="status">{sourceContext.warning}</p>}</div> : null,
+        remixReady: Boolean(remixUploadUrl || remixSourceTrackId),
+        remixSource: <div className="us-remix-source">
+          <RemixDropzone file={remixFile} uploading={remixUploading} onFileSelected={file => { setRemixFile(file); setPendingRemixFile(file); setRemixUploadModalOpen(true); }} />
+          {(remixUploadUrl || remixSourceTrackId) && <div className="us-source-credit">{remixSourceLabel || 'Audio prêt'}<button className="us-text-button" onClick={clearRemixSource}>Retirer</button></div>}
+          {!(remixUploadUrl || remixSourceTrackId) && <p className="us-source-hint">Ou choisissez « Remixer » sur un de vos morceaux.</p>}
+        </div>,
+        remixOptions: <><label className="us-field">Transformation<select value={remixType} onChange={event => setRemixType(event.target.value as RemixType)}>{REMIX_TYPE_OPTIONS.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}</select></label><label className="us-field">Consigne du remix<select value={remixPromptVisibility} onChange={event => setRemixPromptVisibility(event.target.value as 'private' | 'public')}><option value="private">Privée</option><option value="public">Visible avec le remix</option></select></label></>,
+      }}
+      generation={{ busy: isGenerating || remixUploading, pending: sunoState === 'pending' || sunoState === 'first', progress: liveProgressPct, status: liveStatusLabel, error: sunoError, cooldown: cooldownSecondsLeft, submit: generateMusic, lyricsBusy: isGeneratingLyrics, generateLyrics: generateAutoLyrics }}
+      library={{ songs: unifiedSongs, loading: generationsLoading, error: generationsError, refresh: refreshGenerations, fresh: generatedTracks }}
+      selected={studioInspectorTrack} select={select}
+      actions={{
+        play: playGenerated, download: downloadGenerated, share: shareGenerated, copyLyrics: handleCopyLyrics, reuse: handleReuseTrackInfo,
+        remix: track => { const source = findSource(track); if (source) useLibraryTrackForRemix(source); else useGeneratedTrackForRemix(track); },
+        like: track => { const source = findSource(track); if (source) void toggleTrackLike(source); },
+        trash: track => { const source = findSource(track); if (source) void toggleTrackTrash(source); },
+        folder: (track, folder) => { const source = findSource(track); if (source) void moveTrackToFolder(source, folder); },
+        video: track => { const source = findSource(track); if (source) void generateCoverVideo(source, generationsById.get(String(source.generation_id)) || null); }, videoBusy: Boolean(generatingCoverVideoTrackId),
+        publish: toggleGenerationVisibility, publishBusy: publishingVisibility, published: selectedVisibilityState?.is_public === true,
+        permissions: <RemixPermissionsSection value={studioRemixPermissions} onChange={setStudioRemixPermissions} />,
+        timedLyrics: <><button className="us-text-button" onClick={() => fetchTimestampedLyrics(false)} disabled={timestampedLoading}>{timestampedLoading ? 'Synchronisation…' : 'Charger les paroles synchronisées'}</button>{timestampedError && <p role="alert">{timestampedError}</p>}{timestampedWords.length > 0 && <p className="us-lyrics">{timestampedWords.map((word, index) => <span key={index} data-current={[ `ai-${studioInspectorTrack?.id}`, `gen-${studioInspectorTrack?.id}` ].includes(activeQueueTrack?._id) && audioState.currentTime >= word.startS && audioState.currentTime <= word.endS || undefined}>{word.word} </span>)}</p>}</>,
+      }}
+      modals={<>
+        <UploadConfirmModal isOpen={remixUploadModalOpen && Boolean(pendingRemixFile)} file={pendingRemixFile} onConfirm={uploadTitle => { const file = pendingRemixFile; setRemixUploadModalOpen(false); setPendingRemixFile(null); if (file) void performRemixUpload(file, uploadTitle); }} onCancel={() => { setRemixUploadModalOpen(false); setPendingRemixFile(null); setRemixFile(null); }} />
+        <UploadProgressModal isOpen={remixUploading} title={uploadingRemixTitle} onCancel={() => { uploadAbortRef.current?.abort(); setRemixUploading(false); setUploadingRemixTitle(null); }} />
+        <BuyCreditsModal isOpen={showBuyCredits} onClose={() => setShowBuyCredits(false)} />
+      </>}
+    />;
+  }
+  // UNIFIED_STUDIO_PRESENTATION_END
 
   if (!session) {
     return (

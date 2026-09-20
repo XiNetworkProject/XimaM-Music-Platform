@@ -52,7 +52,16 @@ test('V6 leaves the audio engine, schema, entry and unrelated APIs on the preser
   for (const [file, hash] of Object.entries(baseline)) {
     if (authorized.has(file)) continue;
     const bytes = readFileSync(new URL(`../${file}`, import.meta.url));
-    const source = bytes.includes(0) ? bytes : bytes.toString('utf8').replaceAll('\r\n', '\n');
+    let source = bytes.includes(0) ? bytes : bytes.toString('utf8').replaceAll('\r\n', '\n');
+    if (file === 'components/chamber/ChamberProduct.tsx') {
+      // Exactly the optional home CTA routes into the new horizontal presentation.
+      // Project these two reviewed fragments; the old scene/audio/scroll stays hashed.
+      const signature = 'export default function ChamberProduct({ presentationHref }: { presentationHref?: string } = {}) {';
+      const cta = '{presentationHref ? <Link href={presentationHref} className="cp-button cp-button-light">Découvrir Synaura <ArrowUpRight size={20} /></Link> : <button type="button" className="cp-button cp-button-light" onClick={() => goToChapter(1)}>Découvrir Synaura <ArrowUpRight size={20} /></button>}';
+      assert.equal(source.split(signature).length, 2);
+      assert.equal(source.split(cta).length, 2);
+      source = source.replace(signature, 'export default function ChamberProduct() {').replace(cta, '<button type="button" className="cp-button cp-button-light" onClick={() => goToChapter(1)}>Découvrir Synaura <ArrowUpRight size={20} /></button>');
+    }
     assert.equal(createHash('sha256').update(source).digest('hex'), hash, file);
   }
 });

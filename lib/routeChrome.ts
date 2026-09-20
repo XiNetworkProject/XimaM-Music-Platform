@@ -25,6 +25,7 @@ export function isV2PilotRoute(pathname: string | null | undefined) {
 }
 
 export function getRouteChrome(pathname: string | null): RouteChrome {
+  if (process.env.NODE_ENV !== 'production' && pathname === '/dev/studio') return getRouteChrome('/studio');
   if (!pathname) {
     return {
       kind: 'standard',

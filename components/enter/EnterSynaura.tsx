@@ -7,11 +7,11 @@ import { recordEntryEvent } from '@/lib/entryAnalytics';
 
 const choices = [
   { href: '/auth/signin', icon: LogIn, eyebrow: 'Je reviens', title: 'Se connecter', text: 'Retrouve ton profil et entre directement dans Live Synaura.' },
-  { href: '/auth/signup', icon: UserPlus, eyebrow: 'Je commence', title: 'Créer mon compte', text: 'Quelques informations, puis tes goûts et tes envies.' },
+  { href: '/landing/presentation?intent=signup', icon: UserPlus, eyebrow: 'Je commence', title: 'Créer mon compte', text: 'Découvre Synaura, puis trouve ta place.' },
 ] as const;
 
 export default function EnterSynaura() {
-  return <div className="flex min-h-[100svh] items-center justify-center px-3 py-6"><EntryFrame eyebrow="Le seuil" title="Prends ta place." description="Reprends ton écoute, ou commence une nouvelle histoire." compact>
+  return <EntryFrame eyebrow="Le seuil" title="Prends ta place." description="Reprends ton écoute, ou commence une nouvelle histoire." compact>
     <div className="divide-y divide-[var(--v2-line)] border-y border-[var(--v2-line)]">
       {choices.map(choice => <Link key={choice.href} href={choice.href} onClick={() => recordEntryEvent(choice.href.includes('signup') ? 'signup_start' : 'enter_click', { source: 'enter' })} className="group flex items-start gap-5 py-8">
         <choice.icon size={20} strokeWidth={1.5} className="mt-1 shrink-0 text-[var(--v2-accent)]" />
@@ -19,5 +19,5 @@ export default function EnterSynaura() {
       </Link>)}
     </div>
     <Link href="/" className="mt-6 inline-flex min-h-11 items-center text-xs text-[var(--v2-muted)]">Revenir à la découverte</Link>
-  </EntryFrame></div>;
+  </EntryFrame>;
 }

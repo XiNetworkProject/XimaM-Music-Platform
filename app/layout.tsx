@@ -17,6 +17,7 @@ import { ConditionalNav, ConditionalNavbar, ConditionalBottomNav } from '@/compo
 import LayoutContent from '@/components/LayoutContent';
 import FullScreenPlayer from '@/components/FullScreenPlayer';
 import StudioBackground from '@/components/StudioBackground';
+import LivingAmbience from '@/components/ambient/LivingAmbience';
 import GlobalQueueBubble from '@/components/GlobalQueueBubble';
 import { Analytics } from '@vercel/analytics/next';
 import AdSenseScript from '@/components/AdSenseScript';
@@ -144,6 +145,7 @@ export default function RootLayout({
           <ContextSurfaceProvider>
           {/* Studio Background (fond global de l'app) */}
           <StudioBackground variant="synaura" />
+          <LivingAmbience />
           
           {/* Conteneur de scroll unique : hauteur viewport, scroll interne, pas de rebond */}
           <div className="app-scroll-container">

@@ -6,6 +6,15 @@ const nextConfig = {
   
   // Optimisations pour réduire les coûts Vercel
   compress: true,
+
+  async redirects() {
+    // One workspace. Next preserves source/remix/challenge/Live return query parameters.
+    return [
+      { source: '/ai-generator', destination: '/studio', permanent: false },
+      { source: '/ai-library', destination: '/studio?view=library', permanent: false },
+      { source: '/studio/library', destination: '/studio?view=library', permanent: false },
+    ];
+  },
   
   async headers() {
     return [

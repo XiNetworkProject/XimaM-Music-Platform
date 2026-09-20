@@ -83,7 +83,7 @@ function SignInContent() {
           </div>
           <div className="flex items-center justify-between gap-3 text-xs font-black">
             <Link href="/auth/forgot-password" className="text-[var(--syn-text-secondary)] hover:text-[var(--syn-text-primary)]">Mot de passe oublié&nbsp;?</Link>
-            <Link href={`/auth/signup?callbackUrl=${encodeURIComponent(callbackUrl)}`} className="text-[var(--syn-accent)]">Créer un compte</Link>
+            <Link href={`/landing/presentation?intent=signup&callbackUrl=${encodeURIComponent(callbackUrl)}`} className="text-[var(--syn-accent)]">Créer un compte</Link>
           </div>
           <SynauraButton type="submit" variant="accent" size="lg" fullWidth loading={isLoading}><LockKeyhole className="h-4 w-4" /> Se connecter</SynauraButton>
         </form>

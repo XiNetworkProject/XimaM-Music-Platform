@@ -12,7 +12,7 @@ import './chamber-story.css';
 
 const ChamberMaterial = dynamic(() => import('./ChamberMaterial'), { ssr: false });
 
-export default function ChamberProduct() {
+export default function ChamberProduct({ presentationHref }: { presentationHref?: string } = {}) {
   const rootRef = useRef<HTMLDivElement>(null);
   const panelsRef = useRef<Array<HTMLElement | null>>([]);
   const [entered, setEntered] = useState(false);
@@ -99,7 +99,7 @@ export default function ChamberProduct() {
           <p className="cp-eyebrow"><span /> LA CHAMBRE SONORE</p>
           <h1 id="cp-entry-title"><span>LE SON</span><span>PREND</span><span>CORPS<span className="cp-dot">.</span></span></h1>
           <p className="cp-entry-description">Il y a la musique que l’on écoute.<br />Et celle que l’on ressent.</p>
-          <div className="cp-entry-action"><button type="button" className="cp-button cp-button-light" onClick={() => goToChapter(1)}>Découvrir Synaura <ArrowUpRight size={20} /></button><span>LA MUSIQUE. LES PERSONNES.<br /><b>ET TOUT CE QUI NOUS RELIE.</b></span></div>
+          <div className="cp-entry-action">{presentationHref ? <Link href={presentationHref} className="cp-button cp-button-light">Découvrir Synaura <ArrowUpRight size={20} /></Link> : <button type="button" className="cp-button cp-button-light" onClick={() => goToChapter(1)}>Découvrir Synaura <ArrowUpRight size={20} /></button>}<span>LA MUSIQUE. LES PERSONNES.<br /><b>ET TOUT CE QUI NOUS RELIE.</b></span></div>
         </div>
         <div className="cp-material-caption" aria-hidden="true"><span>+</span> MATIÈRE SONORE<br />COBALT / 001</div>
         <button type="button" className="cp-material-pulse" onClick={() => setPulse(value => value + 1)} disabled={paused} aria-label="Envoyer une onde dans la matière"><span className="cp-pulse-mark" aria-hidden="true">≋</span> TOUCHEZ LA MATIÈRE <ArrowUpRight size={15} /></button>

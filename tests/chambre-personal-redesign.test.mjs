@@ -293,6 +293,12 @@ test('local pre-edit snapshots prove non-presentation code and event expressions
     let current = path === 'app/support/page.tsx'
       ? read(path).replace("import ChambreResonance from '@/components/v2/ChambreResonance';", '')
       : read(path);
+    if (path === 'app/auth/signin/page.tsx') {
+      // Only the requested optional pre-signup presentation changes this link.
+      const href = '/landing/presentation?intent=signup&callbackUrl=';
+      assert.equal(current.split(href).length, 2);
+      current = current.replace(href, '/auth/signup?callbackUrl=');
+    }
     if (path === 'app/search/page.tsx') {
       // Three new static navigation shortcuts must not prefetch destinations.
       // Only those three false expressions are new; the existing search stays protected.

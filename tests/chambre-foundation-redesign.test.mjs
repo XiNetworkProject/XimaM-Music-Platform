@@ -16,8 +16,10 @@ test('approved public story replaces presentation only; server member routing su
   assert.match(home, /memberHasCompletedOnboarding\(userId\)/);
   assert.match(home, /redirect\('\/live'\)/);
   assert.match(landing, /<PublicChamberEntry legacy/);
-  assert.match(entry, /<ChamberProduct \/>/);
-  assert.match(entry, /href="\/enter"/);
+  assert.match(entry, /<ChamberProduct presentationHref="\/landing\/presentation" \/>/);
+  const presentation = await read('components/enter/SynauraPresentation.tsx');
+  assert.match(presentation, /\/auth\/signin\?callbackUrl=/);
+  assert.match(presentation, /\/auth\/signup\?callbackUrl=/);
   assert.match(await read('components/GlobalQueueBubble.tsx'), /pathname === '\/landing'/);
   assert.match(entry, /recordEntryEvent\('discover_view'/);
   assert.doesNotMatch(entry, /new Audio|AudioContext|SessionProvider|fetch\(/);
