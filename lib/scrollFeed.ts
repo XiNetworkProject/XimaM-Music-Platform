@@ -8,6 +8,8 @@ export type ScrollTrack = {
   artist: { _id: string; name: string; username: string; avatar?: string | null };
   audioUrl: string;
   coverUrl?: string | null;
+  coverVideoUrl?: string | null;
+  coverVideoPosterUrl?: string | null;
   duration: number;
   likes: number | string[];
   comments: number | string[];
@@ -105,6 +107,8 @@ export type ScrollPost = {
     title: string;
     artist_name?: string | null;
     cover_url?: string | null;
+    cover_video_url?: string | null;
+    cover_video_poster_url?: string | null;
     audio_url?: string | null;
     duration?: number;
     genre?: string[];
@@ -167,6 +171,8 @@ export function normalizeScrollPosts(rawPosts: any[] | null | undefined): Scroll
         title: String(trackRaw?.title || 'Sans titre'),
         artist_name: trackRaw?.artist_name || trackRaw?.artist?.name || null,
         cover_url: trackRaw?.cover_url || trackRaw?.coverUrl || null,
+        cover_video_url: trackRaw?.cover_video_url || trackRaw?.coverVideoUrl || null,
+        cover_video_poster_url: trackRaw?.cover_video_poster_url || trackRaw?.coverVideoPosterUrl || null,
         audio_url: trackRaw?.audio_url || trackRaw?.audioUrl || null,
         duration: Number(trackRaw?.duration || 0),
         genre: Array.isArray(trackRaw?.genre) ? trackRaw.genre : undefined,
@@ -188,6 +194,8 @@ export function trackFromScrollPost(post: ScrollPost): ScrollTrack | null {
     },
     audioUrl: track.audio_url,
     coverUrl: track.cover_url || null,
+    coverVideoUrl: track.cover_video_url || null,
+    coverVideoPosterUrl: track.cover_video_poster_url || null,
     duration: Number(track.duration || 0),
     likes: 0,
     comments: 0,
@@ -372,8 +380,6 @@ export function composeScrollFeed(params: {
     .filter((t) => t && t._id && t.audioUrl)
     .map((t) => ({ id: `track-${t._id}`, type: 'track' as const, track: t }));
 
-  if (!trackItems.length) return trackItems;
-
   const artistPool = (params.artistSpotlights || []).slice(0, 3);
   const collectionPool = (params.collections || []).slice(0, 2);
   const maxPostItems = Math.min(4, Math.max(1, Math.floor(trackItems.length * MAX_POST_RATIO)));
@@ -382,9 +388,11 @@ export function composeScrollFeed(params: {
     .sort((left, right) => Number(Boolean(right.track?.audio_url)) - Number(Boolean(left.track?.audio_url)))
     .slice(0, maxPostItems)
     .map((post) => ({ id: `post-${post.id}`, type: 'post' as const, post }));
-  const maxClipItems = Math.max(0, Math.floor(trackItems.length * MAX_CLIP_RATIO));
+  const maxClipItems = Math.max(1, Math.floor(trackItems.length * MAX_CLIP_RATIO));
+  const seenClips = new Set<string>();
   const clipPool: ScrollFeedItem[] = (params.clips || [])
     .filter((clip) => clip?.id && clip?.videoUrl && clip.sourceTrack?.audioUrl)
+    .filter(clip => { if (seenClips.has(clip.id)) return false; seenClips.add(clip.id); return true; })
     .slice(0, maxClipItems)
     .map((clip) => ({
       id: `clip-${clip.id}`,
@@ -392,14 +400,15 @@ export function composeScrollFeed(params: {
       clip,
       track: clip.sourceTrack,
     }));
+  if (!trackItems.length) return clipPool;
   const nonTrackCandidates: ScrollFeedItem[] = [];
-  if (postPool[0]) nonTrackCandidates.push(postPool[0]);
-  if (artistPool[0]) nonTrackCandidates.push(artistPool[0]);
   if (clipPool[0]) nonTrackCandidates.push(clipPool[0]);
+  if (postPool[0]) nonTrackCandidates.push(postPool[0]);
+  if (clipPool[1]) nonTrackCandidates.push(clipPool[1]);
+  if (artistPool[0]) nonTrackCandidates.push(artistPool[0]);
   if (postPool[1]) nonTrackCandidates.push(postPool[1]);
   if (collectionPool[0]) nonTrackCandidates.push(collectionPool[0]);
   if (params.challenge) nonTrackCandidates.push(params.challenge);
-  if (clipPool[1]) nonTrackCandidates.push(clipPool[1]);
   if (artistPool[1]) nonTrackCandidates.push(artistPool[1]);
   if (postPool[2]) nonTrackCandidates.push(postPool[2]);
   if (clipPool[2]) nonTrackCandidates.push(clipPool[2]);
@@ -418,13 +427,19 @@ export function composeScrollFeed(params: {
   const result: ScrollFeedItem[] = [trackItems[0]];
   let trackCursor = 1;
   let nonTrackCursor = 0;
+  // A clip is discoverable early in the default feed, not buried behind every
+  // editorial card. Keep the first song and the established non-adjacency rule.
+  let nextInsertion = clipPool.length ? Math.min(3, trackItems.length) : gap;
 
   while (trackCursor < trackItems.length) {
-    if (nonTrackCursor < nonTrackItems.length && trackCursor % gap === 0) {
+    if (nonTrackCursor < nonTrackItems.length && trackCursor === nextInsertion) {
       result.push(nonTrackItems[nonTrackCursor++]);
+      nextInsertion += gap;
     }
     result.push(trackItems[trackCursor++]);
   }
+
+  if (trackItems.length === 3 && clipPool.length && nonTrackItems.length) result.push(nonTrackItems[0]);
 
   return result;
 }

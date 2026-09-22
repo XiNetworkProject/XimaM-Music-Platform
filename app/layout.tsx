@@ -13,6 +13,7 @@ import '@/components/v2/experience-collection.css';
 import '@/components/v2/experience-creation.css';
 import '@/components/v2/experience-account.css';
 import Providers from './providers';
+import ClipUploadIndicator from '@/components/clips/ClipUploadIndicator';
 import { ConditionalNav, ConditionalNavbar, ConditionalBottomNav } from '@/components/ConditionalNav';
 import LayoutContent from '@/components/LayoutContent';
 import FullScreenPlayer from '@/components/FullScreenPlayer';
@@ -29,6 +30,8 @@ import { ContextSurfaceProvider } from '@/components/context-surfaces/ContextSur
 import ProfilePeekRegistration from '@/components/profile/ProfilePeekRegistration';
 import CommentsRegistration from '@/components/comments/CommentsRegistration';
 import ActionsRegistration from '@/components/actions/ActionsRegistration';
+import { Suspense } from 'react';
+import CreateRegistration from '@/components/create/CreateRegistration';
 
 const SYNAURA_THEME_STORAGE_KEY = 'synaura.theme.mode.v1';
 
@@ -167,9 +170,11 @@ export default function RootLayout({
           <AndroidAppPrompt />
           <div id="synaura-overlay-root" />
           <SynauraToastViewport />
+          <ClipUploadIndicator />
           <ProfilePeekRegistration />
           <CommentsRegistration />
           <ActionsRegistration />
+          <Suspense fallback={null}><CreateRegistration /></Suspense>
           </ContextSurfaceProvider>
         </Providers>
         </SynauraThemeProvider>

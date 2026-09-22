@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { AudioCore, AUDIO_SESSION_STORAGE_KEY } from '../lib/audio/AudioCore.ts';
 import { alignExpandedPlayerQueue } from '../lib/playerOpening.ts';
 
@@ -120,6 +121,71 @@ function setup(options = {}) {
 }
 
 const flush = () => new Promise((resolve) => setImmediate(resolve));
+
+test('a silent Live clip never takes a secondary lease or toggles its own source audio', async () => {
+  const previousDocument = Object.getOwnPropertyDescriptor(globalThis, 'document');
+  const previousMedia = Object.getOwnPropertyDescriptor(globalThis, 'HTMLMediaElement');
+  const handlers = new Map();
+  const documentMock = {
+    visibilityState: 'visible',
+    addEventListener: (type, handler) => handlers.set(type, handler),
+    removeEventListener: (type, handler) => { if (handlers.get(type) === handler) handlers.delete(type); },
+  };
+  Object.defineProperty(globalThis, 'document', { configurable: true, value: documentMock });
+  Object.defineProperty(globalThis, 'HTMLMediaElement', { configurable: true, value: MockAudio });
+  const { core, audio } = setup();
+  try {
+    const source = readFileSync(new URL('../components/pilot/LiveClipVideo.tsx', import.meta.url), 'utf8');
+    assert.match(source, /muted playsInline/);
+    const policy = source.match(/data-synaura-audio-policy="([^"]+)"/)?.[1];
+    const coverSource = readFileSync(new URL('../components/TrackCover.tsx', import.meta.url), 'utf8');
+    assert.match(coverSource, /muted\s+loop\s+playsInline/);
+    assert.equal(coverSource.match(/data-synaura-audio-policy="([^"]+)"/)?.[1], policy, 'animated covers use the same tested silent-media policy');
+    await core.playTrack(track('clip-source'));
+    const plays = audio.playCount;
+    const picture = new MockAudio();
+    picture.muted = true;
+    picture.dataset = { synauraAudioPolicy: policy };
+    picture.isConnected = true;
+    for (let frame = 0; frame < 20; frame++) {
+      await picture.play();
+      handlers.get('play')({ target: picture });
+      assert.equal(audio.paused, false, 'a video frame must not pause the source');
+      picture.pause();
+    }
+    assert.equal(audio.playCount, plays, 'no automatic audio pause/resume loop');
+    assert.equal(core.getDiagnostics().activeSecondaryPlayers, 0);
+
+    // Normal previews still keep their existing exclusive-audio behavior.
+    const preview = new MockAudio();
+    preview.dataset = {};
+    preview.isConnected = true;
+    await preview.play();
+    handlers.get('play')({ target: preview });
+    assert.equal(audio.paused, true);
+    assert.equal(core.getDiagnostics().activeSecondaryPlayers, 1);
+    preview.pause();
+    await flush();
+    assert.equal(audio.paused, false);
+    assert.equal(audio.playCount, plays + 1);
+  } finally {
+    core.destroy();
+    if (previousDocument) Object.defineProperty(globalThis, 'document', previousDocument); else delete globalThis.document;
+    if (previousMedia) Object.defineProperty(globalThis, 'HTMLMediaElement', previousMedia); else delete globalThis.HTMLMediaElement;
+  }
+});
+
+test('Live clips using the same source preserve their selected occurrence and advance once', async () => {
+  const { core, audio } = setup();
+  try {
+    const queue = [track('a'),track('b'),track('a'),track('c')];
+    core.setQueueAndPlay(queue,2);await flush();
+    assert.equal(core.getSnapshot().currentIndex,2);
+    const plays=audio.playCount;
+    audio.dispatchEvent(new Event('ended'));await flush();
+    assert.equal(core.getSnapshot().currentTrack._id,'c');assert.equal(core.getSnapshot().currentIndex,3);assert.equal(audio.playCount,plays+1);
+  } finally { core.destroy(); }
+});
 
 for (const playing of [false, true]) {
   for (const changedQueue of [false, true]) {

@@ -1,5 +1,5 @@
 import { createWriteStream } from 'node:fs';
-import { mkdir, open, rename, unlink } from 'node:fs/promises';
+import { mkdir, open, rename, stat, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import { createHmac, randomBytes } from 'node:crypto';
 import { isIP } from 'node:net';
@@ -8,6 +8,7 @@ import { Readable, Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { MUSIC_CLIP_MAX_BYTES, MUSIC_CLIP_DURATION_MESSAGE, isClipDurationValid } from './clipLimits.ts';
 
 const execFileAsync = promisify(execFile);
 
@@ -60,7 +61,7 @@ const KIND_CONFIG: Record<LocalMediaKind, KindConfig> = {
   'message-image': { folder: 'messages/images', maxBytes: 25 * MB, mediaClass: 'image' },
   'message-audio': { folder: 'messages/audio', maxBytes: 25 * MB, mediaClass: 'audio', allowVideoContainerAsAudio: true },
   'message-video': { folder: 'messages/videos', maxBytes: 25 * MB, mediaClass: 'video', createPoster: true },
-  'clip-video': { folder: 'clips/videos', maxBytes: 95 * MB, mediaClass: 'video', createPoster: true },
+  'clip-video': { folder: 'clips/videos', maxBytes: MUSIC_CLIP_MAX_BYTES, mediaClass: 'video', createPoster: true },
   'ai-audio': { folder: 'ai/audio', maxBytes: 500 * MB, mediaClass: 'audio', allowVideoContainerAsAudio: true },
   'ai-cover': { folder: 'ai/covers', maxBytes: 25 * MB, mediaClass: 'image' },
   'star-academy-audio': { folder: 'star-academy/audio', maxBytes: 30 * MB, mediaClass: 'audio', allowVideoContainerAsAudio: true },
@@ -274,6 +275,7 @@ export async function storeRequestBody(params: {
     if (bytes === 0) throw new Error('Le fichier est vide');
     await rename(tempPath, finalPath);
     const probe = await validateStoredContent(finalPath, config.mediaClass, extension);
+    if (kind === 'clip-video' && !isClipDurationValid(probe.duration)) throw new Error(MUSIC_CLIP_DURATION_MESSAGE);
     const result: StoredLocalMedia = {
       secure_url: localMediaPublicUrl(relativePath),
       public_id: localMediaPublicId(relativePath),
@@ -373,6 +375,17 @@ export async function deleteLocalMedia(localPublicId: string) {
   });
   if (posterSafe) await unlink(posterSafe.absolute).catch(() => {});
   return true;
+}
+
+/** Publication trusts the owned SSD file, never client-supplied size/duration. */
+export async function inspectOwnedClipVideo(publicId: string, ownerId: string) {
+  const safe = safeRelativePathFromPublicId(publicId);
+  if (!safe || !isLocalMediaOwnedBy(publicId, ownerId) || !safe.relative.startsWith('clips/videos/') || safe.relative.includes('/posters/')) throw new Error('Vidéo Synaura invalide');
+  const file = await stat(safe.absolute);
+  if (!file.isFile() || file.size > MUSIC_CLIP_MAX_BYTES) throw new Error('Vidéo trop volumineuse');
+  const probe = await validateStoredContent(safe.absolute, 'video', path.extname(safe.absolute));
+  if (!isClipDurationValid(probe.duration)) throw new Error(MUSIC_CLIP_DURATION_MESSAGE);
+  return { duration: probe.duration, bytes: file.size };
 }
 
 export function isLocalMediaKind(value: unknown): value is LocalMediaKind {

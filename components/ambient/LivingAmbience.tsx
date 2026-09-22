@@ -17,7 +17,8 @@ export default function LivingAmbience() {
   const { enabled } = useLivingMotion();
   const light = useRef<HTMLDivElement>(null);
   const publicScene = pathname === '/' || /^\/(landing|auth|enter|onboarding|dev\/chambre)(\/|$)/.test(pathname);
-  const excluded = publicScene || /^\/(admin|embed|test|api)(\/|$)/.test(pathname);
+  // Live owns its cover-colored ambience and its local preference controls.
+  const excluded = publicScene || pathname === '/live' || pathname === '/v2/live' || /^\/(admin|embed|test|api)(\/|$)/.test(pathname);
   useEffect(() => {
     if (excluded || !enabled) return;
     const fine = matchMedia('(pointer: fine)');

@@ -3,12 +3,12 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 test('V2 intent entry retains every genuine creative destination and challenge context', async () => {
-  const source = await readFile(new URL('../app/create/page.tsx', import.meta.url), 'utf8');
+  const source = await readFile(new URL('../lib/createSurface.ts', import.meta.url), 'utf8') + await readFile(new URL('../components/create/CreateSurface.tsx', import.meta.url), 'utf8');
   for (const href of ['/ai-generator', '/upload', '/clips/new', '/create/variation', '/posts?compose=true', '/community?compose=true&category=feedback', '/community?compose=true&category=collab', '/community?compose=true&category=remix', '/studio', '/ai-library']) assert(source.includes(href), href);
-  assert.match(source, /aria-pressed=\{creativeIntent === id\}/);
-  assert.match(source, /aria-controls="creative-path"/);
-  assert.match(source, /href=\{withChallenge\(creativePath\.primary\.href\)\}/);
-  assert.match(source, /useHandoffRouter/);
+  assert.match(source, /presentation: 'sheet'/);
+  assert.match(source, /query.set\(path === '\/live' \? 'createChallengeId' : 'challengeId', challenge\)/);
+  assert.match(source, /withCreateSurfaceContext/);
+  assert.match(source, /components\/navigation\/HandoffLink/);
   assert.doesNotMatch(source, /new Audio\(|setQueueAndPlay|\.play\(|\.pause\(/);
 });
 

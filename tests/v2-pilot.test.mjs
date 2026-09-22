@@ -55,7 +55,9 @@ test('new renderers are distinct and share the existing feed and surface contrac
   assert.match(live, /<SynauraScroll renderPilot=/);
   for (const type of ['track','post','clip','artist_spotlight','collection','challenge','announcement']) assert.ok(live.includes(type));
   for (const hook of ['useProfilePeek','useCommentsSurface','useTrackActions']) assert.ok(live.includes(hook));
-  assert.match(live, /resolveStatus=\{active\}/);
+  assert.match(live, /<LiveFavorite track=\{track\} active=\{active\}/);
+  assert.match(read('components/pilot/LiveSocial.tsx'), /useActionFavoriteStatus\(track._id, active\)/);
+  assert.match(live, /index === model.activeIndex && !model.entryOpen/);
   assert.match(live, /active && item.type === 'track'/);
   assert.match(live, /toggleAttribute\('inert', index !== activeIndex\)/);
   assert.doesNotMatch(live, /<ScrollPostSlide|renderItemBody|new Audio|<audio\b/);
@@ -156,6 +158,8 @@ test('Live entry displays the actual feed anchor and entering never mutates audi
     react: { useRef: () => ({ current: null }) },
     'lucide-react': { ArrowDown: () => null, ArrowUpRight: () => null, Headphones: () => null, Heart: () => null, MessageCircle: () => null, Share2: () => null, Pause: () => null, Play: () => null },
     '@/app/providers': { useAudioPlayer: () => audio }, './PilotImage': { default: () => null },
+    '@/components/TrackCover': { default: () => null },
+    './LiveSocial': { LiveEntrySocial: () => null }, './LiveArtwork': { default: () => null }, '@/components/profile/useProfilePeek': { useProfilePeek: () => () => {} },
   });
   const model = { items: [{ id: 'first', type: 'track', track }, { id: 'next', type: 'track', track: { ...track, _id: 'other' } }], activeIndex: 0,
     playIndex: index => calls.push(['queue-play', index]), enterFeed: () => enters.push('enter') };

@@ -5,11 +5,12 @@ import { resolve } from 'node:path';
 import ts from 'typescript';
 import postcss from 'postcss';
 import { projectReviewedV6, assertUnchangedV6TrackBoundaries } from './helpers/reviewed-suno-v6.mjs';
+import { projectUnifiedPresentation } from './helpers/reviewed-unified-navigation.mjs';
 
 const read = (file) => readFileSync(resolve(file), 'utf8');
 const css = read('components/v2/creation-v2.css');
 const files = [
-  'app/create/page.tsx', 'app/create/variation/page.tsx',
+  'app/create/variation/page.tsx',
   'app/ai-generator/page.tsx', 'app/ai-library/page.tsx',
   'app/studio/StudioClient.tsx', 'app/studio/library/page.tsx',
   'app/upload/page.tsx', 'app/publish/page.tsx',
@@ -40,16 +41,12 @@ test('creation presentation files remain valid TSX and CSS', () => {
   assert.ok(postcss.parse(css).nodes.length > 0);
 });
 
-test('creation hub has its own sculpture composition and preserves every existing intention', () => {
-  const source = read('app/create/page.tsx');
-  assert.match(source, /chambre-create-manifesto/);
-  assert.match(source, /chambre-creation-material" aria-hidden="true"/);
-  assert.match(source, /\/brand\/chambre\/membrane-cobalt\.png/);
-  assert.match(source, /data-creative-intent=\{creativeIntent\}/);
-  for (const intent of ['idea', 'audio', 'video', 'together']) assert.match(source, new RegExp(`id: '${intent}'`));
+test('Create is now a bottom sheet with every real tool, not a sculpture hub', () => {
+  const source = read('lib/createSurface.ts') + read('components/create/CreateSurface.tsx');
   for (const route of ['/ai-generator', '/upload', '/clips/new', '/create/variation', '/studio', '/ai-library']) assert.ok(source.includes(route), route);
-  assert.match(source, /withChallenge\(creativePath\.primary\.href\)/);
-  assert.match(source, /aria-pressed=\{creativeIntent === id\}/);
+  assert.match(source, /presentation: 'sheet'/);
+  assert.match(source, /withCreateSurfaceContext/);
+  assert.doesNotMatch(source, /CreativeResonator|ChamberMaterial|new Audio|setQueueAndPlay/);
 });
 
 test('variation sources still require creator permission and retain source/challenge routing', () => {
@@ -123,8 +120,11 @@ const snapshotRoot = 'artifacts/chambre-full-redesign/before/creation';
 const snapshotsAvailable = files.every((file) => existsSync(resolve(snapshotRoot, file)));
 test('local before/after: events, side effects, navigation, backend calls and media constructors are unchanged', { skip: !snapshotsAvailable }, () => {
   for (const file of files) {
+    // The clip composer is now an explicitly requested functional redesign.
+    // Its upload, duration, retry and navigation contract runs in live-media-continuity.
+    if (['app/clips/new/page.tsx', 'components/clips/ClipUploadIndicator.tsx'].includes(file)) continue;
     const before = parse(file, read(`${snapshotRoot}/${file}`));
-    const after = parse(file, projectReviewedV6(file));
+    const after = parse(file, projectUnifiedPresentation(file, projectReviewedV6(file)));
     if (['app/ai-generator/page.tsx', 'app/ai-library/page.tsx', 'app/studio/StudioClient.tsx'].includes(file)) assertUnchangedV6TrackBoundaries(file);
     const event = (node) => ts.isJsxAttribute(node) && /^on[A-Z]/.test(node.name.getText());
     const boundaryCall = (node) => ts.isCallExpression(node) && /^(fetch|useEffect|useLayoutEffect|useSyncExternalStore|router\.(push|replace|back)|getPublicClip|setQueueAndPlay|playTrack|pause|seek)$/.test(node.expression.getText());
@@ -149,17 +149,11 @@ test('local before/after: events, side effects, navigation, backend calls and me
   }
 });
 
-test('Create presents the next action before explanatory steps and keeps the material outside copy', () => {
-  const source = read('app/create/page.tsx');
-  const cta = source.indexOf('className="v2-create-primary"');
-  assert.ok(cta > source.indexOf('id="creative-path"'));
-  assert.ok(cta < source.indexOf('className="v2-create-path-description"'));
-  assert.ok(cta < source.indexOf('className="v2-create-sequence"'));
-  assert.match(css, /\.chambre-create-hub \{ display: grid; grid-template-columns:/);
-  assert.match(css, /\.chambre-create-hub \.v2-create-composition \{ display: contents;/);
-  assert.match(css, /\.chambre-creation-material \{[^}]*grid-column: 2[^}]*mix-blend-mode: screen/s);
-  assert.match(css, /\.v2-create-path \{[^}]*grid-column: 2; grid-row: 1 \/ span 2/s);
-  assert.doesNotMatch(css, /min-height: (?:540px|clamp\(450px)/);
+test('Create exposes direct links before secondary tools without an intermediate choice', () => {
+  const source = read('components/create/CreateSurface.tsx');
+  assert.match(source, /<Link key=\{tool.id\} replace prefetch=\{false\} data-live-route-intent href=\{href\(tool.href\)\}/);
+  assert.ok(source.indexOf('CREATE_TOOLS.map') < source.indexOf('CREATE_OTHER_TOOLS.map'));
+  assert.doesNotMatch(source, /setCreativeIntent|aria-pressed|<canvas/);
 });
 
 test('AI uses readable tokens for every reviewed former beige composer state', () => {

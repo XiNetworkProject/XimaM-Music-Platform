@@ -6,6 +6,7 @@ import PilotLink from './PilotLink';
 import PilotPlayer from './PilotPlayer';
 import PilotReview from './PilotReview';
 import './pilot.css';
+import { usesUnifiedNavigation } from '@/lib/unifiedNavigation';
 
 const spaces = [
   { href: '/live', label: 'Live', Icon: Radio },
@@ -21,7 +22,7 @@ export default function PilotShell({ children }: { children: React.ReactNode }) 
   const username = (session?.user as { username?: string })?.username;
   return <div className="synaura-pilot" data-pilot-route={pathname}>
     <a className="pilot-skip" href="#pilot-main">Aller au contenu</a>
-    <header className="pilot-identity">
+    {!usesUnifiedNavigation(pathname) && <><header className="pilot-identity">
       <PilotLink href="/live" aria-label="Synaura — Live"><img src="/brand/v2/synaura-lockup.svg" width="224" height="52" alt="Synaura" /></PilotLink>
       <span className="pilot-edition">La musique nous relie.</span>
       <div className="pilot-utilities">
@@ -35,7 +36,7 @@ export default function PilotShell({ children }: { children: React.ReactNode }) 
       {spaces.map(({ href, label, Icon }, index) => <PilotLink key={href} href={href} aria-current={canonicalPath === href ? 'page' : undefined}>
         <span className="pilot-nav-number" aria-hidden="true">0{index + 1}</span><Icon aria-hidden="true" /><span>{label}</span>
       </PilotLink>)}
-    </nav>
+    </nav></>}
     <main id="pilot-main" className="pilot-main" tabIndex={-1}>{children}</main>
     {canonicalPath !== '/live' && <PilotPlayer />}
     <PilotReview />

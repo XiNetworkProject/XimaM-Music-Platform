@@ -7,7 +7,7 @@ export type LocalMediaUploadResult = StoredLocalMedia & { storage: 'local'; succ
 export function uploadLocalMedia(
   file: File,
   kind: LocalMediaKind,
-  options: { onProgress?: (progress: number) => void; signal?: AbortSignal } = {},
+  options: { onProgress?: (progress: number) => void; onTransferred?: () => void; signal?: AbortSignal } = {},
 ): Promise<LocalMediaUploadResult> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -20,6 +20,7 @@ export function uploadLocalMedia(
     xhr.upload.onprogress = (event) => {
       if (event.lengthComputable && event.total > 0) options.onProgress?.(Math.min(1, event.loaded / event.total));
     };
+    xhr.upload.onload = () => options.onTransferred?.();
     xhr.onerror = () => reject(new Error('Connexion interrompue pendant l envoi'));
     xhr.ontimeout = () => reject(new Error('L envoi du fichier a expire'));
     xhr.onabort = () => reject(new DOMException('Envoi annule', 'AbortError'));
@@ -30,7 +31,6 @@ export function uploadLocalMedia(
         reject(new Error(payload?.error || `Envoi impossible (${xhr.status})`));
         return;
       }
-      options.onProgress?.(1);
       resolve(payload as LocalMediaUploadResult);
     };
     const abort = () => xhr.abort();

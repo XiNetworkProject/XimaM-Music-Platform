@@ -1,0 +1,29 @@
+/* Video keeps its native composition. Never crop a landscape clip into an album cover. */
+.synaura-pilot .live-experience .pilot-slide--clip .pilot-media{position:relative;inset:auto;height:auto;z-index:0;opacity:1;width:100%;max-width:600px;aspect-ratio:auto;align-self:center;display:grid;place-items:center}
+.synaura-pilot .live-experience .pilot-slide--clip .pilot-media>video{position:relative;width:100%;height:auto;max-height:58dvh;aspect-ratio:auto;object-fit:contain;transform:none;background:#0005;border-radius:18px;box-shadow:0 20px 70px #0006}
+.synaura-pilot .live-experience .pilot-slide--clip .pilot-media[data-video-format="portrait"]{width:min(100%,31dvh)}
+.synaura-pilot .live-experience .pilot-slide--clip .live-record-orbit,.synaura-pilot .live-experience .pilot-slide--clip .pilot-media::after{display:none}
+.synaura-pilot .live-experience .pilot-slide--clip .live-cover-play{width:52px;height:52px;top:auto;bottom:12px;right:12px;background:#10131b8c;backdrop-filter:blur(10px);color:#fff;border-color:#ffffff30;box-shadow:none}
+.live-experience .live-clip-error{position:absolute;inset:40% 12px auto;padding:12px;border-radius:12px;font-size:12px;text-align:center;background:#111b;color:#fff}
+/* Desktop clips get a full-height cinema stage, not the album-cover column. */
+@media(min-width:801px){
+ .synaura-pilot .live-experience .pilot-slide--clip{height:100%;min-height:100%}
+ .synaura-pilot .live-experience[data-motion] .pilot-slide--clip .pilot-composition{grid-template-columns:minmax(0,1fr) minmax(220px,280px);grid-template-rows:minmax(0,1fr) auto;gap:24px 32px;padding:64px 4% 24px;max-width:1700px}
+ .synaura-pilot .live-experience .pilot-slide--clip .pilot-media,.synaura-pilot .live-experience .pilot-slide--clip .pilot-media[data-video-format]{grid-column:1;grid-row:1 / -1;width:100%;height:100%;min-height:0;max-width:none;max-height:none;align-self:stretch}
+ .synaura-pilot .live-experience .pilot-slide--clip .pilot-media>video{width:100%;height:100%;max-height:calc(100dvh - 140px);object-fit:contain;background:transparent;box-shadow:none;border-radius:16px}
+ .synaura-pilot .live-experience .pilot-slide--clip .pilot-media-caption{display:none}
+ .synaura-pilot .live-experience .pilot-slide--clip .live-identity{grid-column:2;grid-row:1;align-self:end;padding-bottom:0}
+ .synaura-pilot .live-experience .pilot-slide--clip .pilot-copy h2{font-size:clamp(26px,2.8vw,42px);line-height:1.06;letter-spacing:-.045em;overflow-wrap:anywhere}
+ .synaura-pilot .live-experience .pilot-slide--clip .pilot-author{flex-wrap:wrap;gap:4px 10px}
+ .synaura-pilot .live-experience .pilot-slide--clip .pilot-interactions{grid-column:2;grid-row:2;justify-content:flex-start;gap:6px}
+}
+@media(max-width:800px){.synaura-pilot .live-experience .pilot-slide--clip .pilot-media{width:100%;max-width:100%;margin:0 auto 8px}.synaura-pilot .live-experience .pilot-slide--clip .pilot-media>video{max-height:42dvh;border-radius:14px}.synaura-pilot .live-experience .pilot-slide--clip .pilot-media[data-video-format="portrait"]{width:min(100%,24dvh)}.synaura-pilot .live-experience .pilot-slide--clip .pilot-media-caption{display:none}.synaura-pilot .live-experience .pilot-slide--clip .pilot-copy h2{font-size:clamp(23px,6vw,36px);-webkit-line-clamp:2}}
+@media(max-width:800px){
+ .synaura-pilot .live-experience .pilot-slide--clip .pilot-composition{position:relative;isolation:isolate;display:flex;flex-direction:column;justify-content:flex-end;align-items:stretch;padding:80px 24px 22px;gap:14px}
+ .synaura-pilot .live-experience .pilot-slide--clip .pilot-composition::after{content:"";position:absolute;inset:45% 0 0;z-index:0;pointer-events:none;background:linear-gradient(transparent,#04070d77 45%,#04070dd9)}
+ .synaura-pilot .live-experience .pilot-slide--clip .pilot-media,.synaura-pilot .live-experience .pilot-slide--clip .pilot-media[data-video-format]{position:absolute;inset:0;width:100%;height:100%;max-width:none;max-height:none;margin:0;z-index:0}
+ .synaura-pilot .live-experience .pilot-slide--clip .pilot-media>video{width:100%;height:100%;max-height:none;border-radius:0;object-fit:contain;box-shadow:none;background:transparent}
+ .synaura-pilot .live-experience .pilot-slide--clip .live-cover-play{top:68px;bottom:auto;right:20px;z-index:2}
+ .synaura-pilot .live-experience .pilot-slide--clip .live-identity,.synaura-pilot .live-experience .pilot-slide--clip .live-social{position:relative;z-index:1;width:100%;padding:0;text-shadow:0 2px 12px #000}
+ .synaura-pilot .live-experience .pilot-slide--clip .live-identity>.pilot-kicker{display:none}.synaura-pilot .live-experience .pilot-slide--clip .pilot-copy h2{font-size:25px;margin:0 0 6px}.synaura-pilot .live-experience .pilot-slide--clip .pilot-copy{background:none;margin:0;padding:0;width:auto}.synaura-pilot .live-experience .pilot-slide--clip .pilot-sound-credit{font-size:11px;margin-top:2px}
+}

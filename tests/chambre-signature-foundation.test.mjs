@@ -45,11 +45,24 @@ test('signature style has bounded motion, no hidden content dependency, and no e
   assert.match(css, /prefers-reduced-motion:reduce/);
 });
 
-test('existing spaces controller and destinations are byte-identical outside decorative insertion', {skip: !fs.existsSync(new URL('../artifacts/chambre-signature/before/foundation/components/synaura/ChambreSpacesMenu.tsx', import.meta.url))}, () => {
+test('existing spaces controller and destinations stay identical outside decoration and trigger naming', {skip: !fs.existsSync(new URL('../artifacts/chambre-signature/before/foundation/components/synaura/ChambreSpacesMenu.tsx', import.meta.url))}, () => {
   const previous = read('artifacts/chambre-signature/before/foundation/components/synaura/ChambreSpacesMenu.tsx').replaceAll('\r\n','\n');
   const current = read('components/synaura/ChambreSpacesMenu.tsx').replaceAll('\r\n','\n');
   assert.equal(current.split(decorativeImport).length - 1, 1);
-  assert.equal(current.replace(`${decorativeImport}\n`, '').replace('        <ChambreResonance className="chambre-spaces-resonance" />\n', ''), previous);
+  // Mobile names the same directory Menu; desktop keeps Espaces. Project out
+  // only this explicit presentation prop, preserving every route and controller.
+  let original = current;
+  for (const [fragment, replacement] of [
+    [", triggerLabel = 'Espaces'", ''],
+    ['; triggerLabel?: string', ''],
+    ['<span>{triggerLabel}</span>', '<span>Espaces</span>'],
+  ]) {
+    assert.equal(original.split(fragment).length, 2);
+    original = original.replace(fragment, replacement);
+  }
+  const namedTrigger = 'className="chambre-spaces-trigger" aria-label={triggerLabel}';
+  assert.equal(current.split(namedTrigger).length, 2);
+  assert.equal(original.replace(namedTrigger, 'className="chambre-spaces-trigger"').replace(`${decorativeImport}\n`, '').replace('        <ChambreResonance className="chambre-spaces-resonance" />\n', ''), previous);
 });
 
 test('root integration preserves providers with the reviewed decorative layer; support remains untouched', {skip: !fs.existsSync(new URL('../artifacts/chambre-signature/before/foundation/app/layout.tsx', import.meta.url))}, () => {
@@ -57,6 +70,16 @@ test('root integration preserves providers with the reviewed decorative layer; s
   const current = read('app/layout.tsx').replaceAll('\r\n','\n');
   // The explicitly requested full experience redraw adds these presentation sheets only.
   let previousIntegration = current;
+  for (const fragment of ["import ClipUploadIndicator from '@/components/clips/ClipUploadIndicator';\n", '          <ClipUploadIndicator />\n']) {
+    assert.equal(previousIntegration.split(fragment).length, 2);
+    previousIntegration = previousIntegration.replace(fragment, '');
+  }
+  // The requested Create sheet registers inside the existing surface provider.
+  // Project out only these exact additions; all provider nesting stays frozen.
+  for (const fragment of ["import { Suspense } from 'react';\n", "import CreateRegistration from '@/components/create/CreateRegistration';\n", '          <Suspense fallback={null}><CreateRegistration /></Suspense>\n']) {
+    assert.equal(previousIntegration.split(fragment).length, 2);
+    previousIntegration = previousIntegration.replace(fragment, '');
+  }
   // Requested site-wide ambient layer: exactly one inert sibling, no provider change.
   for (const fragment of ["import LivingAmbience from '@/components/ambient/LivingAmbience';\n", '          <LivingAmbience />\n']) {
     assert.equal(previousIntegration.split(fragment).length, 2);

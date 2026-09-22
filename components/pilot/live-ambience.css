@@ -1,0 +1,82 @@
+/* Full-height Live; the shared header remains unchanged everywhere else. */
+.syn-unified-app:has(.live-experience) { --syn-nav-height:0px; padding-top:0; }
+.syn-unified-app .synaura-pilot .live-experience { top:0; background:#080a0d; --live-energy:0; }
+.synaura-pilot .live-experience[data-motion] .pilot-feed { top:0; z-index:1; }
+.synaura-pilot .live-experience[data-motion] .pilot-composition { padding-top:80px; }
+.synaura-pilot .live-experience[data-motion] .pilot-entry { top:64px; }
+.synaura-pilot .live-experience .pilot-local-light { display:none; }
+.live-experience .live-top-controls { position:absolute; inset:calc(8px + env(safe-area-inset-top,0px)) 20px auto; z-index:9; display:flex; align-items:center; justify-content:center; gap:10px; pointer-events:none; }
+.live-experience .live-top-controls>* { pointer-events:auto; }
+.live-experience[data-motion] .live-filters { position:relative; display:flex; gap:22px; width:min(100%,370px); min-width:0; padding-inline:16px; overflow-x:auto; overflow-y:hidden; overscroll-behavior-x:contain; touch-action:pan-x; scrollbar-width:none; scroll-padding-inline:16px; mask-image:linear-gradient(90deg,transparent,#000 12px,#000 calc(100% - 12px),transparent); cursor:grab; user-select:none; }
+.live-experience .live-filters::-webkit-scrollbar { display:none; }
+.live-experience[data-motion] .live-filters button { position:relative; isolation:isolate; min-height:44px; flex:0 0 auto; padding:0 2px; font-size:13px; white-space:nowrap; color:#c3cad6; font-weight:500; border:0; border-radius:0; background:none; box-shadow:none; cursor:inherit; text-shadow:0 1px 10px #000c; }
+.live-experience[data-motion] .live-filters button::before { content:none; }
+.live-experience[data-motion] .live-filters button::after { content:""; display:block; position:absolute; inset:auto 35% 3px; height:2px; background:currentColor; border-radius:2px; opacity:0; box-shadow:none; transform:scaleX(.4); }
+.live-experience[data-motion] .live-filters button[aria-pressed="true"] { color:#fff; }
+.live-experience[data-motion] .live-filters button[aria-pressed="true"]::after { opacity:.95; transform:scaleX(1); }
+.live-experience[data-motion="true"] .live-filters button { transition:color 180ms ease; }
+.live-experience[data-motion="true"] .live-filters button::after { transition:opacity 180ms ease,transform 180ms ease; }
+.live-experience .live-filters[data-dragging],.live-experience .live-filters[data-dragging] button { cursor:grabbing; }
+.live-experience .live-filters button:hover { color:#fff; }
+.live-experience .live-filters button:focus-visible,.live-experience .live-ambience-trigger:focus-visible { outline:2px solid #dce7fc; outline-offset:1px; }
+.live-experience .live-ambience-trigger { display:grid; place-items:center; min-width:44px; width:44px; height:44px; color:#bac5d7; border-radius:7px; }
+.live-experience .live-ambience-trigger[aria-expanded="true"] { background:#161b24; }
+/* Only two cached cover rasters. Blur stays constant during the pulse; opacity/transform do the work. */
+.live-experience .live-atmosphere { isolation:isolate; background:#080a0d; }
+.live-experience .live-cover-world { position:absolute; inset:calc(-2 * var(--live-cover-blur,60px) - 24px); filter:blur(var(--live-cover-blur,60px)); opacity:.9; transform:translate(var(--live-x,0px),var(--live-y,0px)) scale(1.08); }
+.live-experience .live-cover-world img,.live-experience .live-cover-aura img { display:block; height:100%; width:100%; object-fit:cover; object-position:center; }
+/* The app-wide max-width:100% rule must not truncate intentionally overscanned decorative layers. */
+.live-experience .live-cover-world,.live-experience .live-cover-aura,.live-experience .live-swipe-bloom { max-width:none; }
+.live-experience .live-cover-aura { position:absolute; inset:-12%; filter:blur(70px) saturate(1.65); mask-image:radial-gradient(ellipse at 58% 40%,#000 10%,transparent 70%); opacity:calc(var(--live-halo,.65) * (.12 + var(--live-energy,0) * 1.1)); transform:scale(calc(1.02 + var(--live-energy,0) * .2)); }
+.live-experience[data-motion="true"] .live-cover-aura { transition:opacity 45ms linear,transform 65ms linear; will-change:opacity,transform; }
+.live-experience[data-motion="true"] .live-cover-world { transition:transform 800ms ease-out; }
+.live-experience .live-cover-shade { position:absolute; inset:0; background:linear-gradient(180deg,#0005,transparent 23%,#0003 60%,#0009),rgb(0 0 0 / var(--live-darkness,.58)); }
+.synaura-pilot .live-experience .pilot-media::after { display:none; }
+.synaura-pilot .live-experience .pilot-media>img,.synaura-pilot .live-experience .pilot-entry-art img { box-shadow:0 30px 85px #0008; }
+.live-experience .live-record-orbit { border-color:#ffffff20; box-shadow:0 0 30px #ffffff08; }
+.live-experience .live-record-orbit::before { border-color:#ffffff14; }.live-experience .live-record-orbit::after { background:#edf3ff; box-shadow:0 0 18px 5px #ffffff30; }
+.live-experience .live-swipe-light { position:absolute; inset:0; z-index:7; pointer-events:none; overflow:clip; contain:strict; }
+.live-experience .live-swipe-veil { position:absolute; inset:0; background:#020305; animation:live-swipe-fade var(--flight-duration,420ms) ease-out both; }
+.live-experience .live-swipe-light>i { position:absolute; overflow:hidden; border-radius:50%; box-shadow:0 0 12px 3px #ffffff50; animation:live-swipe-particle calc(var(--flight-duration,420ms) * 1.9) var(--flight-delay,0ms) ease-out both; }
+.live-experience .live-swipe-light>i>img { width:100%; height:100%; object-fit:cover; filter:saturate(1.6) brightness(1.8); }
+.live-experience .live-swipe-bloom { position:absolute; inset:-15%; filter:blur(28px) saturate(1.7); mask-image:radial-gradient(ellipse,transparent 28%,#000 48%,transparent 65%); animation:live-swipe-bloom calc(var(--flight-duration,420ms) * 1.6) ease-out both; }
+.live-experience .live-swipe-bloom img { width:100%; height:100%; object-fit:cover; }
+@keyframes live-swipe-fade { 0% { opacity:.12; } 18%,32% { opacity:.96; } 100% { opacity:0; } }
+@keyframes live-swipe-bloom { 0% { opacity:0; transform:scale(.4); } 26% { opacity:.65; } 100% { opacity:0; transform:scale(1.4); } }
+@keyframes live-swipe-particle { 0% { opacity:0; transform:scale(.4); } 24%,45% { opacity:.95; } 100% { opacity:0; transform:translate(var(--flight-x),var(--flight-y)) scale(.25); } }
+.live-experience .live-music-particles { position:absolute; inset:0; overflow:clip; opacity:0; transition:opacity 250ms ease-out; }
+.live-experience[data-motion="true"][data-music-playing="true"] .live-music-particles { opacity:var(--music-particle-light,.65); }
+.live-experience .live-music-particles>i { position:absolute; bottom:-8%; width:var(--speck-size); height:var(--speck-size); animation:live-music-rise var(--music-particle-speed,12s) var(--speck-delay) linear infinite; animation-play-state:paused; }
+.live-experience[data-motion="true"][data-music-playing="true"] .live-music-particles>i { animation-play-state:running; }
+.live-experience .live-music-particles>i>span { display:block; width:100%; height:100%; border-radius:50%; overflow:hidden; filter:blur(.7px); box-shadow:0 0 12px 3px #ffffff45; opacity:calc(.35 + var(--live-signal,0) * .65); transform:scale(calc(var(--music-particle-scale,1) * (1 + var(--live-signal,0) * .65))); }
+.live-experience .live-music-particles img { width:100%; height:100%; object-fit:cover; filter:brightness(2) saturate(1.4); }
+@keyframes live-music-rise { 0% { opacity:0; transform:translate(0,0); } 12%,78% { opacity:1; } 100% { opacity:0; transform:translate(var(--speck-drift),-110vh); } }
+.live-experience .live-ambience-panel { width:320px; max-width:calc(100vw - 28px); max-height:calc(100dvh - 90px); overflow-y:auto; overscroll-behavior:contain; padding:18px; background:#111720; border-color:#ffffff24; border-radius:16px; box-shadow:0 20px 70px #0009; }
+.live-experience .live-ambience-title { display:flex; align-items:center; justify-content:space-between; }
+.live-experience .live-ambience-title strong { font-size:17px; font-weight:500; letter-spacing:-.03em; }
+.live-experience .live-ambience-title>button { width:44px; height:44px; display:grid; place-items:center; }
+.live-experience .live-ambience-presets { display:flex; gap:6px; margin-bottom:8px; }
+.live-experience .live-ambience-presets button { flex:1; min-height:40px; font-size:11px; border:1px solid #ffffff20; border-radius:8px; background:#ffffff05; }
+.live-experience .live-ambience-presets button:hover { background:#ffffff12; }
+.live-experience .live-ambience-toggle { display:flex; align-items:center; justify-content:space-between; min-height:44px; font-size:12px; }
+.live-experience .live-ambience-toggle input { accent-color:#bcd2ff; width:18px; height:18px; }
+.live-experience .live-ambience-range { display:block; margin-top:7px; }
+.live-experience .live-ambience-range>span { display:flex; justify-content:space-between; gap:10px; font-size:12px; color:#c7d2e5; }
+.live-experience .live-ambience-range output { color:#9faec5; font-size:11px; }
+.live-experience .live-ambience-range input { display:block; accent-color:#c3d4f6; width:100%; height:30px; cursor:pointer; }
+.live-experience .live-ambience-panel p { font-size:10px; color:#acb8cd; line-height:1.5; margin:8px 0; }
+.live-experience .live-ambience-panel fieldset { border:0; margin:14px 0; padding:0; min-width:0; }
+.live-experience .live-ambience-panel legend,.live-experience .live-ambience-panel summary { font-size:12px; font-weight:600; color:#eef2fa; }
+.live-experience .live-ambience-panel summary { cursor:pointer; padding-block:12px; }
+.live-experience .live-ambience-panel .live-analysis-status { color:#d2dced; }
+.live-experience .live-ambience-reset { min-height:40px; font-size:11px; color:#c7d6ee; text-decoration:underline; text-underline-offset:3px; }
+.live-experience .live-ambience-panel :is(button,input):focus-visible { outline:2px solid #dce7fc; outline-offset:3px; }
+@media(max-width:800px) {
+  .live-experience .live-top-controls { inset-inline:12px; gap:5px; }
+  .live-experience[data-motion] .live-filters { gap:22px; width:auto; flex:1; }
+  .live-experience[data-motion] .live-filters button { font-size:12px; }
+  .synaura-pilot .live-experience[data-motion] .pilot-composition { padding-top:68px; gap:14px; }
+  .synaura-pilot .live-experience[data-motion] .pilot-media { width:clamp(140px,calc(100dvh - 570px),300px); max-width:62vw; }
+  .synaura-pilot .live-experience[data-motion] .pilot-entry { top:60px; }
+}
+@media(prefers-reduced-motion:reduce) { .live-experience .live-swipe-light,.live-experience .live-music-particles { display:none; }.live-experience .live-cover-world,.live-experience .live-cover-aura { transition:none!important; transform:none!important; } }

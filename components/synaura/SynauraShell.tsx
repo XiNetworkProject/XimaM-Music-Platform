@@ -40,6 +40,7 @@ import {
   type PrimaryWebNavId,
 } from '@/lib/primaryNavigation';
 import { getRouteChrome, shouldRenderGlobalMiniPlayer } from '@/lib/routeChrome';
+import { usesUnifiedNavigation } from '@/lib/unifiedNavigation';
 import { isPastShutdownEnd, isShutdownAnnounced, SHUTDOWN_END_DATE_LABEL } from '@/lib/synauraShutdown';
 
 function cx(...classes: Array<string | false | null | undefined>) {
@@ -54,7 +55,7 @@ const SYNAURA_ROUTE_ICONS: Record<PrimaryWebNavId, typeof Home> = {
   profile: User,
 };
 
-function SynauraAccountMenu({ compact = false }: { compact?: boolean }) {
+export function SynauraAccountMenu({ compact = false }: { compact?: boolean }) {
   const { data: session } = useSession();
   const user = session?.user;
   if (!user) return null;
@@ -226,6 +227,8 @@ export function SynauraTopBar({
   primaryHref = '/upload', primaryLabel = 'Publier', compact = false,
 }: { searchHref?: string; searchLabel?: string; secondaryHref?: string; secondaryLabel?: string; primaryHref?: string; primaryLabel?: string; compact?: boolean }) {
   const { data: session, status } = useSession();
+  const pathname = usePathname();
+  if (usesUnifiedNavigation(pathname)) return null;
   return <header className="v2-topbar experience-topbar">
     <HandoffReturn omitPaths={['/create', '/upload']} />
     <div className="v2-topbar-row">
@@ -257,6 +260,7 @@ export function SynauraRouteNav({ className = '', compact = false }: { className
   const { data: session } = useSession();
   const username = (session?.user as any)?.username as string | undefined;
   const profileHref = getWebProfileHref(username, Boolean(session?.user));
+  if (usesUnifiedNavigation(pathname)) return null;
   return <nav className={cx('v2-desktop-nav experience-route-nav', className)} aria-label="Navigation Synaura">
     {PRIMARY_WEB_NAV_ITEMS.map((item, index) => {
       const Icon = SYNAURA_ROUTE_ICONS[item.id];
@@ -277,6 +281,8 @@ export function SynauraMobileDock({
   appearance?: 'surface' | 'immersive';
   showDesktop?: boolean;
 }) {
+  const pathname = usePathname();
+  if (usesUnifiedNavigation(pathname)) return null;
   return <SynauraPrimaryDock appearance={appearance} showDesktop={showDesktop} />;
 }
 

@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
   } catch (error: any) {
     console.error('Erreur upload media local');
     const message = String(error?.message || 'Erreur lors de l upload du fichier');
-    const status = message.includes('trop volumineux') ? 413 : /supporte|extension|MIME|contenu|fichier est vide/i.test(message) ? 415 : 500;
+    const status = message.includes('trop volumineux') ? 413 : message.includes('4 minutes') ? 422 : /supporte|extension|MIME|contenu|fichier est vide/i.test(message) ? 415 : 500;
     return NextResponse.json({ error: message }, { status });
   }
 }

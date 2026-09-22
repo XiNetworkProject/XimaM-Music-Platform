@@ -1,27 +1,26 @@
 'use client';
-import '@/components/v2/music-v2.css';
-import { SynauraImage } from '@/components/ui/SynauraImage';
 
-import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { useAudioPlayer } from '@/app/providers';
-import Link from 'next/link';
-import { Play, Pause, Heart, Clock, Music, Headphones, Share2, Code, UserPlus, Sparkles, ArrowLeft, MessageSquare, Repeat2, Film, Trophy } from 'lucide-react';
-import { SynauraAppShell, SynauraInkPanel, SynauraPanel, SynauraTopBar } from '@/components/synaura/SynauraShell';
+import Link from '@/components/navigation/HandoffLink';
+import { Play, Pause, Music2, Headphones, Share2, ArrowLeft, ArrowUpRight, MessageCircle, Clock3, Film, Trophy, ListPlus, AlignLeft, Sparkles } from 'lucide-react';
+import { SynauraAppShell } from '@/components/synaura/SynauraShell';
+import ExperienceMotionFrame from '@/components/ambient/ExperienceMotionFrame';
 import TrackCover from '@/components/TrackCover';
+import PilotImage from '@/components/pilot/PilotImage';
 import { getCdnUrl } from '@/lib/cdn';
-import { canUseSoundClientSide } from '@/lib/clipPermissions';
-import { recordClipFunnelEvent } from '@/lib/analyticsClient';
 import TrackPostsSection from '@/components/posts/TrackPostsSection';
-import DownloadButton from '@/components/DownloadButton';
 import { useCommentsSurface } from '@/components/comments/useCommentsSurface';
 import CommentCount from '@/components/comments/CommentCount';
 import TrackActionButton from '@/components/actions/TrackActionButton';
 import FavoriteAction from '@/components/actions/FavoriteAction';
+import { useTrackActions } from '@/components/actions/useTrackActions';
+import { canPlaylistTrack } from '@/lib/trackActions';
 import Waveform from '@/components/player/Waveform';
 import { useTrackWaveform } from '@/hooks/useTrackWaveform';
 import { useMomentComments } from '@/hooks/useMomentComments';
+import './track-experience.css';
 
 interface TrackData {
   id: string;
@@ -44,65 +43,30 @@ interface TrackData {
   allowClips?: boolean;
   allowAiVariation?: boolean;
   remixVisibility?: 'everyone' | 'followers' | 'disabled';
-  remixAttribution?: {
-    sourceTrackId: string;
-    title: string;
-    artist: string;
-    artistUsername?: string;
-    trackUrl?: string;
-  } | null;
+  remixAttribution?: { sourceTrackId: string; title: string; artist: string; artistUsername?: string; trackUrl?: string } | null;
   variationsCount?: number;
   musicClipsCount?: number;
   linkedChallenge?: { id: string; title: string; status: 'upcoming' | 'active' | 'ended' } | null;
 }
 
-const mmss = (sec: number) => `${Math.floor(sec / 60)}:${String(Math.round(sec) % 60).padStart(2, '0')}`;
+const mmss = (seconds: number) => { const sec = Math.max(0, Math.floor(Number(seconds) || 0)); return `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, '0')}`; };
 const fmt = new Intl.NumberFormat('fr-FR', { notation: 'compact' });
-
-function ArtistAvatar({ name, username, avatar }: { name: string; username: string; avatar?: string | null }) {
-  const url = avatar ? getCdnUrl(avatar) || avatar : null;
-  const initial = (name || username || '?').slice(0, 1).toUpperCase();
-
-  if (url) {
-    return <img src={url} alt="" className="h-12 w-12 rounded-full object-cover shadow-[0_14px_30px_rgba(20,15,10,0.12)]" />;
-  }
-
-  return (
-    <div className="grid h-12 w-12 place-items-center rounded-full bg-[#171313] text-sm font-black text-white shadow-[0_14px_30px_rgba(20,15,10,0.12)]">
-      {initial}
-    </div>
-  );
-}
 
 export default function TrackPageClient({ track }: { track: TrackData | null }) {
   const { data: session } = useSession();
   const router = useRouter();
   const openComments = useCommentsSurface('other');
+  const actions = useTrackActions('other');
   const { playTrack, audioState, play, pause, seek, getAudioElement, setShowPlayer, setIsMinimized } = useAudioPlayer();
-
   const currentTrack = audioState.tracks?.[audioState.currentTrackIndex];
   const isCurrentTrack = currentTrack?._id === track?.id;
   const isPlaying = isCurrentTrack && audioState.isPlaying;
-  // The route observes the one global current track; inactive destinations issue no waveform/moment query.
+  // Only the global current native track loads its waveform and musical moments.
   const waveformTrackId = isCurrentTrack && track && !track.isAI ? track.id : undefined;
   const waveform = useTrackWaveform(waveformTrackId, waveformTrackId ? track?.audioUrl : undefined, track?.duration);
   const moments = useMomentComments(waveformTrackId);
 
-  if (!track) {
-    return (
-      <SynauraAppShell contentClassName="v2-music-shell v2-track-shell">
-        <SynauraTopBar searchHref="/discover" searchLabel="Rechercher un son, un post ou un createur..." />
-        <SynauraPanel className="px-6 py-14 text-center sm:px-8">
-          <Music className="mx-auto h-14 w-14 text-black/16" />
-          <h1 className="mt-4 text-2xl font-black tracking-[-0.04em] text-[#171313]">Track introuvable</h1>
-          <p className="mt-2 text-sm font-semibold text-black/45">Cette musique n'existe pas ou a ete supprimee.</p>
-          <Link href="/discover" className="mt-6 inline-flex h-11 items-center justify-center rounded-full bg-[#171313] px-5 text-sm font-black text-white transition hover:scale-[1.02]">
-            Découvrir la musique
-          </Link>
-        </SynauraPanel>
-      </SynauraAppShell>
-    );
-  }
+  if (!track) return <SynauraAppShell className="track-experience-shell" contentClassName="track-experience-content"><main className="track-missing"><Music2 size={40} /><h1>Morceau introuvable</h1><p>Ce morceau n’est plus disponible.</p><Link href="/discover">Découvrir d’autres sons <ArrowUpRight size={18} /></Link></main></SynauraAppShell>;
 
   const handlePlay = async () => {
     if (isCurrentTrack) {
@@ -133,215 +97,81 @@ export default function TrackPageClient({ track }: { track: TrackData | null }) 
     }
   };
 
-  const coverSrc = track.coverUrl || null;
+  const entity = { type: 'track' as const, id: track.id, title: track.title, artist: track.artist, creatorId: track.creatorId || undefined, audioUrl: track.audioUrl, coverUrl: track.coverUrl, duration: track.duration };
+  const released = new Date(track.createdAt);
+  const releaseLabel = Number.isNaN(released.getTime()) ? null : new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Paris' }).format(released);
 
-  return (
-    <SynauraAppShell contentClassName="v2-music-shell v2-track-shell">
-      <SynauraTopBar searchHref="/discover" searchLabel="Rechercher un son, un post ou un createur..." />
+  return <SynauraAppShell className="track-experience-shell" contentClassName="track-experience-content">
+    <ExperienceMotionFrame className="track-experience-page">
+      <div className="track-world" aria-hidden="true"><PilotImage src={track.coverVideoPosterUrl || track.coverUrl || undefined} alt="" /><i /><b /></div>
+      <article className="track-page" data-chambre-music="track" data-track-id={track.id} data-playing={isPlaying}>
+        <nav className="track-topline" aria-label="Navigation du morceau">
+          <button type="button" onClick={() => router.back()}><ArrowLeft size={18} />Retour</button>
+          <span>LE SON, AU PREMIER PLAN</span>
+          <TrackActionButton track={track} className="track-icon-action" />
+        </nav>
 
-      <div className="v2-track-page" data-chambre-music="track">
-        <button
-          onClick={() => router.back()}
-          className="inline-flex h-11 items-center gap-2 rounded-full border border-black/[0.08] bg-[#fffaf2]/88 px-4 text-sm font-black text-black/56 shadow-[0_14px_36px_rgba(30,25,20,0.08)] transition hover:bg-[#171313] hover:text-white"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Retour
-        </button>
-
-        <SynauraInkPanel className="v2-track-hero">
-          {coverSrc ? (
-            <div className="absolute inset-0">
-              <SynauraImage src={coverSrc} alt="" className="h-full w-full object-cover opacity-18 blur-[18px] scale-110" />
-              <div className="absolute inset-0 bg-gradient-to-br from-[#171313]/70 via-[#171313]/80 to-[#171313]" />
-            </div>
-          ) : null}
-          <div className="v2-track-identity">
-            <div className="v2-track-identity-grid">
-              <div className="v2-track-artwork">
-                {coverSrc ? (
-                  <TrackCover
-                    src={coverSrc}
-                    videoSrc={track.coverVideoUrl}
-                    posterSrc={track.coverVideoPosterUrl || coverSrc}
-                    title={track.title}
-                    className="h-full w-full"
-                    rounded="rounded-none"
-                    objectFit="cover"
-                  />
-                ) : (
-                  <div className="grid h-full w-full place-items-center bg-white/10">
-                    <Music className="h-14 w-14 text-white/24" />
-                  </div>
-                )}
-              </div>
-
-              <div className="v2-track-intro">
-                <p className="v2-kicker">Écouter / entrer dans le morceau</p>
-                {track.isAI ? (
-                  <span className="inline-flex items-center gap-1 rounded-full border border-white/12 bg-white/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-white/72">
-                    <Sparkles className="h-3 w-3" />
-                    Creation IA
-                  </span>
-                ) : null}
-                <h1 className="v2-heading">
-                  {track.title}
-                </h1>
-                <div className="v2-track-artist mt-4 flex flex-wrap items-center gap-3">
-                  <ArtistAvatar name={track.artist} username={track.artistUsername} avatar={track.artistAvatar} />
-                  <div className="min-w-0">
-                    {track.artistUsername ? (
-                      <Link href={`/profile/${track.artistUsername}`} className="block truncate text-base font-black text-white hover:text-white/82">
-                        {track.artist}
-                      </Link>
-                    ) : (
-                      <p className="text-base font-black text-white">{track.artist}</p>
-                    )}
-                    <div className="mt-1 flex flex-wrap items-center gap-2 text-xs font-semibold text-white/48">
-                      {track.genre?.length > 0 ? <span>{track.genre[0]}</span> : null}
-                      {track.duration > 0 ? <span>· {mmss(track.duration)}</span> : null}
-                      {track.plays > 0 ? <span>· {fmt.format(track.plays)} ecoutes</span> : null}
-                      {track.likes > 0 ? <span>· {fmt.format(track.likes)} likes</span> : null}
-                    </div>
-                  </div>
-                </div>
-            <div data-track-actions-row className="flex flex-wrap items-center gap-2">
-              <button onClick={handlePlay} className="syn-interactive inline-flex min-h-12 items-center gap-2 rounded-full bg-[#171313] px-5 text-sm font-black text-white">
-                {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}{isPlaying ? 'Pause' : 'Écouter'}
-              </button>
-              <FavoriteAction track={track} label className="bg-black/[0.055] px-4 text-sm font-black text-black/60" />
-              {!track.isAI && <button type="button" data-context-surface-trigger-key={`track-comments-${track.id}`} onClick={event => openComments({ type: 'track', id: track.id, title: track.title, artist: track.artist, creatorId: track.creatorId || undefined, audioUrl: track.audioUrl, coverUrl: track.coverUrl, duration: track.duration }, event.currentTarget)} className="syn-interactive inline-flex min-h-12 items-center gap-2 rounded-full bg-black/[0.055] px-4 text-sm font-black text-black/60"><MessageSquare className="h-4 w-4" />Commentaires <CommentCount type="track" id={track.id} /></button>}
-              <TrackActionButton track={track} className="bg-black/[0.055]" />
-            </div>
-
-                <button type="button" disabled={!currentTrack} title={currentTrack ? 'Ouvrir le lecteur du morceau en cours' : 'Écoute un morceau pour ouvrir le lecteur'} onClick={() => { setShowPlayer(true); setIsMinimized(false); window.dispatchEvent(new Event('synaura:open-full-player')); }} className="v2-track-player-link">
-                  <Headphones size={15} /> Ouvrir le lecteur Synaura
-                </button>
-                {!track.isAI ? (
-                  <div className="v2-track-waveform">
-                    {isCurrentTrack ? (
-                      <Waveform
-                        peaks={waveform.peaks}
-                        loading={waveform.loading}
-                        duration={audioState.duration || waveform.duration || track.duration}
-                        getAudioElement={getAudioElement}
-                        onSeek={seek}
-                        markers={moments.markers}
-                        onMarkerSeek={marker => openComments({ type: 'track', id: track.id, title: track.title, artist: track.artist, creatorId: track.creatorId || undefined, audioUrl: track.audioUrl, coverUrl: track.coverUrl, duration: track.duration }, document.activeElement as HTMLElement, undefined, marker.id)}
-                        variant="dark"
-                      />
-                    ) : <p className="v2-metadata">Écoute ce morceau pour suivre sa waveform et ses moments.</p>}
-                  </div>
-                ) : null}
-              </div>
-            </div>
+        <section className="track-stage" aria-labelledby="track-title">
+          <div className="track-art-stage">
+            <div className="track-art-halo" aria-hidden="true" />
+            <div className="track-artwork"><TrackCover trackId={track.id} src={track.coverUrl} videoSrc={track.coverVideoUrl} posterSrc={track.coverVideoPosterUrl} title={track.title} alt={`Pochette de ${track.title}`} autoPlayVideo playOnHover={false} rounded="rounded-none" className="track-art-media" /></div>
+            <span className="track-art-footnote"><i aria-hidden="true" />{isPlaying ? 'EN ÉCOUTE' : 'À VOTRE RYTHME'}<span>SYNAURA / MUSIC</span></span>
           </div>
-        </SynauraInkPanel>
+          <div className="track-identity">
+            <div className="track-eyebrow">{track.isAI ? <><Sparkles size={13} />Création IA</> : 'Morceau'}<span>·</span>{track.genre?.[0] || 'Indépendant'}</div>
+            <h1 id="track-title">{track.title}</h1>
+            <div className="track-artist">
+              {track.artistAvatar ? <PilotImage src={getCdnUrl(track.artistAvatar) || undefined} alt="" /> : <span className="track-artist-initial" aria-hidden="true">{track.artist.slice(0, 1)}</span>}
+              <div>{track.artistUsername ? <Link href={`/profile/${encodeURIComponent(track.artistUsername)}`}>{track.artist}<ArrowUpRight size={16} /></Link> : <strong>{track.artist}</strong>}<small>{releaseLabel || 'Sur Synaura'}</small></div>
+            </div>
+            <div className="track-listening-stats"><span><Headphones size={14} />{fmt.format(track.plays || 0)} écoutes</span>{track.duration > 0 && <span><Clock3 size={14} />{mmss(track.duration)}</span>}</div>
 
-        <div className="v2-track-context-grid">
-          <SynauraPanel className="v2-track-connections">
-            <p className="v2-kicker">Prolonger ce morceau</p>
-            <h2 className="v2-track-section-title">De l’écoute à la création.</h2>
-            <div className="mt-2 flex flex-wrap gap-2">
-              <Link href={`/community/forum/new?category=feedback&trackId=${encodeURIComponent(track.id)}&title=${encodeURIComponent(track.title)}&source=track`} className="syn-interactive inline-flex min-h-11 items-center rounded-full px-3 text-xs text-black/60">Demander un avis</Link>
-              <Link href={`/community/forum/new?category=remix&trackId=${encodeURIComponent(track.id)}&title=${encodeURIComponent(track.title)}&source=track`} className="syn-interactive inline-flex min-h-11 items-center rounded-full px-3 text-xs text-black/60">Défi remix</Link>
+            <div data-track-actions-row className="track-main-actions flex flex-wrap">
+              <button type="button" onClick={handlePlay} className="track-play" aria-label={`${isPlaying ? 'Mettre en pause' : 'Écouter'} ${track.title}`}>{isPlaying ? <Pause size={23} fill="currentColor" /> : <Play size={23} fill="currentColor" />}<span>{isPlaying ? 'Pause' : 'Écouter'}</span></button>
+              <FavoriteAction track={track} resolveStatus className="track-icon-action" />
+              <button type="button" className="track-icon-action" aria-label="Partager ce morceau" title="Partager" onClick={event => void actions.share(track, event.currentTarget)}><Share2 size={22} /></button>
+              {canPlaylistTrack(track.id) && <button type="button" className="track-icon-action" aria-label="Ajouter à une playlist" title="Ajouter à une playlist" onClick={event => actions.open(track, 'playlist-picker', event.currentTarget)}><ListPlus size={24} /></button>}
             </div>
 
-            {track.remixAttribution ? (
-              <div className="mt-4 rounded-[1.35rem] border border-[#7357C6]/18 bg-[#7357C6]/[0.06] p-4">
-                <p className="text-sm font-black text-[#171313]">Inspiré de {track.remixAttribution.title}</p>
-                <p className="mt-1 text-xs font-semibold text-black/52">Création originale par @{track.remixAttribution.artistUsername || track.remixAttribution.artist}</p>
-                <Link href={track.remixAttribution.trackUrl || `/track/${track.remixAttribution.sourceTrackId}`} className="mt-3 inline-flex text-xs font-black text-[#7357C6]">
-                  Voir le morceau original
-                </Link>
-              </div>
-            ) : null}
-
-            {track.linkedChallenge ? (
-              <Link
-                href={`/challenges/${track.linkedChallenge.id}`}
-                className="mt-4 flex items-center gap-3 rounded-[1.35rem] border border-black/[0.08] bg-[#fffaf2]/92 p-4 shadow-[0_16px_42px_rgba(30,25,20,0.08)] transition hover:-translate-y-0.5"
-              >
-                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[1rem] bg-[#171313] text-white">
-                  <Trophy className="h-5 w-5" />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-[10px] font-black uppercase tracking-[0.16em] text-black/42">
-                    {track.linkedChallenge.status === 'active' ? 'Défi en cours' : track.linkedChallenge.status === 'upcoming' ? 'Défi à venir' : 'Défi terminé'}
-                  </span>
-                  <span className="mt-0.5 block truncate text-sm font-black text-[#111111]">{track.linkedChallenge.title}</span>
-                </span>
-              </Link>
-            ) : null}
-
-
-          </SynauraPanel>
-
-          <div className="v2-track-facts">
-            <SynauraPanel className="p-5 sm:p-6">
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-black/38">Infos</p>
-              <div className="mt-4 grid gap-3 text-sm font-semibold text-black/58">
-                <div className="flex items-center justify-between rounded-[1rem] bg-black/[0.03] px-4 py-3">
-                  <span>Duree</span>
-                  <span className="font-black text-[#171313]">{track.duration > 0 ? mmss(track.duration) : 'Non renseignee'}</span>
-                </div>
-                <div className="flex items-center justify-between rounded-[1rem] bg-black/[0.03] px-4 py-3">
-                  <span>Ecoutes</span>
-                  <span className="font-black text-[#171313]">{fmt.format(track.plays || 0)}</span>
-                </div>
-                <div className="flex items-center justify-between rounded-[1rem] bg-black/[0.03] px-4 py-3">
-                  <span>Likes</span>
-                  <span className="font-black text-[#171313]">{fmt.format(track.likes || 0)}</span>
-                </div>
-                <div className="flex items-center justify-between rounded-[1rem] bg-black/[0.03] px-4 py-3">
-                  <span>Genre</span>
-                  <span className="font-black text-[#171313]">{track.genre?.[0] || 'Libre'}</span>
-                </div>
-                {Number(track.variationsCount || 0) > 0 ? (
-                  <div className="flex items-center justify-between rounded-[1rem] bg-black/[0.03] px-4 py-3">
-                    <span>Variations</span>
-                    <span className="font-black text-[#171313]">{fmt.format(track.variationsCount || 0)}</span>
-                  </div>
-                ) : null}
-                {Number(track.musicClipsCount || 0) > 0 ? (
-                  <Link href={`/?filter=clips&sourceTrackId=${encodeURIComponent(track.id)}`} className="flex items-center justify-between rounded-[1rem] bg-[#4A9EAA]/10 px-4 py-3 text-[#171313] transition hover:bg-[#4A9EAA]/16">
-                    <span>Clips utilisant ce son</span>
-                    <span className="font-black">{fmt.format(track.musicClipsCount || 0)}</span>
-                  </Link>
-                ) : null}
-              </div>
-            </SynauraPanel>
-
-            {!session ? (
-              <SynauraPanel className="border-[#ff6f61]/18 bg-[#fff7ec] p-5 shadow-[0_22px_70px_rgba(44,33,19,0.12)] sm:p-6">
-                <p className="text-xs font-black uppercase tracking-[0.18em] text-[#ff6f61]">Écoute en invité</p>
-                <h2 className="mt-3 text-2xl font-black tracking-[-0.04em] text-[#171313]">Crée ton compte pour garder ce son</h2>
-                <p className="mt-2 text-sm font-semibold leading-6 text-black/58">
-                  Sauvegarde tes favoris, suis l'artiste, publie tes propres sons et reçois les nouveautés.
-                </p>
-                <div className="mt-4 flex flex-wrap gap-3">
-                  <Link
-                    href={`/auth/signup?callbackUrl=/track/${track.id}`}
-                    className="inline-flex h-11 items-center gap-2 rounded-full bg-[#171313] px-5 text-sm font-black text-white transition hover:scale-[1.02]"
-                  >
-                    <UserPlus className="h-4 w-4" />
-                    Creer un compte
-                  </Link>
-                  <Link
-                    href={`/auth/signin?callbackUrl=/track/${track.id}`}
-                    className="inline-flex h-11 items-center rounded-full bg-white px-5 text-sm font-black text-black/60 transition hover:bg-black hover:text-white"
-                  >
-                    Se connecter
-                  </Link>
-                </div>
-              </SynauraPanel>
-            ) : null}
+            {!track.isAI && <div className="track-timeline">
+              <div className="track-section-caption"><span>DANS LE MORCEAU</span><button type="button" onClick={event => actions.open(track, 'lyrics', event.currentTarget)}><AlignLeft size={15} />Paroles</button></div>
+              {isCurrentTrack ? <Waveform peaks={waveform.peaks} loading={waveform.loading} duration={audioState.duration || waveform.duration || track.duration} getAudioElement={getAudioElement} onSeek={seek} markers={moments.markers} onMarkerSeek={marker => openComments(entity, document.activeElement as HTMLElement, undefined, marker.id)} variant="dark" /> : <p className="track-timeline-idle">Lancez l’écoute pour explorer les moments du morceau.</p>}
+            </div>}
+            {track.isAI && <button className="track-text-action" type="button" onClick={event => actions.open(track, 'lyrics', event.currentTarget)}><AlignLeft size={16} />Paroles</button>}
+            <button type="button" disabled={!isCurrentTrack} title={isCurrentTrack ? 'Ouvrir le lecteur du morceau en cours' : 'Écoute ce morceau pour ouvrir son lecteur'} onClick={() => { setShowPlayer(true); setIsMinimized(false); window.dispatchEvent(new Event('synaura:open-full-player')); }} className="track-player-link"><Headphones size={15} />Ouvrir le lecteur<ArrowUpRight size={14} /></button>
           </div>
+        </section>
 
-          <div className="lg:col-span-2">
-            <TrackPostsSection track={track} />
+        {!track.isAI && <section className="track-conversation" aria-labelledby="track-conversation-title">
+          <div><p className="track-eyebrow">LE MORCEAU SE PARTAGE AUSSI ICI</p><h2 id="track-conversation-title">Et vous, ça vous fait quoi ?</h2><p>Un avis, une émotion, un instant à partager.</p></div>
+          <div className="track-conversation-actions">
+            <button type="button" className="track-conversation-open" data-context-surface-trigger-key={`track-comments-${track.id}`} onClick={event => openComments(entity, event.currentTarget)}><MessageCircle size={24} /><span>Commentaires<small>Ouvrir la conversation</small></span><CommentCount type="track" id={track.id} /><ArrowUpRight size={20} /></button>
+            <button type="button" className="track-moment-open" disabled={!isCurrentTrack} onClick={event => openComments(entity, event.currentTarget, Math.max(0, getAudioElement()?.currentTime || 0))}><Clock3 size={18} /><span>{isCurrentTrack ? 'Commenter cet instant' : 'Écoutez pour commenter un instant'}</span></button>
           </div>
+        </section>}
+
+        <section className="track-beyond" aria-labelledby="track-beyond-title">
+          <div className="track-beyond-heading"><p className="track-eyebrow">À PARTIR DE CE SON</p><h2 id="track-beyond-title">Laissez une trace.</h2></div>
+          <div className="track-paths">
+            {track.allowClips && <button type="button" onClick={event => actions.open(track, 'track-clip', event.currentTarget)}><Film size={22} /><span>Créer un clip<small>Votre image. Ce son.</small></span><ArrowUpRight size={20} /></button>}
+            {track.canRemixAiVariation && <button type="button" onClick={event => actions.open(track, 'track-remix', event.currentTarget)}><Sparkles size={22} /><span>Réinventer ce son<small>Créer une variation</small></span><ArrowUpRight size={20} /></button>}
+            <Link href={`/community/forum/new?category=feedback&trackId=${encodeURIComponent(track.id)}&title=${encodeURIComponent(track.title)}&source=track`}><MessageCircle size={22} /><span>Demander un avis<small>La communauté vous écoute</small></span><ArrowUpRight size={20} /></Link>
+            <Link href={`/community/forum/new?category=remix&trackId=${encodeURIComponent(track.id)}&title=${encodeURIComponent(track.title)}&source=track`}><Music2 size={22} /><span>Lancer un défi remix<small>Une autre façon de l’entendre</small></span><ArrowUpRight size={20} /></Link>
+          </div>
+        </section>
+
+        {(track.remixAttribution || track.linkedChallenge) && <section className="track-origins" aria-label="Origines et défi du morceau">
+          {track.remixAttribution && <Link href={track.remixAttribution.trackUrl || `/track/${track.remixAttribution.sourceTrackId}`}><Music2 size={22} /><span><small>INSPIRÉ DE</small><strong>{track.remixAttribution.title}</strong><span>par {track.remixAttribution.artistUsername || track.remixAttribution.artist}</span></span><ArrowUpRight size={20} /></Link>}
+          {track.linkedChallenge && <Link href={`/challenges/${track.linkedChallenge.id}`}><Trophy size={22} /><span><small>{track.linkedChallenge.status === 'active' ? 'DÉFI EN COURS' : track.linkedChallenge.status === 'upcoming' ? 'DÉFI À VENIR' : 'DÉFI TERMINÉ'}</small><strong>{track.linkedChallenge.title}</strong></span><ArrowUpRight size={20} /></Link>}
+        </section>}
+
+        <div className="track-bottom-grid"><section className="track-community" aria-label="Publications liées"><TrackPostsSection key={track.id} track={track} /></section>
+          <aside className="track-facts"><h2>Le morceau en bref</h2><dl><div><dt>Durée</dt><dd>{track.duration > 0 ? mmss(track.duration) : 'Non renseignée'}</dd></div><div><dt>Écoutes</dt><dd>{fmt.format(track.plays || 0)}</dd></div><div><dt>J’aime</dt><dd>{fmt.format(track.likes || 0)}</dd></div>{track.genre?.length > 0 && <div><dt>Genres</dt><dd>{track.genre.join(' · ')}</dd></div>}{releaseLabel && <div><dt>Sortie</dt><dd>{releaseLabel}</dd></div>}{Number(track.variationsCount || 0) > 0 && <div><dt>Variations</dt><dd>{fmt.format(track.variationsCount || 0)}</dd></div>}</dl>
+            {Number(track.musicClipsCount || 0) > 0 && <Link className="track-clips-link" href={`/live?filter=clips&sourceTrackId=${encodeURIComponent(track.id)}`}><Film size={18} />{fmt.format(track.musicClipsCount || 0)} clips avec ce son<ArrowUpRight size={16} /></Link>}
+            {!session && <div className="track-join"><h3>Gardez ce qui vous touche.</h3><p>Vos favoris, vos artistes, votre univers.</p><Link href={`/auth/signup?callbackUrl=/track/${encodeURIComponent(track.id)}`}>Créer un compte<ArrowUpRight size={17} /></Link><Link href={`/auth/signin?callbackUrl=/track/${encodeURIComponent(track.id)}`}>Se connecter</Link></div>}
+          </aside>
         </div>
-      </div>
-    </SynauraAppShell>
-  );
+      </article>
+    </ExperienceMotionFrame>
+  </SynauraAppShell>;
 }

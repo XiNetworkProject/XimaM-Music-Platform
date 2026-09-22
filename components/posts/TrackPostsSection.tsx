@@ -117,10 +117,10 @@ export default function TrackPostsSection({ track }: { track: TrackForPost }) {
       <div className="border-b border-[var(--syn-border)] bg-[var(--syn-surface-muted)] p-4 sm:p-6">
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-center">
           <div>
-            <p className="text-xs font-black uppercase tracking-[0.18em] text-black/38">Posts attachés au son</p>
-            <h2 className="mt-2 text-2xl font-black tracking-[-0.04em] text-[#111111]">L’histoire et les réactions autour de ce morceau.</h2>
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-black/38">Publications liées</p>
+            <h2 className="mt-2 text-2xl font-black tracking-[-0.04em] text-[#111111]">Autour du morceau.</h2>
             <p className="mt-2 max-w-xl text-sm font-semibold leading-6 text-black/52">
-              Publie un contexte, un moment précis ou une raison de faire écouter ce son. La musique reste au centre.
+              Partagez une histoire ou les coulisses de ce son.
             </p>
           </div>
           <PostAudioCard track={audioTrack} playing={playing} onPlay={play} compact />
@@ -131,11 +131,12 @@ export default function TrackPostsSection({ track }: { track: TrackForPost }) {
         {session?.user ? (
           <div className="mb-4 rounded-[var(--syn-radius-lg)] border border-[var(--syn-border)] bg-[var(--syn-surface-muted)] p-3">
             <textarea
+              aria-label="Votre publication autour du morceau"
               value={content}
               onChange={(event) => setContent(event.target.value)}
               maxLength={500}
               className="min-h-[96px] w-full resize-none rounded-[1rem] border border-black/[0.08] bg-[#F7F6F3] px-3 py-3 text-sm font-semibold text-[#111111] outline-none placeholder:text-black/32 focus:border-black/18"
-              placeholder="Raconte ce que ce morceau t'évoque, un passage fort, ou pourquoi il mérite plus d'écoutes..."
+              placeholder="Une histoire à partager avec ce son ?"
             />
             <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-xs font-semibold text-black/36">{content.length}/500</p>
@@ -178,9 +179,9 @@ export default function TrackPostsSection({ track }: { track: TrackForPost }) {
         ) : (
           <div className="rounded-[1.35rem] border border-dashed border-black/[0.12] bg-black/[0.02] px-5 py-10 text-center">
             <MessageCircle className="mx-auto h-9 w-9 text-black/18" />
-            <p className="mt-3 text-sm font-black text-[#111111]">Aucun post attaché pour le moment.</p>
+            <p className="mt-3 text-sm font-black text-[#111111]">La première histoire reste à écrire.</p>
             <p className="mx-auto mt-1 max-w-md text-sm font-semibold leading-6 text-black/42">
-              Le premier post peut donner une vraie vie au morceau : contexte, souvenir, passage favori, coulisses.
+              Un souvenir, une inspiration, les coulisses du morceau.
             </p>
           </div>
         )}

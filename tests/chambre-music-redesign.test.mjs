@@ -114,11 +114,12 @@ test('legacy For You and Trending remain real collections with keyboard-native t
   }
 });
 
-test('420 UI handlers and 212 protected calls match pre-redesign AST, allowing only reviewed loader and keyboard guards', async () => {
+test('unchanged musical screens preserve 414 handlers and 207 calls; redesigned Track has behavioral coverage', async () => {
   // Captured from the exact before/music snapshots, not from candidate output.
   // The snapshots themselves are local artifacts and are not a test dependency.
-  const expectedEvents = '5e1fd19a4916863ca202138560a80ca9626d1b977ffbb3c4e9cb79d2b382a036';
-  const expectedCalls = 'a70f71fde790cf2b6da2d38540eac33240e1fbc9733265e597cf678935033cea';
+  // Same historical rows, excluding only Track (6 handlers / 5 calls).
+  const expectedEvents = '5472c9855f81734a46534729591bb864c38ced42301a2adbb3ab02060368d1c0';
+  const expectedCalls = '21fbf6a273ed38951cbe14c892c05644ed97dceb42875cc5e213a76199b22c52';
   const printer = ts.createPrinter({ removeComments: true });
   const eventAudit = [];
   const callAudit = [];
@@ -132,6 +133,9 @@ test('420 UI handlers and 212 protected calls match pre-redesign AST, allowing o
       }
     };`;
   for (const path of musicSources) {
+    // The requested complete Track redesign is exercised by track-experience.test.mjs.
+    // Keep the historical fingerprint for every other musical screen.
+    if (path === 'app/track/[id]/TrackPageClient.tsx') continue;
     let text = reviewedPilotV1(path, await read(path));
     if (path === 'components/FullScreenPlayer.tsx') {
       // V6 Studio correction: one keyboard dispatch, not a change to playback.
@@ -174,8 +178,8 @@ test('420 UI handlers and 212 protected calls match pre-redesign AST, allowing o
   }
   const digest = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
   assert.equal(exceptions, 1);
-  assert.equal(eventAudit.reduce((n, row) => n + row.events.length, 0), 420);
-  assert.equal(callAudit.reduce((n, row) => n + row.calls.length, 0), 212);
+  assert.equal(eventAudit.reduce((n, row) => n + row.events.length, 0), 414);
+  assert.equal(callAudit.reduce((n, row) => n + row.calls.length, 0), 207);
   assert.equal(digest(eventAudit), expectedEvents, 'an existing event handler changed');
   assert.equal(digest(callAudit), expectedCalls, 'a protected call changed beyond the exact documented loader fix');
 });

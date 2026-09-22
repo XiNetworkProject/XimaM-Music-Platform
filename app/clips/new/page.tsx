@@ -12,6 +12,8 @@ import { SynauraAppShell } from '@/components/synaura/SynauraShell';
 import { recordClipFunnelEvent } from '@/lib/analyticsClient';
 import { enqueueClientClipUpload } from '@/lib/clientClipUploadQueue';
 import { coordinateSecondaryAudioElement } from '@/lib/audio/AudioCore';
+import { MUSIC_CLIP_MIN_SECONDS, MUSIC_CLIP_MAX_SECONDS, MUSIC_CLIP_MAX_BYTES, MUSIC_CLIP_DURATION_MESSAGE, isClipDurationValid } from '@/lib/clipLimits';
+import './clip-composer.css';
 
 type ClipSource = {
   _id: string;
@@ -25,9 +27,6 @@ type ClipSource = {
 };
 
 const FALLBACK_COVER = '/default-cover.svg';
-const MUSIC_CLIP_MIN_SECONDS = 15;
-const MUSIC_CLIP_MAX_SECONDS = 60;
-const MUSIC_CLIP_MAX_BYTES = 95 * 1024 * 1024;
 
 function mmss(seconds = 0) {
   const safe = Math.max(0, Math.round(seconds || 0));
@@ -42,14 +41,16 @@ function getVideoDuration(file: File) {
   return new Promise<number>((resolve, reject) => {
     const video = document.createElement('video');
     const url = URL.createObjectURL(file);
+    const cleanup = () => { window.clearTimeout(timeout); URL.revokeObjectURL(url); video.removeAttribute('src'); video.load(); };
+    const timeout = window.setTimeout(() => { cleanup(); reject(new Error('Impossible de lire la durée de cette vidéo. Essaie un export MP4 H.264.')); }, 15000);
     video.preload = 'metadata';
     video.onloadedmetadata = () => {
       const duration = video.duration;
-      URL.revokeObjectURL(url);
+      cleanup();
       resolve(duration);
     };
     video.onerror = () => {
-      URL.revokeObjectURL(url);
+      cleanup();
       reject(new Error('Vidéo illisible'));
     };
     video.src = url;
@@ -105,6 +106,7 @@ function NewMusicClipPageContent() {
   const maxOffset = Math.max(0, Math.round((selectedSource?.duration || 0) - Math.max(MUSIC_CLIP_MIN_SECONDS, localDuration || MUSIC_CLIP_MIN_SECONDS)));
   const currentStep = !file ? 1 : !selectedSource ? 2 : 3;
   const ready = Boolean(file && selectedSource && localDuration >= MUSIC_CLIP_MIN_SECONDS && localDuration <= MUSIC_CLIP_MAX_SECONDS);
+  const fileRequest = useRef(0);
 
   const loadSources = useCallback(async (query = '', scope: 'all' | 'mine' = 'all', signal?: AbortSignal) => {
     const requestId = ++sourceRequestRef.current;
@@ -189,6 +191,7 @@ function NewMusicClipPageContent() {
   }, []);
 
   async function onPickFile(nextFile: File | null) {
+    const request = ++fileRequest.current;
     setError(null);
     if (!nextFile) return;
     if (!/^video\/(mp4|webm|quicktime|x-m4v)$/i.test(nextFile.type) && !/\.(mp4|webm|mov|m4v)$/i.test(nextFile.name)) {
@@ -196,18 +199,21 @@ function NewMusicClipPageContent() {
       return;
     }
     if (nextFile.size > MUSIC_CLIP_MAX_BYTES) {
-      setError('La vidéo dépasse la limite de 95 Mo.');
+      setError('La vidéo dépasse la limite de 250 Mo.');
       return;
     }
     try {
       const duration = await getVideoDuration(nextFile);
-      if (duration < MUSIC_CLIP_MIN_SECONDS || duration > MUSIC_CLIP_MAX_SECONDS) {
-        setError('Un Clip doit durer entre 15 et 60 secondes.');
+      if (request !== fileRequest.current) return;
+      if (!isClipDurationValid(duration)) {
+        setError(MUSIC_CLIP_DURATION_MESSAGE);
         return;
       }
       setFile(nextFile);
       setLocalDuration(duration);
+      setOffset(0);
     } catch (videoError: any) {
+      if (request !== fileRequest.current) return;
       setError(videoError?.message || 'Vidéo illisible');
     }
   }
@@ -247,9 +253,13 @@ function NewMusicClipPageContent() {
       setError(!file ? 'Ajoute une vidéo.' : 'Choisis le son associé au Clip.');
       return;
     }
+    if (selectedSource.duration > 0 && offset + localDuration > selectedSource.duration + 1) {
+      setError('Ce son est trop court pour ta vidéo. Choisis un morceau plus long.');
+      setSourcePickerOpen(true); return;
+    }
     publishingRef.current = true;
     setError(null);
-    enqueueClientClipUpload({
+    const accepted = enqueueClientClipUpload({
       file,
       source: selectedSource,
       duration: Math.round(localDuration),
@@ -258,10 +268,11 @@ function NewMusicClipPageContent() {
       tags: tagsFromText(tagText),
       challengeId: challengeId || undefined,
     });
+    if (!accepted) { publishingRef.current = false; setError('Un clip est déjà en cours. Termine ou ferme son suivi avant de publier le suivant.'); return; }
     audioRef.current?.pause();
     audioPolicyCleanupRef.current?.();
     audioPolicyCleanupRef.current = null;
-    router.push(currentHandoffReturn('/?filter=clips'));
+    router.push(currentHandoffReturn('/live'));
   }
 
   const primaryLabel = !file ? 'Ajouter la vidéo' : !selectedSource ? 'Choisir le son' : 'Publier le Clip';
@@ -270,7 +281,7 @@ function NewMusicClipPageContent() {
     <SynauraAppShell contentClassName="v2-creation v2-clip !max-w-[1440px]">
       <div className="pb-24">
         <div className="mb-3 flex items-center justify-between gap-3">
-          <HandoffReturn fallbackHref="/" fallbackLabel="Scroll" className="border border-[var(--v2-line)] bg-[var(--v2-raised)] text-[var(--v2-muted)] hover:bg-[var(--v2-surface)] hover:text-white" />
+          <HandoffReturn fallbackHref="/live" fallbackLabel="Live" className="border border-[var(--v2-line)] bg-[var(--v2-raised)] text-[var(--v2-muted)] hover:bg-[var(--v2-surface)] hover:text-white" />
           {challengeId ? <span className="max-w-[60%] truncate rounded-full bg-[var(--v2-accent)] px-3 py-2 text-xs font-semibold text-[#8c671f]">{challengeTitle || 'Challenge Synaura'}</span> : null}
         </div>
 
@@ -278,8 +289,8 @@ function NewMusicClipPageContent() {
           <header className="v2-clip-header chambre-clip-cover flex items-center gap-4">
             <Film className="h-5 w-5 text-[var(--v2-accent)]" />
             <div className="min-w-0 flex-1">
-              <p className="v2-kicker">L’atelier / Créer un Clip</p>
-              <h1 className="mt-2">UN SON.<br /><span>TON REGARD.</span></h1>
+              <p className="v2-kicker">Créer un clip</p>
+              <h1 className="mt-2">Ça mérite <span>d’être vu.</span></h1>
               <div className="mt-2 flex max-w-56 gap-1.5">
                 {[1, 2, 3].map((step) => <span key={step} className={`h-1 flex-1 rounded-full ${step <= currentStep ? 'bg-[var(--v2-accent)]' : 'bg-[var(--v2-raised)]'}`} />)}
               </div>
@@ -289,11 +300,11 @@ function NewMusicClipPageContent() {
 
           <div className="v2-clip-layout">
             <div className="v2-clip-video">
-              <label className="relative block aspect-[3/4] cursor-pointer overflow-hidden">
+              <label className="clip-dropzone relative block cursor-pointer overflow-hidden" onDragOver={event => { event.preventDefault(); event.currentTarget.setAttribute('data-dragging', 'true'); }} onDragLeave={event => event.currentTarget.removeAttribute('data-dragging')} onDrop={event => { event.preventDefault(); event.currentTarget.removeAttribute('data-dragging'); void onPickFile(event.dataTransfer.files[0] || null); }}>
                 <input ref={fileInputRef} type="file" accept="video/mp4,video/webm,video/quicktime,video/x-m4v" className="sr-only" onChange={(event) => void onPickFile(event.target.files?.[0] || null)} />
                 {file && videoPreviewUrl ? (
                   <>
-                    <video src={videoPreviewUrl} muted loop autoPlay playsInline className="h-full w-full object-cover" />
+                    <video src={videoPreviewUrl} muted loop autoPlay playsInline className="clip-preview-video" />
                     <span className="absolute right-3 top-3 grid h-10 w-10 place-items-center rounded-full border border-white/15 bg-black/70"><UploadCloud className="h-4 w-4" /></span>
                     <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 to-transparent p-4 pt-16">
                       <span className="block text-[10px] font-semibold uppercase text-[var(--v2-accent)]">Vidéo prête</span>
@@ -306,7 +317,8 @@ function NewMusicClipPageContent() {
                     <span>
                       <span className="mx-auto grid h-16 w-16 place-items-center rounded-full border border-[var(--v2-line)] text-[var(--v2-accent)]"><UploadCloud className="h-7 w-7" /></span>
                       <span className="mt-5 block text-xl font-semibold">Ajouter une vidéo</span>
-                      <span className="mt-2 block text-xs font-bold text-[var(--v2-muted)]">15 à 60 secondes · 95 Mo maximum</span>
+                      <span className="mt-2 block text-xs font-bold text-[var(--v2-muted)]">15 secondes à 4 minutes · 250 Mo max.</span>
+                      <span className="mt-2 block text-xs text-[var(--v2-muted)]">Verticale, carrée ou horizontale. Glisse ton fichier ici.</span>
                     </span>
                   </span>
                 )}

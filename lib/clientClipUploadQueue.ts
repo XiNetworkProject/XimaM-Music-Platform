@@ -2,6 +2,7 @@
 
 import { recordClipFunnelEvent } from '@/lib/analyticsClient';
 import { uploadLocalMedia } from '@/lib/clientMediaUpload';
+import { notify } from '@/lib/ui/notifications';
 
 type ClipSource = {
   _id: string;
@@ -23,7 +24,7 @@ type QueueInput = {
 };
 
 export type ClientClipUploadState = {
-  status: 'idle' | 'preparing' | 'uploading' | 'publishing' | 'failed' | 'completed';
+  status: 'idle' | 'preparing' | 'uploading' | 'processing' | 'publishing' | 'failed' | 'completed';
   progress: number;
   source: ClipSource | null;
   error?: string;
@@ -43,7 +44,7 @@ function emit(patch: Partial<ClientClipUploadState>) {
 }
 
 async function uploadVideo(file: File, onProgress: (progress: number) => void) {
-  return uploadLocalMedia(file, 'clip-video', { onProgress });
+  return uploadLocalMedia(file, 'clip-video', { onProgress, onTransferred: () => emit({ status: 'processing', progress: 1 }) });
 }
 
 async function run() {
@@ -51,7 +52,7 @@ async function run() {
   running = true;
   const input = currentInput;
   try {
-    emit({ status: 'preparing', progress: 0.05, error: undefined, source: input.source });
+    emit({ status: 'preparing', progress: 0, error: undefined, source: input.source });
     if (!currentClipId) {
       const draftResponse = await fetch('/api/music-clips', {
         method: 'POST',
@@ -67,8 +68,8 @@ async function run() {
       let lastError: unknown = null;
       for (let attempt = 0; attempt < 2 && !currentUpload; attempt += 1) {
         try {
-          emit({ status: 'uploading', progress: 0.1 });
-          currentUpload = await uploadVideo(input.file, (progress) => emit({ status: 'uploading', progress: 0.1 + progress * 0.78 }));
+          emit({ status: 'uploading', progress: 0 });
+          currentUpload = await uploadVideo(input.file, (progress) => emit({ progress }));
         } catch (error) {
           lastError = error;
           if (attempt === 0) await new Promise((resolve) => setTimeout(resolve, 1200));
@@ -76,7 +77,7 @@ async function run() {
       }
       if (!currentUpload) throw lastError;
     }
-    emit({ status: 'publishing', progress: 0.94 });
+    emit({ status: 'publishing', progress: 1 });
     const publishResponse = await fetch(`/api/music-clips/${currentClipId}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
@@ -103,6 +104,7 @@ async function run() {
     }
     void recordClipFunnelEvent(input.source._id, 'clip_published');
     emit({ status: 'completed', progress: 1, error: undefined });
+    notify.success('Clip publié', 'Votre vidéo est prête à être découverte.');
     window.dispatchEvent(new Event('synaura:clip-upload-completed'));
     window.setTimeout(() => {
       if (currentInput !== input || snapshot.status !== 'completed') return;
@@ -113,23 +115,33 @@ async function run() {
     }, 6500);
   } catch (error) {
     emit({ status: 'failed', error: error instanceof Error ? error.message : 'Publication impossible' });
+    notify.error('Le clip n’a pas été publié', snapshot.error);
   } finally {
     running = false;
   }
 }
 
 export function enqueueClientClipUpload(input: QueueInput) {
+  // A second page must never replace the File or draft of an in-flight request.
+  if (running || (currentInput && snapshot.status === 'failed')) return false;
   currentInput = input;
   currentClipId = '';
   currentUpload = null;
-  emit({ status: 'preparing', progress: 0.02, source: input.source, error: undefined });
+  emit({ status: 'preparing', progress: 0, source: input.source, error: undefined });
   void run();
+  return true;
 }
 
 export function retryClientClipUpload() {
   if (!currentInput || snapshot.status !== 'failed') return;
-  emit({ status: 'preparing', progress: currentUpload ? 0.9 : 0.04, error: undefined });
+  emit({ status: 'preparing', progress: 0, error: undefined });
   void run();
+}
+
+export function dismissClientClipUpload() {
+  if (running || !['failed', 'completed'].includes(snapshot.status)) return;
+  currentInput = null; currentClipId = ''; currentUpload = null;
+  emit({ status: 'idle', progress: 0, source: null, error: undefined });
 }
 
 export function subscribeClientClipUpload(listener: () => void) {

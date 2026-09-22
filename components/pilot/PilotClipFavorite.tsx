@@ -15,7 +15,7 @@ export default function PilotClipFavorite({ id, active, count }: { id: string; a
   const state = useQuery<{ liked: boolean; likesCount: number }>({ queryKey: key, enabled: active && Boolean(session?.user?.id), staleTime: 300_000, refetchOnWindowFocus: false,
     queryFn: async ({ signal }) => { const response = await fetch(endpoint, { signal }); if (!response.ok) throw new Error('Favori indisponible'); return response.json(); } });
   const liked = state.data?.liked ?? false;
-  return <><button aria-label={liked ? 'Ne plus aimer le clip' : 'Aimer le clip'} aria-pressed={liked} disabled={busy || !state.data} onClick={async () => {
+  return <><button data-live-like aria-label={liked ? 'Ne plus aimer le clip' : 'Aimer le clip'} aria-pressed={liked} disabled={busy || !state.data} onClick={async () => {
     if (busy || !state.data) return;
     setBusy(true); setError('');
     try {

@@ -62,7 +62,8 @@ test('mobile Track and Discovery reuse the same native play actions in compact f
   ]);
   assert.equal((track.match(/onClick=\{handlePlay\}/g) || []).length, 1);
   assert.equal((discover.match(/onClick=\{toggle\}/g) || []).length, 1);
-  assert.match(track, /className="v2-track-artist mt-4 flex flex-wrap items-center gap-3"/);
+  assert.match(track, /className="track-artist"/);
+  assert.match(track, /className="track-main-actions flex flex-wrap"/);
   const resumed = css.slice(css.indexOf('/* CHAMBRE RESUMPTION'));
   assert.match(resumed, /\.v2-discover-lead \{ display:grid; grid-template-columns:minmax\(102px,\.72fr\) minmax\(0,1.28fr\)/);
   assert.match(resumed, /\.v2-track-identity-grid \{ display:grid; grid-template-columns:minmax\(108px,\.75fr\) minmax\(0,1.25fr\)/);

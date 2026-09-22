@@ -28,7 +28,7 @@ import { useMomentReactions } from '@/hooks/useMomentReactions';
 import { type MomentReactionType } from '@/lib/momentReactions';
 import Waveform from '@/components/player/Waveform';
 import ReactionPicker from '@/components/player/ReactionPicker';
-import ClipUploadIndicator from '@/components/clips/ClipUploadIndicator';
+import { resolveLiveAutomaticAdvance } from '@/lib/livePlaybackContinuity';
 import HomeFlowPrelude from '@/components/home/HomeFlowPrelude';
 import ScrollPostSlide from '@/components/home/ScrollPostSlide';
 import { SynauraMobileDock } from '@/components/synaura/SynauraShell';
@@ -921,7 +921,9 @@ export default function SynauraScroll({ renderPilot }: { renderPilot?: (model: L
     [feedIndexToQueueIndex, playableQueue, queueByPosition, setQueueAndPlay],
   );
 
+  const endedLiveItem = useRef<{ itemId: string; trackId: string; queueIndex: number } | null>(null);
   const navigateTo = useCallback((index: number) => {
+    endedLiveItem.current = null;
     suppressRestoredAutoplayRef.current = false;
     setActiveIndex((current) => (current === index ? current : index));
   }, []);
@@ -1114,19 +1116,45 @@ export default function SynauraScroll({ renderPilot }: { renderPilot?: (model: L
   // redéclenche plusieurs fois rapprochées pour un même morceau).
   const lastAutoplayRequestRef = useRef<string | null>(null);
   useEffect(() => {
+    const element = getAudioElement();
+    if (!element || !continuitySettled || homePreludeOpen) return;
+    const onEnded = () => {
+      const item = feedItems[activeIndex];
+      if (item && currentId === queueByPosition[activeIndex]?._id) endedLiveItem.current = { itemId: item.id, trackId: currentId, queueIndex: audioState.currentTrackIndex };
+    };
+    element.addEventListener('ended', onEnded, true);
+    return () => element.removeEventListener('ended', onEnded, true);
+  }, [activeIndex, audioState.currentTrackIndex, continuitySettled, currentId, feedItems, getAudioElement, homePreludeOpen, queueByPosition]);
+  useEffect(() => {
+    const ended = endedLiveItem.current;
+    if (!ended || !continuitySettled || homePreludeOpen || contextDepth > 0) return;
+    const index = resolveLiveAutomaticAdvance({
+      endedItemId: ended.itemId, endedTrackId: ended.trackId, endedQueueIndex: ended.queueIndex, currentTrackId: currentId || '',
+      activeItemId: feedItems[activeIndex]?.id || '', feedItemIds: feedItems.map(item => item.id),
+      queueTrackIds: playableQueue.map(track => track._id), playerQueueIds: audioState.tracks.map(track => track._id),
+      playerQueueIndex: audioState.currentTrackIndex, queueFeedIndices: Array.from(feedIndexToQueueIndex.keys()),
+    });
+    if (index === null) return;
+    endedLiveItem.current = null;
+    lastAutoplayRequestRef.current = currentId;
+    setActiveIndex(index);
+    scrollSnap.scrollTo(index, window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth');
+  }, [activeIndex, audioState.currentTrackIndex, audioState.tracks, contextDepth, continuitySettled, currentId, feedIndexToQueueIndex, feedItems, homePreludeOpen, playableQueue, scrollSnap.scrollTo]);
+  useEffect(() => {
     lastAutoplayRequestRef.current = null;
   }, [activeIndex]);
   useEffect(() => {
     const track = queueByPosition[activeIndex];
-    if (!continuitySettled || suppressRestoredAutoplayRef.current || !track || homePreludeOpen) return;
+    if (!continuitySettled || suppressRestoredAutoplayRef.current || !track || homePreludeOpen || endedLiveItem.current) return;
     const timer = window.setTimeout(() => {
-      if (currentId === track._id) return;
+      const ownsQueue = audioState.tracks.length === playableQueue.length && playableQueue.every((entry, i) => entry._id === audioState.tracks[i]?._id);
+      if (currentId === track._id && (!ownsQueue || audioState.currentTrackIndex === feedIndexToQueueIndex.get(activeIndex))) return;
       if (lastAutoplayRequestRef.current === track._id) return;
       lastAutoplayRequestRef.current = track._id;
       playIndex(activeIndex);
     }, AUTOPLAY_DELAY_MS);
     return () => window.clearTimeout(timer);
-  }, [activeIndex, continuitySettled, currentId, homePreludeOpen, playIndex, queueByPosition]);
+  }, [activeIndex, audioState.currentTrackIndex, audioState.tracks, continuitySettled, currentId, feedIndexToQueueIndex, homePreludeOpen, playableQueue, playIndex, queueByPosition]);
 
   // Un Clip a un point de départ choisi par son créateur à la publication
   // (sourceTrackOffsetSeconds) : une fois le son du morceau original chargé, on
@@ -1135,15 +1163,15 @@ export default function SynauraScroll({ renderPilot }: { renderPilot?: (model: L
   useEffect(() => {
     if (!continuitySettled) return;
     const item = feedItems[activeIndex];
-    if (!item || item.type !== 'clip') return;
+    if (!item || item.type !== 'clip') { clipOffsetSeekedRef.current = null; return; }
     const offset = item.clip.sourceTrackOffsetSeconds || 0;
-    if (offset <= 0) return;
     if (currentId !== item.track._id) return;
+    if (audioState.currentTrackIndex !== feedIndexToQueueIndex.get(activeIndex)) return;
     if (!audioState.duration) return;
     if (clipOffsetSeekedRef.current === item.clip.id) return;
     clipOffsetSeekedRef.current = item.clip.id;
     seek(Math.min(offset, Math.max(0, audioState.duration - 0.5)));
-  }, [activeIndex, continuitySettled, feedItems, currentId, audioState.duration, seek]);
+  }, [activeIndex, continuitySettled, feedItems, currentId, audioState.currentTrackIndex, audioState.duration, feedIndexToQueueIndex, seek]);
 
   const shareClip = useCallback(async (clip: ScrollClip) => {
     const sourceUrl = `${window.location.origin}${(clip.sourceTrack as any).trackUrl || `/track/${clip.sourceTrack._id}`}`;
@@ -1860,7 +1888,6 @@ export default function SynauraScroll({ renderPilot }: { renderPilot?: (model: L
         onEvents={() => navigateFromLive('/city')}
       />
       <SynauraMobileDock appearance="immersive" showDesktop />
-      <ClipUploadIndicator />
       <div className="v2-live-header absolute left-0 right-0 top-0 z-40 px-3 pt-[max(env(safe-area-inset-top),0.75rem)] sm:px-4">
         <div className="flex items-center justify-between gap-2">
           <button

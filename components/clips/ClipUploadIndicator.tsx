@@ -1,33 +1,31 @@
 'use client';
 
-import { useSyncExternalStore } from 'react';
-import { Check, RefreshCw } from 'lucide-react';
-import {
-  getClientClipUploadServerSnapshot,
-  getClientClipUploadSnapshot,
-  retryClientClipUpload,
-  subscribeClientClipUpload,
-} from '@/lib/clientClipUploadQueue';
+import { useEffect, useSyncExternalStore } from 'react';
+import { Check, Loader2, RefreshCw, Upload, X } from 'lucide-react';
+import { dismissClientClipUpload, getClientClipUploadServerSnapshot, getClientClipUploadSnapshot, retryClientClipUpload, subscribeClientClipUpload } from '@/lib/clientClipUploadQueue';
+import './clip-upload-indicator.css';
 
 export default function ClipUploadIndicator() {
   const task = useSyncExternalStore(subscribeClientClipUpload, getClientClipUploadSnapshot, getClientClipUploadServerSnapshot);
-  if (task.status === 'idle' || !task.source) return null;
+  const busy = !['idle', 'failed', 'completed'].includes(task.status);
+  useEffect(() => {
+    if (!busy) return;
+    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ''; };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [busy]);
+  if (task.status === 'idle') return null;
   const failed = task.status === 'failed';
   const completed = task.status === 'completed';
-  const progress = Math.max(2, Math.round(task.progress * 100));
-  return (
-    <button
-      type="button"
-      disabled={!failed}
-      onClick={retryClientClipUpload}
-      className="chambre-clip-upload fixed left-4 top-20 z-[90] grid w-[72px] justify-items-center gap-1 text-white disabled:cursor-default"
-      aria-label={failed ? `Échec de l’envoi. ${task.error || ''} Réessayer` : 'Publication du Clip en cours'}
-    >
-      <span className="relative grid h-14 w-14 place-items-center rounded-full p-1" style={{ background: `conic-gradient(${failed ? 'var(--v2-danger, #ffada4)' : completed ? 'var(--v2-success, #92d5be)' : 'var(--v2-accent, #86afff)'} ${progress}%, rgba(255,255,255,.2) 0)` }}>
-        <img src={task.source.coverUrl || '/default-cover.svg'} alt="" className="h-11 w-11 rounded-full object-cover" />
-        {(failed || completed) ? <span className={`absolute inset-[10px] grid place-items-center rounded-full text-[var(--v2-bg)] ${failed ? 'bg-[var(--v2-danger,#ffada4)]' : 'bg-[var(--v2-success,#92d5be)]'}`}>{failed ? <RefreshCw className="h-4 w-4" /> : <Check className="h-4 w-4" />}</span> : null}
-      </span>
-      <span className="max-w-[72px] truncate text-[10px] font-black drop-shadow">{failed ? 'Réessayer' : completed ? 'Clip publié' : `${progress} %`}</span>
-    </button>
-  );
+  const transferring = task.status === 'uploading';
+  const percent = Math.round(task.progress * 100);
+  const label = failed ? 'Envoi interrompu' : completed ? 'Clip publié' : transferring ? `Envoi · ${percent} %` : task.status === 'processing' ? 'Vérification de la vidéo' : task.status === 'publishing' ? 'Publication du clip' : 'Préparation de l’envoi';
+  return <aside className="clip-upload-badge" aria-label="Suivi de votre clip" data-state={task.status}>
+    <span className="clip-upload-symbol" aria-hidden="true">{completed ? <Check /> : failed ? <RefreshCw /> : transferring ? <Upload /> : <Loader2 className="clip-upload-spinner" />}</span>
+    <div className="clip-upload-description"><p role="status" aria-live="polite" aria-atomic="true">{label}</p><span>{failed ? task.error : busy ? 'Vous pouvez continuer à naviguer.' : 'Disponible dans Live'}</span>
+      {transferring && <progress value={percent} max={100} aria-label="Octets de la vidéo transférés" />}
+    </div>
+    {failed && <button onClick={retryClientClipUpload} aria-label="Réessayer l’envoi du clip"><RefreshCw size={17} /></button>}
+    {!busy && <button onClick={dismissClientClipUpload} aria-label="Fermer le suivi du clip"><X size={17} /></button>}
+  </aside>;
 }

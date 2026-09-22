@@ -1138,10 +1138,10 @@ export default function LibraryClient() {
     <header className="v2-library-header chambre-collection-header signature-collection-header experience-collection-header" data-library-tab={tab}>
       <div className="v2-library-title flex flex-wrap items-end justify-between gap-3">
         <div>
-          <p className="v2-kicker">Chambre Sonore / Bibliothèque</p>
+          <p className="v2-kicker">SYNAURA / BIBLIOTHÈQUE</p>
           <h1 className="mt-3 text-[var(--syn-text-primary)]">Votre<br /><span className="chambre-type-accent">discothèque.</span></h1>
           <p className="mt-1 text-sm font-semibold text-[var(--syn-text-secondary)]">
-            Garder. Classer. Réécouter.
+            Les morceaux passent. Les vôtres restent.
           </p>
         </div>
         {tab === 'playlists' && !selectedPlaylistId ? (
@@ -1513,8 +1513,8 @@ export default function LibraryClient() {
               >
                 <div className="signature-library-collection-bar flex items-center justify-between">
                   <div className="text-sm text-foreground-secondary">
-                    <p className="v2-kicker">Votre classement personnel</p>
-                    <h2>Les dossiers <span className="experience-collection-total">{visiblePlaylists.length}</span></h2>
+                    <p className="v2-kicker">UNE AMBIANCE, UNE COLLECTION</p>
+                    <h2>Vos playlists <span className="experience-collection-total">{visiblePlaylists.length}</span></h2>
                   </div>
                   <button
                     type="button"
@@ -1522,7 +1522,7 @@ export default function LibraryClient() {
                     className="signature-personal-primary"
                   >
                     <FolderPlus className="h-4 w-4" />
-                    Nouveau dossier
+                    Nouvelle playlist
                   </button>
                 </div>
 

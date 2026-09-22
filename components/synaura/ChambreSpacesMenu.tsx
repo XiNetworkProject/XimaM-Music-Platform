@@ -33,7 +33,7 @@ const SPACES = [
 ] as const;
 
 /** Navigation view only: existing routes, handoffs and access guards remain the owners. */
-export default function ChambreSpacesMenu({ username, authenticated = false }: { username?: string | null; authenticated?: boolean }) {
+export default function ChambreSpacesMenu({ username, authenticated = false, triggerLabel = 'Espaces' }: { username?: string | null; authenticated?: boolean; triggerLabel?: string }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const titleRef = useRef<HTMLHeadingElement>(null);
@@ -47,8 +47,8 @@ export default function ChambreSpacesMenu({ username, authenticated = false }: {
     { href: '/support', label: 'Aide' },
   ];
   return <>
-    <button type="button" className="chambre-spaces-trigger" aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)}>
-      <Grid2X2 size={17} aria-hidden="true" /><span>Espaces</span>
+    <button type="button" className="chambre-spaces-trigger" aria-label={triggerLabel} aria-haspopup="dialog" aria-expanded={open} onClick={() => setOpen(true)}>
+      <Grid2X2 size={17} aria-hidden="true" /><span>{triggerLabel}</span>
     </button>
     <SynauraOverlay open={open} onClose={close} presentation="responsive" size="full" initialFocusRef={titleRef} history={false} className="chambre-spaces-panel">
       <header className="chambre-spaces-heading">

@@ -1,0 +1,181 @@
+/* Shared navigation: open edges, bare controls, light rather than outlined tiles. */
+.syn-unified-app {
+  --syn-nav-width:208px;
+  --syn-nav-height:94px;
+  --syn-nav-bottom:84px;
+  flex:1; min-width:0; width:100%;
+  padding:var(--syn-nav-height) 0 0 var(--syn-nav-width);
+}
+.syn-app-header,.syn-app-nav {
+  box-sizing:border-box; font-family:var(--font-inter),Arial,sans-serif; color:#e8eefb;
+  border:0; border-radius:0; box-shadow:none;
+}
+.syn-app-header {
+  position:fixed; z-index:112; inset:0 0 auto var(--syn-nav-width); height:78px;
+  display:flex; align-items:center; gap:20px; padding:0 32px;
+  background:linear-gradient(180deg,#070b14e8, #070b1494 58%,transparent);
+}
+.syn-app-brand { display:none; align-items:center; min-height:44px; flex-shrink:0; }
+.syn-app-brand img { width:140px; height:36px; object-fit:contain; }
+.syn-app-tools { margin-left:auto; display:flex; align-items:center; gap:6px; }
+.syn-app-tools>a,.syn-app-tools>button,.syn-app-tools>div>button {
+  display:grid; place-items:center; flex-shrink:0; width:44px; min-width:44px; height:44px;
+  border:0; border-radius:0; background:transparent; box-shadow:none; color:#b5c2d8;
+  transition:color .2s,transform .2s;
+}
+.syn-app-tools :is(a,button)>svg { stroke-width:1.7; }
+.syn-app-header-spaces { display:flex; flex:none; margin-inline:8px; }
+.syn-app-tools .syn-app-header-spaces>.chambre-spaces-trigger {
+  display:flex; gap:8px; width:auto; min-width:88px; min-height:44px; padding:0 8px;
+  border:0; border-radius:0; background:transparent; box-shadow:none; font-size:12px;
+}
+.syn-app-tools .experience-account-menu summary {
+  display:grid; place-items:center; width:44px; height:44px; padding:0;
+  border:0; background:transparent; box-shadow:none;
+}
+.syn-app-tools .experience-account-menu summary>span:first-child { width:32px; height:32px; }
+.syn-app-tools .experience-account-menu summary>span:last-child:not(:first-child) { display:none; }
+.syn-app-tools .v2-account-panel {
+  background:#101724; color:#e4ecfa; border:0; box-shadow:0 20px 65px #0006;
+  max-height:calc(100dvh - 110px); overflow-y:auto;
+}
+.syn-app-tools .v2-account-panel a { color:#c3cfe3; font-weight:500; }
+.syn-app-tools .v2-account-panel a:hover { background:#c1d4ff0a; color:#fff; }
+
+.syn-app-nav {
+  position:fixed; z-index:111; inset:0 auto 0 0; width:var(--syn-nav-width);
+  padding:26px 18px 20px; display:flex; flex-direction:column; gap:9px;
+  background:linear-gradient(90deg,#080d17d9, #080d1780 75%,transparent);
+}
+.syn-app-rail-brand { display:flex; align-items:center; min-height:44px; margin:0 7px 37px; }
+.syn-app-rail-logo { display:block; width:155px; height:36px; overflow:hidden; }
+.syn-app-rail-logo img { display:block; width:155px; max-width:none; height:36px; }
+.syn-app-destination {
+  position:relative; display:flex; align-items:center; gap:13px; min-height:55px; padding:8px;
+  font-size:13px; font-weight:450; letter-spacing:-.015em; color:#a3b1c9;
+  border:0; border-radius:0; background:transparent; box-shadow:none;
+  transition:color .2s;
+}
+.syn-app-nav-icon { position:relative; isolation:isolate; display:grid; place-items:center; width:34px; height:34px; flex:none; }
+.syn-app-nav-icon::before {
+  content:""; position:absolute; z-index:-1; inset:-6px; border-radius:50%; pointer-events:none;
+  background:radial-gradient(circle,#9cbaff26,transparent 70%); opacity:0; transform:scale(.6);
+  transition:opacity .25s,transform .3s;
+}
+.syn-app-nav-icon svg { width:23px; height:23px; stroke-width:1.65; transition:transform .25s,filter .25s; }
+.syn-app-destination>span:nth-child(2) { transition:transform .25s; }
+.syn-app-destination[aria-current] { color:#edf4ff; font-weight:550; }
+.syn-app-destination[aria-current] .syn-app-nav-icon { color:#b7ceff; }
+.syn-app-destination[aria-current] .syn-app-nav-icon::before { opacity:1; transform:scale(1.15); }
+.syn-app-destination[aria-current] svg { filter:drop-shadow(0 0 8px #8aaeff55); }
+.syn-app-destination i {
+  position:absolute; right:7px; top:calc(50% - 2px); width:4px; height:4px;
+  border-radius:50%; background:#b7ceff; box-shadow:0 0 10px #b7ceff7a;
+  opacity:0; transform:scale(.4); transition:opacity .25s,transform .25s;
+}
+.syn-app-destination[aria-current] i { opacity:1; transform:scale(1); }
+.syn-app-destination--create .syn-app-nav-icon { color:#c4b7ff; }
+.syn-app-destination--create .syn-app-nav-icon::before { opacity:.65; transform:scale(1); background:radial-gradient(circle,#bda3ff26,transparent 70%); }
+.syn-app-destination--create svg { width:28px; height:28px; stroke-width:1.8; }
+.syn-app-rail-tools {
+  display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:0; margin-top:auto; padding-top:24px;
+  border:0;
+}
+.syn-app-rail-tools a {
+  display:grid; place-items:center; min-width:0; min-height:44px; color:#9eadc6;
+  border:0; background:transparent; transition:color .2s,transform .2s;
+}
+.syn-app-settings {
+  display:flex; align-items:center; gap:13px; margin-top:auto; padding:8px 16px;
+  min-height:44px; font-size:11px; color:#9eadc6; transition:color .2s;
+}
+.syn-app-rail-tools+.syn-app-settings { margin-top:0; }
+.syn-app-dock-spaces { display:none; }
+.syn-app-header :is(a,button,summary):focus-visible,.syn-app-nav :is(a,button):focus-visible {
+  outline:2px solid #bdd0ff; outline-offset:3px; border-radius:6px;
+}
+@media(hover:hover) {
+  .syn-app-destination:hover { color:#fff; }
+  .syn-app-destination:hover .syn-app-nav-icon::before { opacity:1; transform:scale(1.2); }
+  .syn-app-destination:hover svg { transform:translateY(-2px); }
+  .syn-app-destination:hover>span:nth-child(2) { transform:translateX(3px); }
+  .syn-app-destination--create:hover svg { transform:rotate(90deg); }
+  .syn-app-tools>a:hover,.syn-app-tools>button:hover,.syn-app-tools>div>button:hover,.syn-app-rail-tools a:hover,.syn-app-settings:hover { color:#fff; }
+  .syn-app-rail-tools a:hover { transform:translateY(-2px); }
+}
+.syn-app-destination:active svg { transform:scale(.88); }
+
+/* Keep the existing route/player geometry. No local header or second dock. */
+.syn-unified-app .synaura-pilot .pilot-main { margin-left:0; }
+.syn-unified-app .synaura-pilot .pilot-discover { padding-top:24px; }
+.syn-unified-app .synaura-pilot,.syn-unified-app .synaura-shell-root,.syn-unified-app .unified-studio { min-height:calc(100dvh - var(--syn-nav-height)); }
+.syn-unified-app .us-header { min-height:68px; }
+.syn-unified-app .us-brand { font-size:15px; }
+.syn-unified-app .us-brand img { display:none; }
+
+/* Compact rail uses the symbol from the same approved lockup, not another logo. */
+@media(min-width:801px) and (max-width:1100px) {
+  .syn-unified-app { --syn-nav-width:105px; }
+  .syn-app-nav { padding:24px 10px 18px; gap:10px; }
+  .syn-app-rail-brand { justify-content:center; margin:0 0 25px; }
+  .syn-app-rail-logo { width:36px; }
+  .syn-app-destination { flex-direction:column; justify-content:center; gap:3px; min-height:68px; padding:6px 0; font-size:9px; }
+  .syn-app-destination i { top:10px; right:12px; width:3px; height:3px; }
+  .syn-app-rail-tools { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .syn-app-settings { justify-content:center; padding:8px; font-size:0; }
+  .syn-app-brand { display:flex; }
+}
+@media(max-width:800px) {
+  .syn-unified-app { --syn-nav-width:0px; --syn-nav-height:70px; padding-bottom:calc(var(--syn-nav-bottom) + env(safe-area-inset-bottom,0px)); }
+  .syn-app-header { inset:0 0 auto; height:66px; padding:0 16px; gap:12px; }
+  .syn-app-brand { display:flex; }
+  .syn-app-brand img { width:118px; height:32px; }
+  .syn-app-tools { gap:0; }
+  .syn-app-header-spaces { display:none; }
+  .syn-app-tools .v2-account-panel { max-width:calc(100vw - 24px); }
+  .syn-app-nav {
+    inset:auto 0 0; width:100%; height:calc(78px + env(safe-area-inset-bottom,0px));
+    padding:8px 10px calc(7px + env(safe-area-inset-bottom,0px));
+    display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:0;
+    border:0; border-radius:0; box-shadow:none;
+    background:linear-gradient(180deg,#090e18e0,#090e18f5 45%,#090e18);
+    backdrop-filter:blur(20px);
+  }
+  .syn-app-nav::before { content:""; position:absolute; inset:-20px 0 100%; pointer-events:none; background:linear-gradient(transparent,#090e18e0); }
+  .syn-app-rail-brand,.syn-app-rail-tools,.syn-app-settings,.syn-app-destination--library,.syn-app-destination--community { display:none; }
+  .syn-app-destination {
+    flex-direction:column; justify-content:center; min-width:0; min-height:60px; gap:4px; padding:3px 0 8px;
+    font-size:11px; letter-spacing:-.015em; white-space:nowrap;
+  }
+  .syn-app-destination .syn-app-nav-icon { width:30px; height:30px; }
+  .syn-app-destination svg { width:23px; height:23px; }
+  .syn-app-destination--create svg { width:29px; height:29px; }
+  .syn-app-destination i { inset:auto auto 1px calc(50% - 1.5px); width:3px; height:3px; }
+  .syn-app-destination:hover>span:nth-child(2) { transform:none; }
+  .syn-app-dock-spaces { display:grid; place-items:center; min-width:0; }
+  .syn-app-dock-spaces .chambre-spaces-trigger {
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:7px;
+    width:100%; min-width:44px; min-height:60px; padding:3px 0 8px;
+    border:0; border-radius:0; background:transparent; box-shadow:none; color:#a3b1c9;
+    font-size:11px; transition:color .2s;
+  }
+  .syn-app-dock-spaces .chambre-spaces-trigger svg { width:23px; height:23px; stroke-width:1.65; }
+  .syn-app-dock-spaces .chambre-spaces-trigger>span { position:static; width:auto; height:auto; padding:0; margin:0; overflow:visible; clip-path:none; white-space:nowrap; }
+  .syn-app-dock-spaces .chambre-spaces-trigger:is(:hover,[aria-expanded="true"]) { color:#eef4ff; }
+  .syn-unified-app .synaura-pilot .pilot-live.live-experience { bottom:calc(var(--syn-nav-bottom) + env(safe-area-inset-bottom,0px)); }
+}
+@media(max-width:359px) {
+  .syn-app-header { padding-inline:12px; gap:8px; }
+  .syn-app-brand img { width:102px; }
+  .syn-app-nav { padding-inline:6px; }
+}
+/* The navigation's expanded directory follows the same border-free treatment. */
+body:has(.syn-unified-app) .chambre-spaces-panel { border:0; box-shadow:0 28px 100px #0006; }
+body:has(.syn-unified-app) .chambre-spaces-grid :is(h3,a),body:has(.syn-unified-app) .chambre-spaces-account { border:0; }
+body:has(.syn-unified-app) .chambre-spaces-grid h3 { padding-bottom:8px; }
+body:has(.syn-unified-app) .chambre-spaces-grid h3>span { border:0; }
+body:has(.syn-unified-app) .chambre-spaces-grid a[aria-current="page"] { box-shadow:none; }
+@media(prefers-reduced-motion:reduce) {
+  .syn-app-nav *,.syn-app-nav *::before,.syn-app-header * { animation:none!important; transition:none!important; }
+  .syn-app-destination:hover svg,.syn-app-destination:hover>span:nth-child(2),.syn-app-destination:active svg,.syn-app-rail-tools a:hover { transform:none; }
+}

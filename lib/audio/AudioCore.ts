@@ -822,7 +822,13 @@ export class AudioCore {
     this.secondaryResumeRequested = false;
     try { this.audio?.pause(); } catch {}
     try { if (this.audio) this.audio.currentTime = 0; } catch {}
-    const queueIndex = this.snapshot.queue.findIndex((item) => item._id === track._id);
+    // The same song can occur as a track and as several clips in a Live queue.
+    // Preserve the selected occurrence instead of jumping to the first matching ID.
+    const referenceIndex = this.snapshot.queue.indexOf(track);
+    const selectedIndex = this.snapshot.currentIndex;
+    const queueIndex = referenceIndex >= 0 ? referenceIndex
+      : this.snapshot.queue[selectedIndex]?._id === track._id ? selectedIndex
+      : this.snapshot.queue.findIndex((item) => item._id === track._id);
     const queue = queueIndex >= 0
       ? this.snapshot.queue.map((item, index) => index === queueIndex ? track : item)
       : [...this.snapshot.queue, track];
@@ -1085,7 +1091,8 @@ export class AudioCore {
     if (this.upNextEnabled && this.upNextQueue.length) next = this.upNextQueue.shift() || null;
     const effective = this.effectiveQueue();
     const currentId = trackId(current);
-    const index = currentId ? effective.findIndex((track) => track._id === currentId) : -1;
+    const index = !this.snapshot.shuffle && effective[this.snapshot.currentIndex]?._id === currentId
+      ? this.snapshot.currentIndex : currentId ? effective.findIndex((track) => track._id === currentId) : -1;
     if (!next) {
       next = index >= 0 && index < effective.length - 1
         ? effective[index + 1]

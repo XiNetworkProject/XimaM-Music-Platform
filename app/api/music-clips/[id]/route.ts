@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
 import { dbAdmin } from '@/lib/database';
-import { deleteLocalMedia, isLocalMediaOwnedBy, isLocalMediaReference } from '@/lib/localMediaStorage';
+import { deleteLocalMedia, inspectOwnedClipVideo, isLocalMediaOwnedBy, isLocalMediaReference } from '@/lib/localMediaStorage';
+import { MUSIC_CLIP_DURATION_MESSAGE, isClipDurationValid } from '@/lib/clipLimits';
 import {
   MUSIC_CLIP_MAX_BYTES,
   MUSIC_CLIP_MAX_SECONDS,
@@ -64,7 +65,6 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       }
       if (!isLocalMediaReference(body.videoUrl, body.videoPublicId, 'clip-video') || !isLocalMediaOwnedBy(body.videoPublicId, userId) ||
         (body.posterUrl && (!isLocalMediaReference(body.posterUrl, body.posterPublicId, 'clip-video') || !isLocalMediaOwnedBy(body.posterPublicId, userId)))) {
-        if (body.videoPublicId) await deleteLocalMedia(body.videoPublicId).catch(() => false);
         return NextResponse.json({ error: 'La video doit provenir du stockage Synaura' }, { status: 422 });
       }
       oldVideoPublicIdToDelete = existing.video_public_id;
@@ -78,19 +78,30 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     if (body.caption !== undefined) update.caption = cleanText(body.caption);
     if (body.tags !== undefined) update.tags = sanitizeClipTags(body.tags);
     if (body.sourceTrackOffsetSeconds !== undefined) update.source_track_offset_seconds = sanitizeClipOffset(body.sourceTrackOffsetSeconds);
-    if (body.sourceTrackDurationSeconds !== undefined) update.source_track_duration_seconds = clampClipDuration(body.sourceTrackDurationSeconds);
+    if (body.sourceTrackDurationSeconds !== undefined) {
+      if (!isClipDurationValid(body.sourceTrackDurationSeconds)) return NextResponse.json({ error: MUSIC_CLIP_DURATION_MESSAGE }, { status: 422 });
+      update.source_track_duration_seconds = clampClipDuration(body.sourceTrackDurationSeconds);
+    }
+    if (body.videoUrl !== undefined) {
+      try {
+        const verified = await inspectOwnedClipVideo(body.videoPublicId, userId);
+        update.source_track_duration_seconds = Math.round(verified.duration);
+      } catch (error) {
+        return NextResponse.json({ error: error instanceof Error ? error.message : 'Vidéo invalide' }, { status: 422 });
+      }
+    }
 
     const sourceDuration = update.source_track_duration_seconds ?? existing.source_track_duration_seconds;
     if (sourceDuration < MUSIC_CLIP_MIN_SECONDS || sourceDuration > MUSIC_CLIP_MAX_SECONDS) {
-      return NextResponse.json({ error: 'Un clip doit durer entre 15 et 60 secondes' }, { status: 422 });
+      return NextResponse.json({ error: MUSIC_CLIP_DURATION_MESSAGE }, { status: 422 });
     }
     const bytes = Number(body.videoBytes || body.bytes || 0);
     if (Number.isFinite(bytes) && bytes > MUSIC_CLIP_MAX_BYTES) {
-      return NextResponse.json({ error: 'La video depasse la limite de 95 Mo' }, { status: 422 });
+      return NextResponse.json({ error: 'La vidéo dépasse la limite de 250 Mo' }, { status: 422 });
     }
     const videoDuration = Number(body.videoDurationSeconds || body.videoDuration || 0);
     if (Number.isFinite(videoDuration) && videoDuration > 0 && (videoDuration < MUSIC_CLIP_MIN_SECONDS || videoDuration > MUSIC_CLIP_MAX_SECONDS)) {
-      return NextResponse.json({ error: 'Un clip doit durer entre 15 et 60 secondes' }, { status: 422 });
+      return NextResponse.json({ error: MUSIC_CLIP_DURATION_MESSAGE }, { status: 422 });
     }
 
     let notifySourceOwnerId: string | null = null;
@@ -108,6 +119,9 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
           userId,
         });
         if (!permission.ok) return NextResponse.json({ error: permission.error }, { status: permission.status });
+        if (permission.source.duration > 0 && (update.source_track_offset_seconds ?? existing.source_track_offset_seconds) + sourceDuration > permission.source.duration + 1) {
+          return NextResponse.json({ error: 'Le son choisi est trop court pour cette vidéo. Choisis un morceau plus long ou réduis le début de l’extrait.' }, { status: 422 });
+        }
         const nextVideoUrl = update.video_url ?? existing.video_url;
         const nextPosterUrl = update.poster_url ?? existing.poster_url ?? legacyVideoPosterUrl(nextVideoUrl);
         if (!isPlayableVideoUrl(nextVideoUrl)) {
@@ -136,7 +150,7 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       .select('*, creator:profiles!music_clips_creator_id_fkey(id, username, name, avatar)')
       .single();
     if (error) {
-      if (body.videoPublicId) await deleteLocalMedia(body.videoPublicId).catch(() => false);
+      // Keep the owned upload for a retry; a failed DB write must not destroy it.
       throw error;
     }
     if (oldVideoPublicIdToDelete && oldVideoPublicIdToDelete !== body.videoPublicId) {

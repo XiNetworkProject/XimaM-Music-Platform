@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import ts from 'typescript';
+import { projectLiveMedia } from './helpers/reviewed-live-media.mjs';
 import { CURRENT_SUNO_MODELS, DEFAULT_SUNO_MODEL, normalizeGenerationModel, getSunoModelLabel, SUNO_GENERATION_LIMITS } from '../lib/sunoModels.ts';
 import { PLANS, CREDITS_PER_GENERATION, CREDIT_PACKS, ACTION_COSTS } from '../lib/billing/pricing.ts';
 
@@ -53,6 +54,7 @@ test('V6 leaves the audio engine, schema, entry and unrelated APIs on the preser
     if (authorized.has(file)) continue;
     const bytes = readFileSync(new URL(`../${file}`, import.meta.url));
     let source = bytes.includes(0) ? bytes : bytes.toString('utf8').replaceAll('\r\n', '\n');
+    if (['lib/audio/AudioCore.ts', 'app/api/media/upload/route.ts', 'app/api/music-clips/[id]/route.ts'].includes(file)) source = projectLiveMedia(file, source);
     if (file === 'components/chamber/ChamberProduct.tsx') {
       // Exactly the optional home CTA routes into the new horizontal presentation.
       // Project these two reviewed fragments; the old scene/audio/scroll stays hashed.

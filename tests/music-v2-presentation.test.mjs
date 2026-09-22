@@ -14,7 +14,7 @@ test('V2 Track keeps one musical authority and queries only the global current n
   assert.doesNotMatch(source, /new Audio\(|<audio|AudioContext|setQueueAndPlay/);
   assert.equal((source.match(/onClick=\{handlePlay\}/g) || []).length, 1);
   assert.match(source, /setShowPlayer\(true\); setIsMinimized\(false\)/);
-  assert.match(source, /disabled=\{!currentTrack\}[^\n]+window.dispatchEvent\(new Event\('synaura:open-full-player'\)\)/);
+  assert.match(source, /disabled=\{!isCurrentTrack\}[^\n]+window.dispatchEvent\(new Event\('synaura:open-full-player'\)\)/);
 });
 
 test('V2 music keeps real-content exploration and every creator content section', async () => {

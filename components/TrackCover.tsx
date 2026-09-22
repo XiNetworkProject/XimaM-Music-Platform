@@ -3,6 +3,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Music2 } from 'lucide-react';
 import { sameMediaUrl, toLegacyMediaFallback, toPublicMediaUrl } from '@/lib/mediaUrls';
+import { useLivingMotion } from '@/components/ambient/useLivingMotion';
+import { useCoverVisibility } from '@/hooks/useCoverVisibility';
+import { inferCoverVideoUrl } from '@/lib/coverMedia';
 
 const FALLBACK_GRADIENTS: [string, string][] = [
   ['#303047', '#172433'],
@@ -26,31 +29,13 @@ function normalizeVideoUrl(url?: string | null): string | null {
   return toPublicMediaUrl(url);
 }
 
-function inferVideoUrlFromPoster(url?: string | null): string | null {
-  if (!url) return null;
-  try {
-    const parsed = new URL(url);
-    if (!parsed.pathname.includes('/video/upload/') || !parsed.pathname.includes('f_jpg')) {
-      return null;
-    }
-
-    const path = parsed.pathname
-      .replace('/video/upload/so_0,f_jpg/', '/video/upload/f_mp4,q_auto/')
-      .replace('/video/upload/f_jpg,so_0/', '/video/upload/f_mp4,q_auto/')
-      .replace(/\.(jpg|jpeg|png|webp)$/i, '.mp4');
-
-    return toPublicMediaUrl(`${parsed.origin}${path}${parsed.search || ''}`);
-  } catch {
-    return null;
-  }
-}
-
 interface TrackCoverProps {
   trackId?: string | null;
   src?: string | null;
   videoSrc?: string | null;
   posterSrc?: string | null;
   autoPlayVideo?: boolean;
+  animationEnabled?: boolean;
   pauseWhenInactive?: boolean;
   playOnHover?: boolean;
   alt?: string;
@@ -80,6 +65,7 @@ export default function TrackCover({
   videoSrc,
   posterSrc,
   autoPlayVideo = false,
+  animationEnabled = true,
   pauseWhenInactive = true,
   playOnHover = true,
   alt,
@@ -101,10 +87,14 @@ export default function TrackCover({
   const primaryImageSrc = toPublicMediaUrl(originalImageSrc);
   const fallbackImageSrc = toLegacyMediaFallback(originalImageSrc || primaryImageSrc);
   const imageSrc = useImageFallback && fallbackImageSrc ? fallbackImageSrc : primaryImageSrc;
-  const primaryVideoSrc = normalizeVideoUrl(videoSrc) || inferVideoUrlFromPoster(posterSrc || src);
+  const inferredVideoSrc = inferCoverVideoUrl(posterSrc || src);
+  const primaryVideoSrc = normalizeVideoUrl(videoSrc) || inferredVideoSrc;
   const fallbackVideoSrc = toLegacyMediaFallback(videoSrc || primaryVideoSrc);
   const activeVideoSrc = useVideoFallback && fallbackVideoSrc ? fallbackVideoSrc : primaryVideoSrc;
   const showVideo = Boolean(activeVideoSrc && !videoErrored);
+  const motion = useLivingMotion();
+  const visible = useCoverVisibility(videoRef, activeVideoSrc, showVideo);
+  const canAnimate = animationEnabled && motion.enabled && visible;
   const isActiveTrackVideo = Boolean(
     activeMedia?.isPlaying &&
     (trackId
@@ -116,7 +106,7 @@ export default function TrackCover({
         sameMedia(imageSrc, activeMedia.coverVideoPosterUrl)
       ))
   );
-  const shouldPlayVideo = autoPlayVideo || isActiveTrackVideo;
+  const shouldPlayVideo = canAnimate && (autoPlayVideo || isActiveTrackVideo);
   const showPlaceholder = !showVideo && (!imageSrc || errored);
   const letter = (title || alt || '?')[0]?.toUpperCase() ?? '♪';
 
@@ -145,13 +135,13 @@ export default function TrackCover({
 
   const playVideo = useCallback(() => {
     const video = videoRef.current;
-    if (!video) return;
+    if (!video || !canAnimate) return;
     video.muted = true;
     video.loop = true;
     video.playsInline = true;
     if (video.readyState === 0) video.load();
     video.play().catch(() => {});
-  }, []);
+  }, [canAnimate]);
 
   useEffect(() => {
     if (!showVideo) return;
@@ -188,8 +178,9 @@ export default function TrackCover({
     return (
       <video
         ref={videoRef}
+        data-synaura-audio-policy="independent"
         src={activeVideoSrc!}
-        poster={imageSrc || undefined}
+        poster={inferredVideoSrc && (!posterSrc || sameMedia(posterSrc, src)) ? undefined : imageSrc || undefined}
         className={`${rounded} ${className}`}
         style={{
           objectFit,
@@ -201,7 +192,7 @@ export default function TrackCover({
         loop
         playsInline
         autoPlay={shouldPlayVideo}
-        preload="auto"
+        preload={shouldPlayVideo ? 'auto' : visible && animationEnabled ? 'metadata' : 'none'}
         onLoadedMetadata={() => {
           if (shouldPlayVideo) playVideo();
         }}
