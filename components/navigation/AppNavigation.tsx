@@ -17,6 +17,7 @@ const spaces = [
   { id: 'discover', href: '/discover', label: 'Découvrir', Icon: Compass },
   { id: 'create', href: '/create', label: 'Créer', Icon: Plus },
   { id: 'library', href: '/library', label: 'Bibliothèque', Icon: Library },
+  { id: 'messages', href: '/messages', label: 'Messages', Icon: MessageCircle },
   { id: 'community', href: '/community', label: 'Communauté', Icon: Users },
 ] as const;
 
@@ -37,7 +38,7 @@ export default function AppNavigation() {
     <nav className="syn-app-nav" aria-label="Navigation principale">
       <PilotLink href="/live" className="syn-app-rail-brand" aria-label="Synaura — Live"><span className="syn-app-rail-logo"><img src="/brand/v2/synaura-lockup.svg" alt="Synaura" width="155" height="36" /></span></PilotLink>
       {spaces.map(({ id, href, label, Icon }) => {
-        const active = id === 'community' ? /^\/(community|city)(\/|$)/.test(pathname) : isPrimaryWebRouteActive(id, pathname);
+        const active = id === 'messages' ? pathname.startsWith('/messages') : id === 'community' ? /^\/(community|city)(\/|$)/.test(pathname) : isPrimaryWebRouteActive(id, pathname);
         const NavLink = id === 'home' || id === 'discover' ? PilotLink : Link;
         return <NavLink key={id} href={href} prefetch={false} aria-current={active ? 'page' : undefined} className={`syn-app-destination syn-app-destination--${id}`}><span className="syn-app-nav-icon"><Icon size={20} aria-hidden="true" /></span><span>{label}</span><i aria-hidden="true" /></NavLink>;
       })}

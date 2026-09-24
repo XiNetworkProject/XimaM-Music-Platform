@@ -64,7 +64,8 @@ test('record stages use isolated decoration and keep native responsive reading p
 test('creator and collection pages retain all content and musical mutations behind existing handlers', async () => {
   const [profile, playlist, album] = await Promise.all(['app/profile/[username]/page.tsx','app/playlists/[id]/page.tsx','app/album/[id]/page.tsx'].map(read));
   for (const tab of ['sons','clips','variations','playlists','posts']) assert.ok(profile.includes(`['${tab}',`), tab);
-  assert.match(profile, /aria-label="Modifier la bannière du profil"/);
+  assert.match(profile, /<ProfileIdentity/);
+  assert.match(await read('components/profile/ProfileIdentity.tsx'), /aria-label="Modifier la bannière du profil"/);
   for (const action of ['playTracks(data.tracks, 0)','shufflePlay','queueTrack(track)','toggleLike(track)','setCommentTrack(track)']) assert.ok(playlist.includes(action), action);
   for (const action of ['playAlbum(idx)','shuffleAlbum','addAllToQueue','shareAlbum']) assert.ok(album.includes(action), action);
   assert.match(album, /L’ordre du voyage/);
@@ -114,12 +115,12 @@ test('legacy For You and Trending remain real collections with keyboard-native t
   }
 });
 
-test('unchanged musical screens preserve 414 handlers and 207 calls; redesigned Track has behavioral coverage', async () => {
-  // Captured from the exact before/music snapshots, not from candidate output.
-  // The snapshots themselves are local artifacts and are not a test dependency.
-  // Same historical rows, excluding only Track (6 handlers / 5 calls).
-  const expectedEvents = '5472c9855f81734a46534729591bb864c38ced42301a2adbb3ab02060368d1c0';
-  const expectedCalls = '21fbf6a273ed38951cbe14c892c05644ed97dceb42875cc5e213a76199b22c52';
+test('unchanged musical screens preserve 273 handlers and 172 calls; redesigned screens have behavioral coverage', async () => {
+  // Recomputed from commit 918be1f1, NOT from candidate output, excluding only
+  // the explicitly redesigned Track, Profile and player. Their replacement
+  // contracts are covered by track-experience and listening-profile tests.
+  const expectedEvents = '38e03d22de8b3d801495146f7d673be17f4b8d93fadc3d7c64823ee4456f044a';
+  const expectedCalls = '17664ab1af5290c84f1bb2805c9ac3b1ccda555e98068b603ae55181ce5c11aa';
   const printer = ts.createPrinter({ removeComments: true });
   const eventAudit = [];
   const callAudit = [];
@@ -133,19 +134,9 @@ test('unchanged musical screens preserve 414 handlers and 207 calls; redesigned 
       }
     };`;
   for (const path of musicSources) {
-    // The requested complete Track redesign is exercised by track-experience.test.mjs.
-    // Keep the historical fingerprint for every other musical screen.
-    if (path === 'app/track/[id]/TrackPageClient.tsx') continue;
+    // Keep the historical fingerprint for all screens outside the approved redesigns.
+    if (['app/track/[id]/TrackPageClient.tsx', 'app/profile/[username]/page.tsx', 'components/FullScreenPlayer.tsx'].includes(path)) continue;
     let text = reviewedPilotV1(path, await read(path));
-    if (path === 'components/FullScreenPlayer.tsx') {
-      // V6 Studio correction: one keyboard dispatch, not a change to playback.
-      // Both exact guards are asserted here; their behavior is executed in suno-v6-models.
-      const eventGuard = '      if (event.defaultPrevented || event.repeat || event.isComposing || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;\n';
-      const targetGuard = `if (target && (target.isContentEditable || target.closest('input, textarea, select, button, a, [role="button"], [role="slider"], [role="tab"], [role="textbox"], [role="combobox"]'))) return;`;
-      assert.equal(text.split(eventGuard).length, 2);
-      assert.equal(text.split(targetGuard).length, 2);
-      text = text.replace(eventGuard, '').replace(targetGuard, `if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;`);
-    }
     const ast = ts.createSourceFile(path, text, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
     const events = [];
     const calls = [];
@@ -178,8 +169,8 @@ test('unchanged musical screens preserve 414 handlers and 207 calls; redesigned 
   }
   const digest = value => createHash('sha256').update(JSON.stringify(value)).digest('hex');
   assert.equal(exceptions, 1);
-  assert.equal(eventAudit.reduce((n, row) => n + row.events.length, 0), 414);
-  assert.equal(callAudit.reduce((n, row) => n + row.calls.length, 0), 207);
+  assert.equal(eventAudit.reduce((n, row) => n + row.events.length, 0), 273);
+  assert.equal(callAudit.reduce((n, row) => n + row.calls.length, 0), 172);
   assert.equal(digest(eventAudit), expectedEvents, 'an existing event handler changed');
   assert.equal(digest(callAudit), expectedCalls, 'a protected call changed beyond the exact documented loader fix');
 });

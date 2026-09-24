@@ -46,10 +46,17 @@ import {
   X,
 } from "lucide-react";
 import Avatar from "@/components/Avatar";
-import { cleanupLocalMediaUploads, uploadLocalMedia } from "@/lib/clientMediaUpload";
+import { uploadLocalMedia } from "@/lib/clientMediaUpload";
 import { toPublicMediaUrl } from "@/lib/mediaUrls";
 import { notify } from "@/components/NotificationCenter";
 import { coordinateSecondaryAudioElement } from "@/lib/audio/AudioCore";
+import SoundPicker from '@/components/messaging/SoundPicker';
+import VoiceMessage from '@/components/messaging/VoiceMessage';
+import SharedSoundCard from '@/components/messaging/SharedSoundCard';
+import { pauseOtherVoiceMessages, sharedMessagePath, voiceRecordingExtension } from '@/lib/messagingClient';
+import { SynauraOverlay } from '@/components/ui/SynauraOverlay';
+import { useVoiceCalls } from '@/components/messaging/VoiceCallProvider';
+import { Phone } from 'lucide-react';
 
 type MessagingProfile = {
   id: string;
@@ -230,6 +237,12 @@ function mergeMessages(previous: Message[], incoming: Message[]) {
 }
 
 export default function ConversationPage() {
+  const params = useParams<{ conversationId: string }>();
+  return <ConversationContent key={params.conversationId} />;
+}
+
+function ConversationContent() {
+  const voice = useVoiceCalls();
   const { data: session, status } = useSession();
   const router = useRouter();
   const params = useParams<{ conversationId: string }>();
@@ -243,9 +256,20 @@ export default function ConversationPage() {
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const [draft, setDraft] = useState("");
+  const [soundPickerOpen, setSoundPickerOpen] = useState(false);
+  const [loadError, setLoadError] = useState('');
+  const requestRef = useRef<AbortController | null>(null);
+  const roomDrafts = useRef(new Map<string, string>());
+  const activeRoomRef = useRef<string | null>(null);
+  const recordingStreamRef = useRef<MediaStream | null>(null);
+  const recordingMountedRef = useRef(true);
+  const sendLockRef = useRef(false);
+  const pendingTextRef = useRef<{ content: string; room: string | null; clientId: string } | null>(null);
+  const pendingMediaRef = useRef<{ source: Blob; room: string | null; clientId: string; mediaUrl: string; duration: number } | null>(null);
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
+  const [startingRecording, setStartingRecording] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [recordingBlob, setRecordingBlob] = useState<Blob | null>(null);
   const [recordingLocked, setRecordingLocked] = useState(false);
@@ -261,6 +285,7 @@ export default function ConversationPage() {
   const [confirmAction, setConfirmAction] = useState<"remove" | "block" | null>(
     null
   );
+  const [dangerBusy, setDangerBusy] = useState(false);
   const [muted, setMuted] = useState(false);
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
   const [customizeOpen, setCustomizeOpen] = useState(false);
@@ -316,6 +341,9 @@ export default function ConversationPage() {
   const loadMessages = useCallback(
     async (options?: { quiet?: boolean; before?: string | null }) => {
       if (!conversationId) return;
+      if (options?.quiet && requestRef.current && !requestRef.current.signal.aborted) return;
+      requestRef.current?.abort();
+      const controller = new AbortController(); requestRef.current = controller;
       const before = options?.before;
       if (before) setLoadingOlder(true);
       else if (!options?.quiet) setLoading(true);
@@ -327,18 +355,20 @@ export default function ConversationPage() {
           `/api/messages/${encodeURIComponent(
             conversationId
           )}?${query.toString()}`,
-          { cache: "no-store" }
+          { cache: "no-store", signal: controller.signal }
         );
         const payload = await response.json().catch(() => null);
+        if (controller.signal.aborted) return;
         if (!response.ok)
           throw new Error(payload?.error || "Discussion indisponible");
         setConversation(payload.conversation || null);
+        setLoadError('');
         setMuted(Boolean(payload.conversation?.muted));
         const incoming = Array.isArray(payload.messages)
           ? payload.messages
           : [];
         const responseRoomId = payload.conversation?.activeRoomId || null;
-        if (!activeRoomId && responseRoomId) setActiveRoomId(responseRoomId);
+        if (!activeRoomId && responseRoomId) { activeRoomRef.current = responseRoomId; setActiveRoomId(responseRoomId); }
         if (!before && loadedRoomRef.current !== responseRoomId) {
           loadedRoomRef.current = responseRoomId;
           initialScrollDone.current = false;
@@ -369,14 +399,16 @@ export default function ConversationPage() {
         )
           void markSeen();
       } catch (error) {
+        if (controller.signal.aborted) return;
+        setLoadError(error instanceof Error ? error.message : 'Chargement impossible');
         if (!options?.quiet)
           notify.error(
             "Messages",
             error instanceof Error ? error.message : "Chargement impossible"
           );
       } finally {
-        setLoading(false);
-        setLoadingOlder(false);
+        if (!controller.signal.aborted) { setLoading(false); setLoadingOlder(false); }
+        if (requestRef.current === controller) requestRef.current = null;
       }
     },
     [activeRoomId, conversationId, markSeen, session?.user?.id]
@@ -384,6 +416,7 @@ export default function ConversationPage() {
 
   useEffect(() => {
     if (session?.user?.id && conversationId) void loadMessages();
+    return () => requestRef.current?.abort();
   }, [conversationId, loadMessages, session?.user?.id]);
 
   useEffect(() => {
@@ -456,18 +489,24 @@ export default function ConversationPage() {
   }, [messages.length]);
 
   useEffect(
-    () => () => {
+    () => { recordingMountedRef.current = true; return () => {
+      recordingMountedRef.current = false;
+      discardRecordingRef.current = true;
       currentAudioRef.current?.pause();
       currentAudioCleanupRef.current?.();
       if (recordingTimerRef.current)
         window.clearInterval(recordingTimerRef.current);
       if (mediaRecorderRef.current?.state === "recording")
         mediaRecorderRef.current.stop();
-    },
+      recordingStreamRef.current?.getTracks().forEach(track => track.stop());
+      previewAudioRef.current?.pause();
+      requestRef.current?.abort();
+    }; },
     []
   );
 
   const sendPayload = async (payload: Record<string, unknown>) => {
+    const targetRoom = activeRoomId || conversation?.activeRoomId || null;
     const response = await fetch(
       `/api/messages/${encodeURIComponent(conversationId)}`,
       {
@@ -475,6 +514,7 @@ export default function ConversationPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ...payload,
+          clientId: payload.clientId || crypto.randomUUID(),
           replyToId:
             payload.replyToId === undefined
               ? replyingTo?.id || null
@@ -486,26 +526,37 @@ export default function ConversationPage() {
     const body = await response.json().catch(() => null);
     if (!response.ok || !body?.message)
       throw new Error(body?.error || "Envoi impossible");
-    nearBottomRef.current = true;
-    setMessages((previous) => mergeMessages(previous, [body.message]));
-    setReplyingTo(null);
+    if (targetRoom === activeRoomRef.current) {
+      nearBottomRef.current = true;
+      setMessages((previous) => mergeMessages(previous, [body.message]));
+      setReplyingTo(null);
+    }
+    window.dispatchEvent(new Event('synaura:messages-changed'));
     return body.message as Message;
   };
 
   const sendText = async () => {
     const content = draft.trim();
-    if (!content || sending || !conversation?.canMessage) return;
+    if (!content || sending || sendLockRef.current || uploading || !conversation?.canMessage) return;
+    sendLockRef.current = true;
+    const targetRoom = activeRoomRef.current;
+    const pending = pendingTextRef.current;
+    const clientId = pending?.content === content && pending.room === targetRoom ? pending.clientId : crypto.randomUUID();
+    pendingTextRef.current = { content, room: targetRoom, clientId };
     setSending(true);
     setDraft("");
     try {
-      await sendPayload({ type: "text", content });
+      await sendPayload({ type: "text", content, clientId });
+      pendingTextRef.current = null;
     } catch (error) {
-      setDraft(content);
+      if (targetRoom === activeRoomRef.current) setDraft(value => value || content);
+      else roomDrafts.current.set(targetRoom || 'direct', content);
       notify.error(
         "Message non envoyé",
         error instanceof Error ? error.message : "Réessaie dans un instant"
       );
     } finally {
+      sendLockRef.current = false;
       setSending(false);
     }
   };
@@ -513,25 +564,38 @@ export default function ConversationPage() {
   const uploadAndSend = async (
     file: File,
     type: "image" | "video" | "audio",
-    duration?: number
+    duration?: number,
+    retrySource: Blob = file
   ) => {
+    if (sendLockRef.current) return false;
+    sendLockRef.current = true;
     setUploading(true);
-    let uploadedPublicId: string | null = null;
     try {
-      const uploaded = await uploadLocalMedia(file, `message-${type}` as 'message-image' | 'message-video' | 'message-audio');
-      uploadedPublicId = uploaded.public_id;
+      const room = activeRoomRef.current;
+      let pending = pendingMediaRef.current;
+      if (!pending || pending.source !== retrySource || pending.room !== room) {
+        const uploaded = await uploadLocalMedia(file, `message-${type}` as 'message-image' | 'message-video' | 'message-audio');
+        pending = { source: retrySource, room, clientId: crypto.randomUUID(), mediaUrl: uploaded.secure_url, duration: Number(uploaded.duration || duration || 0) };
+        pendingMediaRef.current = pending;
+      }
       await sendPayload({
         type,
-        mediaUrl: uploaded.secure_url,
-        metadata: { duration: Number(uploaded.duration || duration || 0) },
+        clientId: pending.clientId,
+        mediaUrl: pending.mediaUrl,
+        metadata: { duration: pending.duration },
       });
+      pendingMediaRef.current = null;
+      return true;
     } catch (error) {
-      await cleanupLocalMediaUploads([uploadedPublicId]);
+      // A lost response can follow a committed message. Preserve the media and
+      // retry identifier rather than deleting an attachment already in use.
       notify.error(
         "Pièce jointe non envoyée",
         error instanceof Error ? error.message : "Réessaie dans un instant"
       );
+      return false;
     } finally {
+      sendLockRef.current = false;
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
@@ -562,13 +626,18 @@ export default function ConversationPage() {
   };
 
   const startRecording = async () => {
-    if (mediaRecorderRef.current?.state === "recording" || uploading)
+    if (voice.currentConversation || voice.busy) {
+      notify.error("Micro déjà utilisé", "Termine l’appel avant d’enregistrer un vocal.");
       return false;
+    }
+    if (mediaRecorderRef.current?.state === "recording" || uploading || startingRecording)
+      return false;
+    setStartingRecording(true);
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const preferred = MediaRecorder.isTypeSupported("audio/webm;codecs=opus")
-        ? "audio/webm;codecs=opus"
-        : "";
+      if (!recordingMountedRef.current) { stream.getTracks().forEach(track => track.stop()); return false; }
+      recordingStreamRef.current = stream;
+      const preferred = ['audio/webm;codecs=opus', 'audio/mp4', 'audio/ogg;codecs=opus'].find(type => MediaRecorder.isTypeSupported(type)) || '';
       const recorder = new MediaRecorder(
         stream,
         preferred ? { mimeType: preferred } : undefined
@@ -583,7 +652,7 @@ export default function ConversationPage() {
         const blob = new Blob(mediaChunksRef.current, {
           type: recorder.mimeType || "audio/webm",
         });
-        if (!discardRecordingRef.current && blob.size) setRecordingBlob(blob);
+        if (recordingMountedRef.current && !discardRecordingRef.current && blob.size) setRecordingBlob(blob);
       };
       mediaRecorderRef.current = recorder;
       recorder.start(500);
@@ -599,16 +668,19 @@ export default function ConversationPage() {
       );
       return true;
     } catch {
+      recordingStreamRef.current?.getTracks().forEach(track => track.stop());
       notify.error(
         "Microphone indisponible",
         "Autorise l’accès au microphone pour envoyer un message audio."
       );
       return false;
+    } finally {
+      if (recordingMountedRef.current) setStartingRecording(false);
     }
   };
 
   const stopRecording = () => {
-    if (!isRecording) return;
+    if (mediaRecorderRef.current?.state !== 'recording') return;
     mediaRecorderRef.current?.stop();
     setIsRecording(false);
     setRecordingLocked(false);
@@ -635,11 +707,13 @@ export default function ConversationPage() {
   };
 
   const sendRecording = async () => {
-    if (!recordingBlob) return;
-    const file = new File([recordingBlob], `message-audio-${Date.now()}.webm`, {
+    if (!recordingBlob || uploading || sendLockRef.current) return;
+    const extension = voiceRecordingExtension(recordingBlob.type);
+    const file = new File([recordingBlob], `message-audio-${Date.now()}.${extension}`, {
       type: recordingBlob.type || "audio/webm",
     });
-    await uploadAndSend(file, "audio", recordingSeconds);
+    const sent = await uploadAndSend(file, "audio", recordingSeconds, recordingBlob);
+    if (!sent) return;
     previewAudioRef.current?.pause();
     setPreviewPlaying(false);
     setRecordingBlob(null);
@@ -655,6 +729,21 @@ export default function ConversationPage() {
     setPreviewUrl(url);
     return () => URL.revokeObjectURL(url);
   }, [recordingBlob]);
+
+  useEffect(() => {
+    const element = previewAudioRef.current; if (!element || !previewUrl) return;
+    const exclusive = () => pauseOtherVoiceMessages(element); element.addEventListener('play', exclusive);
+    const release = coordinateSecondaryAudioElement(element, 'voice-message');
+    return () => { element.pause(); element.removeEventListener('play', exclusive); release(); };
+  }, [previewUrl]);
+  useEffect(() => { if (recordingSeconds >= 120 && isRecording) stopRecording(); }, [recordingSeconds, isRecording]);
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    const root = document.querySelector<HTMLElement>('.ms-thread');
+    const update = () => root?.style.setProperty('--ms-viewport-height', `${viewport?.height || window.innerHeight}px`);
+    update(); viewport?.addEventListener('resize', update);
+    return () => viewport?.removeEventListener('resize', update);
+  }, [loading]);
 
   const beginVoiceHold = (event: React.PointerEvent<HTMLButtonElement>) => {
     if (draft.trim() || uploading) return;
@@ -823,7 +912,8 @@ export default function ConversationPage() {
 
   const runDangerAction = async () => {
     const other = conversation?.otherUser;
-    if (!other || !confirmAction) return;
+    if (!other || !confirmAction || dangerBusy) return;
+    setDangerBusy(true);
     try {
       const response = await fetch(
         confirmAction === "block"
@@ -844,6 +934,8 @@ export default function ConversationPage() {
         "Discussion",
         error instanceof Error ? error.message : "Action impossible"
       );
+    } finally {
+      setDangerBusy(false);
     }
   };
 
@@ -1017,6 +1109,12 @@ export default function ConversationPage() {
 
   const selectRoom = (roomId: string) => {
     if (roomId === activeRoomId) return;
+    if (isRecording || startingRecording || recordingBlob || uploading || sending) { notify.info('Discussion', 'Termine ou annule ton envoi avant de changer de salon.'); return; }
+    roomDrafts.current.set(activeRoomRef.current || 'direct', draft);
+    setDraft(roomDrafts.current.get(roomId) || '');
+    setReplyingTo(null);
+    requestRef.current?.abort();
+    activeRoomRef.current = roomId;
     loadedRoomRef.current = null;
     initialScrollDone.current = false;
     setMessages([]);
@@ -1098,7 +1196,7 @@ export default function ConversationPage() {
   }
 
   return (
-    <main className="v2-conversation chambre-conversation relative flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-syn-background text-syn-textPrimary">
+    <main className="v2-conversation chambre-conversation ms-thread relative flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-syn-background text-syn-textPrimary">
       {conversation?.preferences?.backgroundKey !== "quiet" ? (
         <div
           className="pointer-events-none absolute inset-0"
@@ -1164,6 +1262,8 @@ export default function ConversationPage() {
               {subtitle}
             </p>
           </button>
+          {voice.enabled && conversation?.canMessage && <button type="button" className="ms-circle" aria-label={voice.currentConversation ? "Revenir à l’appel" : "Appeler cette discussion"} disabled={voice.busy || isRecording || startingRecording || Boolean(recordingBlob)} onClick={() => voice.start(conversationId)}><Phone size={19} /></button>}
+          <button type="button" className="ms-circle ms-customize-button" aria-label="Personnaliser cette discussion" onClick={() => { setPreferenceDraft(conversation?.preferences || null); setCustomizeOpen(true); }}><Palette size={19} /></button>
           <div className="relative">
             <button
               type="button"
@@ -1179,7 +1279,7 @@ export default function ConversationPage() {
                   initial={{ opacity: 0, y: -5, scale: 0.97 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: -5, scale: 0.97 }}
-                  className="absolute right-0 top-12 z-50 w-64 overflow-hidden rounded-xl border border-syn-border bg-syn-elevatedSurface p-1.5 shadow-2xl"
+                  className="ms-conversation-menu absolute right-0 top-12 z-50 w-64 overflow-hidden rounded-xl border border-syn-border bg-syn-elevatedSurface p-1.5 shadow-2xl"
                 >
                   <MenuButton
                     icon={Palette}
@@ -1252,6 +1352,7 @@ export default function ConversationPage() {
                   key={room.id}
                   type="button"
                   onClick={() => selectRoom(room.id)}
+                  aria-pressed={selected}
                   className="flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[11px] font-black"
                   style={{
                     borderColor: selected ? accentColor : undefined,
@@ -1291,6 +1392,7 @@ export default function ConversationPage() {
         className="relative z-10 min-h-0 flex-1 overflow-y-auto overscroll-contain"
       >
         <div className="v2-conversation-log flex min-h-full flex-col justify-end px-3 py-5 sm:px-8 sm:py-8">
+          {loadError && <div role="alert" className="ms-error">{loadError}<button onClick={() => void loadMessages()}>Réessayer</button></div>}
           {hasMore ? (
             <button
               type="button"
@@ -1625,6 +1727,8 @@ export default function ConversationPage() {
               {previewUrl ? (
                 <audio
                   ref={previewAudioRef}
+                  data-synaura-voice="preview"
+                  data-synaura-audio-policy="independent"
                   src={previewUrl}
                   onEnded={() => setPreviewPlaying(false)}
                   onPause={() => setPreviewPlaying(false)}
@@ -1634,6 +1738,7 @@ export default function ConversationPage() {
             </div>
           ) : (
             <div className="flex items-end gap-2">
+              {!isRecording && <button type="button" className="ms-circle" onClick={() => setSoundPickerOpen(true)} disabled={uploading || sending} aria-label="Partager un son Synaura"><Music2 size={20} /></button>}
               <button
                 type="button"
                 onClick={() =>
@@ -1682,7 +1787,7 @@ export default function ConversationPage() {
                         {recordingCancelArmed
                           ? "Relâche pour supprimer"
                           : recordingLocked
-                          ? "Vocal verrouillé"
+                          ? "Enregistrement en cours · 2 min max"
                           : "Glisse à gauche pour annuler · vers le haut pour verrouiller"}
                       </p>
                     </div>
@@ -1695,12 +1800,11 @@ export default function ConversationPage() {
                   </div>
                 ) : (
                   <textarea
+                    aria-label="Écrire un message"
                     value={draft}
-                    onChange={(event) =>
-                      setDraft(event.target.value.slice(0, 2_000))
-                    }
+                    onChange={(event) => { setDraft(event.target.value.slice(0, 2_000)); event.target.style.height = 'auto'; event.target.style.height = `${Math.min(128, event.target.scrollHeight)}px`; }}
                     onKeyDown={(event) => {
-                      if (event.key === "Enter" && !event.shiftKey) {
+                      if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing && window.matchMedia('(pointer:fine)').matches) {
                         event.preventDefault();
                         void sendText();
                       }
@@ -1717,12 +1821,8 @@ export default function ConversationPage() {
                 {!draft.trim() && !recordingLocked ? (
                   <button
                     type="button"
-                    onPointerDown={beginVoiceHold}
-                    onPointerMove={moveVoiceHold}
-                    onPointerUp={() => void endVoiceHold()}
-                    onPointerCancel={() => {
-                      if (!recordingLocked) cancelRecording();
-                    }}
+                    disabled={uploading || sending || startingRecording}
+                    onClick={async () => { if (await startRecording()) { recordingGestureRef.current.locked = true; setRecordingLocked(true); } }}
                     className="mb-1 flex h-9 w-9 shrink-0 touch-none items-center justify-center rounded-full text-white"
                     style={{
                       backgroundColor: isRecording
@@ -1731,9 +1831,9 @@ export default function ConversationPage() {
                           : accentColor
                         : "#111111",
                     }}
-                    aria-label="Maintenir pour enregistrer"
+                    aria-label="Enregistrer un message vocal"
                   >
-                    <Mic className="h-4 w-4" />
+                    {startingRecording ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mic className="h-4 w-4" />}
                   </button>
                 ) : null}
               </div>
@@ -1774,17 +1874,16 @@ export default function ConversationPage() {
         </div>
       </footer>
 
+      <SoundPicker open={soundPickerOpen} onClose={() => setSoundPickerOpen(false)} onSend={async sound => {
+        if (sendLockRef.current) throw new Error('Un envoi est déjà en cours.');
+        sendLockRef.current = true; setSending(true);
+        try { await sendPayload({ type: 'track', sharedEntityId: sound._id, metadata: { title: sound.title, coverUrl: sound.coverUrl || '', artistName: typeof sound.artist === 'string' ? sound.artist : sound.artist?.name || 'Synaura', duration: sound.duration || 0 } }); }
+        finally { sendLockRef.current = false; setSending(false); }
+      }} />
+
       <AnimatePresence>
         {customizeOpen && preferenceDraft ? (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[110] flex items-end justify-center bg-black/60 p-0 backdrop-blur-sm sm:items-center sm:p-4"
-            onMouseDown={(event: React.MouseEvent<HTMLDivElement>) => {
-              if (event.currentTarget === event.target) setCustomizeOpen(false);
-            }}
-          >
+          <SynauraOverlay open onClose={() => !savingPreferences && setCustomizeOpen(false)} ariaLabel="Personnaliser la discussion" presentation="responsive" size="md" showClose={false} className="ms-dialog">
             <motion.div
               initial={{ y: 28, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
@@ -1906,10 +2005,12 @@ export default function ConversationPage() {
                   ) : null}
                 </section>
               ) : null}
-              <label className="mt-6 block text-[10px] font-black uppercase text-syn-textSecondary">
+              <div className="ms-theme-preview" style={{ background: preferenceDraft.backgroundKey === 'midnight' ? '#080d16' : `linear-gradient(135deg, ${preferenceDraft.accentColor}26, #111a2b)` }} aria-label="Aperçu de la personnalisation"><span>Tu me fais écouter ?</span><span style={{ backgroundColor: preferenceDraft.accentColor }}>Ce morceau est pour toi ♫</span></div>
+              <label htmlFor="conversation-nickname" className="mt-6 block text-[10px] font-black uppercase text-syn-textSecondary">
                 Nom chez toi
               </label>
               <input
+                id="conversation-nickname"
                 value={preferenceDraft.nickname || ""}
                 onChange={(event) =>
                   setPreferenceDraft({
@@ -1932,6 +2033,7 @@ export default function ConversationPage() {
                     <button
                       key={option.key}
                       type="button"
+                      aria-pressed={selected}
                       onClick={() =>
                         setPreferenceDraft({
                           ...preferenceDraft,
@@ -2063,22 +2165,13 @@ export default function ConversationPage() {
                 )}
               </button>
             </motion.div>
-          </motion.div>
+          </SynauraOverlay>
         ) : null}
       </AnimatePresence>
 
       <AnimatePresence>
         {memberConfirm ? (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[130] flex items-end justify-center bg-black/65 p-4 backdrop-blur-sm sm:items-center"
-            onMouseDown={(event: React.MouseEvent<HTMLDivElement>) => {
-              if (event.currentTarget === event.target && !memberBusyId)
-                setMemberConfirm(null);
-            }}
-          >
+          <SynauraOverlay open onClose={() => !memberBusyId && setMemberConfirm(null)} ariaLabel={memberConfirm.action === "leave" ? "Quitter le groupe" : "Retirer un membre"} presentation="responsive" size="sm" showClose={false} className="ms-dialog">
             <motion.div
               initial={{ y: 18, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
@@ -2100,22 +2193,13 @@ export default function ConversationPage() {
                 <button type="button" disabled={Boolean(memberBusyId)} onClick={() => void runMemberRemoval()} className="flex h-11 items-center justify-center rounded-lg bg-syn-destructive text-xs font-black text-white disabled:opacity-50">{memberBusyId ? <Loader2 className="h-4 w-4 animate-spin" /> : memberConfirm.action === "leave" ? "Quitter" : "Retirer"}</button>
               </div>
             </motion.div>
-          </motion.div>
+          </SynauraOverlay>
         ) : null}
       </AnimatePresence>
 
       <AnimatePresence>
         {roomCreatorOpen ? (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[120] flex items-end justify-center bg-black/60 p-4 backdrop-blur-sm sm:items-center"
-            onMouseDown={(event: React.MouseEvent<HTMLDivElement>) => {
-              if (event.currentTarget === event.target)
-                setRoomCreatorOpen(false);
-            }}
-          >
+          <SynauraOverlay open onClose={() => !roomBusy && setRoomCreatorOpen(false)} ariaLabel="Nouveau salon" presentation="responsive" size="sm" className="ms-dialog">
             <motion.div
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
@@ -2128,6 +2212,7 @@ export default function ConversationPage() {
               </p>
               <input
                 autoFocus
+                aria-label="Nom du salon"
                 value={roomName}
                 onChange={(event) =>
                   setRoomName(event.target.value.slice(0, 40))
@@ -2139,6 +2224,7 @@ export default function ConversationPage() {
                 <button
                   type="button"
                   onClick={() => setRoomType("text")}
+                  aria-pressed={roomType === "text"}
                   className="flex h-11 items-center justify-center gap-2 rounded-lg border text-xs font-black"
                   style={{
                     borderColor: roomType === "text" ? accentColor : undefined,
@@ -2151,6 +2237,7 @@ export default function ConversationPage() {
                 <button
                   type="button"
                   onClick={() => setRoomType("voice_notes")}
+                  aria-pressed={roomType === "voice_notes"}
                   className="flex h-11 items-center justify-center gap-2 rounded-lg border text-xs font-black"
                   style={{
                     borderColor:
@@ -2185,21 +2272,13 @@ export default function ConversationPage() {
                 </button>
               </div>
             </motion.div>
-          </motion.div>
+          </SynauraOverlay>
         ) : null}
       </AnimatePresence>
 
       <AnimatePresence>
         {confirmAction && other ? (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-end justify-center bg-black/55 p-4 backdrop-blur-sm sm:items-center"
-            onMouseDown={(event: React.MouseEvent<HTMLDivElement>) => {
-              if (event.currentTarget === event.target) setConfirmAction(null);
-            }}
-          >
+          <SynauraOverlay open onClose={() => !dangerBusy && setConfirmAction(null)} ariaLabel={confirmAction === "block" ? "Bloquer ce compte" : "Retirer cet ami"} presentation="responsive" size="sm" showClose={false} className="ms-dialog">
             <motion.div
               initial={{ y: 24, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
@@ -2220,6 +2299,7 @@ export default function ConversationPage() {
                 <button
                   type="button"
                   onClick={() => setConfirmAction(null)}
+                  disabled={dangerBusy}
                   className="flex-1 rounded-lg border border-syn-border px-4 py-3 text-sm font-bold"
                 >
                   Annuler
@@ -2227,13 +2307,14 @@ export default function ConversationPage() {
                 <button
                   type="button"
                   onClick={() => void runDangerAction()}
+                  disabled={dangerBusy}
                   className="flex-1 rounded-lg bg-syn-destructive px-4 py-3 text-sm font-bold text-white"
                 >
                   Confirmer
                 </button>
               </div>
             </motion.div>
-          </motion.div>
+          </SynauraOverlay>
         ) : null}
       </AnimatePresence>
     </main>
@@ -2301,46 +2382,8 @@ function MessageBubble({
         />
       </div>
     );
-  if (message.type === "audio")
-    return (
-      <button
-        style={ownStyle}
-        type="button"
-        onClick={onPlay}
-        className={`flex min-w-[210px] items-center gap-3 rounded-xl px-3 py-3 text-left ${base}`}
-      >
-        <span
-          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
-            own ? "bg-white/16" : "bg-syn-accent/10 text-syn-accent"
-          }`}
-        >
-          {playing ? (
-            <Pause className="h-4 w-4" />
-          ) : (
-            <Play className="h-4 w-4" />
-          )}
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-xs font-black">Message audio</span>
-          <span
-            className={`mt-1 block h-1 overflow-hidden rounded-full ${
-              own ? "bg-white/20" : "bg-syn-surfaceMuted"
-            }`}
-          >
-            <span
-              className={`block h-full w-1/3 rounded-full ${
-                own ? "bg-white/70" : "bg-syn-accent2"
-              }`}
-            />
-          </span>
-        </span>
-        {Number(message.metadata?.duration || 0) > 0 ? (
-          <span className="text-[10px] opacity-65">
-            {formatDuration(Number(message.metadata.duration))}
-          </span>
-        ) : null}
-      </button>
-    );
+  if (message.type === "audio") return <VoiceMessage src={message.mediaUrl || message.content} duration={Number(message.metadata?.duration || 0)} own={own} accent={accentColor} />;
+  if (message.type === "track" && message.sharedEntityId) return <SharedSoundCard id={message.sharedEntityId} title={String(message.metadata?.title || 'Son partagé')} artist={String(message.metadata?.artistName || 'Synaura')} cover={String(message.metadata?.coverUrl || '')} onOpen={onOpen} />;
   if (["track", "clip", "post", "playlist"].includes(message.type)) {
     const title = String(
       message.metadata?.title ||
@@ -2359,14 +2402,7 @@ function MessageBubble({
       typeof message.metadata?.coverUrl === "string"
         ? message.metadata.coverUrl
         : "";
-    const path =
-      typeof message.metadata?.url === "string"
-        ? message.metadata.url
-        : message.sharedEntityId
-        ? `/${message.type === "track" ? "track" : message.type}/${
-            message.sharedEntityId
-          }`
-        : "";
+    const path = sharedMessagePath(message.type, message.sharedEntityId);
     return (
       <button
         style={ownStyle}
@@ -2376,7 +2412,7 @@ function MessageBubble({
       >
         {coverUrl ? (
           <SynauraImage
-            src={coverUrl}
+            src={toPublicMediaUrl(coverUrl) || undefined}
             alt=""
             className="h-14 w-14 shrink-0 rounded-lg object-cover"
           />
@@ -2410,6 +2446,8 @@ function MessageBubble({
   return (
     <div
       style={ownStyle}
+      data-message-bubble="true"
+      data-own={own}
       className={`whitespace-pre-wrap break-words rounded-xl px-3.5 py-2.5 text-sm leading-5 ${base}`}
     >
       {message.content}
@@ -2441,7 +2479,7 @@ function MessageActions({
   hideMenu?: boolean;
 }) {
   return (
-    <div className="relative flex opacity-100 transition sm:opacity-0 sm:group-hover/message:opacity-100">
+    <div className="ms-message-actions relative flex opacity-100 transition sm:opacity-0 sm:group-hover/message:opacity-100 sm:focus-within:opacity-100">
       <button
         type="button"
         onClick={onReply}

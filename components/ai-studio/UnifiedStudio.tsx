@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode, type CSSProperties } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { ArrowUpRight, Check, ChevronDown, Download, Heart, Library, Loader2, Lock, MoreHorizontal, Music2, Play, Plus, RefreshCw, Search, SlidersHorizontal, Sparkles, Wand2, X } from 'lucide-react';
 import Link from '@/components/navigation/HandoffLink';
@@ -8,6 +8,7 @@ import HandoffReturn from '@/components/navigation/HandoffReturn';
 import { SynauraOverlay } from '@/components/ui/SynauraOverlay';
 import { CURRENT_SUNO_MODELS, SUNO_GENERATION_LIMITS } from '@/lib/sunoModels';
 import { ACTION_COSTS } from '@/lib/billing/pricing';
+import { useLivingMotion } from '@/components/ambient/useLivingMotion';
 import type { GeneratedTrack } from '@/lib/aiStudioTypes';
 import './unified-studio.css';
 
@@ -46,7 +47,7 @@ const MUSIC_VIDEO_CREDIT_COST = 100;
 
 export default function UnifiedStudio(p: UnifiedStudioProps) {
   const search = useSearchParams();
-  const [view, setView] = useState<'create' | 'library'>(search?.get('view') === 'library' ? 'library' : 'create');
+  const [view, setView] = useState<'create' | 'library'>(search?.get('mode') || search?.get('sourceTrack') ? 'create' : 'library');
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('all');
   const [sort, setSort] = useState('newest');
@@ -56,6 +57,7 @@ export default function UnifiedStudio(p: UnifiedStudioProps) {
   const submitLock = useRef(false);
   const deepLink = useRef('');
   const form = p.form;
+  const living = useLivingMotion();
   const selectedSong = p.library.songs.find(song => song.track.id === p.selected?.id);
 
   useEffect(() => { if (p.generation.error) setView('create'); }, [p.generation.error]);
@@ -101,16 +103,17 @@ export default function UnifiedStudio(p: UnifiedStudioProps) {
     try { await p.generation.submit(); } finally { submitLock.current = false; }
   };
 
-  return <div className="unified-studio" data-studio-view={view}>
+  return <div className="unified-studio us-workbench" data-studio-view={view} data-motion={living.enabled}>
     <header className="us-header">
       <Link href="/live" className="us-brand" aria-label="Synaura, Live"><img src="/brand/v2/reference-symbol.svg" alt="" /><span>Synaura<span className="us-brand-divider">/</span><strong>Studio</strong></span></Link>
       <div className="us-header-actions"><HandoffReturn fallbackHref="/live" fallbackLabel="Retour Live" className="us-return" />{p.authenticated && <button className="us-credit" aria-label={`${p.credits} crédits, ajouter des crédits`} onClick={p.buyCredits}><span>{p.quotaLoading ? '…' : p.credits} <small>crédits</small></span><Plus size={15} aria-hidden="true" /></button>}</div>
     </header>
     {!p.authenticated ? <main className="us-signin"><div className="us-sculpture" aria-hidden="true"><i /><i /><i /></div><span className="us-eyebrow">SYNAURA STUDIO</span><h1>Le prochain son.<br /><em>Le vôtre.</em></h1><p>Une idée, des paroles ou un extrait. À vous de jouer.</p><Link className="us-generate" href={`/auth/signin?callbackUrl=${encodeURIComponent(`/studio${search?.toString() ? `?${search.toString()}` : ''}`)}`}>Ouvrir mon studio <ArrowUpRight size={18} /></Link></main> : <>
-      <nav className="us-mobile-nav" aria-label="Espace du studio"><button aria-pressed={view === 'create'} onClick={() => setView('create')}><Sparkles size={16} />Créer</button><button aria-pressed={view === 'library'} onClick={() => setView('library')}><Library size={16} />Mes morceaux{p.generation.pending && <span className="us-dot" />}</button></nav>
+      <button className="us-drawer-toggle" type="button" aria-expanded={view === 'create'} aria-controls="studio-creation-drawer" onClick={() => setView(view === 'create' ? 'library' : 'create')}><span className="us-drawer-symbol"><Sparkles size={20} /></span><span><strong>Une nouvelle idée ?</strong><small>{view === 'create' ? 'Votre studio est ouvert' : 'Ouvrir le studio de création'}</small></span><ChevronDown size={20} /></button>
       <main className="us-workspace">
-        <section className="us-composer" aria-label="Créer un morceau">
-          <div className="us-composer-heading"><span className="us-eyebrow"><span className="us-dot" /> VOTRE ESPACE DE CRÉATION</span><h1>Faites du <em>bruit.</em></h1></div>
+        <div className="us-composer-drawer" id="studio-creation-drawer"><div className="us-drawer-inner"><section className="us-composer" aria-label="Créer un morceau">
+          <div className="us-composer-scroll">
+          <div className="us-composer-heading"><span className="us-eyebrow"><span className="us-dot" /> VOTRE ESPACE DE CRÉATION</span><h1>Faites du <em>bruit.</em></h1><div className="us-heading-waves" aria-hidden="true">{Array.from({length: 19}, (_, i) => <i key={i} style={{'--wave': `${i * 73}ms`} as CSSProperties} />)}</div></div>
           <div className="us-mode" role="group" aria-label="Mode de création">{([['simple', 'Une idée'], ['custom', 'Mes paroles'], ['remix', 'Un audio']] as const).map(([id, label]) => <button key={id} aria-pressed={form.mode.value === id} onClick={() => form.mode.set(id)}>{label}</button>)}</div>
           {form.sourceCredit}
           {form.mode.value === 'remix' && form.remixSource}
@@ -124,8 +127,9 @@ export default function UnifiedStudio(p: UnifiedStudioProps) {
             {form.mode.value === 'remix' && form.remixOptions}
             {form.mode.value !== 'simple' && <details className="us-advanced"><summary><SlidersHorizontal size={15} />Réglages<ChevronDown size={14} /></summary><div className="us-advanced-fields"><label className="us-field">Durée demandée · secondes<input type="number" min={SUNO_GENERATION_LIMITS.minDuration} max={SUNO_GENERATION_LIMITS.maxDuration} value={form.duration.value} onChange={e => form.duration.set(Number(e.target.value))} /></label>{([['Liberté créative', form.weirdness], ['Fidélité au style', form.styleInfluence], ...(form.mode.value === 'remix' ? [['Fidélité à l’audio', form.audioWeight] as const] : [])] as const).map(([label, field]) => <label className="us-range" key={label}><span>{label}<output>{field.value}%</output></span><input type="range" min="0" max="100" value={field.value} onChange={e => field.set(Number(e.target.value))} /></label>)}{!form.instrumental.value && <label className="us-field">Voix<select value={form.vocalGender.value} onChange={e => form.vocalGender.set(e.target.value)}><option value="">Au choix du modèle</option><option value="f">Féminine</option><option value="m">Masculine</option></select></label>}<label className="us-field">À éviter<input value={form.negativeTags.value} onChange={e => form.negativeTags.set(e.target.value)} placeholder="Ex. distorsion, batterie…" /></label></div></details>}
           </div>
+          </div>
           <div className="us-commit">{p.generation.error && <p role="alert" className="us-error">{p.generation.error}</p>}{lacksCredits && !p.quotaLoading ? <button className="us-generate" onClick={p.buyCredits}>Ajouter des crédits <Plus size={18} /></button> : <button className="us-generate" onClick={create} disabled={disabled}>{p.generation.busy ? <Loader2 size={18} className="us-spin" /> : <Sparkles size={18} />}<span>{p.generation.busy ? 'Création en cours…' : p.generation.cooldown ? `Réessayer dans ${p.generation.cooldown}s` : 'Créer mon morceau'}</span><span className="us-cost">{ACTION_COSTS.generation.credits} cr.</span></button>}<span className="us-private"><Lock size={11} />Privé jusqu’à votre publication</span></div>
-        </section>
+        </section></div></div>
         <section className="us-collection" aria-label="Mes morceaux">
           <header className="us-collection-heading"><div><span className="us-eyebrow">VOTRE COLLECTION</span><h2>À vous de jouer<span>.</span></h2></div><button className="us-icon" onClick={p.library.refresh} disabled={p.library.loading} aria-label="Actualiser les morceaux"><RefreshCw size={17} className={p.library.loading ? 'us-spin' : ''} /></button></header>
           {(p.generation.pending || p.library.fresh.length > 0) && <div className="us-progress" role="status"><div><span className="us-dot" /><strong>{p.generation.status}</strong>{p.generation.pending && <span>{p.generation.progress}%</span>}</div>{p.generation.pending && <progress max="100" value={p.generation.progress} aria-label="Génération en cours" />}{p.library.fresh.map(track => <button key={track.id} className="us-fresh" onClick={() => { p.select(track); p.actions.play(track); }} disabled={!track.audioUrl}><Play size={15} />{track.title || 'Nouvelle version'}</button>)}</div>}

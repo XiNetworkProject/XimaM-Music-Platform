@@ -5,10 +5,9 @@ import '@/components/v2/music-v2.css';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ChevronDown, ChevronUp, EyeOff, Info, ListMusic, MessageSquare, MoreHorizontal, Pause, Play, Radio, Repeat2, Share2, SkipBack, SkipForward, SlidersHorizontal, Sparkles, ThumbsDown, ThumbsUp, Trash2, X } from 'lucide-react';
+import { ArrowUpRight, EyeOff, Info, ListMusic, MessageSquare, Repeat2, Share2, SlidersHorizontal, ThumbsDown, ThumbsUp, X } from 'lucide-react';
 import { useAudioPlayer, useAudioTime } from '@/app/providers';
-import TikTokPlayer from './TikTokPlayer';
-import TrackCover from './TrackCover';
+import { ListeningRoom, PlayerDock } from './player/ListeningPlayer';
 import TrackCreateRemixActions from './TrackCreateRemixActions';
 import { useTrackActions } from './actions/useTrackActions';
 import QueueDialog from './QueueDialog';
@@ -83,7 +82,7 @@ function TastePanel({
   );
 }
 
-export default function SynauraMiniPlayer() {
+export default function SynauraMiniPlayer({ forceVisible = false }: { forceVisible?: boolean }) {
   const pathname = usePathname();
   const {
     audioState,
@@ -142,6 +141,7 @@ export default function SynauraMiniPlayer() {
 
   useEffect(() => {
     const id = currentTrackId;
+    if (!forceVisible && !shouldRenderGlobalMiniPlayer(pathname)) return;
     if (!id || id.startsWith('radio-') || id.startsWith('ai-') || id.startsWith('gen-')) {
       setRelatedTracks([]);
       setRelatedLabel('');
@@ -164,7 +164,7 @@ export default function SynauraMiniPlayer() {
         setRelatedLabel('');
       });
     return () => controller.abort();
-  }, [currentTrackId]);
+  }, [currentTrackId, forceVisible, pathname]);
 
   const togglePlay = async () => {
     if (audioState.isPlaying) pause();
@@ -249,11 +249,11 @@ export default function SynauraMiniPlayer() {
   }, [currentTrackId]);
 
   useEffect(() => {
-    if (showTikTok) return;
+    if (showTikTok || (!forceVisible && !shouldRenderGlobalMiniPlayer(pathname))) return;
     const onKey = (event: KeyboardEvent) => {
       if (event.defaultPrevented || event.repeat || event.isComposing || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
       const target = event.target as HTMLElement;
-      if (target && (target.isContentEditable || target.closest('input, textarea, select, button, a, [role="button"], [role="slider"], [role="tab"], [role="textbox"], [role="combobox"]'))) return;
+      if (target && (target.isContentEditable || target.closest('input, textarea, select, button, a, summary, [role="button"], [role="slider"], [role="tab"], [role="textbox"], [role="combobox"]'))) return;
       if (event.code === 'Space') {
         event.preventDefault();
         void togglePlay();
@@ -261,7 +261,7 @@ export default function SynauraMiniPlayer() {
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [showTikTok, audioState.isPlaying]);
+  }, [showTikTok, audioState.isPlaying, forceVisible, pathname]);
 
   const openPlayer = useCallback(() => {
     // The Studio owns its song details. Do not replace its private selection
@@ -276,241 +276,27 @@ export default function SynauraMiniPlayer() {
   }, [pathname, currentTrackId]);
 
   useEffect(() => {
+    if (!forceVisible && !shouldRenderGlobalMiniPlayer(pathname)) return;
     window.addEventListener('synaura:open-full-player', openPlayer);
     return () => window.removeEventListener('synaura:open-full-player', openPlayer);
-  }, [openPlayer]);
+  }, [openPlayer, forceVisible, pathname]);
 
-  if (!currentTrack || !audioState.showPlayer || !shouldRenderGlobalMiniPlayer(pathname)) return null;
+  if (!currentTrack || !audioState.showPlayer || (!forceVisible && !shouldRenderGlobalMiniPlayer(pathname))) return null;
 
-  return (
-    <>
-      {showTikTok ? (
-        <TikTokPlayer
-          isOpen={showTikTok}
-          onClose={() => setShowTikTok(false)}
-          initialTrackId={currentTrack?._id || (currentTrack as any)?.id}
-        />
-      ) : null}
-
-      {!showTikTok ? (
-        <>
-          <div className="v2-mini-player synaura-player-surface pointer-events-none fixed inset-x-0 bottom-[var(--synaura-primary-dock-space)] z-[60] lg:bottom-0" data-chambre-music="mini-player">
-            <div className="pointer-events-auto px-0 pb-0 sm:px-4 sm:pb-[calc(env(safe-area-inset-bottom,0px)+0.75rem)]">
-              {showQueue ? (
-                <QueueDialog isOpen={showQueue} onClose={() => setShowQueue(false)} />
-              ) : null}
-              {showTaste ? (
-                <TastePanel
-                  explanation={tasteExplanation}
-                  canHideArtist={Boolean(artistId)}
-                  busy={tasteBusy}
-                  feedback={tasteFeedback}
-                  onAction={(action) => void applyTaste(action)}
-                  onClose={() => setShowTaste(false)}
-                />
-              ) : null}
-              <div className="v2-mini-player-body">
-                <div
-                  ref={progressRef}
-                  onClick={onProgressClick}
-                  onKeyDown={onProgressKeyDown}
-                  className="relative h-1.5 cursor-pointer bg-black/[0.06] outline-none focus-visible:ring-2 focus-visible:ring-[#7357C6] focus-visible:ring-offset-2"
-                  role="slider"
-                  tabIndex={duration ? 0 : -1}
-                  aria-label="Position dans le morceau"
-                  aria-valuemin={0}
-                  aria-valuemax={duration || 0}
-                  aria-valuenow={currentTime || 0}
-                  aria-valuetext={`${toTime(currentTime || 0)} sur ${toTime(duration || 0)}`}
-                  aria-disabled={!duration}
-                >
-                  <div
-                    className="absolute left-0 top-0 h-full bg-[#7357C6] transition-[width] duration-150"
-                    style={{ width: `${progressPct}%` }}
-                  />
-                </div>
-
-                <div className="v2-mini-desktop">
-                  <button type="button" className="flex min-w-0 flex-1 items-center gap-3 text-left" onClick={openPlayer}>
-                    <div className="relative shrink-0">
-                      <TrackCover trackId={track.id} src={track.cover} videoSrc={track.coverVideo} posterSrc={track.coverVideoPoster} title={track.title} autoPlayVideo={audioState.isPlaying} className="h-11 w-11 ring-1 ring-black/[0.08]" rounded="rounded-[1rem]" objectFit="cover" />
-                      {isLive ? (
-                        <span className="absolute -top-1 -right-1 inline-flex items-center gap-1 rounded-full bg-red-500 px-1.5 py-0.5 text-[8px] font-black uppercase tracking-wide text-white">
-                          <Radio className="h-2.5 w-2.5" />
-                          Live
-                        </span>
-                      ) : null}
-                      {isAI ? (
-                        <span className="absolute -top-1 -right-1 inline-flex items-center gap-1 rounded-full bg-[#7357C6] px-1.5 py-0.5 text-[8px] font-black text-white">
-                          <Sparkles className="h-2.5 w-2.5" />
-                          IA
-                        </span>
-                      ) : null}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="truncate text-[13px] font-black leading-tight">{track.title}</p>
-                      <p className="truncate text-[11px] leading-tight text-black/42">
-                        {track.artist}
-                        {albumContext ? <span className="text-black/26"> · {albumContext.name}</span> : null}
-                      </p>
-                    </div>
-                  </button>
-
-                  <div className="v2-mini-transports flex items-center gap-1">
-                    <button onClick={previousTrack} className="grid h-9 w-9 place-items-center rounded-full bg-black/[0.05] text-black/55 transition hover:bg-black/[0.1] hover:text-[#171313]" aria-label="Precedent">
-                      <SkipBack className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={togglePlay}
-                      disabled={audioState.isLoading}
-                      className="grid h-10 w-10 place-items-center rounded-full bg-[#171313] text-[#fffaf2] transition hover:scale-[1.03]"
-                      aria-label={audioState.isPlaying ? 'Pause' : 'Play'}
-                    >
-                      {audioState.isPlaying ? <Pause className="w-4 h-4" /> : <Play className="ml-0.5 w-4 h-4 fill-current" />}
-                    </button>
-                    <button onClick={nextTrack} className="grid h-9 w-9 place-items-center rounded-full bg-black/[0.05] text-black/55 transition hover:bg-black/[0.1] hover:text-[#171313]" aria-label="Suivant">
-                      <SkipForward className="w-4 h-4" />
-                    </button>
-                  </div>
-
-                  <div className="v2-mini-time items-center gap-2 text-[10px] font-mono text-black/32 tabular-nums">
-                    <span>{toTime(currentTime || 0)}</span>
-                    <span>/</span>
-                    <span>{toTime(duration || 0)}</span>
-                  </div>
-
-                  <details className="v2-mini-menu" onKeyDown={event => { if (event.key === ' ') event.stopPropagation(); if (event.key === 'Escape') { event.stopPropagation(); event.currentTarget.open = false; event.currentTarget.querySelector('summary')?.focus(); } }}>
-                    <summary className="v2-mini-more" aria-label="Toutes les actions du lecteur"><MoreHorizontal size={21} /><span>Actions</span></summary>
-                    <div className="v2-mini-menu-panel">
-                    {artistUsername ? (
-                      <Link
-                        href={`/profile/${encodeURIComponent(artistUsername)}`}
-                        className="hidden h-9 items-center gap-2 rounded-full bg-black/[0.05] px-3 text-xs font-black text-black/58 transition hover:bg-black/[0.1] hover:text-[#171313] lg:inline-flex"
-                        onClick={() => {
-                          fetch('/api/recommendations/impressions', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ contentType: 'track', contentId: currentTrack._id, source: 'global-player', eventType: 'open_artist' }),
-                            keepalive: true,
-                          }).catch(() => {});
-                        }}
-                      >
-                        Artiste
-                      </Link>
-                    ) : null}
-                    <button
-                      onClick={() => addToUpNext(currentTrack as any, 'end')}
-                      className="hidden h-9 items-center gap-2 rounded-full bg-black/[0.05] px-3 text-xs font-black text-black/58 transition hover:bg-black/[0.1] hover:text-[#171313] lg:inline-flex"
-                      aria-label="Ajouter à la file"
-                    >
-                      + File
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (albumContext || isLive || String(currentTrack?._id || '').startsWith('radio-')) void handleShare();
-                        else void trackActions.share(currentTrack);
-                      }}
-                      className="inline-flex h-9 items-center gap-2 rounded-full bg-black/[0.05] px-3 text-xs font-black text-black/58 transition hover:bg-black/[0.1] hover:text-[#171313]"
-                      aria-label="Partager"
-                    >
-                      <Share2 className="w-3.5 h-3.5" />
-                      Partager
-                    </button>
-                    <button
-                      onClick={openPlayer}
-                      className="inline-flex h-9 items-center gap-2 rounded-full bg-black/[0.05] px-3 text-xs font-black text-black/58 transition hover:bg-black/[0.1] hover:text-[#171313]"
-                      aria-label="Player complet"
-                    >
-                      <ListMusic className="w-3.5 h-3.5" />
-                      Lecteur complet
-                    </button>
-                    <button
-                      onClick={(event) => {
-                        setShowTaste((value) => !value);
-                        setShowQueue(false);
-                        const disclosure = event.currentTarget.closest('details');
-                        if (disclosure) { disclosure.open = false; disclosure.querySelector('summary')?.focus(); }
-                      }}
-                      className="inline-flex h-9 items-center gap-2 rounded-full bg-[var(--syn-soft)] px-3 text-xs font-black text-[var(--syn-text-secondary)] transition hover:bg-[var(--syn-soft-strong)] hover:text-[var(--syn-text-primary)]"
-                      aria-label="Affiner le Flow"
-                      title="Affiner le Flow"
-                    >
-                      <SlidersHorizontal className="h-3.5 w-3.5" />
-                      Affiner
-                    </button>
-                    <button
-                      onClick={() => setShowQueue((value) => !value)}
-                      className="inline-flex h-9 items-center gap-2 rounded-full bg-black/[0.05] px-3 text-xs font-black text-black/58 transition hover:bg-black/[0.1] hover:text-[#171313]"
-                      aria-label="À suivre"
-                    >
-                      <ListMusic className="w-3.5 h-3.5" />
-                      À suivre
-                      {upNextTracks.length ? <span className="rounded-full bg-[#171313] px-1.5 py-0.5 text-[9px] text-white">{upNextTracks.length}</span> : null}
-                    </button>
-                    <Link
-                      href={`/community/forum/new?category=feedback&trackId=${encodeURIComponent(String(currentTrack._id))}&title=${encodeURIComponent(String(currentTrack.title || ''))}&source=player`}
-                      className="hidden h-9 items-center gap-2 rounded-full bg-black/[0.05] px-3 text-xs font-black text-black/58 transition hover:bg-black/[0.1] hover:text-[#171313] 2xl:inline-flex"
-                    >
-                      <MessageSquare className="w-3.5 h-3.5" />
-                      Avis
-                    </Link>
-                    <Link
-                      href={`/community/forum/new?category=remix&trackId=${encodeURIComponent(String(currentTrack._id))}&title=${encodeURIComponent(String(currentTrack.title || ''))}&source=player`}
-                      className="hidden h-9 items-center gap-2 rounded-full bg-black/[0.05] px-3 text-xs font-black text-black/58 transition hover:bg-black/[0.1] hover:text-[#171313] 2xl:inline-flex"
-                    >
-                      <Repeat2 className="w-3.5 h-3.5" />
-                      Défi
-                    </Link>
-                    <TrackCreateRemixActions track={currentTrack as any} compact className="hidden xl:flex" />
-                    </div>
-                  </details>
-                </div>
-
-                {audioState.error ? (
-                  <div className="mx-3 mb-2 flex flex-wrap items-center justify-between gap-2 rounded-[1rem] bg-red-500/10 px-3 py-2 text-xs font-bold text-red-700">
-                    <span className="line-clamp-1">Lecture impossible : {audioState.error}</span>
-                    <div className="flex gap-2">
-                      <button type="button" onClick={() => void play()} className="rounded-full bg-red-600 px-3 py-1 text-white">Réessayer</button>
-                      {isAI ? <Link href="/ai-generator" className="rounded-full bg-white px-3 py-1 text-red-700">Studio</Link> : null}
-                    </div>
-                  </div>
-                ) : null}
-
-                <div className="v2-mini-mobile">
-                  <button type="button" className="flex min-w-0 flex-1 items-center gap-2 text-left" onClick={openPlayer}>
-                    <div className="relative shrink-0">
-                      <TrackCover trackId={track.id} src={track.cover} videoSrc={track.coverVideo} posterSrc={track.coverVideoPoster} title={track.title} autoPlayVideo={audioState.isPlaying} className="h-8 w-8 ring-1 ring-black/[0.08]" rounded="rounded-[0.75rem]" objectFit="cover" />
-                      {isLive ? <span className="absolute -top-1 -right-1 rounded-full bg-red-500 px-1 py-0.5 text-[7px] font-black uppercase text-white">LIVE</span> : null}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="truncate text-[12px] font-black leading-tight">{track.title}</p>
-                      <p className="truncate text-[9px] leading-tight text-black/42">{track.artist}</p>
-                    </div>
-                  </button>
-
-                  <button
-                    onClick={togglePlay}
-                    disabled={audioState.isLoading}
-                    className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-[#171313] text-[#fffaf2]"
-                    aria-label={audioState.isPlaying ? 'Pause' : 'Play'}
-                  >
-                    {audioState.isPlaying ? <Pause className="w-4 h-4" /> : <Play className="ml-0.5 w-4 h-4 fill-current" />}
-                  </button>
-                  <button
-                    onClick={() => setShowQueue((value) => !value)}
-                    className="relative grid h-11 w-11 shrink-0 place-items-center rounded-full bg-black/[0.05] text-black/55"
-                    aria-label="À suivre"
-                  >
-                    <ListMusic className="w-4 h-4" />
-                    {upNextTracks.length ? <span className="absolute -right-1 -top-1 rounded-full bg-[#171313] px-1.5 py-0.5 text-[8px] font-black text-white">{upNextTracks.length}</span> : null}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-        </>
-      ) : null}
-    </>
-  );
+  return <>
+    <ListeningRoom open={showTikTok} onClose={() => setShowTikTok(false)} onQueue={() => setShowQueue(true)} />
+    <QueueDialog isOpen={showQueue} onClose={() => setShowQueue(false)} />
+    {showTaste && <div className="lp-taste-overlay"><TastePanel explanation={tasteExplanation} canHideArtist={Boolean(artistId)} busy={tasteBusy} feedback={tasteFeedback} onAction={action => void applyTaste(action)} onClose={() => setShowTaste(false)} /></div>}
+    {!showTikTok && <PlayerDock onOpen={openPlayer} onQueue={() => setShowQueue(true)} extraActions={<>
+      <button onClick={() => { if (albumContext || isLive) void handleShare(); else void trackActions.share(currentTrack); }}><Share2 size={17} />Partager</button>
+      <button onClick={() => trackActions.open(currentTrack, 'lyrics')}><MessageSquare size={17} />Paroles</button>
+      <button onClick={openPlayer}><ListMusic size={17} />Ouvrir le lecteur</button>
+      <button onClick={() => addToUpNext(currentTrack as any, 'end')}><ListMusic size={17} />Ajouter à la file</button>
+      <button onClick={() => { setShowTaste(true); setShowQueue(false); }}><SlidersHorizontal size={17} />Affiner mon Flow</button>
+      {artistUsername && <Link href={`/profile/${encodeURIComponent(artistUsername)}`}><ArrowUpRight size={17} />Voir le profil</Link>}
+      <Link href={`/community/forum/new?category=feedback&trackId=${encodeURIComponent(currentTrack._id)}&source=player`}><MessageSquare size={17} />Demander un avis</Link>
+      <Link href={`/community/forum/new?category=remix&trackId=${encodeURIComponent(currentTrack._id)}&source=player`}><Repeat2 size={17} />Lancer un défi</Link>
+      <TrackCreateRemixActions track={currentTrack as any} compact className="lp-remix-actions" />
+    </>} />}
+  </>;
 }

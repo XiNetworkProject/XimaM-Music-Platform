@@ -61,7 +61,9 @@ test('unrelated music and non-Studio routes retain their existing player; listen
 });
 test('all mini-player entry points and the global opening event share the same Studio-aware handler', () => {
   const text = source(mini);
-  assert.equal((text.match(/onClick=\{openPlayer\}/g) || []).length, 3);
+  assert.equal((text.match(/onClick=\{openPlayer\}/g) || []).length, 1);
+  assert.match(text, /<PlayerDock onOpen=\{openPlayer\}/);
+  assert.match(source('components/player/ListeningPlayer.tsx'), /className="lp-now" onClick=\{onOpen\}/);
   assert.match(text, /addEventListener\('synaura:open-full-player', openPlayer\)/);
   assert.doesNotMatch(text, /onClick=\{\(\) => setShowTikTok\(true\)\}/);
 });

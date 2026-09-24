@@ -1,0 +1,21 @@
+# Local reference only, NOT a WAN deployment. Inject a generated key/secret
+# through LIVEKIT_KEYS or a protected runtime config outside this repository.
+port: 17880
+bind_addresses:
+  - 127.0.0.1
+rtc:
+  node_ip: 127.0.0.1
+  use_external_ip: false
+  enable_loopback_candidate: true
+  tcp_port: 17881
+  udp_port: 17882
+  ips:
+    includes:
+      - 127.0.0.1/32
+room:
+  auto_create: false
+  max_participants: 8
+  empty_timeout: 60
+  departure_timeout: 30
+logging:
+  level: info

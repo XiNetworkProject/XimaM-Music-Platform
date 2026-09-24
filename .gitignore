@@ -6,6 +6,8 @@ yarn-error.log*
 
 # Next.js
 .next/
+.next-voice-preview/
+tsconfig.voice-preview.tsbuildinfo
 out/
 build/
 tsconfig.tsbuildinfo

@@ -36,7 +36,8 @@ test('observed icon-only controls have names and Queue text uses the theme foreg
   const profile = await readFile(new URL('../app/profile/[username]/page.tsx', import.meta.url), 'utf8');
   const discover = await readFile(new URL('../app/discover/DiscoverTiles.tsx', import.meta.url), 'utf8');
   const queue = await readFile(new URL('../components/QueueBubble.tsx', import.meta.url), 'utf8');
-  assert.match(profile, /aria-label="Partager le profil"/);
+  assert.match(profile, /onShare=\{handleShareProfile\}/);
+  assert.match(await readFile(new URL('../components/profile/ProfileIdentity.tsx', import.meta.url), 'utf8'), /aria-label="Partager le profil"/);
   assert.match(profile, /aria-pressed=\{isFollowing\}/);
   assert.match(discover, /aria-label=\{`Écouter \$\{track.title\}`\}/);
   assert.match(queue, /text-\[var\(--syn-text-primary\)\] sm:inline">File/);

@@ -7,6 +7,7 @@ import {
   SYNAURA_SHUTDOWN_NOTICES_ENABLED,
 } from '@/lib/synauraShutdown';
 import { shouldBlockDiagnosticPage } from '@/lib/diagnostics';
+import { voicePreviewDecision } from '@/lib/voice/previewGate';
 
 function securePageResponse(response: NextResponse, pathname: string) {
   if (pathname === '/embed' || pathname.startsWith('/embed/')) {
@@ -72,6 +73,20 @@ const protectedPages = [
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  if (process.env.SYNAURA_VOICE_PREVIEW === 'true') {
+    const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET, secureCookie: true });
+    const decision = voicePreviewDecision(process.env, pathname, request.method, typeof token?.id === 'string' ? token.id : '');
+    if (decision !== 'allow') {
+      const response = decision === 'login'
+        ? NextResponse.redirect(new URL('/auth/signin?callbackUrl=%2Fmessages', process.env.NEXTAUTH_URL))
+        : new NextResponse('Prévisualisation privée : accès non autorisé.', { status: decision === 'unavailable' ? 503 : decision === 'unauthorized' ? 401 : 403 });
+      response.headers.set('Cache-Control', 'private, no-store');
+      response.headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive');
+      return response;
+    }
+  }
+  // APIs were previously outside the matcher. Keep public production behavior unchanged.
+  if (pathname.startsWith('/api/') || pathname === '/_next/image') return NextResponse.next();
   if (shouldBlockDiagnosticPage(pathname)) {
     return securePageResponse(new NextResponse('Not Found', { status: 404 }), pathname);
   }
@@ -163,11 +178,10 @@ export const config = {
   matcher: [
     /*
      * Match all request paths except for the ones starting with:
-     * - api (API routes)
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
      */
-    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+    '/((?!_next/static|favicon.ico).*)',
   ],
 };

@@ -12,12 +12,11 @@ const printer = ts.createPrinter({ removeComments: true });
 const parse = (path, source) => ts.createSourceFile(path, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
 const baselines = [
   ['app/search/page.tsx', '8fbbdf4c324eb5b499855330826515674f6ba1d403716ed3208da2069412dd20', '00468623813f4a9de5b987ff5e9af8e097fe749fa0afe56b2f97f045c7609e6e', 7, '885d205b2c6f2b7774372949466dc79036c0cd17de7adf53ca85c97d1c960bb9', 19],
-  ['app/profile/[username]/page.tsx', 'c388b9933d533e85ecd27289ee4687a072419e3788f977f75cd79a2605d67970', '2c1f20ba1ab831b3bfb883ea834582db741fa9d99857bee3a35a8412a9839d2b', 118, 'b18bf8ae11aa6914db9f969ac18e6ef299e4849525f67404ed10be4547273e74', 94],
   ['app/playlists/[id]/page.tsx', 'a1d2bd05e05811415b20cc8b95b062f12b44603609066f27e34b3e2c1b25deec', 'e3694f7d936f2b81ddc09ff7f5ab04a4ae7dd9ef4a8288e8a0e11207d584ccf5', 21, 'b42451167ed97a2951c0c2a468e06b0257d66fe72cf6283f8b677f2d038f0651', 26],
   ['app/album/[id]/page.tsx', 'b7495d5846c8579f9e13bfe8d9e50a278e34f0080dc20c8dc6bb03eb7d692460', 'e16cb42f56ad437d869d1bd06e42b5424ee1b96d60ceb7c2c13399ea0ea62706', 8, '616d8fe17b8ad5e19e16399cccdf534d469b44c13346384903d4a33c7d43d6c0', 21],
 ];
 
-test('signature music preserves all four programs, 154 existing handlers and 160 protected calls without an exception', async () => {
+test('unchanged Search, Playlist and Album preserve 36 handlers and 66 protected calls', async () => {
   // Exact snapshots in artifacts/chambre-signature/before/music; no snapshot dependency at test time.
   for (const [path, expectedLogic, expectedEvents, eventCount, expectedCalls, callCount] of baselines) {
     const source = await read(path);
@@ -153,8 +152,8 @@ test('Search keeps real results and adds exactly three literal no-prefetch entry
 test('Profile retains owner/visitor actions, five sections, conditional creator identity and actual spotlight tracks', async () => {
   const profile = await read('app/profile/[username]/page.tsx');
   for (const tab of ['sons', 'clips', 'variations', 'playlists', 'posts']) assert.ok(profile.includes(`['${tab}',`));
-  for (const marker of ['handleFollow', 'handleEdit', 'handleShareProfile', 'setShowMessageModal(true)', 'setShowPendingModal(true)', 'setShowBoosterModal(true)', 'handleImageUpload', 'displayTracks.map', 'topProfileTracks.map', 'spotlightTrack.cover_url', 'handlePlayTrack(spotlightTrack)', 'chambre-signature-profile-entrance', 'chambre-signature-profile-records', 'chambre-signature-profile-discography']) assert.ok(profile.includes(marker), marker);
-  assert.match(profile, /profile\.isArtist \? 'Synaura \/ l’artiste & son univers' : 'Synaura \/ profil & découvertes'/);
+  for (const marker of ['handleFollow', 'handleEdit', 'handleShareProfile', 'setShowMessageModal(true)', 'setShowPendingModal(true)', 'setShowBoosterModal(true)', 'handleImageUpload', 'displayTracks.map', 'topProfileTracks.map', 'spotlightTrack.cover_url', 'handlePlayTrack(spotlightTrack)', '<ProfileIdentity', 'chambre-signature-profile-records', 'chambre-signature-profile-discography']) assert.ok(profile.includes(marker), marker);
+  assert.match(await read('components/profile/ProfileIdentity.tsx'), /p.profile.isArtist \? 'ARTISTE SYNAURA' : 'MEMBRE SYNAURA'/);
   assert.match(profile, /aria-pressed=\{activeSection === key\}/);
 });
 

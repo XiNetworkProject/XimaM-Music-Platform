@@ -91,13 +91,14 @@ test('télémétrie audio accepte uniquement des champs bornés et sans query st
 });
 
 test('les contrôles principaux gardent labels, disabled et seek clavier', async () => {
-  const player = await read('components/FullScreenPlayer.tsx');
-  assert.match(player, /role="slider"/);
+  const player = await read('components/player/ListeningPlayer.tsx');
+  // Native range retains browser keyboard behavior (arrows, Home, End).
+  assert.match(player, /input type="range"/);
   assert.match(player, /aria-label="Position dans le morceau"/);
-  assert.match(player, /onKeyDown=\{onProgressKeyDown\}/);
-  assert.match(player, /event\.key === 'ArrowRight'/);
+  assert.match(player, /onChange=\{event => seek\(Number\(event.target.value\)\)\}/);
+  assert.match(player, /disabled=\{!total\}/);
   assert.match(player, /disabled=\{audioState\.isLoading\}/);
-  for (const label of ['Precedent', 'Suivant', 'Pause', 'Play']) assert.ok(player.includes(label));
+  for (const label of ['Morceau précédent', 'Morceau suivant', 'Mettre en pause', 'Reprendre la lecture']) assert.ok(player.includes(label));
 });
 
 test('Media Session remplace les métadonnées et expose toutes les commandes', async () => {

@@ -1,0 +1,6 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "tsBuildInfoFile": "tsconfig.voice-preview.tsbuildinfo" },
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next-voice-preview/types/**/*.ts", "types/external-modules.d.ts", "example"],
+  "exclude": ["node_modules", ".next", "artifacts/**/*", "XimaMMobile/**/*", "synaura-mobile/**/*", "synaura-app/**/*", "**/__tests__/**/*"]
+}

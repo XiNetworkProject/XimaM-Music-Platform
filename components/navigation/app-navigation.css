@@ -136,7 +136,7 @@
   .syn-app-nav {
     inset:auto 0 0; width:100%; height:calc(78px + env(safe-area-inset-bottom,0px));
     padding:8px 10px calc(7px + env(safe-area-inset-bottom,0px));
-    display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:0;
+    display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:0;
     border:0; border-radius:0; box-shadow:none;
     background:linear-gradient(180deg,#090e18e0,#090e18f5 45%,#090e18);
     backdrop-filter:blur(20px);

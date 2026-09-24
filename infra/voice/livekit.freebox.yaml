@@ -1,0 +1,42 @@
+# First-stage voice transport; application calls remain disabled.
+# TURN/TLS on 443 is deliberately NOT advertised: nginx already owns 443.
+port: 7880
+bind_addresses:
+  - 127.0.0.1
+key_file: /etc/synaura-voice/keys.yaml
+rtc:
+  node_ip: 82.66.170.223
+  use_external_ip: false
+  advertise_internal_ip: true
+  tcp_port: 7881
+  udp_port: 7882
+  interfaces:
+    includes:
+      - enp0s5
+room:
+  auto_create: false
+  max_participants: 8
+  empty_timeout: 60
+  departure_timeout: 30
+  enable_remote_unmute: false
+turn:
+  enabled: true
+  bind_addresses:
+    - 192.168.1.43
+  domain: turn.synaura.fr
+  udp_port: 3478
+  tls_port: 0
+  ttl_seconds: 300
+  per_user_relay_allocation_limit: 4
+  # Only the local SFU may be reached among private addresses, not the LAN.
+  allow_restricted_peer_cidrs:
+    - 192.168.1.43/32
+logging:
+  level: warn
+  pion_level: error
+  json: true
+limit:
+  max_api_request_body_size: 1048576
+  signal_message_size_limit: 262144
+  max_room_name_length: 128
+  max_participant_identity_length: 128

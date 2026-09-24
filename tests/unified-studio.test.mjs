@@ -17,7 +17,16 @@ test('unified studio and offline lab parse, styling remains scoped and responsiv
   }
   assert.ok(postcss.parse(css).nodes.length);
   for (const value of ['max-width: 720px', 'max-width: 360px', ':focus-visible', 'prefers-reduced-motion', 'safe-area-inset-bottom']) assert.ok(css.includes(value));
-  assert.doesNotMatch(css, /overflow-y:\s*(auto|scroll)|(?<!min-)height:\s*100(?:d)?vh/);
+  const tree = postcss.parse(css);
+  const scrollRules = [];
+  tree.walkDecls('overflow-y', decl => {
+    if (/^(auto|scroll)$/.test(decl.value)) scrollRules.push(decl);
+  });
+  assert.equal(scrollRules.length, 2);
+  for (const decl of scrollRules) assert.equal(decl.parent.parent.params, '(min-width: 900px)');
+  assert.match(css, /\.us-workbench \.us-composer-scroll \{ overflow:visible; \}/);
+  assert.match(css, /\.us-composer-drawer \{[^}]*grid-template-rows:0fr/);
+  assert.match(css, /\[data-studio-view=create\] \.us-composer-drawer \{ grid-template-rows:1fr/);
 });
 
 test('all former IA entry routes resolve to one real controller, not the historical mock IDE library', async () => {

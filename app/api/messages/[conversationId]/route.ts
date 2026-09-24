@@ -3,6 +3,7 @@ import { getApiSession } from '@/lib/getApiSession';
 import { dbAdmin } from '@/lib/database';
 import { deleteLocalMedia, isLocalMediaOwnedBy, isLocalMediaUrl, localPublicIdFromUrl } from '@/lib/localMediaStorage';
 import { sameMediaUrl } from '@/lib/mediaUrls';
+import { applyPublicTrackFilter, isAiTrackPublic, isTrackPublic } from '@/lib/publicTracks';
 import {
   MAX_MESSAGE_LENGTH,
   MESSAGE_PAGE_SIZE,
@@ -205,7 +206,7 @@ export async function GET(
     }
 
     const otherParticipant = participants.find((participant) => participant.user_id !== session.user.id);
-    const blocked = otherParticipant ? await usersAreBlocked(session.user.id, otherParticipant.user_id) : false;
+    const blocked = !conversation.is_group && otherParticipant ? await usersAreBlocked(session.user.id, otherParticipant.user_id) : false;
     const friends = conversation.is_group || !otherParticipant
       ? true
       : await usersAreFriends(session.user.id, otherParticipant.user_id);
@@ -355,6 +356,21 @@ export async function POST(
       }
     }
     if (sharedEntityType && !sharedEntityId) return NextResponse.json({ error: 'Contenu partage introuvable' }, { status: 400 });
+    let metadata = sanitizeMessageMetadata(body?.metadata);
+    if (type === 'track' && !sharedEntityId.startsWith('ai-')) {
+      const { data: sharedTrack, error: sharedError } = await applyPublicTrackFilter(dbAdmin.from('tracks').select('id, title, cover_url, duration, creator_id, is_public, audio_url')).eq('id', sharedEntityId).maybeSingle();
+      if (sharedError) throw sharedError;
+      if (!sharedTrack || !isTrackPublic(sharedTrack)) return NextResponse.json({ error: 'Seuls les morceaux publics disponibles peuvent être partagés.' }, { status: 404 });
+      const creators = await getMessagingProfiles([sharedTrack.creator_id]);
+      metadata = { title: sharedTrack.title, coverUrl: sharedTrack.cover_url || '', artistName: creators.get(sharedTrack.creator_id)?.name || 'Synaura', duration: Number(sharedTrack.duration) || 0, url: `/track/${encodeURIComponent(sharedTrack.id)}` };
+    }
+    if (type === 'track' && sharedEntityId.startsWith('ai-')) {
+      const { data: sharedTrack, error: sharedError } = await dbAdmin.from('ai_tracks').select('id, title, image_url, duration, is_public, audio_url, generation:ai_generations!inner(user_id, is_public, status)').eq('id', sharedEntityId.slice(3)).maybeSingle();
+      if (sharedError) throw sharedError;
+      if (!sharedTrack || !isAiTrackPublic(sharedTrack)) return NextResponse.json({ error: 'Cette création doit être publiée avant de pouvoir être partagée.' }, { status: 404 });
+      const creators = await getMessagingProfiles([sharedTrack.generation.user_id]);
+      metadata = { title: sharedTrack.title || 'Création IA', coverUrl: sharedTrack.image_url || '', artistName: creators.get(sharedTrack.generation.user_id)?.name || 'Synaura', duration: Number(sharedTrack.duration) || 0, url: `/track/${encodeURIComponent(sharedEntityId)}` };
+    }
 
     let replyToId: string | null = typeof body?.replyToId === 'string' ? body.replyToId : null;
     let replyTo: any = null;
@@ -382,7 +398,7 @@ export async function POST(
         media_url: mediaUrl || null,
         shared_entity_type: sharedEntityType,
         shared_entity_id: sharedEntityId || null,
-        metadata: sanitizeMessageMetadata(body?.metadata),
+        metadata,
         reply_to_id: replyToId,
         is_read: false,
       })

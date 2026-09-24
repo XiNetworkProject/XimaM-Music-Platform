@@ -49,12 +49,42 @@ test('V6 does not alter subscription prices, grants, packs, credit charges or no
 test('V6 leaves the audio engine, schema, entry and unrelated APIs on the preserved baseline', () => {
   // LF companion was derived only after verifying every original raw-byte digest.
   const baseline = JSON.parse(readFileSync(new URL('../artifacts/chambre-full-redesign/protected-before-lf.json', import.meta.url), 'utf8'));
-  const authorized = new Set(['app/api/suno/generate/route.ts', 'app/api/suno/upload-cover/route.ts', 'lib/routeChrome.ts']);
+  // Messaging has subsequently gained validated track sharing/access checks,
+  // covered by messaging-experience.test.mjs rather than this V6-only baseline.
+  const authorized = new Set(['app/api/suno/generate/route.ts', 'app/api/suno/upload-cover/route.ts', 'lib/routeChrome.ts', 'app/api/messages/[conversationId]/route.ts', 'app/api/messages/conversations/route.ts', 'middleware.ts']);
+  // The private-preview middleware gate is separately exercised (including its
+  // inert public behavior) by voice-preview-gate.test.mjs.
   for (const [file, hash] of Object.entries(baseline)) {
     if (authorized.has(file)) continue;
     const bytes = readFileSync(new URL(`../${file}`, import.meta.url));
     let source = bytes.includes(0) ? bytes : bytes.toString('utf8').replaceAll('\r\n', '\n');
+    if (file === 'package.json' || file === 'package-lock.json') {
+      const data = JSON.parse(source);
+      const dependencies = file === 'package.json' ? data.dependencies : data.packages[''].dependencies;
+      assert.equal(dependencies['livekit-client'], '2.22.3');
+      assert.equal(dependencies['livekit-server-sdk'], '2.19.1');
+      delete dependencies['livekit-client']; delete dependencies['livekit-server-sdk'];
+      if (file === 'package-lock.json') {
+        const added = ['@bufbuild/protobuf', '@livekit/mutex', '@livekit/protocol', 'events', 'livekit-client', 'livekit-client/node_modules/jose', 'livekit-server-sdk', 'livekit-server-sdk/node_modules/@livekit/protocol', 'livekit-server-sdk/node_modules/jose', 'loglevel', 'machina', 'rxjs', 'sdp', 'sdp-transform', 'typed-emitter', 'webrtc-adapter'];
+        for (const name of added) {
+          const entry = data.packages[`node_modules/${name}`];
+          assert.match(entry.resolved, /^https:\/\/registry.npmjs.org\//);
+          assert.match(entry.integrity, /^sha512-/);
+          delete data.packages[`node_modules/${name}`];
+        }
+      }
+      // Every old dependency, lock entry and script remains on the original hash.
+      source = JSON.stringify(data, null, 2) + '\n';
+    }
     if (['lib/audio/AudioCore.ts', 'app/api/media/upload/route.ts', 'app/api/music-clips/[id]/route.ts'].includes(file)) source = projectLiveMedia(file, source);
+    if (file === 'app/providers.tsx') {
+      // Only the reviewed voice provider is new; all musical ownership stays hashed.
+      const addedImport = "import { VoiceCallProvider } from '@/components/messaging/VoiceCallProvider';\n";
+      const wrapper = '<VoiceCallProvider><OnboardingGate>{children}</OnboardingGate></VoiceCallProvider>';
+      assert.equal(source.split(addedImport).length, 2);
+      assert.equal(source.split(wrapper).length, 2);
+      source = source.replace(addedImport, '').replace(wrapper, '<OnboardingGate>{children}</OnboardingGate>');
+    }
     if (file === 'components/chamber/ChamberProduct.tsx') {
       // Exactly the optional home CTA routes into the new horizontal presentation.
       // Project these two reviewed fragments; the old scene/audio/scroll stays hashed.

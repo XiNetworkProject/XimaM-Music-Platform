@@ -1,7 +1,8 @@
 'use client';
 
 import '@/components/v2/music-v2.css';
-import { SynauraImage } from '@/components/ui/SynauraImage';
+import TrackCover from '@/components/TrackCover';
+import ProfileIdentity from '@/components/profile/ProfileIdentity';
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -422,226 +423,31 @@ export default function SynauraProfile() {
         primaryLabel="Studio"
       />
       <SynauraRouteNav />
-      <div className="v2-profile-page" data-chambre-music="profile">
-        <div className="chambre-signature-profile-entrance">
-        <SynauraInkPanel className="v2-profile-hero">
-          <div className="relative">
-            <div className="v2-profile-banner">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <SynauraImage src={toPublicMediaUrl(profile.banner) || '/default-cover.svg'} alt="" className="h-full w-full object-cover" />
-              <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(23,19,19,0.08)_0%,rgba(23,19,19,0.18)_34%,rgba(23,19,19,0.76)_76%,#171313_100%)]" />
-              {!isOwnProfile ? (
-                <button
-                  type="button"
-                  onClick={() => router.back()}
-                  className="absolute left-4 top-4 z-10 grid h-10 w-10 place-items-center rounded-[11px] border border-white/15 bg-black/36 text-white backdrop-blur-xl transition hover:bg-black/55"
-                  aria-label="Retour"
-                  title="Retour"
-                >
-                  <ArrowLeft className="h-5 w-5" />
-                </button>
-              ) : null}
-              {isOwnProfile && (
-                <>
-                  <button
-                    className="absolute right-4 top-4 z-10 inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/12 bg-black/28 text-white/80 backdrop-blur-xl transition hover:bg-black/40 hover:text-white"
-                    aria-label="Modifier la bannière du profil"
-                    onClick={() => bannerInputRef.current?.click()}
-                  >
-                    <Camera size={16} />
-                  </button>
-                  <input type="file" accept="image/*" className="hidden" ref={bannerInputRef} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImageUpload('banner', f); }} />
-                </>
-              )}
-            </div>
-
-            <div className="v2-profile-identity">
-              <div className="v2-profile-identity-grid">
-                <div className="v2-profile-person">
-                  <div className="relative shrink-0 group">
-                    <div className="v2-profile-avatar">
-                      <Avatar src={profile.avatar} name={profile.name} username={profile.username} size="2xl" className="h-full w-full" />
-                    </div>
-                    {isOwnProfile && (
-                      <>
-                        <button
-                          className="absolute bottom-2 right-2 inline-flex h-9 w-9 items-center justify-center rounded-full border border-white/12 bg-black/38 text-white/80 opacity-0 backdrop-blur-xl transition group-hover:opacity-100 hover:bg-black/52 hover:text-white"
-                          onClick={() => fileInputRef.current?.click()}
-                        >
-                          <Camera size={13} />
-                        </button>
-                        <input type="file" accept="image/*" className="hidden" ref={fileInputRef} onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImageUpload('avatar', f); }} />
-                      </>
-                    )}
-                  </div>
-
-                  <div className="min-w-0">
-                    <div className="v2-kicker">
-                      {profile.isArtist ? 'Synaura / l’artiste & son univers' : 'Synaura / profil & découvertes'}
-                    </div>
-                    <div className="mt-3 flex flex-wrap items-center gap-2.5">
-                      <h1 className="v2-heading">{profile.artistName || profile.name}</h1>
-                      {profile.isVerified && (
-                        <div className="grid h-7 w-7 place-items-center rounded-full bg-[#4f7cff] text-white shadow-[0_10px_24px_rgba(79,124,255,0.35)]">
-                          <Check size={14} />
-                        </div>
-                      )}
-                      {profile.isArtist && (
-                        <span className="inline-flex items-center gap-1 rounded-full border border-[#7c5cff]/32 bg-[#7c5cff]/16 px-3 py-1 text-[11px] font-black uppercase tracking-[0.14em] text-[#d1c4ff]">
-                          <Crown size={11} /> Artiste
-                        </span>
-                      )}
-                    </div>
-                    <p className="mt-1 text-sm font-bold text-white/50">@{profile.username}</p>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {profile.isVerified ? <ProfileBadge label="Artiste vérifié" /> : null}
-                      {userTracks.some((t) => t?.is_ai || String(t?.id || '').startsWith('ai-')) ? <ProfileBadge label="Créateur IA" /> : null}
-                      {totalPlays > 1000 ? <ProfileBadge label="Top tendance" /> : null}
-                      {topProfileTracks.length ? <ProfileBadge label="Remix actif" /> : null}
-                      {selectedBadges.map((badge: string) => <ProfileBadge key={badge} label={badge} />)}
-                    </div>
-                    {(acceptsVariations || clipsAllowed) && (
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        {acceptsVariations ? (
-                          <span className="inline-flex items-center gap-1.5 rounded-full border border-[#00c2cb]/25 bg-[#00c2cb]/10 px-3 py-1 text-[11px] font-black text-[#00c2cb]">
-                            <Repeat size={11} /> Accepte les variations
-                          </span>
-                        ) : null}
-                        {clipsAllowed ? (
-                          <span className="inline-flex items-center gap-1.5 rounded-full border border-[#ff6f61]/25 bg-[#ff6f61]/10 px-3 py-1 text-[11px] font-black text-[#ff9d8f]">
-                            <Film size={11} /> Clips autorisés
-                          </span>
-                        ) : null}
-                      </div>
-                    )}
-                    {profile.artistName && profile.name !== profile.artistName && <p className="mt-1 text-sm font-medium text-white/56">{profile.name}</p>}
-                    <div className="v2-profile-statistics">
-                      <StatPill value={fmtK(totalPlays)} label="ecoutes" />
-                      <StatPill value={fmtK(profile.totalLikes || 0)} label="likes" />
-                      <StatPill value={fmtK(followerCount)} label="followers" />
-                      <StatPill value={fmtK(followingCount)} label="abonnements" />
-                      <StatPill value={String(userTracks.length)} label={`titre${userTracks.length !== 1 ? 's' : ''}`} />
-                      {playlists.length > 0 && <StatPill value={String(playlists.length)} label={`playlist${playlists.length !== 1 ? 's' : ''}`} />}
-                    </div>
-                    {profile.bio?.trim() && (
-                      <p className="v2-profile-bio">{profile.bio}</p>
-                    )}
-                    {(profile.location?.trim() || profile.website?.trim() || memberSince) && (
-                      <div className="mt-4 flex flex-wrap gap-2.5 text-xs text-white/50">
-                        {profile.location?.trim() && (
-                          <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/6 px-3 py-1.5">
-                            <MapPin size={12} /> {profile.location}
-                          </span>
-                        )}
-                        {profile.website?.trim() && (
-                          <a
-                            href={profile.website.startsWith('http') ? profile.website : `https://${profile.website}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/6 px-3 py-1.5 transition hover:bg-white/10 hover:text-white"
-                          >
-                            <ExternalLink size={12} /> {profile.website.replace(/^https?:\/\//, '')}
-                          </a>
-                        )}
-                        {memberSince && (
-                          <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/6 px-3 py-1.5">
-                            <Calendar size={12} /> {memberSince}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                    {socialLinks.length ? (
-                      <div className="mt-4 flex flex-wrap gap-2">
-                        {socialLinks.map((item) => {
-                          const Icon = item.icon;
-                          return (
-                            <a
-                              key={item.key}
-                              href={item.href}
-                              target="_blank"
-                              rel="noreferrer"
-                              title={item.label}
-                              aria-label={item.label}
-                              className="grid h-10 w-10 place-items-center rounded-full border border-white/12 bg-white/8 text-white/72 transition hover:-translate-y-0.5 hover:bg-white hover:text-[#171313]"
-                            >
-                              <Icon className="h-4 w-4" />
-                            </a>
-                          );
-                        })}
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
-
-                <div className="v2-profile-hero-actions">
-                  {isOwnProfile ? (
-                    <>
-                      <HeroActionPrimary onClick={handleEdit}>
-                        <Edit size={15} /> Modifier le profil
-                      </HeroActionPrimary>
-                      <HeroActionSecondary onClick={() => router.push('/create')}>
-                        <Sparkles size={15} /> Créer
-                      </HeroActionSecondary>
-                      <HeroActionSecondary onClick={() => router.push('/stats')}>
-                        <BarChart3 size={15} /> Statistiques
-                      </HeroActionSecondary>
-                      <HeroActionSecondary onClick={() => router.push(`/onboarding?edit=1&callbackUrl=${encodeURIComponent(`/profile/${usernameStr}`)}`)}>
-                        <SlidersHorizontal size={15} /> Personnaliser mes goûts
-                      </HeroActionSecondary>
-                      {pendingVariations.length > 0 ? (
-                        <HeroActionSecondary onClick={() => setShowPendingModal(true)}>
-                          <ListChecks size={15} /> Variations à valider
-                        </HeroActionSecondary>
-                      ) : null}
-                      <HeroActionSecondary onClick={() => router.push('/settings')}>
-                        <Settings size={15} /> Paramètres
-                      </HeroActionSecondary>
-                      <HeroActionSecondary onClick={handleShareProfile}>
-                        <Share2 size={15} /> Partager le profil
-                      </HeroActionSecondary>
-                      <HeroActionBooster
-                        onClick={() => setShowBoosterModal(true)}
-                        disabled={!canOpen || boostersLoading}
-                        label={canOpen ? 'Booster' : formatRemaining(remainingMs)}
-                      />
-                    </>
-                  ) : (
-                    <>
-                      {isFollowing ? (
-                        <HeroActionSecondary onClick={handleFollow}>
-                          <Check size={15} /> Abonne
-                        </HeroActionSecondary>
-                      ) : (
-                        <HeroActionPrimary onClick={handleFollow}>
-                          <UserPlus size={15} /> Suivre
-                        </HeroActionPrimary>
-                      )}
-                      <MsgBtn status={messageRequestStatus} existingConvId={existingConvId} onMsg={() => setShowMessageModal(true)} onGo={() => router.push(existingConvId ? `/messages/${existingConvId}` : messageRequestStatus === 'incoming' ? '/messages?tab=requests' : '/messages')} />
-                      <HeroActionSecondary onClick={handleShareProfile}>
-                        <Share2 size={15} /> Partager le profil
-                      </HeroActionSecondary>
-                      <HeroActionSecondary onClick={() => router.push('/community/forum?category=collab')}>
-                        <Mic2 size={15} /> Demander un feat
-                      </HeroActionSecondary>
-                      {topProfileTracks[0] ? (
-                        <HeroActionSecondary onClick={() => router.push(`/ai-generator?mode=style&sourceTrack=${encodeURIComponent(topProfileTracks[0].id)}&title=${encodeURIComponent(topProfileTracks[0].title || '')}`)}>
-                          <Sparkles size={15} /> Inspiré par cet artiste
-                        </HeroActionSecondary>
-                      ) : null}
-                    </>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </SynauraInkPanel>
+      <div className="v2-profile-page profile-reimagined" data-chambre-music="profile">
+        <div className="profile-intro-stack">
+        <ProfileIdentity profile={profile} own={isOwnProfile} followers={followerCount} plays={totalPlays} trackCount={userTracks.length} featured={spotlightTrack || topProfileTracks[0]}
+          onBack={() => router.back()} onShare={handleShareProfile} onPlay={() => handlePlayTrack(spotlightTrack || topProfileTracks[0])} onImage={handleImageUpload}
+          primaryActions={isOwnProfile ? <><HeroActionPrimary onClick={handleEdit}><Edit size={15} />Modifier</HeroActionPrimary><HeroActionSecondary onClick={() => router.push('/create')}><Sparkles size={15} />Créer</HeroActionSecondary></> : <><button type="button" onClick={handleFollow} aria-pressed={isFollowing}>{isFollowing ? <Check size={15} /> : <UserPlus size={15} />}{isFollowing ? 'Abonné' : 'Suivre'}</button><MsgBtn status={messageRequestStatus} existingConvId={existingConvId} onMsg={() => setShowMessageModal(true)} onGo={() => router.push(existingConvId ? `/messages/${existingConvId}` : messageRequestStatus === 'incoming' ? '/messages?tab=requests' : '/messages')} /></>}
+          otherActions={<>{isOwnProfile ? <>
+            <HeroActionSecondary onClick={() => router.push('/stats')}><BarChart3 size={15} />Statistiques</HeroActionSecondary>
+            <HeroActionSecondary onClick={() => router.push(`/onboarding?edit=1&callbackUrl=${encodeURIComponent(`/profile/${usernameStr}`)}`)}><SlidersHorizontal size={15} />Personnaliser mes goûts</HeroActionSecondary>
+            {pendingVariations.length > 0 && <HeroActionSecondary onClick={() => setShowPendingModal(true)}><ListChecks size={15} />Variations à valider</HeroActionSecondary>}
+            <HeroActionSecondary onClick={() => router.push('/settings')}><Settings size={15} />Paramètres</HeroActionSecondary>
+            <HeroActionBooster onClick={() => setShowBoosterModal(true)} disabled={!canOpen || boostersLoading} label={canOpen ? 'Booster' : formatRemaining(remainingMs)} />
+          </> : <>
+            <HeroActionSecondary onClick={() => router.push('/community/forum?category=collab')}><Mic2 size={15} />Demander un feat</HeroActionSecondary>
+            {topProfileTracks[0] && <HeroActionSecondary onClick={() => router.push(`/ai-generator?mode=style&sourceTrack=${encodeURIComponent(topProfileTracks[0].id)}&title=${encodeURIComponent(topProfileTracks[0].title || '')}`)}><Sparkles size={15} />Inspiré par cet artiste</HeroActionSecondary>}
+          </>}<HeroActionSecondary onClick={handleShareProfile}><Share2 size={15} />Partager le profil</HeroActionSecondary></>}
+          socialLinks={socialLinks.map(item => { const Icon = item.icon; return <a key={item.key} href={item.href} target="_blank" rel="noreferrer" aria-label={item.label} title={item.label}><Icon size={16} /></a>; })}
+          badges={<>{acceptsVariations && <span><Repeat size={12} />Ouvert aux variations</span>}{clipsAllowed && <span><Film size={12} />Clips autorisés</span>}{selectedBadges.map((badge: string) => <span key={badge}>{badge}</span>)}</>}
+        />
 
         {spotlightTrack ? (
           <SynauraPanel className="v2-profile-spotlight">
             <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:p-5">
               <div className="v2-profile-spotlight-art">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <SynauraImage src={spotlightTrack.cover_url || spotlightTrack.coverUrl || '/default-cover.svg'} alt="" className="h-full w-full object-cover" />
+                <TrackCover trackId={spotlightTrack.id} src={spotlightTrack.cover_url || spotlightTrack.coverUrl} videoSrc={spotlightTrack.cover_video_url || spotlightTrack.coverVideoUrl} posterSrc={spotlightTrack.cover_video_poster_url || spotlightTrack.coverVideoPosterUrl} title={spotlightTrack.title} className="h-full w-full object-cover" />
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-[11px] font-black uppercase tracking-[0.18em] text-[color-mix(in_srgb,var(--syn-accent)_65%,var(--syn-text-primary))]">À écouter maintenant</p>
@@ -679,7 +485,7 @@ export default function SynauraProfile() {
 
 
         <div className="v2-profile-content-grid">
-          <div className="min-w-0 space-y-4">
+          <div className="pr-discography-column min-w-0 space-y-4">
             {(topProfileTracks.length > 0 || latestPost) && (
               <SynauraPanel className="chambre-signature-profile-records p-4 sm:p-5">
                 <div className="mb-4 flex items-end justify-between gap-3">
@@ -697,7 +503,7 @@ export default function SynauraProfile() {
                   {topProfileTracks.map((track, index) => (
                     <div key={track.id} className="chambre-signature-profile-record rounded-[1.35rem] border border-black/[0.07] bg-black/[0.025] p-3">
                       <div className="mb-3 flex items-center gap-3">
-                        <img src={track.cover_url || track.coverUrl || '/default-cover.svg'} alt="" className="h-12 w-12 rounded-[1rem] object-cover" />
+                        <TrackCover trackId={track.id} src={track.cover_url || track.coverUrl} videoSrc={track.cover_video_url || track.coverVideoUrl} posterSrc={track.cover_video_poster_url || track.coverVideoPosterUrl} title={track.title} className="pr-signature-cover h-12 w-12 object-cover" rounded="rounded-[1rem]" />
                         <div className="min-w-0">
                           <p className="text-[10px] font-black uppercase tracking-[0.16em] text-black/35">Top {index + 1}</p>
                           <p className="truncate text-sm font-black text-[#171313]">{track.title}</p>
@@ -730,7 +536,7 @@ export default function SynauraProfile() {
             )}
 
             {isOwnProfile && (
-              <SynauraPanel className="p-4 sm:p-5">
+              <SynauraPanel className="pr-quick-access p-4 sm:p-5">
                 <div className="mb-4 flex items-center justify-between gap-3">
                   <div>
                     <p className="text-xs font-black uppercase tracking-[0.18em] text-black/40">Accès rapides</p>
@@ -753,7 +559,7 @@ export default function SynauraProfile() {
             )}
 
             <SynauraPanel className="v2-profile-tabs">
-              <div className="synaura-no-scrollbar flex gap-1.5 overflow-x-auto">
+              <div className="synaura-no-scrollbar flex gap-1.5 overflow-x-auto" role="group" aria-label="Explorer ce profil">
                 {([
                   ['sons', 'Sons'],
                   ['clips', 'Clips'],
@@ -780,7 +586,7 @@ export default function SynauraProfile() {
               <div className="flex flex-col gap-4 border-b border-black/[0.08] pb-4 sm:flex-row sm:items-end sm:justify-between">
                 <div>
                   <p className="text-xs font-black uppercase tracking-[0.18em] text-black/40">Musique</p>
-                  <h2 className="mt-1 text-xl font-black tracking-tight text-[#171313]">{onlyDrafts ? 'Brouillons' : 'Sons'}</h2>
+                  <h2 className="mt-1 text-xl font-black tracking-tight text-[#171313]">{onlyDrafts ? 'Brouillons' : 'La discographie'}</h2>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   {onlyDrafts && (
@@ -789,10 +595,11 @@ export default function SynauraProfile() {
                     </button>
                   )}
                   <div className="flex items-center gap-1 rounded-full bg-black/[0.05] p-1">
-                    {([['plays', 'Top'], ['recent', 'Recent'], ['likes', 'Likes']] as const).map(([key, label]) => (
+                    {([['plays', 'Populaires'], ['recent', 'Récents'], ['likes', 'Aimés']] as const).map(([key, label]) => (
                       <button
                         key={key}
                         onClick={() => setSortBy(key)}
+                        aria-pressed={sortBy === key}
                         className={`rounded-full px-3 py-1.5 text-[11px] font-black transition sm:text-xs ${
                           sortBy === key ? 'bg-[#171313] text-white' : 'text-black/45 hover:text-[#171313]'
                         }`}
@@ -807,6 +614,7 @@ export default function SynauraProfile() {
                       value={query}
                       onChange={(e) => setQuery(e.target.value)}
                       placeholder="Rechercher un titre"
+                      aria-label="Rechercher dans la discographie"
                       className="h-10 w-full rounded-full border border-black/[0.08] bg-black/[0.035] pl-9 pr-4 text-sm text-[#171313] placeholder:text-black/28 outline-none transition focus:border-black/18 focus:bg-black/[0.045] sm:w-[220px]"
                     />
                   </div>
@@ -840,21 +648,22 @@ export default function SynauraProfile() {
                       <div
                         key={track.id}
                         className="v2-profile-track-row group relative flex cursor-pointer items-center gap-3"
+                        data-playing={playing}
                         onClick={() => setDrawerId(track.id)}
                       >
                         <div className="grid w-8 shrink-0 place-items-center">
                           <span className="text-sm font-semibold text-black/38 group-hover:hidden">{playing ? <Volume2Icon warm /> : idx + 1}</span>
-                          <button onClick={(e) => { e.stopPropagation(); handlePlayTrack(track); }} className="hidden rounded-full bg-[#171313] p-2 text-white group-hover:inline-flex">
+                          <button aria-label={`Écouter ${track.title}`} onClick={(e) => { e.stopPropagation(); handlePlayTrack(track); }} className="hidden rounded-full bg-[#171313] p-2 text-white group-hover:inline-flex">
                             {playing ? <Pause size={13} /> : <Play size={13} fill="white" />}
                           </button>
                         </div>
                         <div className="h-12 w-12 overflow-hidden rounded-[1rem] bg-black/[0.06] shadow-[0_10px_24px_rgba(20,15,10,0.08)]">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={track.cover_url || track.coverUrl || '/default-cover.svg'} alt="" className="h-full w-full object-cover" loading="lazy" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.svg'; }} />
+                          <TrackCover trackId={track.id} src={track.cover_url || track.coverUrl} videoSrc={track.cover_video_url || track.coverVideoUrl} posterSrc={track.cover_video_poster_url || track.coverVideoPosterUrl} title={track.title} className="h-full w-full object-cover" />
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
-                            <p className={`truncate text-sm font-black ${playing ? 'text-[#7c5cff]' : 'text-[#171313]'}`}>{track.title}</p>
+                            <button className="pr-track-title" onClick={(e) => { e.stopPropagation(); setDrawerId(track.id); }} aria-label={`Détails de ${track.title}`}>{track.title}</button>
                             {isAi && (
                               <span className="inline-flex shrink-0 rounded-full bg-[#7c5cff]/12 px-2 py-0.5 text-[10px] font-black uppercase tracking-[0.12em] text-[#7c5cff]">
                                 IA
@@ -972,7 +781,7 @@ export default function SynauraProfile() {
                       >
                         <div className="h-12 w-12 overflow-hidden rounded-[1rem] bg-black/[0.06]">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <SynauraImage src={v.coverUrl || '/default-cover.svg'} alt="" className="h-full w-full object-cover" loading="lazy" />
+                          <TrackCover trackId={v.id} src={v.coverUrl || v.cover_url} videoSrc={v.coverVideoUrl || v.cover_video_url} title={v.title} className="h-full w-full object-cover" />
                         </div>
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-black text-[#171313]">{v.title}</p>
@@ -1024,7 +833,7 @@ export default function SynauraProfile() {
                       >
                         <div className="relative aspect-square overflow-hidden">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={cover} alt="" className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.04]" loading="lazy" />
+                          <TrackCover src={cover} title={p.name || 'Playlist'} animationEnabled={false} className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.04]" />
                           <div className="absolute inset-0 bg-[linear-gradient(180deg,transparent_40%,rgba(23,19,19,0.68)_100%)]" />
                           <div className="absolute bottom-3 right-3 grid h-11 w-11 place-items-center rounded-full bg-[#fffaf2] text-[#171313] opacity-0 shadow-[0_14px_30px_rgba(20,15,10,0.18)] transition group-hover:opacity-100">
                             <Play size={16} fill="currentColor" />
@@ -1088,7 +897,7 @@ export default function SynauraProfile() {
             )}
           </div>
 
-          <div className="min-w-0 space-y-4">
+          <div className="pr-about-column min-w-0 space-y-4">
             <SynauraPanel className="p-5 sm:p-6">
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-black/40">Vue d&apos;ensemble</p>
@@ -1158,7 +967,7 @@ export default function SynauraProfile() {
                 <h2 className="mt-1 text-xl font-black tracking-tight text-[#171313]">Chiffres clés</h2>
               </div>
               <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-                <MetricCard label="Followers" value={fmtN.format(followerCount)} accent="violet" />
+                <MetricCard label="Abonnés" value={fmtN.format(followerCount)} accent="violet" />
                 <MetricCard label="Abonnements" value={fmtN.format(followingCount)} accent="cyan" />
                 <MetricCard label="Écoutes totales" value={fmtN.format(totalPlays)} accent="coral" />
                 <MetricCard label="Likes totaux" value={fmtN.format(profile.totalLikes || 0)} accent="ink" />
@@ -1351,23 +1160,7 @@ export default function SynauraProfile() {
         </UModalBody>
       </UModal>
 
-      {/* Mobile FABs */}
-      {isOwnProfile ? (
-        <div className="md:hidden fixed bottom-24 right-4 flex flex-col gap-2 z-[100]">
-          <button onClick={() => setShowBoosterModal(true)} disabled={!canOpen} className={`flex h-12 w-12 items-center justify-center rounded-full shadow-[0_20px_45px_rgba(30,25,20,0.20)] ${canOpen ? 'bg-[linear-gradient(135deg,#ff6f61_0%,#7c5cff_55%,#00c2cb_100%)] text-white' : 'bg-black/[0.08] text-black/25'}`}><Sparkles size={16} /></button>
-          <button onClick={handleShareProfile} aria-label="Partager le profil" className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-[#171313] shadow-[0_20px_45px_rgba(30,25,20,0.20)]"><Share2 size={15} /></button>
-          <button onClick={handleEdit} aria-label="Modifier le profil" className="flex h-12 w-12 items-center justify-center rounded-full bg-[#171313] text-white shadow-[0_20px_45px_rgba(30,25,20,0.20)]"><Edit size={15} /></button>
-              </div>
-      ) : (
-        <div className="md:hidden fixed bottom-24 right-4 flex flex-col gap-2 z-[100]">
-          <button onClick={handleShareProfile} aria-label="Partager le profil" className="flex h-12 w-12 items-center justify-center rounded-full bg-white text-[#171313] shadow-[0_20px_45px_rgba(30,25,20,0.20)]">
-            <Share2 size={15} />
-          </button>
-          <button onClick={handleFollow} aria-label={`${isFollowing ? 'Ne plus suivre' : 'Suivre'} ${profile.artistName || profile.name}`} aria-pressed={isFollowing} className={`flex h-12 w-12 items-center justify-center rounded-full shadow-[0_20px_45px_rgba(30,25,20,0.20)] ${isFollowing ? 'bg-black/[0.08] text-black/55' : 'bg-[#171313] text-white'}`}>
-            {isFollowing ? <Check size={18} /> : <UserPlus size={18} />}
-          </button>
-        </div>
-      )}
+      {/* Profile actions are grouped in the identity header on every screen. */}
     </SynauraAppShell>
   );
 }
@@ -1464,7 +1257,7 @@ function MsgBtn({ status, existingConvId, onMsg, onGo }: { status: string; exist
   if (status === 'blocked') {
     return <button disabled className="inline-flex h-11 items-center justify-center gap-2 rounded-full border border-white/10 bg-white/6 px-4 text-sm font-black text-white/32 cursor-not-allowed"><MessageCircle size={14} /> Indisponible</button>;
   }
-  return <HeroActionSecondary onClick={onMsg}><UserPlus size={14} /> Ajouter</HeroActionSecondary>;
+  return <HeroActionSecondary onClick={onMsg}><UserPlus size={14} /> Ajouter en ami</HeroActionSecondary>;
 }
 
 function HeroActionPrimary({
@@ -1620,7 +1413,7 @@ function DrawerContent({ track, playing, onPlay, onEdit, onDelete, isOwn, onLike
         <button onClick={onClose} aria-label="Fermer les détails du morceau" className="absolute right-3 top-3 z-10 inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/14 bg-black/30 text-white/80 backdrop-blur-xl transition hover:bg-black/44 hover:text-white"><X size={16} /></button>
         <div className="aspect-square max-h-[320px] w-full">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={track.cover_url || track.coverUrl || '/default-cover.svg'} alt="" className="w-full h-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).src = '/default-cover.svg'; }} />
+          <TrackCover trackId={track.id} src={track.cover_url || track.coverUrl} videoSrc={track.cover_video_url || track.coverVideoUrl} posterSrc={track.cover_video_poster_url || track.coverVideoPosterUrl} title={track.title} className="w-full h-full object-cover" />
           </div>
         <div className="absolute bottom-0 left-0 right-0 p-4" style={{ background: 'linear-gradient(to top, rgba(23,19,19,0.9) 0%, transparent 100%)' }}>
           <p className="text-lg font-black text-white">{track.title}</p>

@@ -21,6 +21,7 @@ import { usePlaysSync } from '@/hooks/usePlaysSync';
 import { PreloadProvider } from '@/contexts/PreloadContext';
 import { isPastShutdownEnd, isShutdownAnnounced } from '@/lib/synauraShutdown';
 import OnboardingGate from '@/components/onboarding/OnboardingGate';
+import { VoiceCallProvider } from '@/components/messaging/VoiceCallProvider';
 import { useRouter } from 'next/navigation';
 
 const queryClient = new QueryClient({
@@ -1052,7 +1053,7 @@ export default function Providers({ children }: { children: React.ReactNode }) {
                 <SidebarProvider>
                 <SubscriptionProvider>
                     <NativeFeaturesWrapper>
-                      <OnboardingGate>{children}</OnboardingGate>
+                      <VoiceCallProvider><OnboardingGate>{children}</OnboardingGate></VoiceCallProvider>
                     </NativeFeaturesWrapper>
                     <ShutdownModal
                       isOpen={showShutdown}

@@ -1,5 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  ...(process.env.SYNAURA_VOICE_PREVIEW_BUILD === 'true' ? {
+    distDir: '.next-voice-preview',
+    typescript: { tsconfigPath: 'tsconfig.voice-preview.json' },
+  } : {}),
   experimental: {
     serverComponentsExternalPackages: ['sharp'],
   },

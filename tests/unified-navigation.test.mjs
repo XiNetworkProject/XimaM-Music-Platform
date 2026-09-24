@@ -42,12 +42,13 @@ test('shared navigation has no decorative borders but retains keyboard focus and
   assert.match(css, /min-width:801px\) and \(max-width:1100px/);
 });
 
-test('mobile keeps four readable entries and retains secondary destinations in Menu', () => {
+test('mobile includes Messages in five entries and retains secondary destinations in Menu', () => {
   const source = read('components/navigation/AppNavigation.tsx');
   const css = read('components/navigation/app-navigation.css');
   const menu = read('components/synaura/ChambreSpacesMenu.tsx');
   const mobile = css.slice(css.indexOf('@media(max-width:800px)'));
-  assert.match(mobile, /grid-template-columns:repeat\(4,minmax\(0,1fr\)\)/);
+  assert.match(mobile, /grid-template-columns:repeat\(5,minmax\(0,1fr\)\)/);
+  assert.match(source, /href: '\/messages'/);
   assert.match(mobile, /\.syn-app-destination--library,\.syn-app-destination--community \{ display:none; \}/);
   assert.doesNotMatch(css.slice(0, css.indexOf('@media(max-width:800px)')), /\.syn-app-destination--(?:library|community).*display:none/);
   assert.match(source, /className="syn-app-dock-spaces"><ChambreSpacesMenu triggerLabel="Menu"/);

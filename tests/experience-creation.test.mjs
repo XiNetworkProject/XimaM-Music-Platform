@@ -131,7 +131,8 @@ test('AI reserves the mounted desktop player and lifts the open mobile composer 
   const playerZ = Number(tokens.match(/--v2-z-player:\s*(\d+)/)[1]);
   const contextZ = Number(tokens.match(/--v2-z-context:\s*(\d+)/)[1]);
   assert.ok(playerZ + 1 < contextZ, 'open composer must stay below real overlays');
-  assert.match(read('components/FullScreenPlayer.tsx'), /v2-mini-player[^"\n]*z-\[60\]/);
+  assert.match(read('components/FullScreenPlayer.tsx'), /<PlayerDock/);
+  assert.match(read('components/player/listening-player.css'), /\.listening-dock \{[^}]*z-index:115/);
   tree.walkRules(node => {
     if (node.selector.includes('.v2-mini-player')) {
       const declarations = node.nodes.filter(child => child.type === 'decl');

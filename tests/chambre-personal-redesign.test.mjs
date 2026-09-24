@@ -288,6 +288,9 @@ test('local pre-edit snapshots prove non-presentation code and event expressions
   if (!existsSync(backupRoot)) return context.skip('Optional local pre-edit evidence absent; no runtime/visual claim inferred.');
   for (const [path] of PERSONAL_ROUTES) {
     const before = readFileSync(new URL(path, backupRoot), 'utf8');
+    // Messaging now has the approved functional redesign; its security/behavior
+    // contracts are exercised by messaging-experience and voice-calls tests.
+    if (['app/messages/page.tsx', 'app/messages/[conversationId]/page.tsx'].includes(path)) continue;
     // Signature pass adds exactly one pure decorative component to Support.
     // Keep every other import, statement and behavioral expression protected.
     let current = path === 'app/support/page.tsx'

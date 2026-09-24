@@ -14,6 +14,7 @@ import {
   MessageCircle,
   Plus,
   Search,
+  Shield,
   UserMinus,
   UserPlus,
   Users,
@@ -24,6 +25,8 @@ import { notify } from "@/components/NotificationCenter";
 import { SynauraAppShell, SynauraRouteNav, SynauraTopBar } from "@/components/synaura/SynauraShell";
 import { SynauraConfirmDialog, SynauraOverlay, SynauraOverlayDescription, SynauraOverlayTitle } from "@/components/ui/SynauraOverlay";
 import { SynauraButton, SynauraInput } from "@/components/ui/SynauraPrimitives";
+import PeopleFinder from '@/components/messaging/PeopleFinder';
+import MessagingPrivacy from '@/components/messaging/MessagingPrivacy';
 
 type MessagingProfile = {
   id: string;
@@ -143,6 +146,10 @@ function MessagesContent() {
   const [groupName, setGroupName] = useState("");
   const [groupMembers, setGroupMembers] = useState<string[]>([]);
   const [groupBusy, setGroupBusy] = useState(false);
+  const [peopleOpen, setPeopleOpen] = useState(false);
+  const [privacyOpen, setPrivacyOpen] = useState(false);
+  const [inboxFilter, setInboxFilter] = useState<'all' | 'unread' | 'groups'>('all');
+  const [inboxError, setInboxError] = useState('');
 
   useEffect(() => {
     setActiveTab(readTab(searchParams.get("tab")));
@@ -192,7 +199,9 @@ function MessagesContent() {
         setContacts(
           Array.isArray(contactPayload?.contacts) ? contactPayload.contacts : []
         );
+        setInboxError('');
       } catch (error) {
+        setInboxError(error instanceof Error ? error.message : 'Chargement impossible');
         if (!quiet)
           notify.error(
             "Messagerie",
@@ -212,8 +221,11 @@ function MessagesContent() {
 
   useEffect(() => {
     if (!session?.user?.id) return;
-    const timer = window.setInterval(() => void loadInbox(true), 20_000);
-    return () => window.clearInterval(timer);
+    const refresh = () => { if (document.visibilityState === 'visible') void loadInbox(true); };
+    const timer = window.setInterval(refresh, 12_000);
+    window.addEventListener('synaura:messages-changed', refresh);
+    document.addEventListener('visibilitychange', refresh);
+    return () => { window.clearInterval(timer); window.removeEventListener('synaura:messages-changed', refresh); document.removeEventListener('visibilitychange', refresh); };
   }, [loadInbox, session?.user?.id]);
 
   const chooseTab = (tab: InboxTab) => {
@@ -243,6 +255,7 @@ function MessagesContent() {
       const payload = await response.json().catch(() => null);
       if (!response.ok) throw new Error(payload?.error || "Action impossible");
       await loadInbox(true);
+      window.dispatchEvent(new Event('synaura:messages-changed'));
       if (action === "accept" && payload?.conversationId) {
         router.push(`/messages/${payload.conversationId}`);
         return;
@@ -350,7 +363,7 @@ function MessagesContent() {
     );
   const visibleConversations = useMemo(
     () =>
-      conversations.filter(
+      conversations.filter(c => inboxFilter === 'groups' ? c.type === 'group' : inboxFilter === 'unread' ? c.unreadCount > 0 : true).filter(
         (conversation) =>
           matches(conversation.otherUser) ||
           Boolean(
@@ -360,7 +373,7 @@ function MessagesContent() {
                 .includes(normalizedQuery)
           )
       ),
-    [conversations, normalizedQuery]
+    [conversations, normalizedQuery, inboxFilter]
   );
   const visibleReceived = useMemo(
     () => receivedRequests.filter((request) => matches(request.user)),
@@ -443,16 +456,16 @@ function MessagesContent() {
     <SynauraAppShell contentClassName="max-w-[1380px]">
       <SynauraTopBar />
       <SynauraRouteNav />
-      <main className="min-h-screen pb-24 text-syn-textPrimary lg:pb-12">
-      <div className="v2-inbox-layout chambre-inbox">
+      <main className="ms-inbox min-h-screen pb-24 text-syn-textPrimary lg:pb-12">
+      <div className="v2-inbox-layout chambre-inbox ms-inbox-grid">
         <header className="v2-inbox-heading">
           <div>
             <p className="mb-2 text-[11px] font-extrabold uppercase text-[color-mix(in_srgb,var(--syn-accent)_65%,var(--syn-text-primary))]">
-              Les liens restent
+              SYNAURA / ENSEMBLE
             </p>
             <h1 className="text-3xl font-black sm:text-4xl">Messages</h1>
             <p className="mt-2 max-w-lg text-sm text-syn-textSecondary">
-              Retrouve tes amis et partage ce qui mérite d’être écouté.
+              Vos sons. Vos conversations.
             </p>
           </div>
           <button
@@ -464,6 +477,8 @@ function MessagesContent() {
             {refreshing ? "Actualisation…" : "Actualiser"}
           </button>
         </header>
+
+        <aside className="ms-inbox-shortcuts" aria-label="Créer une conversation"><button className="ms-primary" onClick={() => setPeopleOpen(true)}><UserPlus size={18} />Nouvelle discussion</button><button className="ms-secondary" onClick={() => setGroupOpen(true)}><Users size={18} />Créer un groupe</button><button className="ms-privacy-entry" onClick={() => setPrivacyOpen(true)}><Shield size={16} />Confidentialité</button><div className="ms-inbox-note"><span className="ms-note-orbit" aria-hidden="true"><MessageCircle size={30} /><i /><i /></span><strong>Le son nous rapproche.</strong><p>Un titre à partager, une idée à plusieurs, une voix familière.</p><button onClick={() => chooseTab('requests')}>Les non-amis arrivent dans Demandes <ArrowRight size={15} /></button></div></aside>
 
         <nav
           className="v2-inbox-tabs"
@@ -503,25 +518,6 @@ function MessagesContent() {
         </nav>
 
         <div className="v2-inbox-stack">
-        {activeTab === "conversations" && contacts.length >= 2 ? (
-          <button
-            type="button"
-            onClick={() => setGroupOpen(true)}
-            className="v2-inbox-content mb-4 flex min-h-16 w-full items-center gap-3 rounded-xl border border-syn-border bg-syn-surface px-4 text-left transition hover:border-syn-accent/40 hover:bg-syn-surfaceMuted"
-          >
-            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-syn-accent2/10 text-syn-accent2">
-              <Users className="h-5 w-5" />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-sm font-black">Créer un groupe</span>
-              <span className="mt-0.5 block text-xs text-syn-textSecondary">
-                Des salons pour vos sons, messages et vocaux.
-              </span>
-            </span>
-            <Plus className="h-5 w-5 text-syn-accent" />
-          </button>
-        ) : null}
-
         <div className="v2-inbox-content relative mb-5">
           <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-syn-textSecondary" />
           <input
@@ -550,6 +546,10 @@ function MessagesContent() {
         </div>
 
         <section className="v2-inbox-content min-h-[360px]">
+          <div className="ms-list-heading"><div><p className="ms-label">{activeTab === 'contacts' ? 'TON CERCLE' : activeTab === 'requests' ? 'À TON RYTHME' : 'LA CONVERSATION CONTINUE'}</p><h2>{activeTab === 'contacts' ? 'Tes amis' : activeTab === 'requests' ? 'Demandes d’amis' : 'Discussions'}</h2></div><button aria-label="Trouver une personne" className="ms-circle" onClick={() => setPeopleOpen(true)}><Plus size={20} /></button></div>
+          {activeTab === 'conversations' && <div className="ms-filters" aria-label="Filtrer les discussions">{([{id:'all',label:'Toutes'},{id:'unread',label:'Non lues'},{id:'groups',label:'Groupes'}] as const).map(filter => <button key={filter.id} aria-pressed={inboxFilter === filter.id} onClick={() => setInboxFilter(filter.id)}>{filter.label}</button>)}</div>}
+          {activeTab === 'requests' && <p className="ms-request-note">Accepter ajoute la personne à tes amis et ouvre votre discussion. Refuser ne lui donne aucun accès.</p>}
+          {inboxError && <div className="ms-error" role="alert">{inboxError}<button onClick={() => void loadInbox()}>Réessayer</button></div>}
           {loading ? <InboxLoading compact /> : null}
 
           {!loading && activeTab === "conversations" ? (
@@ -633,8 +633,8 @@ function MessagesContent() {
                     ? "Aucune discussion ne correspond à ta recherche."
                     : "Ajoute un créateur à tes amis pour commencer à échanger."
                 }
-                actionLabel={!query ? "Découvrir des créateurs" : undefined}
-                onAction={() => router.push("/discover")}
+                actionLabel={!query ? "Nouvelle discussion" : undefined}
+                onAction={() => setPeopleOpen(true)}
               />
             )
           ) : null}
@@ -741,8 +741,8 @@ function MessagesContent() {
                     ? "Aucun ami ne correspond à ta recherche."
                     : "Tes demandes acceptées formeront ici ton cercle musical."
                 }
-                actionLabel={!query ? "Explorer Synaura" : undefined}
-                onAction={() => router.push("/discover")}
+                actionLabel={!query ? "Trouver des amis" : undefined}
+                onAction={() => setPeopleOpen(true)}
               />
             )
           ) : null}
@@ -750,7 +750,10 @@ function MessagesContent() {
         </div>
       </div>
 
-      <SynauraOverlay open={groupOpen} onClose={() => setGroupOpen(false)} presentation="responsive" size="md">
+      <PeopleFinder open={peopleOpen} onClose={() => setPeopleOpen(false)} onChanged={() => void loadInbox(true)} />
+      <MessagingPrivacy open={privacyOpen} onClose={() => setPrivacyOpen(false)} />
+
+      <SynauraOverlay open={groupOpen} onClose={() => !groupBusy && setGroupOpen(false)} presentation="responsive" size="md" className="ms-dialog">
             <div className="p-5">
               <div className="flex items-start gap-3">
                 <span className="flex h-11 w-11 items-center justify-center rounded-full bg-syn-accent2/10 text-syn-accent2">
@@ -779,6 +782,7 @@ function MessagesContent() {
                 sélectionné{groupMembers.length > 1 ? "s" : ""}
               </p>
               <div className="mt-2 divide-y divide-syn-border">
+                {contacts.length < 2 && <div className="ms-request-note">Il faut au moins deux amis pour créer un groupe.<button className="ms-secondary" onClick={() => { setGroupOpen(false); setPeopleOpen(true); }}><UserPlus size={16} />Trouver des amis</button></div>}
                 {contacts.map((contact) => {
                   const selected = groupMembers.includes(contact.user.id);
                   return (

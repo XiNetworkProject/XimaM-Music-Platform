@@ -44,14 +44,17 @@ test('V2 player keeps all secondary actions reachable at every viewport without 
   const [mini, expanded, css] = await Promise.all([
     read('components/FullScreenPlayer.tsx'), read('components/TikTokPlayer.tsx'), read('components/v2/music-v2.css'),
   ]);
-  assert.match(mini, /<details className="v2-mini-menu"/);
-  assert.match(mini, /if \(event.key === ' '\) event.stopPropagation\(\)/);
-  assert.match(mini, /querySelector\('summary'\)\?\.focus\(\)/);
+  const dock = await read('components/player/ListeningPlayer.tsx');
+  const dockCss = await read('components/player/listening-player.css');
+  assert.match(dock, /<details ref=\{menuRef\} className="lp-more"/);
+  assert.match(mini, /target.closest\('input, textarea, select, button, a, summary,/);
+  assert.match(dock, /querySelector\('summary'\)\?\.focus\(\)/);
   for (const action of ['trackActions.share', 'setShowTikTok(true)', 'setShowTaste', 'setShowQueue', 'addToUpNext', 'category=feedback', 'category=remix', 'TrackCreateRemixActions']) assert.ok(mini.includes(action), action);
-  assert.match(css, /\.v2-mini-menu-panel > :is\(a,button,div\) \{ display:flex!important/);
-  assert.match(css, /\.v2-mini-desktop > :not\(details\) \{ display:none/);
-  assert.match(css, /\.v2-mini-menu-panel :is\(a,button\) \{ min-height:44px; min-width:44px;/);
-  assert.match(mini, /bottom-\[var\(--synaura-primary-dock-space\)\] z-\[60\] lg:bottom-0/);
+  assert.match(dockCss, /\.lp-more-menu/);
+  assert.match(dockCss, /min-height:44px/);
+  assert.match(dockCss, /synaura-primary-dock-space/);
+  assert.match(dock, /document.removeEventListener\('pointerdown', closeOutside\)/);
+  assert.doesNotMatch(dock, /new Audio\(|<audio|AudioContext|setQueueAndPlay/);
   assert.doesNotMatch(mini, /sm:bottom-0/);
   assert.doesNotMatch(mini, /new Audio\(|<audio|AudioContext/);
   assert.doesNotMatch(expanded, /new Audio\(|<audio|AudioContext/);

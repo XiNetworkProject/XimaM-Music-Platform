@@ -117,7 +117,7 @@ export async function GET(request: NextRequest) {
       const rows = participantsByConversation.get(conversation.id) || [];
       const participants = rows.map((row) => profiles.get(row.user_id) || formatMessagingProfile({ id: row.user_id }));
       const other = rows.find((row) => row.user_id !== userId);
-      const blocked = other ? (blockRows || []).some((row: any) => (
+      const blocked = !conversation.is_group && other ? (blockRows || []).some((row: any) => (
         row.blocker_id === userId && row.blocked_id === other.user_id
       ) || (
         row.blocker_id === other.user_id && row.blocked_id === userId

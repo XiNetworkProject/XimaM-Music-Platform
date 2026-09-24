@@ -101,22 +101,24 @@ export async function getMessagingProfiles(userIds: string[]) {
 }
 
 export async function usersAreBlocked(firstUserId: string, secondUserId: string) {
-  const { data } = await dbAdmin
+  const { data, error } = await dbAdmin
     .from('user_blocks')
     .select('blocker_id, blocked_id')
     .in('blocker_id', [firstUserId, secondUserId])
     .in('blocked_id', [firstUserId, secondUserId]);
 
+  if (error) throw error;
   return (data || []).some((row) => row.blocker_id !== row.blocked_id);
 }
 
 export async function getBlockState(currentUserId: string, targetUserId: string) {
-  const { data } = await dbAdmin
+  const { data, error } = await dbAdmin
     .from('user_blocks')
     .select('blocker_id, blocked_id')
     .in('blocker_id', [currentUserId, targetUserId])
     .in('blocked_id', [currentUserId, targetUserId]);
 
+  if (error) throw error;
   return {
     blockedByMe: Boolean((data || []).some((row) => row.blocker_id === currentUserId && row.blocked_id === targetUserId)),
     blockedMe: Boolean((data || []).some((row) => row.blocker_id === targetUserId && row.blocked_id === currentUserId)),
@@ -125,12 +127,13 @@ export async function getBlockState(currentUserId: string, targetUserId: string)
 
 export async function usersAreFriends(firstUserId: string, secondUserId: string) {
   const pair = friendshipPair(firstUserId, secondUserId);
-  const { data } = await dbAdmin
+  const { data, error } = await dbAdmin
     .from('friendships')
     .select('id')
     .eq('user_id', pair.userId)
     .eq('friend_id', pair.friendId)
     .maybeSingle();
+  if (error) throw error;
   return Boolean(data);
 }
 
@@ -273,20 +276,22 @@ export async function acceptPendingMessageRequest(requestRow: {
 }
 
 export async function requireConversationParticipant(conversationId: string, userId: string) {
-  const { data } = await dbAdmin
+  const { data, error } = await dbAdmin
     .from('conversation_participants')
     .select('id, conversation_id, user_id, last_read_at, archived_at, muted_until, role, nickname, theme_key, accent_color, background_key, wallpaper_url, bubble_enabled')
     .eq('conversation_id', conversationId)
     .eq('user_id', userId)
     .maybeSingle();
+  if (error) throw error;
   return data || null;
 }
 
 export async function getConversationParticipantIds(conversationId: string) {
-  const { data } = await dbAdmin
+  const { data, error } = await dbAdmin
     .from('conversation_participants')
     .select('user_id, last_read_at, muted_until, role, nickname')
     .eq('conversation_id', conversationId);
+  if (error) throw error;
   return data || [];
 }
 
