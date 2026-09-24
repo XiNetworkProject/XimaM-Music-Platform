@@ -64,7 +64,8 @@ test('new renderers are distinct and share the existing feed and surface contrac
 });
 
 test('Discover is lazy by route, uses normal APIs, scoped cached queries, cancellation and no prefetch', () => {
-  const discover = read('components/pilot/PilotDiscover.tsx');
+  assert.match(read('components/pilot/PilotDiscover.tsx'), /@\/components\/discover\/DiscoveryLibrary/);
+  const discover = read('components/discover/useDiscoveryData.ts') + read('components/discover/DiscoveryLibrary.tsx');
   assert.match(discover, /session\?\.user\?\.id \|\| 'guest'/);
   assert.match(discover, /enabled: enabled && status !== 'loading'/);
   assert.match(discover, /staleTime: 5 \* 60_000/);

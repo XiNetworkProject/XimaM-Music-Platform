@@ -6,11 +6,11 @@ export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   title: 'Découvrir — Synaura',
-  description: 'Choisis une ambiance et entre dans un univers. Ambiances, Radar, collections et artistes réels à explorer.',
+  description: 'Explorez les sons, artistes, posts, playlists et nouveautés Synaura. Trouvez votre ambiance et poursuivez les découvertes.',
   alternates: { canonical: '/discover' },
   openGraph: {
     title: 'Découvrir — Synaura',
-    description: 'Choisis une ambiance et entre dans un univers.',
+    description: 'Sons, artistes, posts et playlists : votre prochaine découverte vous attend.',
     type: 'website',
     url: '/discover',
   },

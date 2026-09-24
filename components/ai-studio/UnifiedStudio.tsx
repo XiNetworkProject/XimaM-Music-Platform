@@ -62,6 +62,22 @@ export default function UnifiedStudio(p: UnifiedStudioProps) {
   useEffect(() => { if (p.generation.pending) setView('library'); }, [p.generation.pending]);
 
   useEffect(() => {
+    const openPlayingSong = (event: Event) => {
+      const id = (event as CustomEvent<{ trackId?: string }>).detail?.trackId;
+      if (typeof id !== 'string') return;
+      const candidates = [...p.library.songs.map(song => song.track), ...p.library.fresh];
+      const track = candidates.find(song => [song.id, `gen-${song.id}`, `ai-${song.id}`].includes(id));
+      if (!track) return;
+      event.preventDefault();
+      p.select(track);
+      setDetails(true);
+      setView('library');
+    };
+    window.addEventListener('synaura:open-studio-track', openPlayingSong);
+    return () => window.removeEventListener('synaura:open-studio-track', openPlayingSong);
+  }, [p.library.songs, p.library.fresh, p.select]);
+
+  useEffect(() => {
     if (search?.get('view') === 'library') setView('library');
     const id = search?.get('track');
     if (!id || deepLink.current === id) return;

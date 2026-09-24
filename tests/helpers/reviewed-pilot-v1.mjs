@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { projectLiveMedia } from './reviewed-live-media.mjs';
+import { projectPlaybackFixes } from './reviewed-playback-fixes.mjs';
 
 /** Exact opt-in adapter projection, not a relaxed AST snapshot. The resulting V1
  * source must still hash to the deployed a0f554f9 baseline. New pilot behavior
  * is tested separately in v2-pilot.test.mjs. No historical fixture is changed. */
 export function reviewedPilotV1(file, raw) {
-  let text = projectLiveMedia(file, raw);
+  let text = projectLiveMedia(file, projectPlaybackFixes(file, raw));
   const replace = (from, to = '') => { assert.equal(text.split(from).length, 2, `${file}: exact reviewed adapter fragment`); text = text.replace(from, to); };
   if (file === 'components/home/SynauraScroll.tsx') {
     text = text.replace(/\/\*\* Optional presentation boundary\. V1 remains the default, with the same effects and handlers\. \*\/\nexport type LivePilotModel = \{[\s\S]*?\n\};\n\n/, '');

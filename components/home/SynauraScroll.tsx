@@ -227,8 +227,11 @@ function useFeedScrollSnap(opts: FeedScrollSnapOpts) {
   const itemRefs = useRef<(HTMLElement | null)[]>([]);
   const wheelLockRef = useRef(false);
   const isTouchingRef = useRef(false);
-  const programmaticRef = useRef(false);
+  const programmaticTargetRef = useRef<number | null>(null);
   const snapTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const wheelTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const latestRef = useRef(opts);
+  latestRef.current = opts;
 
   const getItemTop = useCallback((idx: number) => {
     const el = itemRefs.current[idx];
@@ -238,15 +241,26 @@ function useFeedScrollSnap(opts: FeedScrollSnapOpts) {
   }, []);
 
   const scrollTo = useCallback((idx: number, behavior: ScrollBehavior = 'smooth') => {
+    clearTimeout(snapTimerRef.current);
     const el = containerRef.current;
     if (!el) return;
     const i = clamp(idx, 0, Math.max(0, itemCount - 1));
-    const top = getItemTop(i);
-    if (Math.abs(el.scrollTop - top) < 2) return;
-    programmaticRef.current = true;
+    const top = Math.min(getItemTop(i), Math.max(0, el.scrollHeight - el.clientHeight));
+    if (Math.abs(el.scrollTop - top) < 2 && programmaticTargetRef.current === null) return;
+    programmaticTargetRef.current = i;
     el.scrollTo({ top, behavior });
-    setTimeout(() => { programmaticRef.current = false; }, behavior === 'smooth' ? 500 : 100);
   }, [getItemTop, itemCount]);
+
+  // Smooth scrolling can outlive a timer or emit an interrupted scrollend. Until
+  // the requested card is reached, intermediate cards must not restart audio.
+  const consumeProgrammaticScroll = useCallback(() => {
+    const target = programmaticTargetRef.current;
+    const el = containerRef.current;
+    if (target === null || !el) return false;
+    const top = Math.min(getItemTop(target), Math.max(0, el.scrollHeight - el.clientHeight));
+    if (Math.abs(el.scrollTop - top) < 2) programmaticTargetRef.current = null;
+    return true;
+  }, [getItemTop]);
 
   const visibleIndex = useCallback(() => {
     const el = containerRef.current;
@@ -266,7 +280,10 @@ function useFeedScrollSnap(opts: FeedScrollSnapOpts) {
     if (!el) return;
     const handler = (e: WheelEvent) => {
       if (locked) return;
-      if (pilot && (itemRefs.current[activeIndex]?.offsetHeight || 0) > el.clientHeight + 2) return;
+      if (pilot && (itemRefs.current[activeIndex]?.offsetHeight || 0) > el.clientHeight + 2) {
+        programmaticTargetRef.current = null;
+        return;
+      }
       e.preventDefault();
       if (wheelLockRef.current) return;
       if (Math.abs(e.deltaY) < 8) return;
@@ -274,7 +291,8 @@ function useFeedScrollSnap(opts: FeedScrollSnapOpts) {
       if (dir < 0 && activeIndex === 0 && onReturnHome) {
         wheelLockRef.current = true;
         onReturnHome();
-        setTimeout(() => { wheelLockRef.current = false; }, WHEEL_LOCK_MS);
+        clearTimeout(wheelTimerRef.current);
+        wheelTimerRef.current = setTimeout(() => { wheelLockRef.current = false; }, WHEEL_LOCK_MS);
         return;
       }
       const next = clamp(activeIndex + dir, 0, itemCount - 1);
@@ -282,7 +300,8 @@ function useFeedScrollSnap(opts: FeedScrollSnapOpts) {
       wheelLockRef.current = true;
       scrollTo(next, 'smooth');
       onNavigate(next, 'scroll-wheel');
-      setTimeout(() => { wheelLockRef.current = false; }, WHEEL_LOCK_MS);
+      clearTimeout(wheelTimerRef.current);
+      wheelTimerRef.current = setTimeout(() => { wheelLockRef.current = false; }, WHEEL_LOCK_MS);
     };
     el.addEventListener('wheel', handler, { passive: false });
     return () => el.removeEventListener('wheel', handler);
@@ -329,42 +348,54 @@ function useFeedScrollSnap(opts: FeedScrollSnapOpts) {
 
   const onTouchStart = useCallback(() => {
     isTouchingRef.current = true;
+    programmaticTargetRef.current = null;
     clearTimeout(snapTimerRef.current);
   }, []);
 
+  const settleNativeScroll = useCallback((source: string) => {
+    if (latestRef.current.locked || isTouchingRef.current || wheelLockRef.current || consumeProgrammaticScroll()) return;
+    const idx = visibleIndex();
+    if (idx !== latestRef.current.activeIndex) latestRef.current.onNavigate(idx, source);
+  }, [visibleIndex, consumeProgrammaticScroll]);
+
   const onTouchEnd = useCallback(() => {
-    if (locked) return;
     isTouchingRef.current = false;
     clearTimeout(snapTimerRef.current);
+    if (locked) return;
     snapTimerRef.current = setTimeout(() => {
-      onNavigate(visibleIndex(), 'scroll-touch');
+      settleNativeScroll('scroll-touch');
     }, SNAP_SETTLE_MS);
-  }, [locked, visibleIndex, onNavigate]);
+  }, [locked, settleNativeScroll]);
 
   // Repli scroll natif (trackpad continu, ou navigateurs sans event wheel discret)
   const onScroll = useCallback(() => {
     if (locked) return;
-    if (programmaticRef.current || isTouchingRef.current || wheelLockRef.current) return;
+    if (consumeProgrammaticScroll() || isTouchingRef.current || wheelLockRef.current) return;
     clearTimeout(snapTimerRef.current);
     snapTimerRef.current = setTimeout(() => {
-      const idx = visibleIndex();
-      if (idx !== activeIndex) onNavigate(idx, 'scroll-fallback');
+      settleNativeScroll('scroll-fallback');
     }, 60);
-  }, [locked, visibleIndex, activeIndex, onNavigate]);
+  }, [locked, consumeProgrammaticScroll, settleNativeScroll]);
 
   useEffect(() => {
     const el = containerRef.current;
     if (!el || !('onscrollend' in window)) return;
     const handler = () => {
-      if (locked) return;
-      const idx = visibleIndex();
-      if (idx !== activeIndex) onNavigate(idx, 'scroll-end');
+      clearTimeout(snapTimerRef.current);
+      settleNativeScroll('scroll-end');
     };
     el.addEventListener('scrollend', handler);
     return () => el.removeEventListener('scrollend', handler);
-  }, [ready, activeIndex, locked, onNavigate, visibleIndex]);
+  }, [ready, settleNativeScroll]);
 
-  useEffect(() => () => clearTimeout(snapTimerRef.current), []);
+  useEffect(() => {
+    if (locked) clearTimeout(snapTimerRef.current);
+  }, [locked]);
+
+  useEffect(() => () => {
+    clearTimeout(snapTimerRef.current);
+    clearTimeout(wheelTimerRef.current);
+  }, []);
 
   return { containerRef, itemRefs, scrollTo, onTouchStart, onTouchEnd, onScroll };
 }

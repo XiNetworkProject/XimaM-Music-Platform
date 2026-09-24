@@ -2,7 +2,7 @@
 
 import '@/components/v2/music-v2.css';
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ChevronDown, ChevronUp, EyeOff, Info, ListMusic, MessageSquare, MoreHorizontal, Pause, Play, Radio, Repeat2, Share2, SkipBack, SkipForward, SlidersHorizontal, Sparkles, ThumbsDown, ThumbsUp, Trash2, X } from 'lucide-react';
@@ -263,11 +263,22 @@ export default function SynauraMiniPlayer() {
     return () => document.removeEventListener('keydown', onKey);
   }, [showTikTok, audioState.isPlaying]);
 
+  const openPlayer = useCallback(() => {
+    // The Studio owns its song details. Do not replace its private selection
+    // with the expanded player's public recommendation queue.
+    if (pathname === '/studio' || pathname === '/ai-generator' || pathname === '/dev/studio') {
+      const request = new CustomEvent('synaura:open-studio-track', {
+        detail: { trackId: currentTrackId }, cancelable: true,
+      });
+      if (!window.dispatchEvent(request)) return;
+    }
+    setShowTikTok(true);
+  }, [pathname, currentTrackId]);
+
   useEffect(() => {
-    const open = () => setShowTikTok(true);
-    window.addEventListener('synaura:open-full-player', open);
-    return () => window.removeEventListener('synaura:open-full-player', open);
-  }, []);
+    window.addEventListener('synaura:open-full-player', openPlayer);
+    return () => window.removeEventListener('synaura:open-full-player', openPlayer);
+  }, [openPlayer]);
 
   if (!currentTrack || !audioState.showPlayer || !shouldRenderGlobalMiniPlayer(pathname)) return null;
 
@@ -320,7 +331,7 @@ export default function SynauraMiniPlayer() {
                 </div>
 
                 <div className="v2-mini-desktop">
-                  <button type="button" className="flex min-w-0 flex-1 items-center gap-3 text-left" onClick={() => setShowTikTok(true)}>
+                  <button type="button" className="flex min-w-0 flex-1 items-center gap-3 text-left" onClick={openPlayer}>
                     <div className="relative shrink-0">
                       <TrackCover trackId={track.id} src={track.cover} videoSrc={track.coverVideo} posterSrc={track.coverVideoPoster} title={track.title} autoPlayVideo={audioState.isPlaying} className="h-11 w-11 ring-1 ring-black/[0.08]" rounded="rounded-[1rem]" objectFit="cover" />
                       {isLive ? (
@@ -406,7 +417,7 @@ export default function SynauraMiniPlayer() {
                       Partager
                     </button>
                     <button
-                      onClick={() => setShowTikTok(true)}
+                      onClick={openPlayer}
                       className="inline-flex h-9 items-center gap-2 rounded-full bg-black/[0.05] px-3 text-xs font-black text-black/58 transition hover:bg-black/[0.1] hover:text-[#171313]"
                       aria-label="Player complet"
                     >
@@ -466,7 +477,7 @@ export default function SynauraMiniPlayer() {
                 ) : null}
 
                 <div className="v2-mini-mobile">
-                  <button type="button" className="flex min-w-0 flex-1 items-center gap-2 text-left" onClick={() => setShowTikTok(true)}>
+                  <button type="button" className="flex min-w-0 flex-1 items-center gap-2 text-left" onClick={openPlayer}>
                     <div className="relative shrink-0">
                       <TrackCover trackId={track.id} src={track.cover} videoSrc={track.coverVideo} posterSrc={track.coverVideoPoster} title={track.title} autoPlayVideo={audioState.isPlaying} className="h-8 w-8 ring-1 ring-black/[0.08]" rounded="rounded-[0.75rem]" objectFit="cover" />
                       {isLive ? <span className="absolute -top-1 -right-1 rounded-full bg-red-500 px-1 py-0.5 text-[7px] font-black uppercase text-white">LIVE</span> : null}

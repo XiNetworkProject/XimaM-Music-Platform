@@ -2490,10 +2490,13 @@ function FeedScrollGuide({
   );
 }
 
-const LoadingScreen = memo(function LoadingScreen() {
+const LoadingScreen = memo(function LoadingScreen({ onClose }: { onClose: () => void }) {
   return (
-    <div className="v2-expanded-loading fixed inset-0 z-[100] grid place-items-center" role="status">
-      <div>
+    <div className="v2-expanded-loading fixed inset-0 z-[100] grid place-items-center">
+      <button type="button" onClick={onClose} aria-label="Réduire le lecteur" className="absolute right-4 top-[calc(1rem+env(safe-area-inset-top))] grid h-11 w-11 place-items-center rounded-full text-white focus-visible:outline focus-visible:outline-2">
+        <ChevronDown className="h-6 w-6" />
+      </button>
+      <div role="status">
         <SynauraLogo variant="wordmark" size={48} />
         <p className="v2-kicker">Lecture Synaura</p>
         <p className="v2-heading">Un instant pour la musique.</p>
@@ -2979,7 +2982,7 @@ export default function TikTokPlayer({ isOpen, onClose, initialTrackId }: TikTok
   /* ═══ RENDER ═══ */
 
   if (!isOpen) return null;
-  if (loading) return <LoadingScreen />;
+  if (loading) return <LoadingScreen onClose={closeHandler} />;
 
   /**
    * VIRTUAL RENDERING — only mount activeIndex ± RENDER_BUFFER
