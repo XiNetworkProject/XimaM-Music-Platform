@@ -16,7 +16,11 @@ async function request(route, init={}, session=false) {
   return response;
 }
 try {
-  for (const route of ['/live','/discover','/profile/ximamoff','/auth/signin']) {
+  // Live is intentionally member-only; guest entry goes back to the homepage.
+  const guestLive = await request('/live');
+  assert.equal(guestLive.status, 307);
+  assert.equal(guestLive.headers.get('location'), '/');
+  for (const route of ['/','/discover','/profile/ximamoff','/auth/signin']) {
     assert.equal((await request(route)).status,200,route);
     console.log(`PASS public ${route}`);
   }
@@ -28,8 +32,8 @@ try {
   assert.equal(login.status,200);
   const session=await (await request('/api/auth/session',{},true)).json();
   assert.equal(session.user?.username?.toLowerCase(),'test2'); signedIn=true;
-  for (const route of ['/studio','/library','/messages','/messages?tab=contacts']) assert.equal((await request(route,{},true)).status,200,route);
-  console.log('PASS authenticated Studio, library, messages and contacts');
+  for (const route of ['/live','/studio','/library','/messages','/messages?tab=contacts']) assert.equal((await request(route,{},true)).status,200,route);
+  console.log('PASS authenticated Live, Studio, library, messages and contacts');
   stage='private pilot and existing conversation';
   const voice=await request('/api/messages/calls',{},true);
   assert.equal(voice.status,200);
