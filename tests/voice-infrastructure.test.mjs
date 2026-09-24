@@ -17,10 +17,24 @@ test('voice infrastructure keeps administration local and implicit rooms disable
 test('public voice proxy exposes only signaling and health, without token access logs', () => {
   const config = source('nginx-voice.conf');
   const exact = Array.from(config.matchAll(/location = (\S+) \{/g), match => match[1]);
-  assert.deepEqual(exact, ['/healthz', '/rtc', '/rtc/validate']);
+  assert.deepEqual(exact, ['/healthz', '/rtc', '/rtc/validate', '/rtc/v1', '/rtc/v1/validate']);
   assert.match(config, /location \/ \{ return 404; \}/);
   assert.doesNotMatch(config, /access_log\s+[^o\s]|listen\s+7880|server_name\s+synaura\.fr/);
   assert.match(config, /proxy_set_header X-Forwarded-For \$remote_addr/);
+});
+
+test('both SDK signaling versions preserve upstream paths, websocket upgrade and validation CORS', () => {
+  const config = source('nginx-voice.conf');
+  for (const path of ['/rtc', '/rtc/v1']) {
+    const signaling = config.split(`location = ${path} {`)[1]?.split('}')[0];
+    assert.ok(signaling, path);
+    assert.match(signaling, /proxy_pass http:\/\/127\.0\.0\.1:7880;/);
+    assert.match(signaling, /proxy_set_header Upgrade \$http_upgrade;/);
+    assert.match(signaling, /proxy_set_header Connection \$synaura_voice_connection;/);
+    const validation = config.split(`location = ${path}/validate {`)[1]?.split('}')[0];
+    assert.match(validation || '', /proxy_pass http:\/\/127\.0\.0\.1:7880;/);
+  }
+  assert.doesNotMatch(config, /proxy_hide_header\s+Access-Control|proxy_intercept_errors\s+on|rewrite\s/);
 });
 
 test('voice service is unprivileged and resource bounded', () => {

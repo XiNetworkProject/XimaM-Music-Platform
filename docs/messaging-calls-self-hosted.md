@@ -172,3 +172,60 @@ Les comptes hors liste conservent la messagerie sans accès aux appels.
 - [Licence du serveur](https://github.com/livekit/livekit/blob/master/LICENSE).
 - [Déploiement, certificats et TURN](https://docs.livekit.io/transport/self-hosting/deployment/).
 - [Ports et multiplexage UDP](https://docs.livekit.io/transport/self-hosting/ports-firewall/).
+
+## Correctif routage vocal — 25 septembre 2026 (Paris)
+
+Correction ciblée autorisée après le signalement d'un appel impossible, appliquée
+le 24 septembre à 22:17 UTC (25 septembre à 00:17 Paris).
+
+- Cause confirmée : le SDK navigateur installé en production (`livekit-client`
+  2.22.3) utilise `/rtc/v1`, puis `/rtc/v1/validate` pour qualifier les échecs.
+  Le vhost ne routait que `/rtc` et `/rtc/validate`. Le 404 nginx ne comportait
+  pas les en-têtes CORS du serveur, empêchant aussi le repli prévu par le SDK.
+  Les premiers smokes ne couvraient que l'ancien chemin : couverture insuffisante.
+- Ajout uniquement des deux locations exactes manquantes, avec chemins transmis
+  sans réécriture, upgrade WebSocket et en-têtes CORS upstream conservés. Aucun
+  wildcard `/rtc/`, aucune ouverture de l'administration, aucun changement DNS,
+  NAT, TLS, application, données, comptes, design ou AudioCore.
+- Sauvegarde distante :
+  `/var/backups/synaura-config/voice-signaling-20260925-XkQ8mY/nginx-voice.conf`.
+  SHA-256 avant : `cb7bf1387d7d9f06ff53b25ddcee9ad9443328a3239b31cb6e1b2a3833690642`.
+  SHA-256 après : `f7de323cbf0e869460e8a152905e70ed160c048cd26588fb401e01b98a9a089d`.
+- Vérification de l'empreinte avant remplacement, `nginx -t` avant/après, puis
+  reload gracieux. Synaura et LiveKit n'ont pas redémarré (PID 145501 et 142182
+  inchangés, compteur de redémarrage nul). Release applicative inchangée :
+  `0ba12162a5dc7b1fa42001b5b37d140a8ae332e3`.
+- Régression reproduite avant correction : nouveau smoke réseau en échec sur
+  `/rtc/v1/validate` (404 au lieu de 401 sans jeton) et smoke authentifié en
+  échec sur la validation CORS du chemin v1. Après correction, nouvelle et
+  ancienne signalisation obtiennent réellement HTTP 101 et un `JoinResponse`
+  associé à la salle technique isolée. Le serveur installé accepte bien v1 :
+  aucun downgrade client ni remplacement de LiveKit nécessaire.
+- `infra/voice/signaling-smoke.mjs` utilise une salle technique unique et des
+  identités synthétiques, sans compte applicatif, sans permission de publier
+  ou recevoir des médias. La salle est supprimée et son absence vérifiée après
+  chaque tentative, y compris l'échec avant correction. Aucun appel utilisateur
+  n'est créé, reçu ou interrompu par ce contrôle.
+- Les 36 tests `voice-*` passent. Smoke réseau : CORS sur les deux validations,
+  refus anonymes 401, admin/debug/chemins RTC non autorisés 404, TCP 7881 et STUN
+  UDP 3478 PASS. Smoke authentifié de la messagerie publiée PASS. Health canonique
+  PASS, services actifs, racine 49 %. Les seuls avertissements vocaux observés
+  pendant ce contrôle sont les 401 attendus des probes sans jeton.
+- Pas de rebuild Next.js : seuls le routage nginx, ses tests et cette documentation
+  changent. La nouvelle couverture doit être rejouée pour les prochaines mises
+  à jour du SDK ou de la configuration vocale.
+
+Retour arrière ciblé : restaurer uniquement le fichier de sauvegarde ci-dessus
+vers `/etc/nginx/sites-available/synaura-voice`, valider avec `nginx -t`, puis
+recharger nginx. Cela réintroduit le blocage v1 ; ne pas restaurer une sauvegarde
+globale de nginx ni redémarrer l'application.
+
+**Confirmation utilisateur du 25 septembre :** « oui ça fonctionne ! » après le
+correctif ci-dessus. L'appel réel est donc confirmé par l'utilisateur, pas par
+le seul smoke de signalisation. Le réseau exact et le test cellulaire indépendant
+ne sont pas renseignés. TURN/TLS reste absent. Conserver le pilote privé
+`test2` ↔ `ximamoff`, sur `https://synaura.fr` pour les deux appareils ; ne pas
+mélanger production, `localhost` et l'ancien preview désormais arrêté.
+
+La sélection de sortie et le cadrage de la messagerie sont suivis dans
+[la note de livraison du 25 septembre](release-messaging-output-20260925.md).

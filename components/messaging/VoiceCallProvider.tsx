@@ -6,6 +6,7 @@ import { Loader2, Mic, MicOff, Minimize2, Phone, PhoneOff, Volume2 } from 'lucid
 import type { LocalAudioTrack, Room } from 'livekit-client';
 import { getBrowserAudioCore } from '@/lib/audio/AudioCore';
 import { SynauraOverlay, SynauraOverlayTitle } from '@/components/ui/SynauraOverlay';
+import VoiceAudioOutput from './VoiceAudioOutput';
 import './voice-calls.css';
 
 type CallView = { id: string; conversationId: string; title: string; group: boolean; callerId: string; created: number; status: 'ringing' | 'active' | 'ended'; mine: string; members: { id: string; name: string; state: string }[] };
@@ -177,6 +178,7 @@ export function VoiceCallProvider({ children }: { children: ReactNode }) {
       <p className="voice-status" role="status">{current?.status === 'ringing' && phase === 'En ligne' ? 'En attente de réponse…' : phase}</p>
       <div className="voice-people">{current?.members.filter(m => m.state === 'joined' || m.state === 'invited').map(person => <div key={person.id} className={`voice-person ${speakers.includes(person.id) ? 'speaking' : ''}`}><div>{person.name.slice(0, 1).toUpperCase()}</div><strong>{person.id === user ? 'Toi' : person.name}</strong><small>{connectedPeople.includes(person.id) ? (person.id === user && muted ? 'Micro coupé' : 'En ligne') : person.state === 'invited' ? 'Invité' : 'Connexion…'}</small></div>) || <div className="voice-orbit"><Loader2 className="animate-spin" /></div>}</div>
       {needsAudio && <button className="voice-enable" onClick={() => void roomRef.current?.startAudio().catch(() => setError('Autorise le son dans ton navigateur.'))}><Volume2 size={18} />Activer le son de l’appel</button>}
+      {current && <VoiceAudioOutput room={roomRef.current} ready={!busy} />}
       <div className="voice-controls"><button className="voice-control" disabled={!current || busy} aria-label={muted ? 'Activer le micro' : 'Couper le micro'} aria-pressed={muted} onClick={() => void mute()}>{muted ? <MicOff /> : <Mic />}</button><button className="voice-control danger" aria-label="Raccrocher" onClick={() => stop()}><PhoneOff /></button></div>
       {error && <p className="voice-footnote" role="alert">{error}</p>}
       <p className="voice-footnote">{current?.group ? 'Tu peux réduire l’appel et continuer à discuter.' : 'Juste vos voix. La musique reste en pause.'}</p>

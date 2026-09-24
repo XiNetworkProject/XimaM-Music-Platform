@@ -56,6 +56,7 @@ import SharedSoundCard from '@/components/messaging/SharedSoundCard';
 import { pauseOtherVoiceMessages, sharedMessagePath, voiceRecordingExtension } from '@/lib/messagingClient';
 import { SynauraOverlay } from '@/components/ui/SynauraOverlay';
 import { useVoiceCalls } from '@/components/messaging/VoiceCallProvider';
+import { useMessagingViewport } from '@/hooks/useMessagingViewport';
 import { Phone } from 'lucide-react';
 
 type MessagingProfile = {
@@ -470,6 +471,8 @@ function ConversationContent() {
     ) as HTMLElement | null;
     if (!outer) return;
     const previous = outer.style.overflow;
+    // A scrolled inbox must not leave the conversation underneath the fixed header.
+    outer.scrollTop = 0;
     outer.style.overflow = "hidden";
     return () => {
       outer.style.overflow = previous;
@@ -737,13 +740,7 @@ function ConversationContent() {
     return () => { element.pause(); element.removeEventListener('play', exclusive); release(); };
   }, [previewUrl]);
   useEffect(() => { if (recordingSeconds >= 120 && isRecording) stopRecording(); }, [recordingSeconds, isRecording]);
-  useEffect(() => {
-    const viewport = window.visualViewport;
-    const root = document.querySelector<HTMLElement>('.ms-thread');
-    const update = () => root?.style.setProperty('--ms-viewport-height', `${viewport?.height || window.innerHeight}px`);
-    update(); viewport?.addEventListener('resize', update);
-    return () => viewport?.removeEventListener('resize', update);
-  }, [loading]);
+  const threadRef = useMessagingViewport(!loading && Boolean(session?.user));
 
   const beginVoiceHold = (event: React.PointerEvent<HTMLButtonElement>) => {
     if (draft.trim() || uploading) return;
@@ -1196,7 +1193,7 @@ function ConversationContent() {
   }
 
   return (
-    <main className="v2-conversation chambre-conversation ms-thread relative flex h-[100dvh] min-h-0 flex-col overflow-hidden bg-syn-background text-syn-textPrimary">
+    <main ref={threadRef} className="v2-conversation chambre-conversation ms-thread relative flex min-h-0 flex-col overflow-hidden bg-syn-background text-syn-textPrimary">
       {conversation?.preferences?.backgroundKey !== "quiet" ? (
         <div
           className="pointer-events-none absolute inset-0"

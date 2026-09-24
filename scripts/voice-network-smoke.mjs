@@ -6,9 +6,10 @@ import dgram from 'node:dgram';
 import net from 'node:net';
 
 const host = 'voice.synaura.fr';
-for (const [path, expected] of [['/healthz', 200], ['/rtc/validate', 401], ['/twirp/livekit.RoomService/ListRooms', 404], ['/debug/rooms', 404]]) {
-  const response = await fetch(`https://${host}${path}`, { signal: AbortSignal.timeout(10000) });
+for (const [path, expected] of [['/healthz', 200], ['/rtc/validate', 401], ['/rtc/v1/validate', 401], ['/twirp/livekit.RoomService/ListRooms', 404], ['/debug/rooms', 404], ['/rtc/admin', 404], ['/rtc/v1/admin', 404]]) {
+  const response = await fetch(`https://${host}${path}`, { headers: { Origin: 'https://synaura.fr' }, signal: AbortSignal.timeout(10000) });
   assert.equal(response.status, expected, path);
+  if (path.endsWith('/validate')) assert.ok(['*', 'https://synaura.fr'].includes(response.headers.get('access-control-allow-origin')), `${path}: validation must remain readable by the browser`);
   console.log(`PASS HTTPS ${path}: ${expected}`);
 }
 
