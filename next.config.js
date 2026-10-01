@@ -6,6 +6,10 @@ const nextConfig = {
   } : {}),
   experimental: {
     serverComponentsExternalPackages: ['sharp'],
+    // Release webpack's heap before type-checking on the 2 GB production host.
+    // A custom webpack config otherwise disables Next's isolated build worker.
+    webpackBuildWorker: true,
+    cpus: 1,
   },
   
   // Optimisations pour réduire les coûts Vercel
