@@ -97,7 +97,9 @@ test('legacy forum relationship cannot return to the list and POST remains authe
 });
 
 test('forum does not refetch every profile already batch-resolved by the list API',()=>{
-  const source=fs.readFileSync('app/community/forum/page.tsx','utf8');
-  assert.match(source,/if \(!post\.user_id \|\| post\.author\) return post;/);
-  assert.ok(source.indexOf('if (!post.user_id || post.author) return post;') < source.indexOf('fetch(`/api/users/by-id/'));
+  const source=fs.readFileSync('components/community/CommunityHub.tsx','utf8');
+  const hook=fs.readFileSync('components/community/useCommunityFeed.ts','utf8');
+  assert.match(source,/const author = post.author;/);
+  assert.doesNotMatch(source+hook,/\/api\/users\/by-id\//);
+  assert.match(hook,/\/api\/community\/posts\?/);
 });

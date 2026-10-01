@@ -7,11 +7,11 @@ import type {
   TrackDiscoveryMetrics,
   UserRecommendationSignals,
 } from './types';
+import { BALANCED_SCHEDULE, COLD_START_SCHEDULE, diversifyRanked, finitePositive, isLowExposure, normalizedGenres, stableTie, uniqueCandidates } from './policy.ts';
+import { campaignLift } from '../boosters/campaigns.ts';
 
 function toArray(value: unknown): string[] {
-  if (Array.isArray(value)) return value.map((item) => String(item || '').trim()).filter(Boolean);
-  if (typeof value === 'string') return value.split(',').map((item) => item.trim()).filter(Boolean);
-  return [];
+  return normalizedGenres(value);
 }
 
 function norm(value: unknown) {
@@ -126,7 +126,7 @@ function naturalBucket(track: RecommendedTrack, reasons: RecommendationReason[])
   const metrics = track.discoveryMetrics;
   if (track.isBoosted) return 'boosted';
   if (reasons.some((reason) => reason === 'followed_artist' || reason === 'artist_affinity' || reason === 'genre_affinity' || reason === 'collaborative')) return 'affinity';
-  if ((metrics?.emergingScore || 0) >= 3.4 && (metrics?.plays30d || track.plays || 0) < 500) return 'emerging';
+  if ((metrics?.emergingScore || 0) >= 2.5 && isLowExposure(track)) return 'emerging';
   if ((metrics?.freshnessScore || 0) >= 4.8) return 'fresh';
   if ((metrics?.momentumScore || 0) >= 2.8) return 'momentum';
   if ((metrics?.qualityScore || 0) >= 3.2) return 'quality';
@@ -138,10 +138,11 @@ export function scoreTrackCandidate(
   signals: UserRecommendationSignals,
   context: RecommendationContext = {},
 ): RecommendedTrack {
-  const now = context.now || Date.now();
+  const now = context.now ?? Date.now();
   const id = String(track._id || '');
   const reasons: RecommendationReason[] = [];
-  const metrics = track.discoveryMetrics || fallbackMetrics(track, now);
+  const rawMetrics = track.discoveryMetrics || fallbackMetrics(track, now);
+  const metrics = Object.fromEntries(Object.entries(rawMetrics).map(([key, value]) => [key, finitePositive(value, key.endsWith('Score') ? 10 : key === 'confidence' ? 1 : Number.MAX_SAFE_INTEGER)])) as TrackDiscoveryMetrics;
   const artist = artistAffinity(track, signals);
   const genre = genreAffinity(track, signals);
   const repeat24 = signals.trackRepeatCounts24h.get(id) || 0;
@@ -170,7 +171,7 @@ export function scoreTrackCandidate(
   let score: number;
   switch (context.strategy) {
     case 'popular':
-      score = metrics.qualityScore * 1.22 + metrics.reachScore * 0.92 + metrics.momentumScore * 0.24 + Math.log1p(Math.max(0, Number(track.plays || 0))) * 0.32;
+      score = metrics.qualityScore * 1.22 + metrics.reachScore * 0.92 + metrics.momentumScore * 0.24 + Math.log1p(finitePositive(track.plays, 1000000)) * 0.32;
       break;
     case 'trending':
       score = metrics.momentumScore * 1.55 + metrics.qualityScore * 0.82 + metrics.reachScore * 0.42 + metrics.freshnessScore * 0.2;
@@ -183,7 +184,7 @@ export function scoreTrackCandidate(
       break;
     default:
       score =
-        Number(track.rankingScore || 0) * 0.75 +
+        finitePositive(track.rankingScore, 10) * 0.75 +
         metrics.qualityScore * 0.72 +
         metrics.momentumScore * 0.45 +
         metrics.emergingScore * 0.28 +
@@ -193,8 +194,7 @@ export function scoreTrackCandidate(
         genre.sessionPositive +
         seedAffinity +
         collaborative +
-        obsessionBoost +
-        promotion -
+        obsessionBoost + promotion -
         artist.negative -
         genre.negative -
         artist.sessionNegative -
@@ -202,6 +202,13 @@ export function scoreTrackCandidate(
       break;
   }
 
+  const campaign = campaignLift(score, track.boostCampaigns, {
+    now, surface: context.surface, createdAt: track.createdAt, strategy: context.strategy,
+    affinity: artist.positive + artist.sessionPositive + genre.positive + genre.sessionPositive + seedAffinity > 0.25,
+    knowsArtist: artist.followed || artist.positive > 0 || artist.sessionPositive > 0 || sessionArtistExposure > 0,
+    rejected: signals.skippedTrackIds.has(id) || signals.currentSessionSkippedTrackIds.has(id) || artist.negative + artist.sessionNegative + genre.negative + genre.sessionNegative > 0,
+  });
+  score += campaign.lift;
   let recentPlayPenalty = 1;
   if (recentlyPlayedIndex >= 0) {
     recentPlayPenalty = Math.min(0.82, 0.16 + recentlyPlayedIndex * 0.045);
@@ -213,7 +220,7 @@ export function scoreTrackCandidate(
   const seenPenalty = impressionPenalty(id, signals, now);
   const repeatPenalty = repeat24 >= 5 && !isObsessed ? 0.5 : repeat24 >= 3 && !isObsessed ? 0.72 : 1;
   const jitter = (deterministicUnit(context.sessionSeed || 'synaura', id) - 0.5) * 0.24;
-  score = score
+  score = Math.max(0, score)
     * recentPlayPenalty
     * skipPenalty
     * seenPenalty
@@ -222,9 +229,10 @@ export function scoreTrackCandidate(
     * sessionGenrePenalty
     + jitter;
 
+  addReason(reasons, Boolean(track.isBoosted) || campaign.lift > 0, 'promotion');
   addReason(reasons, metrics.qualityScore >= 3.2, 'quality_signal');
   addReason(reasons, metrics.momentumScore >= 2.8, 'momentum');
-  addReason(reasons, metrics.emergingScore >= 3.4 && metrics.plays30d < 500, 'emerging_creator');
+  addReason(reasons, metrics.emergingScore >= 2.5 && isLowExposure({ ...track, discoveryMetrics: metrics }), 'emerging_creator');
   addReason(reasons, metrics.freshnessScore >= 4.8 || Boolean(track.isFresh), 'fresh');
   addReason(reasons, metrics.catalogScore >= 3.5 && metrics.ageHours >= 24 * 30, 'catalog_rediscovery');
   addReason(reasons, artist.followed, 'followed_artist');
@@ -242,6 +250,7 @@ export function scoreTrackCandidate(
 
   const next: RecommendedTrack = {
     ...track,
+    campaignPromoted: campaign.lift > 0,
     discoveryMetrics: metrics,
     recommendationScore: Number(score.toFixed(6)),
     recommendationReasons: reasons,
@@ -272,6 +281,9 @@ export function scoreTrackCandidate(
       sessionGenrePenalty: Number(sessionGenrePenalty.toFixed(3)),
       skipPenalty,
       signalStrength: signals.signalStrength,
+      campaignLift: campaign.lift,
+      campaignPower: campaign.power,
+      campaignFamilies: campaign.families,
     };
   }
 
@@ -279,24 +291,18 @@ export function scoreTrackCandidate(
 }
 
 const SCHEDULES: Record<string, DiscoveryBucket[]> = {
-  reco: ['affinity', 'quality', 'emerging', 'fresh', 'affinity', 'momentum', 'emerging', 'catalog', 'quality', 'fresh', 'affinity', 'emerging'],
   popular: ['quality', 'momentum', 'catalog', 'quality', 'emerging', 'momentum', 'quality', 'fresh'],
   trending: ['momentum', 'quality', 'momentum', 'fresh', 'quality', 'emerging', 'momentum', 'catalog'],
   fresh: ['fresh', 'emerging', 'quality', 'fresh', 'momentum', 'emerging', 'fresh', 'catalog'],
   boosted: ['boosted', 'quality', 'boosted', 'fresh', 'boosted', 'emerging', 'quality', 'momentum'],
-  mixed: ['affinity', 'emerging', 'quality', 'fresh', 'momentum', 'catalog'],
 };
 
 function scheduleForSession(strategy: string, signals: UserRecommendationSignals) {
-  if (strategy !== 'reco') return SCHEDULES[strategy] || SCHEDULES.reco;
+  if (strategy !== 'reco' && strategy !== 'mixed') return SCHEDULES[strategy] || BALANCED_SCHEDULE;
   if (signals.signalStrength < 8) {
-    return ['fresh', 'emerging', 'quality', 'momentum', 'catalog', 'emerging', 'fresh', 'quality', 'momentum', 'catalog'] satisfies DiscoveryBucket[];
+    return COLD_START_SCHEDULE;
   }
-  const hasLiveTaste = signals.currentSessionArtistAffinity.size > 0 || signals.currentSessionPreferredGenres.size > 0;
-  if (hasLiveTaste) {
-    return ['affinity', 'emerging', 'quality', 'affinity', 'fresh', 'momentum', 'affinity', 'catalog', 'emerging', 'quality', 'fresh', 'affinity'] satisfies DiscoveryBucket[];
-  }
-  return SCHEDULES.reco;
+  return BALANCED_SCHEDULE;
 }
 
 function matchesBucket(track: RecommendedTrack, bucket: DiscoveryBucket) {
@@ -304,7 +310,7 @@ function matchesBucket(track: RecommendedTrack, bucket: DiscoveryBucket) {
   const reasons = track.recommendationReasons || [];
   if (bucket === 'boosted') return Boolean(track.isBoosted);
   if (bucket === 'affinity') return reasons.some((reason) => reason === 'followed_artist' || reason === 'artist_affinity' || reason === 'genre_affinity' || reason === 'collaborative');
-  if (bucket === 'emerging') return (metrics?.emergingScore || 0) >= 3.4 && (metrics?.plays30d || track.plays || 0) < 500;
+  if (bucket === 'emerging') return (metrics?.emergingScore || 0) >= 2.5 && isLowExposure(track);
   if (bucket === 'fresh') return (metrics?.freshnessScore || 0) >= 4.8;
   if (bucket === 'momentum') return (metrics?.momentumScore || 0) >= 2.8;
   if (bucket === 'quality') return (metrics?.qualityScore || 0) >= 3.2;
@@ -322,12 +328,15 @@ export function rerankTracks(
 ) {
   const strategy = context.strategy || 'reco';
   const hardGenre = norm(context.genreFilter);
-  const scored = tracks
+  const scored = uniqueCandidates(tracks, (track) => String(track._id || ''))
+    .filter((track) => Boolean(track.audioUrl?.trim()))
     .filter((track) => !signals.hiddenArtistIds.has(String(track.artist?._id || '')))
     .filter((track) => !hardGenre || toArray(track.genre).some((genre) => norm(genre).includes(hardGenre)))
     .map((track) => scoreTrackCandidate(track, signals, context))
-    .sort((a, b) => (b.recommendationScore || 0) - (a.recommendationScore || 0));
+    .sort((a, b) => (b.recommendationScore || 0) - (a.recommendationScore || 0) || stableTie(a._id, b._id));
   const remaining = [...scored];
+  const primaryGenres = new Map(scored.map((track) => [track._id, primaryGenre(track)]));
+  const genreFor = (track: RecommendedTrack) => primaryGenres.get(track._id) || '';
   const result: RecommendedTrack[] = [];
   const artistCounts = new Map<string, number>();
   const bucketCounts = new Map<DiscoveryBucket, number>();
@@ -343,25 +352,34 @@ export function rerankTracks(
     const maxPerArtist = Math.min(adaptiveMaxPerArtist, configuredMaxPerArtist);
     if (strict && artistId && artistCount >= maxPerArtist) return false;
     if (strict && result.length && artistId && result[result.length - 1]?.artist?._id === artistId) return false;
+    if (strict && artistId && result.slice(-8).filter((item) => item.artist?._id === artistId).length >= 2) return false;
     if (strict && track.isAI && position >= 5 && aiCount / Math.max(1, position) >= 0.45) return false;
-    const genre = primaryGenre(track);
-    if (strict && genre && result.length >= 2 && result.slice(-2).every((item) => primaryGenre(item) === genre)) return false;
+    const genre = genreFor(track);
+    if (strict && genre && result.length >= 2 && result.slice(-2).every((item) => genreFor(item) === genre)) return false;
     return true;
   };
 
   while (remaining.length) {
     const position = result.length;
     const desired = schedule[position % schedule.length];
-    let candidates = remaining.filter((track) => matchesBucket(track, desired) && allowed(track, position, true));
-    if (!candidates.length) candidates = remaining.filter((track) => allowed(track, position, true));
-    if (!candidates.length) candidates = remaining.filter((track) => allowed(track, position, false));
+    // At most one campaign placement in any five positions while organic
+    // alternatives remain. Do not evade this guard via a fallback bucket.
+    const hasOrganic = remaining.some((track) => !track.campaignPromoted);
+    const campaignAllowed = (track: RecommendedTrack) => !track.campaignPromoted || strategy === 'boosted' || !hasOrganic || !result.slice(-4).some((item) => item.campaignPromoted);
+    let candidates = remaining.filter((track) => campaignAllowed(track) && matchesBucket(track, desired) && allowed(track, position, true));
+    // A revival/new-audience campaign may not match the affinity/fresh bucket.
+    // Let it compete for the bounded campaign slot rather than silently making
+    // its score bonus ineffective in a catalogue with plenty of fresh tracks.
+    const admitted = new Set(candidates.map((track) => track._id));
+    candidates.push(...remaining.filter((track) => track.campaignPromoted && campaignAllowed(track) && allowed(track, position, true) && !admitted.has(track._id)));
+    if (!candidates.length) candidates = remaining.filter((track) => campaignAllowed(track) && allowed(track, position, true));
+    if (!candidates.length) candidates = remaining.filter((track) => campaignAllowed(track) && allowed(track, position, false));
     if (!candidates.length) break;
 
-    const recentGenres = result.slice(-8).map(primaryGenre);
-    candidates.sort((a, b) => {
-      const adjusted = (track: RecommendedTrack) => {
+    const recentGenres = result.slice(-8).map(genreFor);
+    const adjusted = (track: RecommendedTrack) => {
         const artistId = String(track.artist?._id || '');
-        const genre = primaryGenre(track);
+        const genre = genreFor(track);
         const metrics = track.discoveryMetrics;
         const discoveryLift = desired === 'emerging' || desired === 'fresh' || desired === 'catalog'
           ? ((metrics?.emergingScore || 0) * 0.38
@@ -373,11 +391,14 @@ export function rerankTracks(
           - (artistCounts.get(artistId) || 0) * 1.05
           - recentGenres.filter((value) => value && value === genre).length * 0.28
           - (bucketCounts.get(desired) || 0) * 0.08;
-      };
-      return adjusted(b) - adjusted(a);
-    });
-
-    const selected = candidates[0];
+    };
+    // Linear maximum selection avoids recomputing each score in a sort comparator.
+    let selected = candidates[0];
+    let bestScore = adjusted(selected);
+    for (let i = 1; i < candidates.length; i++) {
+      const score = adjusted(candidates[i]);
+      if (score > bestScore || (score === bestScore && stableTie(candidates[i]._id, selected._id) < 0)) { selected = candidates[i]; bestScore = score; }
+    }
     const index = remaining.findIndex((track) => track._id === selected._id);
     remaining.splice(index, 1);
     const selectedBucket = matchesBucket(selected, desired) ? desired : selected.recommendationBucket || naturalBucket(selected, selected.recommendationReasons || []);
@@ -397,14 +418,14 @@ export function scorePostCandidate(
   signals: UserRecommendationSignals,
   context: RecommendationContext = {},
 ): RecommendedPost {
-  const now = context.now || Date.now();
+  const now = context.now ?? Date.now();
   const creatorId = String(post.creator?.id || post.creator_id || '');
   const trackId = String(post.track_id || post.track?.id || '');
-  const likes = Number(post.likes_count || 0);
-  const comments = Number(post.comments_count || 0);
+  const likes = finitePositive(post.likes_count, 100000);
+  const comments = finitePositive(post.comments_count, 100000);
   const fresh = freshnessScore(post.created_at, now);
   const reasons: RecommendationReason[] = [];
-  let score = fresh * 0.65 + Math.log1p(likes) * 1.8 + Math.log1p(comments) * 2.5;
+  let score = fresh * 0.65 + Math.min(6, Math.log1p(likes) * 1.8) + Math.min(7, Math.log1p(comments) * 2.5);
 
   if (creatorId && signals.followedArtistIds.has(creatorId)) {
     score += 5.5;
@@ -430,6 +451,9 @@ export function scorePostCandidate(
     reasons.push('genre_affinity');
   }
   if (fresh > 4.8) reasons.push('fresh');
+  const negativeCreator = Math.min(8, finitePositive(signals.artistAversion.get(creatorId)) + finitePositive(signals.currentSessionArtistAversion.get(creatorId)));
+  const negativeGenre = Math.min(6, postTrackGenres.reduce((sum, genre) => sum + finitePositive(signals.avoidedGenres.get(genre)) + finitePositive(signals.currentSessionAvoidedGenres.get(genre)), 0));
+  score = Math.max(0, score - negativeCreator - negativeGenre);
   const seenPenalty = impressionPenalty(String(post.id || ''), signals, now, 'post');
   if (seenPenalty < 1) {
     score *= seenPenalty;
@@ -448,54 +472,10 @@ export function scorePostCandidate(
 }
 
 export function rerankPosts(posts: RecommendedPost[], signals: UserRecommendationSignals, context: RecommendationContext = {}) {
-  const scored = posts
+  const scored = uniqueCandidates(posts, (post) => String(post.id || ''))
+    .filter((post) => post.is_public !== false && !signals.hiddenArtistIds.has(String(post.creator?.id || post.creator_id || '')))
     .map((post) => scorePostCandidate(post, signals, context))
     .sort((a, b) => (b.recommendationScore || 0) - (a.recommendationScore || 0));
-  const result: RecommendedPost[] = [];
-  const deferred: RecommendedPost[] = [];
-  const creatorCounts = new Map<string, number>();
-  const attachedTrackIds = new Set<string>();
-  let trackShareCount = 0;
-  for (const post of scored) {
-    const creatorId = String(post.creator?.id || post.creator_id || '');
-    const trackId = String(post.track_id || post.track?.id || '');
-    const creatorCount = creatorCounts.get(creatorId) || 0;
-    const previousCreatorId = String(result[result.length - 1]?.creator?.id || result[result.length - 1]?.creator_id || '');
-    const isTrackShare = Boolean(trackId);
-    const trackShareRatio = trackShareCount / Math.max(1, result.length);
-    const shouldDefer = Boolean(
-      (creatorId && (creatorId === previousCreatorId || creatorCount >= 2))
-      || (trackId && attachedTrackIds.has(trackId))
-      || (isTrackShare && result.length >= 4 && trackShareRatio >= 0.55),
-    );
-    if (shouldDefer) {
-      deferred.push(post);
-      continue;
-    }
-    result.push(post);
-    if (creatorId) creatorCounts.set(creatorId, creatorCount + 1);
-    if (trackId) attachedTrackIds.add(trackId);
-    if (isTrackShare) trackShareCount += 1;
-  }
-  while (deferred.length) {
-    const previousCreatorId = String(result[result.length - 1]?.creator?.id || result[result.length - 1]?.creator_id || '');
-    deferred.sort((left, right) => {
-      const adjusted = (post: RecommendedPost) => {
-        const creatorId = String(post.creator?.id || post.creator_id || '');
-        const trackId = String(post.track_id || post.track?.id || '');
-        return Number(post.recommendationScore || 0)
-          - (creatorId && creatorId === previousCreatorId ? 50 : 0)
-          - (creatorCounts.get(creatorId) || 0) * 8
-          - (trackId && attachedTrackIds.has(trackId) ? 100 : 0);
-      };
-      return adjusted(right) - adjusted(left);
-    });
-    const selected = deferred.shift()!;
-    result.push(selected);
-    const creatorId = String(selected.creator?.id || selected.creator_id || '');
-    const trackId = String(selected.track_id || selected.track?.id || '');
-    if (creatorId) creatorCounts.set(creatorId, (creatorCounts.get(creatorId) || 0) + 1);
-    if (trackId) attachedTrackIds.add(trackId);
-  }
-  return result;
+  return diversifyRanked(scored, { id: (post) => post.id, creator: (post) => String(post.creator?.id || post.creator_id || ''),
+    source: (post) => String(post.track_id || post.track?.id || ''), score: (post) => Number(post.recommendationScore || 0) });
 }

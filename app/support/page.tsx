@@ -21,7 +21,7 @@ export const metadata: Metadata = {
 
 export default function SupportPage() {
   return (
-    <div className="min-h-screen text-white">
+    <div className="experience-refresh support-refresh min-h-screen text-white">
       <main className="v2-support-layout">
 
         {/* ── Hero ─────────────────────────────────────────── */}
@@ -29,7 +29,7 @@ export default function SupportPage() {
           <ChambreResonance />
           <div className="chambre-support-index">Synaura / À ton écoute</div>
           <h1 className="text-3xl md:text-4xl font-bold tracking-tight">
-            On garde<br /><span className="chambre-type-accent">le contact.</span>
+            On est <span className="chambre-type-accent">à ton écoute.</span>
           </h1>
           <p className="text-sm md:text-base text-white/50 max-w-xl">
             Choisis l'action qui correspond à ta situation. La plupart des demandes trouvent

@@ -1,0 +1,56 @@
+.bo-preview {
+  max-width: 880px;
+  min-height: 75dvh;
+  padding-top: 70px;
+}
+.bo-preview h1 {
+  font-size: clamp(44px, 7vw, 82px);
+  letter-spacing: -0.07em;
+  line-height: 0.98;
+  margin: 20px 0;
+}
+.bo-preview h1 em {
+  font-style: normal;
+  color: #c3a5f4;
+}
+.bo-preview > p {
+  max-width: 460px;
+  line-height: 1.65;
+}
+.bo-preview-rarities {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  margin: 28px 0 24px;
+}
+.bo-preview-rarities button {
+  border: none;
+  border-radius: 12px;
+  color: #b7accc;
+  background: #ffffff08;
+  padding: 12px 18px;
+}
+.bo-preview-rarities button[aria-pressed='true'] {
+  color: #f7edff;
+  background: #ac88ee30;
+}
+.bo-preview > label {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  color: #aaa0bd;
+  font-size: 13px;
+  margin-bottom: 24px;
+}
+.bo-preview select {
+  background: #1a1425;
+  color: #ded2ef;
+  border: 1px solid #ffffff18;
+  border-radius: 10px;
+  padding: 10px;
+  max-width: 72%;
+}
+.bo-preview > .boost-text-button {
+  display: flex;
+  margin-top: 25px;
+}

@@ -10,6 +10,7 @@ export type DiscoveryBucket =
   | 'boosted';
 
 export type RecommendationReason =
+  | 'promotion'
   | 'global_performance'
   | 'fresh'
   | 'followed_artist'
@@ -71,6 +72,8 @@ export type RecommendedTrack = {
   audioUrl?: string | null;
   album?: string | null;
   genre?: string[] | string | null;
+  discoveryTags?: string[];
+  discoveryMood?: string;
   lyrics?: string | null;
   likes?: unknown[];
   plays?: number;
@@ -81,6 +84,8 @@ export type RecommendedTrack = {
   isLiked?: boolean;
   isBoosted?: boolean;
   boostMultiplier?: number;
+  boostCampaigns?: import('../boosters/campaigns').ActiveCampaign[];
+  campaignPromoted?: boolean;
   rankingScore?: number;
   recommendationScore?: number;
   recommendationReasons?: RecommendationReason[];
@@ -176,6 +181,7 @@ export type UserRecommendationSignals = {
 };
 
 export type RecommendationContext = {
+  surface?: 'live' | 'discover';
   now?: number;
   strategy?: RecommendationStrategy;
   debug?: boolean;

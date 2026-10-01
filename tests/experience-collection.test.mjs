@@ -7,7 +7,7 @@ import test from 'node:test';
 const require = createRequire(import.meta.url);
 const ts = require('typescript');
 const postcss = require('postcss');
-const read = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
+const read = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8').replaceAll('\r\n', '\n');
 const paths = ['app/discover/DiscoverClient.tsx', 'app/discover/DiscoverMoodTiles.tsx', 'app/library/LibraryClient.tsx'];
 const printer = ts.createPrinter({ removeComments: true });
 const parse = (path, source = read(path)) => ts.createSourceFile(path, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);

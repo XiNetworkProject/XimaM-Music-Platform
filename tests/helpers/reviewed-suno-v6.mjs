@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import ts from 'typescript';
 import { projectUnifiedStudio } from './reviewed-unified-studio.mjs';
+import { projectProductHints } from './reviewed-product-hints.mjs';
 
 // V6 is an explicitly authorized behavior change after the visual redesign.
 // Keep its immutable BEFORE files and the original visual-test fingerprints.
@@ -157,6 +158,7 @@ export function reviewedV6SlotDigests(file, source = read(file)) {
 }
 
 export function projectReviewedV6(file, source = read(file)) {
+  source = projectProductHints(file, source);
   source = projectUnifiedStudio(file, source);
   const slots = SLOTS[file];
   if (!slots) return source;

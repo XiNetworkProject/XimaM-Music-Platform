@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import { useSession } from 'next-auth/react';
 import { useAudioRecommendations } from './useAudioRecommendations';
 import { sendTrackEvents } from '@/lib/analyticsClient';
+import { PlaybackMeasurement } from '@/lib/playbackMeasurement';
 import { getCdnUrl } from '@/lib/cdn';
 import { isLikelyExpiredAIProviderUrl } from '@/lib/media-url-health';
 import { getEntitlements } from '@/lib/entitlements';
@@ -162,6 +163,7 @@ export const useAudioService = (options: { authority?: boolean } = {}) => {
   const playThrottleRef = useRef(new Map<string, number>());
   const startedGenerationRef = useRef(-1);
   const milestoneRef = useRef<{ generation: number; value: number }>({ generation: -1, value: 0 });
+  const measurementRef = useRef<PlaybackMeasurement | null>(null);
   const autoPlayEnabledRef = useRef(autoPlayEnabled);
   const adFreeRef = useRef(false);
   const pendingAfterAdRef = useRef<Track | null>(null);
@@ -269,8 +271,19 @@ export const useAudioService = (options: { authority?: boolean } = {}) => {
 
   useEffect(() => {
     if (!core || !isAuthority) return;
+    const measurement = measurementRef.current ?? (measurementRef.current = new PlaybackMeasurement((id, extra) => {
+      void sendTrackEvents(id, { event_type: 'play_progress', source: 'audio-core', is_ai_track: id.startsWith('ai-'), extra });
+    }));
+    const flushMeasurement = () => measurement.flush();
+    const measuredAudio = core.getAudioElement();
+    const interruptMeasurement = () => measurement.interrupt();
+    const interruptions = ['seeking', 'pause', 'ratechange'] as const;
+    interruptions.forEach(event => measuredAudio?.addEventListener(event, interruptMeasurement));
+    window.addEventListener('pagehide', flushMeasurement);
+    document.addEventListener('visibilitychange', flushMeasurement);
     core.setCallbacks({
       onTrackChanged: (track) => {
+        measurement.end();
         milestoneRef.current = { generation: core.getSnapshot().generation, value: 0 };
         startedGenerationRef.current = -1;
         if (isDevelopmentHarnessTrack(track)) return;
@@ -291,10 +304,13 @@ export const useAudioService = (options: { authority?: boolean } = {}) => {
           duration_ms: Math.round(duration * 1000),
           is_ai_track: track._id.startsWith('ai-'),
           source: 'audio-core',
+          extra: measurement.begin(track._id, crypto.randomUUID(), position, duration, performance.now()),
         });
       },
       onProgress: (track, position, duration) => {
         if (!duration || track._id.startsWith('ad-audio-') || isDevelopmentHarnessTrack(track)) return;
+        const audio = core.getAudioElement();
+        measurement.observe(track._id, position, duration, performance.now(), { playing: !!audio && !audio.paused, seeking: !!audio?.seeking, rate: audio?.playbackRate ?? 1 });
         const generation = core.getSnapshot().generation;
         if (milestoneRef.current.generation !== generation) milestoneRef.current = { generation, value: 0 };
         const progress = (position / duration) * 100;
@@ -346,7 +362,13 @@ export const useAudioService = (options: { authority?: boolean } = {}) => {
       },
       onError: reportAudioError,
     });
-    return () => core.setCallbacks({});
+    return () => {
+      measurement.flush();
+      interruptions.forEach(event => measuredAudio?.removeEventListener(event, interruptMeasurement));
+      window.removeEventListener('pagehide', flushMeasurement);
+      document.removeEventListener('visibilitychange', flushMeasurement);
+      core.setCallbacks({});
+    };
   }, [core, isAuthority, persistAudioAdState, pickContinuation, updatePlayCount]);
 
   useEffect(() => {

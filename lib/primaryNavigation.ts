@@ -26,7 +26,7 @@ export const ACCOUNT_WEB_NAV_ITEMS = [
   { id: 'studio', label: 'Créer avec l’IA', href: '/ai-generator' },
   { id: 'library', label: 'Bibliothèque', href: '/library' },
   { id: 'settings', label: 'Paramètres', href: '/settings' },
-  { id: 'subscription', label: 'Abonnement', href: '/subscriptions' },
+  { id: 'subscription', label: 'Abonnements', href: '/subscriptions' },
   { id: 'help', label: 'Aide et centre légal', href: '/legal' },
 ] as const;
 

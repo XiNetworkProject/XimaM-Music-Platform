@@ -32,7 +32,11 @@ export async function GET(request: NextRequest) {
     const userId = String(session?.user?.id || '');
     if (!userId) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     const { hiddenArtistIds } = await readTaste(userId);
-    return NextResponse.json({ hiddenArtistIds, hiddenArtistsCount: hiddenArtistIds.length });
+    const valid = hiddenArtistIds.filter(id=>/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id));
+    const result = valid.length ? await dbAdmin.from('profiles').select('id,name,username').in('id',valid) : {data:[],error:null};
+    if(result.error) throw result.error;
+    const artists = hiddenArtistIds.map(id=>{const p=(result.data||[]).find((p:any)=>p.id===id);return {id,name:p?.name||p?.username||'Artiste indisponible',username:p?.username||null};});
+    return NextResponse.json({ hiddenArtistIds, hiddenArtistsCount: hiddenArtistIds.length, artists },{headers:{'Cache-Control':'private, no-store',Vary:'Cookie, Authorization'}});
   } catch (error: any) {
     return NextResponse.json({ error: error?.message || 'Erreur serveur' }, { status: 500 });
   }

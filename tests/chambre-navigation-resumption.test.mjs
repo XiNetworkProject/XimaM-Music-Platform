@@ -13,7 +13,8 @@ test('Spaces navigation uses existing accessible overlay and handoffs, without f
   assert.match(source, /initialFocusRef=\{titleRef\} history=\{false\}/);
   assert.match(source, /SynauraOverlayTitle ref=\{titleRef\} tabIndex=\{-1\}/);
   assert.match(source, /components\/navigation\/HandoffLink/);
-  assert.equal((source.match(/prefetch=\{false\}/g) || []).length, 2);
+  assert.equal((source.match(/prefetch=\{false\}/g) || []).length, 4);
+  for (const route of ['/boosters', '/subscriptions']) assert.ok(source.includes(`<Link href="${route}" prefetch={false} onClick={close}>`));
   assert.doesNotMatch(source, /fetch\(|useSession|new Audio|playTrack|setQueue|\.seek\(|router\./);
   assert.match(source, /getWebProfileHref\(username, authenticated\)/);
   for (const route of ['/live','/discover','/library','/create','/studio','/upload','/clips/new','/ai-library','/community','/messages','/notifications','/city','/settings','/support']) assert.ok(source.includes(`href: '${route}'`), route);

@@ -2,13 +2,14 @@
 
 import { usePathname } from 'next/navigation';
 import { useSession } from 'next-auth/react';
-import { Radio, Compass, Plus, Library, Users, Search, Bell, MessageCircle, User, Settings } from 'lucide-react';
+import { Radio, Compass, Plus, Library, Users, Search, Bell, MessageCircle, User, Settings, Sparkles, Zap } from 'lucide-react';
 import Link from './HandoffLink';
 import PilotLink from '@/components/pilot/PilotLink';
 import ChambreSpacesMenu from '@/components/synaura/ChambreSpacesMenu';
 import { SynauraAccountMenu } from '@/components/synaura/SynauraShell';
 import MessageInboxButton from '@/components/messaging/MessageInboxButton';
 import NotificationCenter from '@/components/NotificationCenter';
+import SynauraUniversalSearch from '@/components/synaura/SynauraUniversalSearch';
 import { getWebProfileHref, isPrimaryWebRouteActive } from '@/lib/primaryNavigation';
 import './app-navigation.css';
 
@@ -21,15 +22,16 @@ const spaces = [
   { id: 'community', href: '/community', label: 'Communauté', Icon: Users },
 ] as const;
 
-/** Mounted once by the persistent root frame. No audio, data fetching or page state. */
+/** Persistent navigation. Search suggestions fetch only after focus and a typed query. */
 export default function AppNavigation() {
-  const pathname = (usePathname() || '').replace(/^\/v2(?=\/)/, '').replace('/dev/studio', '/studio');
+  const pathname = (usePathname() || '').replace(/^\/v2(?=\/)/, '').replace(/^\/dev\/studio$/, '/studio').replace(/^\/dev\/stats$/, '/stats');
   const { data: session } = useSession();
   return <>
     {pathname !== '/live' && <header className="syn-app-header" data-app-navigation="identity">
       <PilotLink href="/live" className="syn-app-brand" aria-label="Synaura — Live"><img src="/brand/v2/synaura-lockup.svg" width="224" height="52" alt="Synaura" /></PilotLink>
+      {pathname !== '/search' && <div className="syn-app-header-search"><SynauraUniversalSearch compact /></div>}
       <div className="syn-app-tools">
-        <Link href="/search" aria-label="Rechercher"><Search size={19} /></Link>
+        <Link href="/search" className={pathname !== '/search' ? 'syn-app-search-icon' : undefined} aria-label="Rechercher"><Search size={19} /></Link>
         {session?.user ? <><MessageInboxButton /><NotificationCenter /></> : <><Link href="/messages" aria-label="Messages"><MessageCircle size={19} /></Link><Link href="/notifications" aria-label="Notifications"><Bell size={19} /></Link></>}
         <div className="syn-app-header-spaces"><ChambreSpacesMenu username={session?.user?.username} authenticated={Boolean(session?.user)} /></div>
         {session?.user ? <SynauraAccountMenu compact /> : <Link href={getWebProfileHref(undefined, false)} className="syn-app-account" aria-label="Se connecter"><User size={19} /></Link>}
@@ -44,6 +46,8 @@ export default function AppNavigation() {
       })}
       <div className="syn-app-dock-spaces"><ChambreSpacesMenu triggerLabel="Menu" username={session?.user?.username} authenticated={Boolean(session?.user)} /></div>
       {pathname === '/live' && <div className="syn-app-rail-tools"><Link href="/search" aria-label="Rechercher"><Search size={18} /></Link><Link href="/messages" aria-label="Messages"><MessageCircle size={18} /></Link><Link href="/notifications" aria-label="Notifications"><Bell size={18} /></Link><Link href={getWebProfileHref(session?.user?.username, Boolean(session?.user))} aria-label="Mon compte"><User size={18} /></Link></div>}
+      <Link href="/boosters" prefetch={false} aria-label="Boosters et récompenses" aria-current={pathname === '/boosters' ? 'page' : undefined} className="syn-app-settings syn-app-rewards"><Zap size={17} aria-hidden="true" />Boosters</Link>
+      <Link href="/subscriptions" prefetch={false} aria-label="Abonnements" aria-current={pathname === '/subscriptions' ? 'page' : undefined} className="syn-app-settings syn-app-membership"><Sparkles size={17} aria-hidden="true" />Abonnements</Link>
       <Link href="/settings" className="syn-app-settings"><Settings size={17} />Paramètres</Link>
     </nav>
   </>;

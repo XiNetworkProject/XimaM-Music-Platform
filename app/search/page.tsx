@@ -1,420 +1,490 @@
 'use client';
+
+import { Suspense, useEffect, useState, type CSSProperties } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import {
+  ArrowDown,
+  ArrowUpRight,
+  Clock3,
+  Disc3,
+  Film,
+  ListMusic,
+  Loader2,
+  MessageCircle,
+  Pause,
+  Play,
+  Search,
+  Sparkles,
+  Users,
+  X,
+} from 'lucide-react';
+import Link from '@/components/navigation/HandoffLink';
+import { SynauraAppShell } from '@/components/synaura/SynauraShell';
 import { SynauraImage } from '@/components/ui/SynauraImage';
 import TrackActionButton from '@/components/actions/TrackActionButton';
-
-import { Suspense, useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { Clock3, FileText, Library, Loader2, Music2, Search, TrendingUp, User, X } from 'lucide-react';
-import { SynauraAppShell, SynauraPanel, SynauraTopBar } from '@/components/synaura/SynauraShell';
 import { useProfilePeek } from '@/components/profile/useProfilePeek';
+import { useAudioPlayer } from '@/app/providers';
+import ExperienceMotionFrame from '@/components/ambient/ExperienceMotionFrame';
+import { useLivingMotion } from '@/components/ambient/useLivingMotion';
+import SearchBox from '@/components/search/SearchBox';
+import { useCatalogueSearch } from '@/components/search/useCatalogueSearch';
+import {
+  creatorName,
+  resultHref,
+  SEARCH_KINDS,
+  SEARCH_LABELS,
+  searchFilter,
+  searchHref,
+  type SearchKind,
+  type SearchFilter,
+} from '@/lib/search/model';
+import '@/components/search/search-experience.css';
 
-type ResultKind = 'all' | 'tracks' | 'posts' | 'artists' | 'playlists';
-
-const FILTERS: Array<{ key: ResultKind; label: string }> = [
-  { key: 'all', label: 'Tout' },
-  { key: 'tracks', label: 'Sons' },
-  { key: 'posts', label: 'Posts' },
-  { key: 'artists', label: 'Profils' },
-  { key: 'playlists', label: 'Playlists' },
+const icons = {
+  tracks: Disc3,
+  artists: Users,
+  clips: Film,
+  playlists: ListMusic,
+  posts: MessageCircle,
+};
+const moods = [
+  { label: 'Dans ma bulle', query: 'Ambient', color: '#789bef' },
+  { label: 'De l’énergie', query: 'Electronic', color: '#b593fb' },
+  { label: 'Tout en douceur', query: 'R&B', color: '#e6a4bb' },
+  { label: 'Sans filtre', query: 'Rap', color: '#e6ad82' },
+  { label: 'Un autre tempo', query: 'Jazz', color: '#8fd1c1' },
 ];
-const RECENT_SEARCHES_KEY = 'synaura.search.recent.v1';
+const RECENT = 'synaura.search.recent.v1';
+const duration = (n: number) =>
+  `${Math.floor((n || 0) / 60)}:${String(Math.floor((n || 0) % 60)).padStart(2, '0')}`;
 
-function getCreatorName(item: any) {
-  return item?.creator?.name || item?.artist?.name || item?.artist?.artistName || item?.artist || 'Créateur';
-}
-
-function EmptyState({ query }: { query: string }) {
-  return (
-    <SynauraPanel className="chambre-signature-search-empty p-8 text-center">
-      <div className="mx-auto grid h-14 w-14 place-items-center rounded-[12px] bg-[var(--syn-soft)] text-[var(--syn-text-secondary)]">
-        <Search className="h-6 w-6" />
-      </div>
-      <h2 className="mt-4 text-xl font-black text-[var(--syn-text-primary)]">Aucun résultat</h2>
-      <p className="mt-2 text-sm font-semibold text-[var(--syn-text-secondary)]">
-        Aucun son, post, profil ou playlist trouvé pour "{query}".
-      </p>
-    </SynauraPanel>
+function SearchContent() {
+  const router = useRouter(),
+    params = useSearchParams();
+  const query = (params.get('q') || params.get('query') || '').trim().slice(0, 120),
+    filter = searchFilter(params.get('filter'));
+  const [input, setInput] = useState(query),
+    [recent, setRecent] = useState<string[]>([]),
+    [suggestions, setSuggestions] = useState<any[]>([]);
+  const motion = useLivingMotion();
+  const { results, pagination, loading, error, more, loadMore, retry } = useCatalogueSearch(
+    input,
+    filter,
+    filter === 'all' ? 6 : 24,
   );
-}
-
-function SearchPageContent() {
-  const router = useRouter();
-  const params = useSearchParams();
-  const query = (params.get('q') || params.get('query') || '').trim();
-  const [queryInput, setQueryInput] = useState(query);
-  useEffect(() => setQueryInput(query), [query]);
-  const [filter, setFilter] = useState<ResultKind>('all');
-  const [results, setResults] = useState<any>({ tracks: [], posts: [], artists: [], playlists: [] });
-  const [loading, setLoading] = useState(false);
-  const [recent, setRecent] = useState<string[]>([]);
-  const [suggestions, setSuggestions] = useState<any>({ tracks: [], artists: [] });
-  const [suggestionsLoading, setSuggestionsLoading] = useState(true);
+  const player = useAudioPlayer();
+  const activeTrack = player.audioState.tracks[player.audioState.currentTrackIndex];
   const openProfilePeek = useProfilePeek('search');
-
-  const total = useMemo(() => (
-    (results.tracks?.length || 0) +
-    (results.posts?.length || 0) +
-    (results.artists?.length || 0) +
-    (results.playlists?.length || 0)
-  ), [results]);
-
+  useEffect(() => {
+    setInput(query);
+  }, [query]);
   useEffect(() => {
     try {
-      const value = JSON.parse(window.localStorage.getItem(RECENT_SEARCHES_KEY) || '[]');
-      setRecent(Array.isArray(value) ? value.filter((item) => typeof item === 'string').slice(0, 6) : []);
-    } catch {
-      setRecent([]);
-    }
+      const stored = JSON.parse(localStorage.getItem(RECENT) || '[]');
+      setRecent(
+        Array.isArray(stored)
+          ? stored.filter((v) => typeof v === 'string' && v.length <= 120).slice(0, 6)
+          : [],
+      );
+    } catch {}
   }, []);
-
-  useEffect(() => {
-    if (query.length < 2) return;
-    setRecent((current) => {
-      const next = [query, ...current.filter((item) => item.toLocaleLowerCase('fr-FR') !== query.toLocaleLowerCase('fr-FR'))].slice(0, 6);
+  const remember = (value: string) => {
+    if (value.trim().length < 2) return;
+    setRecent((old) => {
+      const next = [
+        value.trim(),
+        ...old.filter((v) => v.toLowerCase() !== value.trim().toLowerCase()),
+      ].slice(0, 6);
       try {
-        window.localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(next));
+        localStorage.setItem(RECENT, JSON.stringify(next));
       } catch {}
       return next;
     });
-  }, [query]);
-
+  };
+  const submit = (value = input, nextFilter: SearchFilter = filter) => {
+    remember(value);
+    setInput(value);
+    router.replace(searchHref(value, nextFilter, params.toString()), { scroll: false });
+  };
   useEffect(() => {
     if (query) return;
-    let active = true;
-    setSuggestionsLoading(true);
-    Promise.all([
-      fetch('/api/tracks/trending?limit=8', { cache: 'no-store' }).then((response) => response.ok ? response.json() : null),
-      fetch('/api/users/popular?limit=6', { cache: 'no-store' }).then((response) => response.ok ? response.json() : null),
-    ])
-      .then(([trackPayload, artistPayload]) => {
-        if (!active) return;
-        setSuggestions({
-          tracks: Array.isArray(trackPayload?.tracks) ? trackPayload.tracks.slice(0, 8) : [],
-          artists: Array.isArray(artistPayload?.users) ? artistPayload.users.slice(0, 6) : [],
-        });
-      })
-      .catch(() => {})
-      .finally(() => {
-        if (active) setSuggestionsLoading(false);
-      });
-    return () => {
-      active = false;
-    };
-  }, [query]);
-
-  useEffect(() => {
-    if (!query) {
-      setResults({ tracks: [], posts: [], artists: [], playlists: [] });
-      return;
-    }
-
     const controller = new AbortController();
-    setLoading(true);
-    fetch(`/api/search?query=${encodeURIComponent(query)}&filter=${encodeURIComponent(filter)}&limit=30`, {
-      cache: 'no-store',
-      signal: controller.signal,
-    })
-      .then((response) => response.json())
-      .then((json) => setResults({
-        tracks: Array.isArray(json?.tracks) ? json.tracks : [],
-        posts: Array.isArray(json?.posts) ? json.posts : [],
-        artists: Array.isArray(json?.artists) ? json.artists : [],
-        playlists: Array.isArray(json?.playlists) ? json.playlists : [],
-      }))
-      .catch((error) => {
-        if (error?.name !== 'AbortError') setResults({ tracks: [], posts: [], artists: [], playlists: [] });
+    fetch('/api/discover?sort=hidden&limit=6&profileLimit=4', { signal: controller.signal })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (!controller.signal.aborted) setSuggestions(data?.tracks || []);
       })
-      .finally(() => setLoading(false));
-
+      .catch(() => {});
     return () => controller.abort();
-  }, [query, filter]);
-
-  return (
-    <SynauraAppShell contentClassName="max-w-[1180px]">
-      <SynauraTopBar searchLabel="Rechercher un son, un post, un profil..." />
-
-      <div className="chambre-signature-search space-y-4 pb-28" data-search-state={query ? 'results' : 'explore'}>
-        <div className="v2-search-intro chambre-search-heading">
-          <div>
-            <p className="text-[11px] font-black uppercase text-[var(--syn-accent-blue)]">Recherche</p>
-            <h1 className="mt-1 text-3xl font-black text-[var(--syn-text-primary)] sm:text-4xl">
-              {query ? `« ${query} »` : 'Un son. Une piste. Un univers.'}
-            </h1>
-            <p className="mt-2 text-sm font-semibold leading-6 text-[var(--syn-text-secondary)]">
-              Sons, artistes, playlists et communauté.
-            </p>
-          </div>
-          {query ? (
-            <div className="chambre-signature-search-count rounded-[10px] border border-[var(--syn-border)] bg-[var(--syn-soft)] px-4 py-2 text-sm font-black text-[var(--syn-text-secondary)]">
-              {loading ? 'Recherche...' : `${total} résultat(s)`}
-            </div>
-          ) : null}
-          <div className="chambre-signature-search-instrument" aria-hidden="true">
-            <span className="chambre-signature-search-aperture" />
-            <span className="chambre-signature-search-crosshair" />
-            <span className="chambre-signature-search-calibration">SYNAURA / EXPLORATION</span>
-          </div>
-        </div>
-
-        <form className="v2-search-query chambre-search-command" role="search" onSubmit={(event) => { event.preventDefault(); router.push(`/search?q=${encodeURIComponent(queryInput.trim())}`); }}>
-          <Search className="h-5 w-5 shrink-0 text-[var(--v2-muted)]" aria-hidden />
-          <input aria-label="Rechercher dans Synaura" value={queryInput} onChange={(event) => setQueryInput(event.target.value)} placeholder="Morceau, artiste, playlist, mots…" type="search" />
-          <button type="submit" aria-label="Lancer la recherche" className="text-[var(--v2-text)]">→</button>
-        </form>
-
-        {query ? (
-          <nav className="chambre-signature-search-filters synaura-no-scrollbar flex gap-1 overflow-x-auto rounded-[12px] border border-[var(--syn-border)] bg-[var(--syn-surface-muted)] p-1" aria-label="Filtrer les résultats">
-            {FILTERS.map((item) => (
+  }, [Boolean(query)]);
+  const play = (track: any) => {
+    remember(input);
+    if (activeTrack?._id === track._id) {
+      if (player.audioState.isPlaying) player.pause();
+      else void player.play();
+    } else void player.playTrack(track);
+  };
+  const count = SEARCH_KINDS.reduce((n, k) => n + results[k].length, 0);
+  const hasQuery = input.trim().length >= 2;
+  const chooseFilter = (kind: SearchFilter) => submit(input, kind);
+  function trackRow(track: any, index: number) {
+    const current = activeTrack?._id === track._id,
+      playing = current && player.audioState.isPlaying;
+    return (
+      <article key={track._id} className="sx-track" data-playing={playing}>
+        <span className="sx-track-number">{String(index + 1).padStart(2, '0')}</span>
+        <button
+          type="button"
+          className="sx-track-play"
+          aria-label={`${playing ? 'Mettre en pause' : 'Écouter'} ${track.title}`}
+          onClick={() => play(track)}
+        >
+          <SynauraImage src={track.coverUrl || '/default-cover.svg'} alt="" />
+          <span>
+            {playing ? (
+              <Pause size={19} fill="currentColor" />
+            ) : (
+              <Play size={19} fill="currentColor" />
+            )}
+          </span>
+        </button>
+        <Link
+          className="sx-track-copy"
+          href={resultHref('tracks', track)}
+          onClick={() => remember(input)}
+        >
+          <strong>{track.title}</strong>
+          <span>
+            {creatorName(track)}
+            {track.isAI ? ' · Création IA' : ''}
+          </span>
+        </Link>
+        <span className="sx-track-duration">{duration(track.duration)}</span>
+        <TrackActionButton track={track} origin="search" />
+      </article>
+    );
+  }
+  function section(kind: SearchKind) {
+    const items = results[kind];
+    if (!items.length) return null;
+    const Icon = icons[kind];
+    return (
+      <section key={kind} className={`sx-section sx-section--${kind}`}>
+        <header>
+          <h2>
+            <Icon size={19} />
+            {SEARCH_LABELS[kind]}
+          </h2>
+          {filter === 'all' && (
+            <button type="button" onClick={() => chooseFilter(kind)}>
+              Tout voir <ArrowUpRight size={16} />
+            </button>
+          )}
+        </header>
+        {kind === 'tracks' ? (
+          <div className="sx-tracks">{items.map(trackRow)}</div>
+        ) : kind === 'artists' ? (
+          <div className="sx-artists">
+            {items.map((artist) => (
               <button
-                key={item.key}
+                key={artist._id}
                 type="button"
-                onClick={() => setFilter(item.key)}
-                aria-pressed={filter === item.key}
-                className={`h-10 shrink-0 rounded-[9px] px-4 text-sm font-black transition ${
-                  filter === item.key
-                    ? 'bg-[var(--syn-surface)] text-[var(--syn-text-primary)] shadow-sm'
-                    : 'text-[var(--syn-text-secondary)] hover:text-[var(--syn-text-primary)]'
-                }`}
+                className="sx-artist"
+                data-context-surface-trigger-key={`search-result-profile-${artist._id}`}
+                onClick={(event) => {
+                  remember(input);
+                  openProfilePeek(artist.username, event.currentTarget);
+                }}
+                aria-label={`Aperçu du profil de ${artist.artistName || artist.name || artist.username}`}
               >
-                {item.label}
+                <SynauraImage
+                  src={artist.avatar || '/default-avatar.png'}
+                  fallbackSrc="/default-avatar.png"
+                  alt=""
+                />
+                <strong>{artist.artistName || artist.name || artist.username}</strong>
+                <span>@{artist.username}</span>
+              </button>
+            ))}
+          </div>
+        ) : (
+          <div className={`sx-cards sx-cards--${kind}`}>
+            {items.map((item) => (
+              <Link
+                key={item._id}
+                className="sx-card"
+                href={resultHref(kind, item)}
+                onClick={() => remember(input)}
+              >
+                <div className="sx-card-art">
+                  <SynauraImage
+                    src={item.coverUrl || item.imageUrl || item.posterUrl || '/default-cover.svg'}
+                    alt=""
+                  />
+                  <span>
+                    <Icon size={18} />
+                  </span>
+                  {kind === 'clips' && <b>{duration(item.duration)}</b>}
+                </div>
+                <strong>{kind === 'posts' ? creatorName(item) : item.title || item.name}</strong>
+                <p>
+                  {kind === 'posts'
+                    ? item.content
+                    : kind === 'playlists'
+                      ? `${item.trackCount || 0} sons · ${creatorName(item)}`
+                      : creatorName(item)}
+                </p>
+              </Link>
+            ))}
+          </div>
+        )}
+      </section>
+    );
+  }
+  return (
+    <SynauraAppShell contentClassName="max-w-[1400px]">
+      <div
+        className="sx-search"
+        data-motion={motion.enabled}
+        data-search-state={hasQuery ? 'results' : 'explore'}
+      >
+        <ExperienceMotionFrame className={`sx-hero ${hasQuery ? 'sx-hero--compact' : ''}`}>
+          <div className="sx-hero-glow" aria-hidden="true" />
+          <div className="sx-orbits" aria-hidden="true">
+            <i />
+            <i />
+            <i />
+            <span />
+          </div>
+          <div className="sx-hero-copy">
+            <p className="sx-eyebrow">
+              <span />À portée d’oreille
+            </p>
+            <h1>
+              {hasQuery ? (
+                'Trouve ce qui te fait vibrer.'
+              ) : (
+                <>
+                  À la recherche
+                  <br />
+                  du <em>déclic.</em>
+                </>
+              )}
+            </h1>
+            {!hasQuery && (
+              <p className="sx-hero-note">
+                Un titre en tête. Un artiste à rencontrer.
+                <br />
+                Ou juste l’envie de te laisser surprendre.
+              </p>
+            )}
+          </div>
+          {!hasQuery && suggestions.length > 0 && (
+            <div className="sx-cover-constellation" aria-hidden="true">
+              {suggestions.slice(0, 3).map((track, i) => (
+                <SynauraImage
+                  key={track._id}
+                  src={track.coverUrl || '/default-cover.svg'}
+                  alt=""
+                  style={{ '--index': i } as CSSProperties}
+                />
+              ))}
+            </div>
+          )}
+        </ExperienceMotionFrame>
+        <div className="sx-command">
+          <SearchBox value={input} onChange={setInput} onSubmit={() => submit()} />
+          <nav className="sx-filters" aria-label="Filtrer les résultats">
+            {(['all', ...SEARCH_KINDS] as SearchFilter[]).map((kind) => (
+              <button
+                key={kind}
+                type="button"
+                aria-pressed={filter === kind}
+                onClick={() => chooseFilter(kind)}
+              >
+                {SEARCH_LABELS[kind]}
+                {hasQuery && !loading && results[kind as SearchKind]?.length > 0 && (
+                  <span>
+                    {results[kind as SearchKind].length}
+                    {pagination[kind as SearchKind]?.hasMore ? '+' : ''}
+                  </span>
+                )}
               </button>
             ))}
           </nav>
-        ) : null}
-
-        {!query ? (
-          <div className="v2-search-results chambre-search-discovery">
-            <nav className="chambre-signature-search-index" aria-label="D’autres chemins pour explorer Synaura">
-              <p className="v2-kicker">Une autre porte d’entrée</p>
-              <Link href="/discover" prefetch={false}><span>01</span><span>Découvrir les ambiances</span><span aria-hidden="true">↗</span></Link>
-              <Link href="/radar" prefetch={false}><span>02</span><span>Radar</span><span aria-hidden="true">↗</span></Link>
-              <Link href="/community" prefetch={false}><span>03</span><span>Les rencontres</span><span aria-hidden="true">↗</span></Link>
-            </nav>
-            {suggestionsLoading ? (
-              <div className="border-t border-[var(--syn-border)] px-1 pt-4">
-                <div className="h-5 w-28 animate-pulse rounded-[6px] bg-[var(--syn-soft)]" />
-                <div className="mt-3 divide-y divide-[var(--syn-border)]">
-                  {Array.from({ length: 4 }).map((_, index) => (
-                    <div key={index} className="flex min-h-[66px] items-center gap-3 py-2.5">
-                      <div className="h-12 w-12 animate-pulse rounded-[8px] bg-[var(--syn-soft)]" />
-                      <div className="flex-1">
-                        <div className="h-4 w-2/3 animate-pulse rounded-[5px] bg-[var(--syn-soft)]" />
-                        <div className="mt-2 h-3 w-1/3 animate-pulse rounded-[5px] bg-[var(--syn-soft)]" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ) : null}
-
-            {recent.length ? (
-              <section className="chambre-signature-search-recent border-t border-[var(--syn-border)] px-1 pt-4">
-                <div className="flex items-center justify-between gap-3">
-                  <h2 className="flex items-center gap-2 text-base font-black text-[var(--syn-text-primary)]">
-                    <Clock3 className="h-4 w-4 text-[var(--syn-accent-blue)]" />
-                    Recherches récentes
+        </div>
+        {!hasQuery ? (
+          <div className="sx-explore">
+            {input.trim().length === 1 && (
+              <p role="status" className="sx-hint">
+                Encore un caractère pour lancer la recherche.
+              </p>
+            )}
+            {recent.length > 0 && (
+              <section className="sx-recent">
+                <header>
+                  <h2>
+                    <Clock3 size={16} />
+                    Tes dernières pistes
                   </h2>
                   <button
-                    type="button"
                     onClick={() => {
                       setRecent([]);
                       try {
-                        window.localStorage.removeItem(RECENT_SEARCHES_KEY);
+                        localStorage.removeItem(RECENT);
                       } catch {}
                     }}
-                    className="text-xs font-black text-[var(--syn-text-secondary)] hover:text-[var(--syn-text-primary)]"
                   >
-                    Effacer
+                    Tout effacer
                   </button>
-                </div>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {recent.map((item) => (
-                    <span key={item} className="inline-flex h-9 items-center rounded-[9px] border border-[var(--syn-border)] bg-[var(--syn-soft)]">
-                      <Link href={`/search?q=${encodeURIComponent(item)}`} className="px-3 text-xs font-black text-[var(--syn-text-primary)]">
-                        {item}
-                      </Link>
+                </header>
+                <div>
+                  {recent.map((value) => (
+                    <span key={value}>
+                      <button onClick={() => submit(value)}>{value}</button>
                       <button
-                        type="button"
-                        aria-label={`Retirer ${item}`}
+                        aria-label={`Retirer ${value}`}
                         onClick={() => {
-                          setRecent((current) => {
-                            const next = current.filter((value) => value !== item);
-                            try {
-                              window.localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(next));
-                            } catch {}
-                            return next;
-                          });
+                          const next = recent.filter((item) => item !== value);
+                          setRecent(next);
+                          try {
+                            localStorage.setItem(RECENT, JSON.stringify(next));
+                          } catch {}
                         }}
-                        className="grid h-9 w-8 place-items-center text-[var(--syn-text-secondary)]"
                       >
-                        <X className="h-3.5 w-3.5" />
+                        <X size={13} />
                       </button>
                     </span>
                   ))}
                 </div>
               </section>
-            ) : null}
-
-            {suggestions.tracks.length ? (
-              <section className="chambre-signature-search-trends border-t border-[var(--syn-border)] px-1 pt-4">
-                <h2 className="flex items-center gap-2 text-base font-black text-[var(--syn-text-primary)]">
-                  <TrendingUp className="h-4 w-4 text-[var(--syn-accent-coral)]" />
-                  Tendances
-                </h2>
-                <div className="mt-3 divide-y divide-[var(--syn-border)] sm:grid sm:grid-cols-2 sm:gap-x-4 sm:divide-y-0">
-                  {suggestions.tracks.map((track: any) => (
-                    <Link
-                      key={track._id || track.id}
-                      href={`/track/${encodeURIComponent(track._id || track.id)}`}
-                      className="flex min-h-[66px] items-center gap-3 px-1 py-2.5 transition hover:bg-[var(--syn-soft)]"
-                    >
-                      <SynauraImage src={track.coverUrl || track.cover_url || '/default-cover.svg'} alt="" className="shrink-0 h-12 w-12 rounded-[8px] object-cover" />
-                      <span className="min-w-0">
-                        <span className="block truncate text-sm font-black text-[var(--syn-text-primary)]">{track.title}</span>
-                        <span className="block truncate text-xs font-semibold text-[var(--syn-text-secondary)]">{getCreatorName(track)}</span>
-                      </span>
-                    </Link>
-                  ))}
-                </div>
+            )}
+            <section className="sx-moods">
+              <header>
+                <h2>Plutôt quelle fréquence ?</h2>
+                <span>À toi de choisir.</span>
+              </header>
+              <div>
+                {moods.map((mood, i) => (
+                  <button
+                    key={mood.query}
+                    style={{ '--mood-color': mood.color, '--index': i } as CSSProperties}
+                    onClick={() => submit(mood.query, 'tracks')}
+                  >
+                    <span className="sx-mood-lines" aria-hidden="true">
+                      {Array.from({ length: 9 }, (_, n) => (
+                        <i key={n} style={{ '--bar': n } as CSSProperties} />
+                      ))}
+                    </span>
+                    <strong>{mood.label}</strong>
+                    <span>
+                      {mood.query === 'Electronic' ? 'Électro' : mood.query}
+                      <ArrowUpRight size={17} />
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </section>
+            {suggestions.length > 0 && (
+              <section className="sx-section sx-suggestions">
+                <header>
+                  <h2>
+                    <Sparkles size={19} />
+                    D’autres horizons
+                  </h2>
+                  <Link href="/discover?tab=tracks&sort=hidden" prefetch={false}>
+                    Explorer <ArrowUpRight size={16} />
+                  </Link>
+                </header>
+                <div className="sx-tracks">{suggestions.map(trackRow)}</div>
               </section>
-            ) : null}
-
-            {suggestions.artists.length ? (
-              <section className="chambre-signature-search-people border-t border-[var(--syn-border)] px-1 pt-4">
-                <h2 className="flex items-center gap-2 text-base font-black text-[var(--syn-text-primary)]">
-                  <User className="h-4 w-4 text-[var(--syn-accent)]" />
-                  Artistes à découvrir
-                </h2>
-                <div className="synaura-no-scrollbar -mx-1 mt-3 flex gap-2 overflow-x-auto px-1 pb-1">
-                  {suggestions.artists.map((artist: any) => (
-                    <button
-                      type="button"
-                      key={artist._id || artist.id}
-                      data-context-surface-trigger-key={`search-suggestion-profile-${artist._id || artist.id}`}
-                      onClick={(event) => openProfilePeek(artist.username, event.currentTarget)}
-                      aria-label={`Aperçu du profil de ${artist.artistName || artist.name || artist.username}`}
-                      className="flex w-[190px] shrink-0 items-center gap-3 rounded-[12px] border border-[var(--syn-border)] bg-[var(--syn-surface)] p-2.5 transition hover:bg-[var(--syn-soft)]"
-                    >
-                      <SynauraImage fallbackSrc="/default-avatar.png" src={artist.avatar || '/default-avatar.png'} alt="" className="shrink-0 h-11 w-11 rounded-full object-cover" />
-                      <span className="min-w-0">
-                        <span className="block truncate text-sm font-black text-[var(--syn-text-primary)]">{artist.artistName || artist.name || artist.username}</span>
-                        <span className="block truncate text-xs text-[var(--syn-text-secondary)]">@{artist.username}</span>
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </section>
-            ) : null}
+            )}
+            <nav className="sx-other-paths" aria-label="Continuer l’exploration">
+              <Link href="/discover" prefetch={false}>
+                Toute la découverte <ArrowUpRight size={17} />
+              </Link>
+              <Link href="/radar" prefetch={false}>
+                Le radar <ArrowUpRight size={17} />
+              </Link>
+              <Link href="/community" prefetch={false}>
+                La communauté <ArrowUpRight size={17} />
+              </Link>
+            </nav>
           </div>
-        ) : null}
-
-        {loading ? (
-          <SynauraPanel className="flex items-center justify-center gap-2 p-8 text-sm font-semibold text-[var(--syn-text-secondary)]">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Recherche en cours...
-          </SynauraPanel>
-        ) : query && !total ? (
-          <EmptyState query={query} />
-        ) : null}
-
-        {!loading && total ? (
-          <div className="v2-search-results chambre-search-matches" data-search-filter={filter}>
-            {(filter === 'all' || filter === 'tracks') && results.tracks?.length ? (
-              <section className="chambre-signature-search-tracks border-t border-[var(--syn-border)] px-1 pt-4">
-                <h2 className="flex items-center gap-2 text-lg font-black text-[var(--syn-text-primary)]"><Music2 className="h-5 w-5" /> Sons</h2>
-                <div className="mt-3 divide-y divide-[var(--syn-border)] sm:grid sm:grid-cols-2 sm:gap-x-4 sm:divide-y-0">
-                  {results.tracks.map((track: any) => (
-                    <div key={track._id || track.id} className="flex min-h-[66px] min-w-0 items-center gap-3 px-1 py-2.5 transition hover:bg-[var(--syn-soft)]">
-                    <Link href={`/track/${encodeURIComponent(track._id || track.id)}`} className="flex min-w-0 flex-1 items-center gap-3">
-                      <SynauraImage src={track.coverUrl || track.cover_url || '/default-cover.svg'} alt="" className="shrink-0 h-12 w-12 rounded-[8px] object-cover" />
-                      <span className="min-w-0">
-                        <span className="block truncate text-sm font-black text-[var(--syn-text-primary)]">{track.title}</span>
-                        <span className="block truncate text-xs font-semibold text-[var(--syn-text-secondary)]">{getCreatorName(track)}</span>
-                      </span>
-                    </Link>
-                    <TrackActionButton track={track} origin="search" />
-                    </div>
-                  ))}
-                </div>
-              </section>
-            ) : null}
-
-            {(filter === 'all' || filter === 'posts') && results.posts?.length ? (
-              <section className="chambre-signature-search-posts border-t border-[var(--syn-border)] px-1 pt-4">
-                <h2 className="flex items-center gap-2 text-lg font-black text-[var(--syn-text-primary)]"><FileText className="h-5 w-5" /> Posts</h2>
-                <div className="mt-3 divide-y divide-[var(--syn-border)]">
-                  {results.posts.map((post: any) => (
-                    <Link key={post._id || post.id} href={`/posts/${encodeURIComponent(post._id || post.id)}`} className="block px-1 py-3 transition hover:bg-[var(--syn-soft)]">
-                      <div className="text-sm font-black text-[var(--syn-text-primary)]">{post.creator?.name || post.creator?.username || 'Créateur'}</div>
-                      <div className="mt-1 line-clamp-2 text-sm font-semibold leading-6 text-[var(--syn-text-secondary)]">{post.content || post.excerpt || 'Post'}</div>
-                    </Link>
-                  ))}
-                </div>
-              </section>
-            ) : null}
-
-            {(filter === 'all' || filter === 'artists') && results.artists?.length ? (
-              <section className="chambre-signature-search-artists border-t border-[var(--syn-border)] px-1 pt-4">
-                <h2 className="flex items-center gap-2 text-lg font-black text-[var(--syn-text-primary)]"><User className="h-5 w-5" /> Profils</h2>
-                <div className="mt-3 divide-y divide-[var(--syn-border)] sm:grid sm:grid-cols-2 sm:gap-x-4 sm:divide-y-0">
-                  {results.artists.map((artist: any) => (
-                    <button
-                      type="button"
-                      key={artist._id || artist.id}
-                      data-context-surface-trigger-key={`search-result-profile-${artist._id || artist.id}`}
-                      onClick={(event) => openProfilePeek(artist.username, event.currentTarget)}
-                      aria-label={`Aperçu du profil de ${artist.artistName || artist.name || artist.username}`}
-                      className="flex min-h-[66px] w-full items-center gap-3 px-1 py-2.5 text-left transition hover:bg-[var(--syn-soft)]"
-                    >
-                      <SynauraImage fallbackSrc="/default-avatar.png" src={artist.avatar || '/default-avatar.png'} alt="" className="shrink-0 h-12 w-12 rounded-full object-cover" />
-                      <span className="min-w-0">
-                        <span className="block truncate text-sm font-black text-[var(--syn-text-primary)]">{artist.artistName || artist.name || artist.username}</span>
-                        <span className="block truncate text-xs font-semibold text-[var(--syn-text-secondary)]">@{artist.username}</span>
-                      </span>
+        ) : (
+          <div className="sx-results" aria-busy={loading}>
+            <div className="sx-result-status" role="status" aria-live="polite">
+              {loading
+                ? 'Recherche en cours…'
+                : error && !count
+                  ? 'Recherche indisponible'
+                  : `${count} résultat${count > 1 ? 's' : ''} affiché${count > 1 ? 's' : ''}`}
+              {!loading && count > 0 && (
+                <span>
+                  Classés par pertinence
+                  {SEARCH_KINDS.some((k) => results[k].some((item) => item.approximateMatch))
+                    ? ' · correspondances proches incluses'
+                    : ''}
+                </span>
+              )}
+            </div>
+            {loading ? (
+              <div className="sx-skeleton" aria-label="Chargement des résultats">
+                {Array.from({ length: 6 }, (_, i) => (
+                  <div key={i}>
+                    <i />
+                    <span />
+                    <span />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <>
+                {error && (
+                  <div className="sx-error" role="alert">
+                    <p>{error}</p>
+                    <button onClick={count ? () => void loadMore() : retry}>Réessayer</button>
+                  </div>
+                )}
+                {!count && !error && (
+                  <div className="sx-empty">
+                    <Search size={36} />
+                    <h2>Cette piste reste à trouver.</h2>
+                    <p>
+                      Aucune correspondance pour « {input} ».
+                      <br />
+                      Essaie un titre, un @pseudo ou un style.
+                    </p>
+                    <button onClick={() => submit('', 'all')}>
+                      Explorer autre chose <ArrowUpRight size={17} />
                     </button>
-                  ))}
-                </div>
-              </section>
-            ) : null}
-
-            {(filter === 'all' || filter === 'playlists') && results.playlists?.length ? (
-              <section className="chambre-signature-search-playlists border-t border-[var(--syn-border)] px-1 pt-4">
-                <h2 className="flex items-center gap-2 text-lg font-black text-[var(--syn-text-primary)]"><Library className="h-5 w-5" /> Playlists</h2>
-                <div className="mt-3 divide-y divide-[var(--syn-border)] sm:grid sm:grid-cols-2 sm:gap-x-4 sm:divide-y-0">
-                  {results.playlists.map((playlist: any) => (
-                    <Link key={playlist._id || playlist.id} href={`/playlists/${encodeURIComponent(playlist._id || playlist.id)}`} className="flex min-h-[66px] items-center gap-3 px-1 py-2.5 transition hover:bg-[var(--syn-soft)]">
-                      <div className="grid h-12 w-12 place-items-center rounded-[8px] bg-[var(--syn-soft)]">
-                        <Library className="h-5 w-5 text-[var(--syn-text-secondary)]" />
-                      </div>
-                      <span className="min-w-0">
-                        <span className="block truncate text-sm font-black text-[var(--syn-text-primary)]">{playlist.title || playlist.name}</span>
-                        <span className="block truncate text-xs font-semibold text-[var(--syn-text-secondary)]">{playlist.trackCount || playlist.tracks_count || 0} sons</span>
-                      </span>
-                    </Link>
-                  ))}
-                </div>
-              </section>
-            ) : null}
+                  </div>
+                )}
+                {SEARCH_KINDS.map(section)}
+                {filter !== 'all' && pagination[filter]?.hasMore && (
+                  <button className="sx-more" disabled={more} onClick={() => void loadMore()}>
+                    {more ? <Loader2 className="sx-spin" size={18} /> : <ArrowDown size={18} />}
+                    Afficher la suite
+                  </button>
+                )}
+              </>
+            )}
           </div>
-        ) : null}
+        )}
       </div>
     </SynauraAppShell>
   );
 }
-
 export default function SearchPage() {
   return (
-    <Suspense fallback={(
-      <SynauraAppShell contentClassName="max-w-[1180px]">
-        <SynauraTopBar searchLabel="Rechercher un son, un post, un profil..." />
-        <SynauraPanel className="flex items-center justify-center gap-2 p-8 text-sm font-semibold text-[var(--syn-text-secondary)]">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          Chargement...
-        </SynauraPanel>
-      </SynauraAppShell>
-    )}>
-      <SearchPageContent />
+    <Suspense
+      fallback={
+        <div className="sx-search sx-loading" role="status">
+          Chargement de la recherche…
+        </div>
+      }
+    >
+      <SearchContent />
     </Suspense>
   );
 }

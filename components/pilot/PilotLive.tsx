@@ -1,4 +1,5 @@
 'use client';
+import ProductHint from '@/components/benefits/ProductHint';
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { ArrowDown, ArrowUp, ArrowUpRight, MessageCircle, MoreHorizontal, Pause, Play, Share2, Clock3, ListMusic, Heart } from 'lucide-react';
 import SynauraScroll, { type LivePilotModel } from '@/components/home/SynauraScroll';
@@ -84,7 +85,7 @@ function LiveScene({ model }: { model: LivePilotModel }) {
           {index >= range.lo && index <= range.hi && <PilotItem item={item} index={index} model={model} />}
         </section>)}
       </div>}
-    <footer className="pilot-live-position" ref={node => { node?.toggleAttribute('inert', model.entryOpen); }} aria-hidden={model.entryOpen}><span aria-live="polite">{items.length ? String(activeIndex + 1).padStart(2, '0') : '—'}<i> / {items.length}</i></span><span>Suivez ce qui vous traverse.</span><div><button aria-label="Item précédent" disabled={!activeIndex} onClick={() => model.jump(activeIndex - 1)}><ArrowUp /></button><button aria-label="Item suivant" disabled={activeIndex >= items.length - 1} onClick={() => model.jump(activeIndex + 1)}><ArrowDown /></button></div></footer>
+    <footer className="pilot-live-position" ref={node => { node?.toggleAttribute('inert', model.entryOpen); }} aria-hidden={model.entryOpen}><span aria-live="polite">{items.length ? String(activeIndex + 1).padStart(2, '0') : '—'}<i> / {items.length}</i></span><ProductHint placement="live" compact enabled={!model.entryOpen && ready && !loading && !error && activeIndex >= 3 && filter === 'foryou'} onNavigate={model.navigateFromEntry} /><div><button aria-label="Item précédent" disabled={!activeIndex} onClick={() => model.jump(activeIndex - 1)}><ArrowUp /></button><button aria-label="Item suivant" disabled={activeIndex >= items.length - 1} onClick={() => model.jump(activeIndex + 1)}><ArrowDown /></button></div></footer>
     {model.entryOpen && ready && !loading && !error && items.length > 0 && <PilotLiveEntry model={{ ...model, enterFeed }} />}
   </div>;
 }

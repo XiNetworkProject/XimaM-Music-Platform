@@ -10,6 +10,7 @@ export function uploadLocalMedia(
   options: { onProgress?: (progress: number) => void; onTransferred?: () => void; signal?: AbortSignal } = {},
 ): Promise<LocalMediaUploadResult> {
   return new Promise((resolve, reject) => {
+    if(options.signal?.aborted) { reject(new DOMException('Envoi annulé','AbortError')); return; }
     const xhr = new XMLHttpRequest();
     xhr.open('POST', `/api/media/upload?kind=${encodeURIComponent(kind)}`);
     xhr.withCredentials = true;

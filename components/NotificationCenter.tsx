@@ -1,4 +1,5 @@
 'use client';
+import ProductHint from '@/components/benefits/ProductHint';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -463,6 +464,7 @@ export default function NotificationCenter({ className = '' }: NotificationCente
               </div>
 
               <div className="chambre-notification-scroll">
+              <ProductHint placement="notifications" />
               {/* Push notification opt-in banner */}
               {isAuthenticated && pushStatus === 'unknown' && (
                 <div className="chambre-notification-push">

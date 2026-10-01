@@ -4,6 +4,7 @@ import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import ts from 'typescript';
 import { projectLiveMedia } from './helpers/reviewed-live-media.mjs';
+import { projectProductJourneys } from './helpers/reviewed-product-journeys.mjs';
 import { CURRENT_SUNO_MODELS, DEFAULT_SUNO_MODEL, normalizeGenerationModel, getSunoModelLabel, SUNO_GENERATION_LIMITS } from '../lib/sunoModels.ts';
 import { PLANS, CREDITS_PER_GENERATION, CREDIT_PACKS, ACTION_COSTS } from '../lib/billing/pricing.ts';
 
@@ -52,12 +53,29 @@ test('V6 leaves the audio engine, schema, entry and unrelated APIs on the preser
   // Messaging has subsequently gained validated track sharing/access checks,
   // covered by messaging-experience.test.mjs rather than this V6-only baseline.
   const authorized = new Set(['app/api/suno/generate/route.ts', 'app/api/suno/upload-cover/route.ts', 'lib/routeChrome.ts', 'app/api/messages/[conversationId]/route.ts', 'app/api/messages/conversations/route.ts', 'middleware.ts']);
+  // The requested search overhaul is exercised by search-v2.test.mjs, not the old V6 freeze.
+  authorized.add('app/api/search/route.ts');
+  // Subsequently requested recommendation redesign: executable policy/handler
+  // tests replace the V6-era byte freeze for these discovery endpoints.
+  authorized.add('app/api/discover/radar/route.ts');
+  authorized.add('app/api/discover/moods/route.ts');
+  authorized.add('app/api/music-clips/route.ts');
+  // Requested Boosters functional rebuild: new executable UI/policy tests and
+  // isolated PostgreSQL fixtures cover grants, ownership, ledger and rollback.
+  // The subsequent campaign expansion has dedicated engine/creation-credit tests
+  // and isolated migration fixtures; AudioCore and subscription prices stay frozen.
+  for (const path of ['app/api/boosters/route.ts', 'app/api/boosters/open/route.ts', 'app/api/boosters/use/route.ts', 'app/api/boosters/claim-pack/route.ts', 'app/api/boosters/history/route.ts', 'app/api/daily-spin/route.ts', 'app/api/missions/route.ts', 'app/api/missions/claim/route.ts', 'app/api/missions/claim-many/route.ts', 'lib/missions/progress.ts', 'hooks/useBoosters.ts']) authorized.add(path);
+  // Now enriches only the current owner's active rows with catalogue family keys;
+  // executable 401/owner/error/read-only tests live in booster-campaigns.test.mjs.
+  authorized.add('app/api/boosters/my-active/route.ts');
+  for (const path of ['app/api/discover/route.ts', 'app/api/mobile/discover/route.ts', 'app/api/ranking/feed/route.ts', 'app/api/recommendations/feed/route.ts', 'app/api/recommendations/mixed/route.ts']) authorized.add(path);
   // The private-preview middleware gate is separately exercised (including its
   // inert public behavior) by voice-preview-gate.test.mjs.
   for (const [file, hash] of Object.entries(baseline)) {
     if (authorized.has(file)) continue;
     const bytes = readFileSync(new URL(`../${file}`, import.meta.url));
     let source = bytes.includes(0) ? bytes : bytes.toString('utf8').replaceAll('\r\n', '\n');
+    source = projectProductJourneys(file,source);
     if (file === 'package.json' || file === 'package-lock.json') {
       const data = JSON.parse(source);
       const dependencies = file === 'package.json' ? data.dependencies : data.packages[''].dependencies;

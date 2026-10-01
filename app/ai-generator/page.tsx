@@ -8,6 +8,7 @@ import { notify } from '@/components/NotificationCenter';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, Music, Mic, Settings, Play, Pause, SkipBack, SkipForward, Zap, Download, Share2, Volume2, VolumeX, Coins, RefreshCw, ChevronRight, Check, Heart, X, ThumbsUp, MessageCircle, ExternalLink, Repeat, Search, SlidersHorizontal, Wand2, ListMusic, Command, Terminal, FolderOpen, History, Library, Clock3, Send, Layers, Upload, Trash2 } from 'lucide-react';
 import BuyCreditsModal from '@/components/BuyCreditsModal';
+import { DraftRecovery } from '@/components/recovery/DraftRecovery';
 import { fetchCreditsBalance } from '@/lib/credits';
 import { ACTION_COSTS, CREDITS_PER_GENERATION } from '@/lib/billing/pricing';
 import { useAIQuota } from '@/hooks/useAIQuota';
@@ -426,7 +427,7 @@ function AIGeneratorContent({ unifiedStudio = true }: { unifiedStudio?: boolean 
   const [allTracks, setAllTracks] = useState<AITrack[]>([]);
   const [generationsLoading, setGenerationsLoading] = useState(true);
   const [generationsError, setGenerationsError] = useState<string | null>(null);
-  const { generations: bgGenerations, activeGenerations, startBackgroundGeneration } = useBackgroundGeneration();
+  const { generations: bgGenerations, activeGenerations, startBackgroundGeneration, resumeBackgroundGeneration } = useBackgroundGeneration();
   
   const [isGenerating, setIsGenerating] = useState(false);
   const [creditsBalance, setCreditsBalance] = useState<number>(0);
@@ -3334,6 +3335,10 @@ function AIGeneratorContent({ unifiedStudio = true }: { unifiedStudio?: boolean 
       setSelectedGeneration(source ? generationsById.get(String(source.generation_id)) || null : null);
     };
     return <UnifiedStudio
+      generationRecovery={activeBgGeneration?.lastError?.startsWith('Polling timeout:') ? <div role="status" className="us-error"><p>Le suivi a été interrompu. La génération peut encore être en cours : vérifie son état avant d’en lancer une autre.</p><button type="button" className="us-secondary" onClick={()=>resumeBackgroundGeneration(activeBgGeneration.taskId)}>Reprendre le suivi · sans nouvelle génération</button></div> : null}
+      draftRecovery={<DraftRecovery owner={session?.user?.id || ''} scope="studio-composition" fields={{title,style,lyrics,description}} empty={![title,style,lyrics,description].some(v=>v.trim())}
+        reset={()=>{setTitle('');setStyle('');setLyrics('');setDescription('');}}
+        apply={d=>{setTitle(d.title||'');setStyle(d.style||'');setLyrics(d.lyrics||'');setDescription(d.description||'');}} />}
       authenticated={Boolean(session)} quotaLoading={quotaLoading} credits={creditsBalance} buyCredits={() => setShowBuyCredits(true)}
       form={{
         mode: { value: generationModeKind, set: selectGenerationMode },

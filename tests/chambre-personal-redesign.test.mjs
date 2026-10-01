@@ -5,6 +5,8 @@ import { test } from 'node:test';
 import ts from 'typescript';
 import postcss from 'postcss';
 import { accountBehaviorFingerprint } from './experience-account.test.mjs';
+import { projectProductJourneys } from './helpers/reviewed-product-journeys.mjs';
+import { cityControllerFingerprint } from './helpers/city-controller.mjs';
 
 const root = new URL('../', import.meta.url);
 const read = (path) => readFileSync(new URL(path, root), 'utf8');
@@ -61,6 +63,10 @@ const printer = ts.createPrinter({ removeComments: true });
 // all non-JSX statements plus every behavioral JSX expression/event handler.
 // Backups are optional local evidence, never required to run the committed suite.
 export function behaviorFingerprint(source, fileName) {
+  // Requested City recomposition: retain full data/audio/mutation statements;
+  // actual new controls and forwarding are exercised in city-experience.test.
+  if (fileName === 'components/city/SynauraCityPage.tsx') return cityControllerFingerprint(source);
+  source = projectProductJourneys(fileName,source);
   // Account pages were explicitly recomposed as whole experiences. Their
   // dedicated check compares complete non-JSX module/business code, every
   // distinct handler/input binding, guarded actions, pricing and destinations;
@@ -183,10 +189,12 @@ test('library retains all five collections and explicit playback/mutation owners
 
 test('search keeps tracks, posts, profiles, playlists and real profile/actions hooks', () => {
   const source = read('app/search/page.tsx');
-  for (const kind of ['tracks', 'posts', 'artists', 'playlists']) assert.ok(source.includes(`results.${kind}`), kind);
+  const model = read('lib/search/model.ts');
+  for (const kind of ['tracks', 'posts', 'artists', 'playlists', 'clips']) assert.ok(model.includes(`'${kind}'`), kind);
+  assert.match(source, /SEARCH_KINDS\.map\(section\)/);
   assert.match(source, /openProfilePeek\(artist\.username/);
   assert.match(source, /<TrackActionButton track=\{track\} origin="search"/);
-  assert.match(source, /chambre-search-command/);
+  assert.match(source, /<SearchBox/);
   assert.match(source, /controller\.abort\(\)/);
 });
 
@@ -220,21 +228,23 @@ test('message counters, selected contacts and recording stop use an AA-safe fill
 });
 
 test('Community taxonomy remains sourced from the existing club contract', () => {
-  const landing = read('app/community/page.tsx');
-  assert.match(landing, /import \{ COMMUNITY_CLUBS, type ClubConfig \} from '@\/lib\/communityClubs'/);
-  assert.match(landing, /fetch\('\/api\/community\/clubs'/);
-  assert.match(landing, /La première discussion reste à écrire/);
+  const landing = read('components/community/CommunityHub.tsx');
+  assert.match(landing, /import \{ COMMUNITY_CLUBS, composeHref \} from '@\/lib\/communityClubs'/);
+  assert.match(read('components/community/useCommunityFeed.ts'), /\/api\/community\/posts\?/);
+  assert.match(landing, /La conversation peut commencer avec toi/);
   for (const path of ['app/community/forum/page.tsx', 'app/community/forum/[id]/page.tsx', 'app/community/forum/new/page.tsx']) {
     assert.doesNotMatch(read(path), /ALTER TABLE|UPDATE community_posts|CREATE TABLE/);
   }
 });
 
 test('stats presentation retains true data-quality limitations and chart distinction', () => {
-  const source = read('app/stats/page.tsx');
-  for (const marker of ['listenHoursEstimated', 'avgRetentionEstimated', 'dataQuality', 'insufficient', 'Pas assez de données']) assert.ok(source.includes(marker), marker);
-  assert.match(source, /stroke="var\(--v2-accent\)"/);
-  assert.match(source, /stroke="var\(--v2-muted\)" strokeDasharray="8 8"/);
-  for (const dimension of ['range', 'view', 'metric']) assert.ok(source.includes(`aria-pressed={${dimension} === item.key}`));
+  const source = read('components/analytics/CreatorAnalytics.tsx');
+  const chart = read('components/analytics/AnalyticsChart.tsx');
+  for (const marker of ['Pas assez de données', 'dédupliqués', 'Comprendre les chiffres', 'minimum 5 parcours']) assert.ok(source.includes(marker), marker);
+  assert.match(chart, /stroke="var\(--analytics-accent\)"/);
+  assert.match(chart, /stroke="var\(--analytics-compare\)"\s+strokeDasharray="5 6"/);
+  assert.match(source, /aria-pressed=\{metric === key\}/);
+  assert.match(source, /aria-pressed=\{tab === item.key\}/);
 });
 
 test('plans and quotas remain canonical, no invented pricing or checkout action', () => {
@@ -246,9 +256,11 @@ test('plans and quotas remain canonical, no invented pricing or checkout action'
 
 test('booster and City mutation controls retain current inventory/event owners', () => {
   const boosters = read('app/boosters/BoostersClient.tsx');
-  for (const marker of ['useBoosters()', 'openDaily', 'useOnTrack', 'useOnArtist', 'filteredInventory.map', 'aria-label="Filtrer les boosters"']) assert.ok(boosters.includes(marker), marker);
+  for (const marker of ['useBoosters()', 'openDaily', 'useOnTrack', 'useOnArtist', 'groups.map', 'aria-label="Filtrer les boosters"', 'Confirmer l’activation']) assert.ok(boosters.includes(marker), marker);
   const city = read('components/city/SynauraCityPage.tsx');
-  for (const marker of ['void claim(event)', 'openParticipate(event)', 'onVote={vote}', 'city.hallOfFame', 'city.listenerBadges']) assert.ok(city.includes(marker), marker);
+  for (const marker of ['void claim(event)', 'openParticipate(event)', 'onVote={(trackId) => void vote(trackId)}']) assert.ok(city.includes(marker), marker);
+  const scene = read('components/city/CityExperience.tsx');
+  for (const marker of ['city.hallOfFame', 'city.listenerBadges']) assert.ok(scene.includes(marker), marker);
   assert.match(chambreCss, /chambre-booster-card \[class\*="h-7"\] \{ height: auto; min-height: 44px;/);
 });
 
@@ -290,7 +302,14 @@ test('local pre-edit snapshots prove non-presentation code and event expressions
     const before = readFileSync(new URL(path, backupRoot), 'utf8');
     // Messaging now has the approved functional redesign; its security/behavior
     // contracts are exercised by messaging-experience and voice-calls tests.
-    if (['app/messages/page.tsx', 'app/messages/[conversationId]/page.tsx'].includes(path)) continue;
+    // Search now has its approved functional redesign and dedicated search-v2 tests.
+    // Community landing/forum now have a requested functional redesign, covered
+    // by community-refresh.test.mjs. Other Community routes remain protected.
+    // Creator analytics now has the requested functional redesign, with actual
+    // model, route, isolation and stale-response tests in creator-analytics.test.
+    // Boosters was explicitly rebuilt functionally; its policy/SQL/UI contracts
+    // replace its historical presentation-order fingerprint only.
+    if (['app/messages/page.tsx', 'app/messages/[conversationId]/page.tsx', 'app/search/page.tsx', 'app/community/page.tsx', 'app/community/forum/page.tsx', 'app/stats/page.tsx', 'app/boosters/BoostersClient.tsx'].includes(path)) continue;
     // Signature pass adds exactly one pure decorative component to Support.
     // Keep every other import, statement and behavioral expression protected.
     let current = path === 'app/support/page.tsx'
@@ -301,15 +320,6 @@ test('local pre-edit snapshots prove non-presentation code and event expressions
       const href = '/landing/presentation?intent=signup&callbackUrl=';
       assert.equal(current.split(href).length, 2);
       current = current.replace(href, '/auth/signup?callbackUrl=');
-    }
-    if (path === 'app/search/page.tsx') {
-      // Three new static navigation shortcuts must not prefetch destinations.
-      // Only those three false expressions are new; the existing search stays protected.
-      current = current.replace(/<nav className="chambre-signature-search-index"[\s\S]*?<\/nav>/, block => {
-        assert.deepEqual([...block.matchAll(/href="([^"]+)" prefetch=\{false\}/g)].map(match => match[1]), ['/discover', '/radar', '/community']);
-        assert.equal((block.match(/\{/g) || []).length, 3);
-        return block.replaceAll(' prefetch={false}', '');
-      });
     }
     assert.equal(behaviorFingerprint(current, path), behaviorFingerprint(before, path), path);
   }

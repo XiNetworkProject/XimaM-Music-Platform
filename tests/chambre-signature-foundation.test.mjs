@@ -7,6 +7,7 @@ import ts from 'typescript';
 import postcss from 'postcss';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { projectBenefitsNavigation } from './helpers/reviewed-product-hints.mjs';
 
 const read = path => fs.readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 const require = createRequire(import.meta.url);
@@ -47,7 +48,7 @@ test('signature style has bounded motion, no hidden content dependency, and no e
 
 test('existing spaces controller and destinations stay identical outside decoration and trigger naming', {skip: !fs.existsSync(new URL('../artifacts/chambre-signature/before/foundation/components/synaura/ChambreSpacesMenu.tsx', import.meta.url))}, () => {
   const previous = read('artifacts/chambre-signature/before/foundation/components/synaura/ChambreSpacesMenu.tsx').replaceAll('\r\n','\n');
-  const current = read('components/synaura/ChambreSpacesMenu.tsx').replaceAll('\r\n','\n');
+  const current = projectBenefitsNavigation(read('components/synaura/ChambreSpacesMenu.tsx'));
   assert.equal(current.split(decorativeImport).length - 1, 1);
   // Mobile names the same directory Menu; desktop keeps Espaces. Project out
   // only this explicit presentation prop, preserving every route and controller.
@@ -56,6 +57,7 @@ test('existing spaces controller and destinations stay identical outside decorat
     [", triggerLabel = 'Espaces'", ''],
     ['; triggerLabel?: string', ''],
     ['<span>{triggerLabel}</span>', '<span>Espaces</span>'],
+    ["{ href: '/subscriptions', label: 'Abonnements' }", "{ href: '/subscriptions', label: 'Abonnement' }"],
   ]) {
     assert.equal(original.split(fragment).length, 2);
     original = original.replace(fragment, replacement);
@@ -70,6 +72,9 @@ test('root integration preserves providers with the reviewed decorative layer; s
   const current = read('app/layout.tsx').replaceAll('\r\n','\n');
   // The explicitly requested full experience redraw adds these presentation sheets only.
   let previousIntegration = current;
+  const secondarySheet = "import '@/components/experience/secondary-experience.css';\n";
+  assert.equal(previousIntegration.split(secondarySheet).length, 2, 'one scoped secondary-page stylesheet');
+  previousIntegration = previousIntegration.replace(secondarySheet, '');
   for (const fragment of ["import ClipUploadIndicator from '@/components/clips/ClipUploadIndicator';\n", '          <ClipUploadIndicator />\n']) {
     assert.equal(previousIntegration.split(fragment).length, 2);
     previousIntegration = previousIntegration.replace(fragment, '');

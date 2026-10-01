@@ -1,0 +1,131 @@
+/* Subscription presentation only. Billing, prices and checkout stay in their existing owners. */
+.synaura-chambre .membership-v3 { --membership-muted: var(--v2-muted); padding: 0 0 36px; }
+.synaura-chambre .membership-v3 .experience-membership-heading { grid-template-columns: minmax(0, 1.4fr) minmax(220px, .6fr); padding: 34px 0 42px; gap: 28px; }
+.synaura-chambre .membership-v3 .experience-account-eyebrow { color: var(--v2-accent); font-size: 11px; letter-spacing: .13em; }
+.synaura-chambre .membership-v3 .experience-membership-heading h1 { max-width: none; margin-top: 16px; font-size: clamp(42px, 5vw, 68px); font-weight: 650; line-height: 1.06; letter-spacing: -.055em; }
+.synaura-chambre .membership-v3 .membership-gradient { color: var(--v2-accent); background: linear-gradient(105deg, var(--v2-text) -25%, var(--v2-accent) 55%, var(--v2-blue)); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.synaura-chambre .membership-v3 .experience-membership-lede { max-width: 51ch; margin-top: 20px; font-size: 15px; line-height: 1.7; }
+.synaura-chambre .membership-v3 .experience-membership-explore { gap: 18px; margin-top: 16px; font-size: 13px; }
+.synaura-chambre .membership-v3 .experience-membership-explore svg { transition: transform 180ms; }
+.synaura-chambre .membership-v3 .experience-membership-explore:hover svg { transform: translateY(3px); }
+.synaura-chambre .membership-v3 .membership-reassurance { margin-top: 4px; font-size: 12px; color: var(--v2-muted); }
+.synaura-chambre .membership-v3 .membership-resonance { position: relative; isolation: isolate; display: grid; place-items: center; height: 270px; pointer-events: none; }
+.synaura-chambre .membership-v3 .membership-resonance::before { content: ''; position: absolute; inset: 0; border-radius: 50%; background: radial-gradient(ellipse, color-mix(in srgb, var(--v2-accent-fill) 26%, transparent), transparent 68%); }
+.synaura-chambre .membership-v3 .membership-resonance > i { position: absolute; width: 215px; height: 150px; border: 1px solid color-mix(in srgb, var(--v2-accent) 32%, transparent); border-radius: 50%; transform: rotate(-35deg); background: linear-gradient(135deg, color-mix(in srgb, var(--v2-accent) 7%, transparent), transparent); animation: membership-orbit 16s ease-in-out infinite alternate; }
+.synaura-chambre .membership-v3 .membership-resonance > i:nth-child(2) { width: 240px; height: 170px; transform: rotate(35deg); animation-direction: alternate-reverse; border-color: color-mix(in srgb, var(--v2-blue) 38%, transparent); }
+.synaura-chambre .membership-v3 .membership-resonance > i:nth-child(3) { width: 170px; height: 245px; transform: rotate(-35deg); animation-delay: -5s; }
+.synaura-chambre .membership-v3 .membership-resonance > i:nth-child(4) { width: 265px; height: 215px; transform: rotate(25deg); opacity: .45; animation-delay: -8s; }
+.synaura-chambre .membership-v3 .membership-resonance-core { z-index: 1; display: grid; place-items: center; width: 76px; height: 76px; border-radius: 50%; background: radial-gradient(circle at 30% 15%, color-mix(in srgb, var(--v2-accent) 20%, var(--v2-raised)), var(--v2-surface)); color: var(--v2-text); box-shadow: 0 0 45px color-mix(in srgb, var(--v2-accent-fill) 28%, transparent), inset 0 1px 1px color-mix(in srgb, var(--v2-text) 18%, transparent); }
+.synaura-chambre .membership-v3 .membership-resonance > span { position: absolute; bottom: -10px; font-size: 8px; letter-spacing: .2em; color: var(--v2-muted); }
+@keyframes membership-orbit { to { rotate: 24deg; translate: 0 -5px; } }
+.synaura-chambre .membership-v3 .membership-resonance[data-motion='false'] > i { animation-play-state: paused; }
+
+.synaura-chambre .membership-v3 .experience-membership-plans { scroll-margin-top: 90px; }
+.synaura-chambre .membership-v3 .experience-membership-section-heading { margin-bottom: 25px; align-items: center; }
+.synaura-chambre .membership-v3 .experience-membership-section-heading h2 { font-size: clamp(25px, 3vw, 32px); }
+.synaura-chambre .membership-v3 .experience-membership-section-heading > div > p:last-child { max-width: 45ch; font-size: 12px; line-height: 1.6; }
+.synaura-chambre .membership-v3 .experience-membership-period { border: 0; padding: 5px; border-radius: 40px; background: var(--v2-soft); }
+.synaura-chambre .membership-v3 .experience-membership-period-option { min-width: 95px; border-radius: 40px; transition: background 180ms, color 180ms; }
+.synaura-chambre .membership-v3 .experience-membership-period-option[aria-pressed='true'] { background: var(--v2-text); color: var(--v2-bg); }
+.synaura-chambre .membership-v3 .chambre-plan-grid { gap: 16px; }
+.synaura-chambre .membership-v3 .experience-membership-plan { --plan-color: var(--v2-muted); padding: 28px 24px 26px; border: 0; border-radius: 24px; background: var(--v2-surface); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--v2-text) 7%, transparent); transition: box-shadow 200ms; }
+.synaura-chambre .membership-v3 .experience-membership-plan[data-plan='starter'] { --plan-color: var(--v2-accent); background: linear-gradient(155deg, color-mix(in srgb, var(--v2-accent-fill) 17%, var(--v2-surface)), var(--v2-surface) 65%); }
+.synaura-chambre .membership-v3 .experience-membership-plan[data-plan='pro'] { --plan-color: var(--v2-blue); background: linear-gradient(155deg, color-mix(in srgb, var(--v2-blue) 10%, var(--v2-surface)), var(--v2-surface) 65%); }
+.synaura-chambre .membership-v3 .experience-membership-plan[data-plan-active='true'] { box-shadow: inset 0 1px 0 color-mix(in srgb, var(--plan-color) 24%, transparent); }
+.synaura-chambre .membership-v3 .experience-membership-plan:hover { box-shadow: inset 0 1px 0 color-mix(in srgb, var(--plan-color) 44%, transparent), 0 16px 36px color-mix(in srgb, var(--v2-bg) 35%, transparent); }
+.synaura-chambre .membership-v3 .experience-membership-plan-art { position: absolute; width: 120px; height: 100px; top: -20px; right: -18px; margin: 0; opacity: .45; border: 0; background: none; mask-image: linear-gradient(150deg, black, transparent); }
+.synaura-chambre .membership-v3 .experience-membership-plan-art i { top: 0; left: 0; width: 95px; height: 95px; border-color: var(--plan-color); background: none; border-radius: 50%; }
+.synaura-chambre .membership-v3 .experience-membership-plan-art i:nth-child(2) { left: 14px; }
+.synaura-chambre .membership-v3 .experience-membership-plan-art i:nth-child(3) { left: 28px; }
+.synaura-chambre .membership-v3 .experience-membership-plan-heading { position: relative; z-index: 1; min-height: 35px; }
+.synaura-chambre .membership-v3 .experience-membership-plan h3 { font-size: 26px; letter-spacing: -.03em; }
+.synaura-chambre .membership-v3 .experience-membership-plan-badge { border: 0; color: var(--v2-text); background: var(--v2-soft); padding: 5px 8px; }
+.synaura-chambre .membership-v3 .experience-membership-plan-description { min-height: 40px; margin-top: 7px; font-size: 12px; }
+.synaura-chambre .membership-v3 .experience-membership-plan-price { margin: 18px 0 22px; }
+.synaura-chambre .membership-v3 .experience-membership-plan-price p { font-size: clamp(24px, 2.35vw, 32px); letter-spacing: -.055em; line-height: 1.25; }
+.synaura-chambre .membership-v3 .experience-membership-plan-price > span { min-height: 30px; margin-top: 8px; color: var(--v2-muted); line-height: 1.5; font-size: 11px; }
+.synaura-chambre .membership-v3 .experience-membership-plan-choose { justify-content: center; gap: 13px; min-height: 46px; border: 0; border-radius: 14px; background: var(--v2-soft); color: var(--v2-text); }
+.synaura-chambre .membership-v3 [data-plan='starter'] .experience-membership-plan-choose:not(:disabled) { background: var(--v2-accent-fill); color: white; box-shadow: 0 5px 22px color-mix(in srgb, var(--v2-accent-fill) 20%, transparent); }
+.synaura-chambre .membership-v3 .experience-membership-plan-choose:disabled { opacity: .85; color: var(--v2-muted); }
+.synaura-chambre .membership-v3 [data-plan='pro'] .experience-membership-plan-choose:not(:disabled), .synaura-chambre .membership-v3 [data-plan='free'] .experience-membership-plan-choose:not(:disabled) { background: var(--v2-soft); color: var(--v2-text); }
+.synaura-chambre .membership-v3 .experience-membership-plan-limits { display: flex; flex-direction: column; margin-top: 20px; }
+.synaura-chambre .membership-v3 .experience-membership-plan-limits > div { min-height: 34px; font-size: 12px; border: 0; }
+.synaura-chambre .membership-v3 .experience-membership-plan-limits > div:last-child { order: -1; flex-direction: column-reverse; align-items: start; gap: 2px; padding: 0 0 18px; margin-bottom: 8px; border-bottom: 1px solid var(--v2-line); }
+.synaura-chambre .membership-v3 .experience-membership-plan-limits > div:last-child dd { color: var(--plan-color); font-size: 24px; letter-spacing: -.04em; font-weight: 650; }
+.synaura-chambre .membership-v3 .experience-membership-plan-limits > div:last-child dt { font-size: 11px; }
+.synaura-chambre .membership-v3 .experience-membership-plan-features { margin-top: 18px; gap: 8px; }
+.synaura-chambre .membership-v3 .experience-membership-plan-features li { font-size: 12px; line-height: 1.6; }
+.synaura-chambre .membership-v3 .experience-membership-plan-features svg { color: var(--plan-color); }
+.synaura-chambre .membership-v3 .membership-billing-note { display: flex; justify-content: center; align-items: start; gap: 8px; margin: 18px 0 0; color: var(--v2-muted); text-align: center; font-size: 11px; line-height: 1.7; }
+.synaura-chambre .membership-v3 .membership-billing-note svg { flex-shrink: 0; margin-top: 2px; }
+
+.synaura-chambre .membership-v3 .membership-why { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px; margin: 44px 0 12px; }
+.synaura-chambre .membership-v3 .membership-why svg { color: var(--v2-accent); margin-bottom: 15px; }
+.synaura-chambre .membership-v3 .membership-why h2 { font-size: 16px; font-weight: 600; letter-spacing: -.025em; }
+.synaura-chambre .membership-v3 .membership-why p { color: var(--v2-muted); font-size: 12px; line-height: 1.8; margin-top: 9px; }
+.synaura-chambre .membership-v3 .experience-membership-table { min-width: 0; table-layout: fixed; }
+.synaura-chambre .membership-v3 .experience-membership-table th:first-child { width: 31%; }
+.synaura-chambre .membership-v3 .experience-membership-table td { width: 23%; }
+.synaura-chambre .membership-v3 .experience-membership-table th, .synaura-chambre .membership-v3 .experience-membership-table td { padding: 16px 10px; overflow-wrap: anywhere; }
+.synaura-chambre .membership-v3 .membership-account-heading { margin: 28px 0 20px; }
+.synaura-chambre .membership-v3 .membership-account-heading h2 { font-size: 26px; font-weight: 600; letter-spacing: -.04em; margin-top: 8px; }
+.synaura-chambre .membership-v3 .experience-membership-overview { margin-bottom: 24px; border: 0; border-radius: 22px; }
+.synaura-chambre .membership-v3 .experience-membership-pass { background: transparent; }
+.synaura-chambre .membership-v3 .experience-membership-pass-mark { border: 0; background: var(--v2-soft); }
+.synaura-chambre .membership-v3 .experience-membership-status { border: 0; background: var(--v2-soft); }
+.synaura-chambre .membership-v3 .experience-membership-overview .experience-account-eyebrow { font-size: 10px; color: var(--v2-muted); letter-spacing: .08em; }
+.synaura-chambre .membership-v3 .experience-membership-management button { border: 0; }
+.synaura-chambre .membership-v3 .experience-membership-balance .experience-account-primary { background: var(--v2-soft)!important; color: var(--v2-text)!important; border: 0; border-radius: 12px; }
+.synaura-chambre .membership-v3 .experience-membership-faq > div:last-child { display: block; margin-top: 24px; }
+.synaura-chambre .membership-v3 .experience-membership-faq-item { padding: 0; }
+.synaura-chambre .membership-v3 .experience-membership-faq-item summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 20px 0; min-height: 56px; list-style: none; cursor: pointer; font-size: 14px; font-weight: 550; }
+.synaura-chambre .membership-v3 .experience-membership-faq-item summary::-webkit-details-marker { display: none; }
+.synaura-chambre .membership-v3 .experience-membership-faq-item summary > span { color: var(--v2-accent); font-size: 22px; line-height: 1; transition: transform 180ms; }
+.synaura-chambre .membership-v3 .experience-membership-faq-item[open] summary > span { transform: rotate(45deg); }
+.synaura-chambre .membership-v3 .experience-membership-faq-item p { max-width: 72ch; padding: 0 28px 20px 0; margin: 0; font-size: 13px; color: var(--v2-muted)!important; font-weight: 400; line-height: 1.8; }
+.synaura-chambre .membership-v3 :is(summary, button, [tabindex]):focus-visible { outline: 2px solid var(--v2-focus); outline-offset: 4px; }
+
+@media (min-width: 768px) and (max-width: 1100px) {
+  .synaura-chambre .membership-v3 .experience-membership-plan { padding: 24px 18px; }
+  .synaura-chambre .membership-v3 .experience-membership-plan-description { min-height: 58px; }
+  .synaura-chambre .membership-v3 .experience-membership-plan-price p { font-size: 25px; }
+  .synaura-chambre .membership-v3 .experience-membership-plan-price > span { min-height: 44px; }
+}
+@media (max-width: 767px) {
+  .synaura-chambre .membership-v3 .experience-membership-heading { display: block; padding: 20px 0 36px; }
+  .synaura-chambre .membership-v3 .experience-membership-heading h1 { position: relative; z-index: 1; font-size: clamp(34px, 9.5vw, 54px); }
+  .synaura-chambre .membership-v3 .experience-membership-lede { position: relative; z-index: 1; font-size: 14px; max-width: 40ch; }
+  .synaura-chambre .membership-v3 .membership-reassurance { display: none; }
+  .synaura-chambre .membership-v3 .membership-resonance { position: absolute; width: 130px; height: 160px; top: 10px; right: -5px; z-index: -1; opacity: .2; overflow: hidden; }
+  .synaura-chambre .membership-v3 .membership-resonance-core, .synaura-chambre .membership-v3 .membership-resonance > span { display: none; }
+  .synaura-chambre .membership-v3 .experience-membership-section-heading { align-items: stretch; gap: 18px; }
+  .synaura-chambre .membership-v3 .experience-account-eyebrow { font-size: 10px; letter-spacing: .1em; }
+  .synaura-chambre .membership-v3 .experience-membership-period { align-self: stretch; }
+  .synaura-chambre .membership-v3 .chambre-plan-grid { grid-template-columns: minmax(0, 1fr); }
+  .synaura-chambre .membership-v3 .experience-membership-plan { padding: 26px 22px; }
+  .synaura-chambre .membership-v3 .experience-membership-plan-description { min-height: 0; }
+  .synaura-chambre .membership-v3 .experience-membership-plan-price { margin: 18px 0; }
+  .synaura-chambre .membership-v3 .experience-membership-plan-price > span { min-height: 0; }
+  .synaura-chambre .membership-v3 .experience-membership-plan-price p { font-size: 30px; }
+  .synaura-chambre .membership-v3 .membership-billing-note { text-align: left; }
+  .synaura-chambre .membership-v3 .membership-why { grid-template-columns: minmax(0, 1fr); gap: 26px; margin-top: 36px; }
+  .synaura-chambre .membership-v3 .membership-why > div { display: grid; grid-template-columns: 28px minmax(0, 1fr); gap: 0 10px; }
+  .synaura-chambre .membership-v3 .membership-why svg { margin: 0; }
+  .synaura-chambre .membership-v3 .membership-why p { grid-column: 2; }
+  .synaura-chambre .membership-v3 .experience-membership-table th, .synaura-chambre .membership-v3 .experience-membership-table td { padding: 13px 5px; font-size: 10px; line-height: 1.6; }
+  .synaura-chambre .membership-v3 .experience-membership-table th:first-child { width: 31%; padding-left: 0; font-size: 10px; }
+  .synaura-chambre .membership-v3 .experience-membership-table thead th:not(:first-child) { font-size: 12px; }
+  .synaura-chambre .membership-v3 .experience-membership-overview { grid-template-columns: minmax(0, 1fr); }
+  .synaura-chambre .membership-v3 .experience-membership-pass, .synaura-chambre .membership-v3 .experience-membership-balance { padding: 22px; }
+  .synaura-chambre .membership-v3 .experience-membership-pass-title { flex-wrap: wrap; }
+  .synaura-chambre .membership-v3 .experience-membership-status { margin-left: auto; }
+  .synaura-chambre .membership-v3 .experience-membership-billing { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 18px; }
+  .synaura-chambre .membership-v3 .experience-membership-balance { border-left: 0; border-top: 1px solid var(--v2-line); }
+  .synaura-chambre .membership-v3 .experience-membership-usage { grid-column: auto; border-left: 0; padding: 18px 22px; }
+  .synaura-chambre .membership-v3 .experience-membership-generation { font-size: 11px; }
+  .synaura-chambre .membership-v3 .experience-membership-kpi dt { font-size: 11px; }
+  .synaura-chambre .membership-v3 .experience-membership-kpi dd { font-size: 13px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .synaura-chambre .membership-v3 *, .synaura-chambre .membership-v3 *::before, .synaura-chambre .membership-v3 *::after { animation: none!important; transition: none!important; scroll-behavior: auto!important; }
+}

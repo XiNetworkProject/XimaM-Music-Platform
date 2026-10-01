@@ -143,6 +143,10 @@ test('local before/after: events, side effects, navigation, backend calls and me
         "import HandoffReturn from '@/components/navigation/HandoffReturn';",
       ];
       assert.deepEqual(afterImports, [...beforeImports, ...presentationImports], `${file}: only the two reviewed presentation imports may be added`);
+    } else if (file === 'app/clips/[id]/page.tsx') {
+      // Metadata-only intrinsic sizing adapter; executed separately for portrait,
+      // landscape and invalid dimensions. Media URLs/controls stay under contract.
+      assert.deepEqual(afterImports, [...beforeImports, "import PublicClipVideo from '@/components/clips/PublicClipVideo';"]);
     } else {
       assert.deepEqual(afterImports, beforeImports, `${file}: imports changed`);
     }

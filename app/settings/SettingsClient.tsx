@@ -27,6 +27,7 @@ import {
   ArrowUpRight,
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { HiddenArtists } from '@/components/recommendations/TasteControls';
 import SubscriptionLimits from '@/components/SubscriptionLimits';
 import { notify } from '@/components/NotificationCenter';
 import { useAudioPlayer } from '@/app/providers';
@@ -353,7 +354,6 @@ export default function SettingsClient() {
   const [notifPrefs, setNotifPrefs] = useState<NotifPrefs>(defaultNotifPrefs);
   const [notifPrefsLoading, setNotifPrefsLoading] = useState(false);
   const [notifPrefsSaving, setNotifPrefsSaving] = useState(false);
-  const [hiddenArtistsCount, setHiddenArtistsCount] = useState(0);
   const [eventPrefs, setEventPrefs] = useState({
     autoParticipate: false,
     voteReminders: true,
@@ -408,10 +408,6 @@ export default function SettingsClient() {
       })
       .catch(() => {})
       .finally(() => setNotifPrefsLoading(false));
-    fetch('/api/recommendations/taste', { cache: 'no-store' })
-      .then((response) => response.ok ? response.json() : null)
-      .then((data) => setHiddenArtistsCount(Number(data?.hiddenArtistsCount || 0)))
-      .catch(() => {});
     fetch('/api/user/preferences', { cache: 'no-store' })
       .then((response) => response.ok ? response.json() : null)
       .then((data) => {
@@ -742,14 +738,14 @@ export default function SettingsClient() {
     <SynauraAppShell contentClassName="max-w-[1400px]">
       <SynauraTopBar searchHref="/discover" searchLabel="Rechercher un son, un profil ou un post..." />
 
-      <main className="experience-settings pb-24">
+      <main className="experience-settings experience-refresh settings-refresh pb-24">
         <header className="experience-settings-heading">
           <div className="experience-settings-title">
             <div className="experience-settings-breadcrumb">
               <button type="button" onClick={() => router.back()}><ArrowLeft size={15} aria-hidden="true" /> Retour</button>
               <span>Ton espace personnel</span>
             </div>
-            <h1>À ta façon<span className="chambre-type-accent">.</span></h1>
+            <h1>Tes <span className="chambre-type-accent">réglages.</span></h1>
             <p>Ton identité, ton écoute, tes choix.</p>
           </div>
           <Link href={username ? `/profile/${encodeURIComponent(username)}` : '/'} className="experience-settings-identity">
@@ -763,7 +759,7 @@ export default function SettingsClient() {
         <div className="v2-settings-layout chambre-settings-workspace">
           <aside className="v2-settings-nav">
             <div className="experience-settings-index">
-              <p className="experience-account-eyebrow">Les réglages</p>
+              <p className="experience-account-eyebrow">Ton compte</p>
               <nav className="v2-settings-sections mt-2" aria-label="Réglages du compte">
                 <SettingsNavItem active={tab === 'profil'} icon={User} label="Profil" description="Ton identité publique" onClick={() => setTabAndUrl('profil')} />
                 <SettingsNavItem active={tab === 'compte'} icon={Crown} label="Compte" description="Identité, plan et limites" onClick={() => setTabAndUrl('compte')} />
@@ -1188,29 +1184,7 @@ export default function SettingsClient() {
                       <h3 className="experience-settings-group-title"><span>01</span> Apparence</h3>
                       <div className="mt-1 text-xs font-semibold text-[var(--syn-text-secondary)]">Le même thème est appliqué à toutes les pages Synaura de cet appareil.</div>
                       <SynauraThemeSelector className="mt-3" />
-                      {hiddenArtistsCount > 0 ? (
-                        <div className="mt-4 flex flex-col gap-3 border-t border-[var(--syn-border)] pt-4 sm:flex-row sm:items-center sm:justify-between">
-                          <div>
-                            <div className="text-sm font-black text-[var(--syn-text-primary)]">Artistes masqués</div>
-                            <div className="mt-1 text-xs font-semibold text-[var(--syn-text-secondary)]">{hiddenArtistsCount} artiste{hiddenArtistsCount > 1 ? 's' : ''} retiré{hiddenArtistsCount > 1 ? 's' : ''} des recommandations.</div>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              fetch('/api/recommendations/taste', { method: 'DELETE' })
-                                .then((response) => {
-                                  if (!response.ok) throw new Error();
-                                  setHiddenArtistsCount(0);
-                                  notify.success('Flow', 'Les artistes masqués peuvent de nouveau être recommandés.');
-                                })
-                                .catch(() => notify.error('Flow', 'Impossible de réafficher les artistes pour le moment.'));
-                            }}
-                            className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[var(--syn-border)] bg-[var(--syn-soft)] px-3 text-xs font-black text-[var(--syn-text-primary)] transition hover:bg-[var(--syn-soft-strong)]"
-                          >
-                            Réafficher
-                          </button>
-                        </div>
-                      ) : null}
+                      <HiddenArtists key={(user as any)?.id || 'public'} owner={(user as any)?.id || ''} />
                     </InnerCard>
 
                     <InnerCard>

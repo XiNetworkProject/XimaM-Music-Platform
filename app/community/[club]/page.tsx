@@ -210,7 +210,7 @@ export default function ClubDetailPage() {
   };
 
   return (
-    <SynauraAppShell contentClassName="max-w-[1100px]">
+    <SynauraAppShell contentClassName="max-w-[1100px] experience-refresh community-refresh club-refresh">
       <SynauraTopBar searchHref="/community" searchLabel="Chercher un Club..." secondaryHref="/ai-generator" secondaryLabel="Créer avec l’IA" />
       <SynauraRouteNav />
 

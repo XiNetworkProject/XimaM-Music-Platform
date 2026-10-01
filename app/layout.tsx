@@ -12,6 +12,7 @@ import '@/components/v2/experience-live-navigation.css';
 import '@/components/v2/experience-collection.css';
 import '@/components/v2/experience-creation.css';
 import '@/components/v2/experience-account.css';
+import '@/components/experience/secondary-experience.css';
 import Providers from './providers';
 import ClipUploadIndicator from '@/components/clips/ClipUploadIndicator';
 import { ConditionalNav, ConditionalNavbar, ConditionalBottomNav } from '@/components/ConditionalNav';

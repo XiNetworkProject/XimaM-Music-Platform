@@ -1,6 +1,6 @@
 # Phase 4B.8 — Aura, performance, accessibilité et rollout
 
-Statut : **clôture technique validée par l’utilisateur ; livraison finale autorisée sous gates**. Les constats ci-dessous décrivent la candidate auditée ; l’addendum de livraison distingue les corrections finales et la vérification production.
+Statut final : **CLOSED / DEPLOYED — Phase 4B Live Experience**. Commit servi `f71bd509e9de9eecb1817f87bbc6b58fb23f517f`, tag annoté poussé `synaura-live-4b-baseline`. Les constats historiques de candidate ci-dessous sont complétés par les gates et la preuve de livraison finale en fin de document.
 
 ## Matrice Aura préalable — avant modification applicative
 
@@ -235,3 +235,35 @@ Les preuves opérationnelles de livraison seront ajoutées après le smoke, sans
 - Un essai desktop interrompu sur une cible en transition : runner synchronisé sur visibilité/opacity/interactivité réelles, puis rejeu complet PASS. Aucun bug applicatif supplémentaire ni modification d’architecture.
 
 Les nouveaux refus réseau de ces smokes se limitent aux URLs média Cloudinary historiques 401 et au guard admin Suno 403 attendu ; aucune exception JavaScript. Ne pas présenter cette distinction comme une console entièrement vide.
+
+## Livraison opérationnelle — suivi postcommit local
+
+Commit isolé **`f71bd509e9de9eecb1817f87bbc6b58fb23f517f`**, message `fix(live): close accessibility and performance gates (phase 4B.8)`, poussé sur `origin/migration/freebox-storage`. 19 fichiers revus et staged explicitement ; aucun fichier natif, environnement, secret, dump, cache, build ou artifact. Scan du contenu staged : zéro chemin interdit, zéro motif de credential, zéro valeur privée connue ; périmètre du commit seulement, pas tout l’historique.
+
+Déploiement lancé le **12 septembre 2026 à 22:00:48 UTC** (13 septembre 00:00:48 Paris) via le service installé `synaura-deploy.service`, sans modification du workflow. Worktree de release isolé, npm ci puis build ; application 4B.7 restée HTTP 200 pendant les sondes. La vérification finale de bascule, du smoke, des logs et du tag est consignée ci-après une fois établie.
+
+Les neuf modifications utilisateur/natives sont préservées hors commit : PLAY_STORE, capacitor et les sept fichiers de configuration/messaging `synaura-app`. `.claude`, artifacts, docs.zip, anciens diagnostics et `supabase/.temp` exclus. Cet addendum postcommit reste local pour ne pas produire une seconde livraison documentaire.
+
+Incident de sonde pendant le build : à 22:14:27 UTC, une requête accueil atteint le timeout de 8 s. Recontrôle à 22:14:39 : service active/running, NRestarts=0, accueil HTTP 200 en 0,057 s et healthz public `ok`. À ce relevé, RAM disponible 93/1977 MiB, swap 1485/4095 MiB et MemoryCurrent build 1 585 233 920 octets. Ces valeurs ponctuelles suggèrent une pression mémoire sous build, sans prouver la cause du timeout ni mesurer un pic. Aucun tuning/redémarrage manuel ; ne pas déclarer une disponibilité ininterrompue sur la seule base des autres sondes.
+
+### Production saine et baseline finale
+
+Build serveur **15 min 51,968 s**, sortie 0 ; préflight PASS, bascule saine depuis **22:18:27 UTC / 00:18:27 Paris**. Les trois refus initiaux de connexion de la boucle health correspondent au redémarrage canonique ; contrôle suivant réussi, aucun rollback. Déploiement terminé avec succès ; timer suivant « Déjà à jour ».
+
+- **53/53 contrôles desktop et 53/53 mobile PASS**, compte E2E authentifié sur `https://synaura.fr`. Live, Profile Peek, Comments/Conversation/Moments, Options, Playlist Picker, Queue, Lyrics, Details, Share, Track → Back, AI → Retour Live, Notifications accessible.
+- Sur dix parcours par viewport : même activeItemId, filtre, queue et document/source audio ; zéro item initial transitoire ; une seule instance musicale en lecture, **0 play / pause / load / seek supplémentaire**. Les markers/seek explicites sont couverts par le golden local de cette même candidate, pas actionnés dans ce smoke léger de continuité.
+- Notifications mobile : « Tout lire » présent dans AX, aucun contrôle anonyme ; capture production revue. Aucun accusé de lecture réel envoyé. Captures Live desktop/mobile également revues.
+- Zéro exception JavaScript et zéro nouvelle erreur console/app. Chaque smoke contient quatre 401 d’URLs Cloudinary historiques et un 403 `/api/suno/credits` du guard admin, explicitement séparés.
+- Healthz public HTTP 200 `ok`, service active/running, NRestarts=0. Sondes anonymes Notifications et Track HTTP 200 ; Live/AI renvoient le 307 du guard d’accès (leurs parcours authentifiés passent). Logs depuis bascule : zéro entrée priorité error et zéro motif SQL/comment_moderation/TypeError/ReferenceError/unhandled/out-of-memory inspecté.
+- Rétention canonique : ancienne release 4B.5 `ffc19fe11876c6b8231a21b633fbcfb816c21a7d` retirée, **1 915 522 433 octets estimés**, reconstructible depuis Git (pas de corbeille). Aucun média/contenu utilisateur supprimé. Rollbacks 4B.7 `2af010a8...`, 4B.6 `2a6ab2a8...` et release épinglée conservés. Disque final **45 %, environ 32 Go libres**.
+- `current`, `last-successful-sha`, HEAD et origin vérifiés sur **`f71bd509e9de9eecb1817f87bbc6b58fb23f517f`**. Seulement après ces contrôles et les deux smokes : création/push du tag annoté **`synaura-live-4b-baseline`** ; cible distante dé-référencée identique, objet tag `db6f1367db4eafb62151a27ea60e14cb85efa908`.
+
+Preuves locales : `artifacts/final-phase4b8/production/{desktop,mobile}/results.json`, captures associées. Aucun fichier applicatif changé après commit ; index vide. Seuls les deux addenda opérationnels de rapports restent modifiés par cette tâche après commit, en plus des neuf modifications utilisateur/natives et artifacts hors périmètre préservés.
+
+**CLOSED / DEPLOYED : Phase 4B Live Experience.**
+
+**RÉSERVES QA : Android/Gboard réel NON TESTÉ ; NVDA réel NON TESTÉ.**
+
+**BUGS EXTERNES OUVERTS : Community Feedback 500 OPEN / hors 4B.8 ; Cloudinary historiques 401, correctif séparé.**
+
+Aucune nouvelle feature Aura. Aucune Phase 4B.9 créée. Fin du chantier demandé.

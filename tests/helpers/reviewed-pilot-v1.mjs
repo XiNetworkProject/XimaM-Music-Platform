@@ -46,6 +46,8 @@ export function reviewedPilotV1(file, raw) {
   } else if (file === 'lib/routeChrome.ts') {
     // Offline Studio fixture only; production and all existing paths are unchanged.
     replace("  if (process.env.NODE_ENV !== 'production' && pathname === '/dev/studio') return getRouteChrome('/studio');\n");
+    // Exact offline Stats alias, tested against /stats; no historical route changes.
+    replace("  if (process.env.NODE_ENV !== 'production' && pathname === '/dev/stats') return getRouteChrome('/stats');\n");
     replace(`
 /** Validated Live/Discover plus preview aliases; other routes keep their chrome. */
 export function isV2PilotRoute(pathname: string | null | undefined) {

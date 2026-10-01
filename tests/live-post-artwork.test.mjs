@@ -32,6 +32,7 @@ function render(post, {active=true, entryOpen=false}={}) {
     './LiveAmbienceControls':{default:inert,useLiveAmbienceSettings:inert},
     './useLiveAudioPulse':{useLiveAudioPulse:inert},
     '@/components/ambient/useLivingMotion':{useLivingMotion:inert},
+    '@/components/benefits/ProductHint':{default:inert},
   };
   for(const name of ['@/components/home/SynauraScroll','@/components/FollowButton','@/components/comments/CommentCount','./PilotWaveform','./PilotLink','./PilotClipFavorite','./PilotLiveEntry','./LiveAtmosphere','./LiveSwipeLight','./LiveFilters','./LiveClipVideo']) mocks[name]={default:inert};
   // Expose the private card only in this test; production exports remain unchanged.

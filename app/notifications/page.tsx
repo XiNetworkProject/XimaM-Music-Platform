@@ -1,4 +1,5 @@
 'use client';
+import ProductHint from '@/components/benefits/ProductHint';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
@@ -249,11 +250,11 @@ export default function NotificationsPage() {
     <SynauraAppShell contentClassName="!max-w-[1120px]">
       <SynauraTopBar searchLabel="Rechercher un son, un post, un profil..." />
 
-      <main className="v2-activity-layout chambre-activity signature-activity">
+      <main className="v2-activity-layout chambre-activity signature-activity experience-refresh activity-refresh">
         <header className="v2-activity-heading signature-activity-heading">
           <div className="signature-activity-heading-copy">
-            <p className="v2-kicker mb-3">Activité / Ce qui résonne</p>
-            <h1>Tout ce qui<br /><span>résonne.</span></h1>
+            <p className="v2-kicker mb-3">TES DERNIERS ÉCHOS</p>
+            <h1>Notifications<span>.</span></h1>
             <p className="signature-activity-status">
               {unread > 0 ? `${unread} notification${unread > 1 ? 's' : ''} non lue${unread > 1 ? 's' : ''}` : 'Tu es à jour'}
             </p>
@@ -323,6 +324,7 @@ export default function NotificationsPage() {
         </div>
 
         <section className="v2-activity-content signature-activity-journal">
+          {!unreadOnly && (category === 'all' || category === 'boost') && <ProductHint placement="notifications" />}
           {loading ? (
             <div className="flex items-center justify-center gap-2 py-16 text-sm font-semibold text-[var(--syn-text-secondary)]">
               <Loader2 className="h-5 w-5 animate-spin" />

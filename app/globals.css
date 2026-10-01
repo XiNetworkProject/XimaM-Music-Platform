@@ -84,6 +84,13 @@
   margin: 0;
 }
 
+/* Restore native modal centering erased by the universal reset. Keep the
+   specificity below component classes so mobile sheets and fullscreen scenes
+   retain their explicit margins. Non-modal dialogs and side panels are untouched. */
+dialog:where(:modal) {
+  margin: auto;
+}
+
 html,
 body {
   max-width: 100vw;

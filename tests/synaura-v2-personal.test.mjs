@@ -29,8 +29,9 @@ test('V2 Search retains Profile Peek, Track Actions and cancellation', () => {
   assert.match(source, /useProfilePeek\('search'\)/);
   assert.match(source, /<TrackActionButton track=\{track\} origin="search"/);
   assert.match(source, /controller\.abort\(\)/);
-  assert.match(source, /role="search"/);
-  for (const result of ['tracks', 'posts', 'artists', 'playlists']) assert.ok(source.includes(`results.${result}`));
+  assert.match(read('components/search/SearchBox.tsx'), /role="search"/);
+  assert.match(source, /SEARCH_KINDS\.map\(section\)/);
+  for (const result of ['tracks', 'posts', 'artists', 'playlists', 'clips']) assert.ok(read('lib/search/model.ts').includes(`'${result}'`));
 });
 
 test('V2 mobile Notifications keeps its accessible mark-all control', () => {
@@ -49,11 +50,11 @@ test('V2 messaging keeps inbox categories, return and secondary audio coordinati
   assert.match(thread, /ref=\{scrollRef\}/);
 });
 
-test('V2 Community uses real aggregates and retains every configured club', () => {
-  const source = read('app/community/page.tsx');
+test('V2 Community puts real discussions first and retains every configured club', () => {
+  const source = read('components/community/CommunityHub.tsx');
   assert.match(source, /orderedClubs\.map/);
-  assert.match(source, /aggregate\?\.latestPost/);
-  assert.match(source, /\/api\/community\/clubs/);
+  assert.match(source, /communityParticipants\(feed.posts\)/);
+  assert.match(read('components/community/useCommunityFeed.ts'), /\/api\/community\/posts\?/);
   assert.doesNotMatch(source, /personnes en ligne|auditeurs simultanés/);
 });
 
@@ -148,7 +149,8 @@ test('V2 confirmed selection contrast and historical placeholder regressions sta
   const css = read('components/v2/personal-v2.css');
   assert.doesNotMatch(notifications + onboarding, /bg-\[var\(--syn-accent\)\] text-white/);
   assert.match(notifications, /bg-\[var\(--v2-accent-fill\)\] text-white/);
-  assert.match(stats, /metric === item.key \? 'bg-\[var\(--v2-accent-fill\)\] text-white'/);
+  assert.match(read('components/analytics/CreatorAnalytics.tsx'), /aria-pressed=\{metric === key\}/);
+  assert.match(read('components/analytics/creator-analytics.css'), /\.analytics-kpi\[aria-pressed="true"\]>?\s*strong|\.analytics-kpi\[aria-pressed="true"\] > strong/);
   assert.doesNotMatch(read('app/challenges/[id]/page.tsx') + stats, /synaura-symbol-2026/);
   assert.ok(css.includes('[class~="bg-white/72"]'));
   assert.ok(css.includes(':is(input,textarea,select).bg-white'));

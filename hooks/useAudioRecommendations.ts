@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
+import { boundedInteger, diversifyRanked, finitePositive, normalizedGenres, uniqueCandidates } from '@/lib/recommendation/policy';
 
 interface Track {
   _id: string;
@@ -29,15 +30,13 @@ const HISTORY_LIMIT = 100;
 const RECENT_AVOID_LIMIT = 12;
 
 function countOf(value: unknown): number {
-  if (typeof value === 'number') return value;
+  if (typeof value === 'number') return finitePositive(value);
   if (Array.isArray(value)) return value.length;
   return 0;
 }
 
 function normalizeTags(values?: string[]) {
-  return (values || [])
-    .map((value) => String(value || '').trim().toLowerCase())
-    .filter(Boolean);
+  return normalizedGenres(values);
 }
 
 function freshnessBoost(createdAt?: string) {
@@ -52,7 +51,7 @@ function freshnessBoost(createdAt?: string) {
 }
 
 function popularityBoost(track: Track) {
-  return Math.log10((track.plays || 0) + 1) * 2.2 + Math.log10(countOf(track.likes) + 1) * 3.1;
+  return Math.min(5, Math.log10(finitePositive(track.plays) + 1) * 2.2) + Math.min(5, Math.log10(countOf(track.likes) + 1) * 3.1);
 }
 
 function buildAffinity(history: Track[]) {
@@ -74,8 +73,9 @@ function buildAffinity(history: Track[]) {
 
 export const useAudioRecommendations = () => {
   const { data: session } = useSession();
-  const [userHistory, setUserHistory] = useState<Track[]>([]);
-  const [userPreferences, setUserPreferences] = useState<{
+  const [storedHistory, setUserHistory] = useState<Track[]>([]);
+  const [historyOwner, setHistoryOwner] = useState<string | null>(null);
+  const [storedPreferences, setUserPreferences] = useState<{
     favoriteGenres: string[];
     favoriteArtists: string[];
     listeningTime: number;
@@ -84,41 +84,37 @@ export const useAudioRecommendations = () => {
     favoriteArtists: [],
     listeningTime: 0,
   });
+  const viewerId = session?.user?.id || null;
+  const userHistory = historyOwner === viewerId ? storedHistory : [];
+  const userPreferences = historyOwner === viewerId ? storedPreferences : { favoriteGenres: [], favoriteArtists: [], listeningTime: 0 };
 
   useEffect(() => {
-    if (!session?.user?.id) return;
-
-    const savedHistory = localStorage.getItem(`userHistory_${session.user.id}`);
-    if (savedHistory) {
-      try {
-        setUserHistory(JSON.parse(savedHistory));
-      } catch (error) {
-        console.error("Erreur lors du chargement de l'historique:", error);
-      }
-    }
-
-    const savedPreferences = localStorage.getItem(`userPreferences_${session.user.id}`);
-    if (savedPreferences) {
-      try {
-        setUserPreferences(JSON.parse(savedPreferences));
-      } catch (error) {
-        console.error('Erreur lors du chargement des preferences:', error);
-      }
-    }
+    let history: Track[] = [];
+    let preferences = { favoriteGenres: [] as string[], favoriteArtists: [] as string[], listeningTime: 0 };
+    try {
+      const saved = viewerId ? JSON.parse(localStorage.getItem(`userHistory_${viewerId}`) || '[]') : [];
+      history = Array.isArray(saved) ? saved.filter((track) => track && typeof track._id === 'string').slice(0, HISTORY_LIMIT) : [];
+    } catch { /* Storage can be disabled or incompatible. */ }
+    try {
+      const saved = viewerId ? JSON.parse(localStorage.getItem(`userPreferences_${viewerId}`) || '{}') : {};
+      preferences = { favoriteGenres: Array.isArray(saved?.favoriteGenres) ? normalizeTags(saved.favoriteGenres).slice(0, 20) : [],
+        favoriteArtists: Array.isArray(saved?.favoriteArtists) ? saved.favoriteArtists.filter((id: unknown) => typeof id === 'string').slice(0, 50) : [], listeningTime: finitePositive(saved?.listeningTime) };
+    } catch { /* Never reuse the preceding account's preferences. */ }
+    setUserHistory(history); setUserPreferences(preferences); setHistoryOwner(viewerId);
   }, [session?.user?.id]);
 
   const saveToHistory = useCallback((track: Track) => {
-    if (!session?.user?.id || !track?._id) return;
+    if (!session?.user?.id || historyOwner !== session.user.id || !track?._id) return;
 
     setUserHistory((previous) => {
       const nextHistory = [track, ...previous.filter((entry) => entry._id !== track._id)].slice(0, HISTORY_LIMIT);
-      localStorage.setItem(`userHistory_${session.user.id}`, JSON.stringify(nextHistory));
+      try { localStorage.setItem(`userHistory_${session.user.id}`, JSON.stringify(nextHistory)); } catch { /* Optional persistence. */ }
       return nextHistory;
     });
-  }, [session?.user?.id]);
+  }, [session?.user?.id, historyOwner]);
 
   const updatePreferences = useCallback((track: Track) => {
-    if (!session?.user?.id) return;
+    if (!session?.user?.id || historyOwner !== session.user.id) return;
 
     setUserPreferences((previous) => {
       const nextPreferences = {
@@ -127,10 +123,10 @@ export const useAudioRecommendations = () => {
         favoriteArtists: Array.from(new Set([...previous.favoriteArtists, track.artist?._id].filter(Boolean) as string[])).slice(0, 50),
       };
 
-      localStorage.setItem(`userPreferences_${session.user.id}`, JSON.stringify(nextPreferences));
+      try { localStorage.setItem(`userPreferences_${session.user.id}`, JSON.stringify(nextPreferences)); } catch { /* Optional persistence. */ }
       return nextPreferences;
     });
-  }, [session?.user?.id]);
+  }, [session?.user?.id, historyOwner]);
 
   const getSimilarTracks = useCallback((currentTrack: Track, allTracks: Track[], limit: number = 10): Track[] => {
     if (!currentTrack?._id || !allTracks.length) return [];
@@ -139,7 +135,8 @@ export const useAudioRecommendations = () => {
     const currentTags = new Set(normalizeTags(currentTrack.tags));
     const recentIds = new Set(userHistory.slice(0, RECENT_AVOID_LIMIT).map((track) => track._id));
 
-    return allTracks
+    const scored = uniqueCandidates(allTracks, (track) => track._id)
+      .filter((track) => Boolean(track.audioUrl))
       .filter((track) => track._id !== currentTrack._id)
       .map((track) => {
         let score = 0;
@@ -156,10 +153,8 @@ export const useAudioRecommendations = () => {
         if (recentIds.has(track._id)) score -= 22;
 
         return { track, score };
-      })
-      .sort((left, right) => right.score - left.score)
-      .slice(0, limit)
-      .map((entry) => entry.track);
+      });
+    return diversifyRanked(scored, { id: (entry) => entry.track._id, creator: (entry) => entry.track.artist?._id || '', score: (entry) => entry.score, limit: boundedInteger(limit, 10, 0, 100) }).map((entry) => entry.track);
   }, [userHistory]);
 
   const getRecommendedTracks = useCallback((allTracks: Track[], limit: number = 10): Track[] => {
@@ -172,18 +167,19 @@ export const useAudioRecommendations = () => {
     const preferredGenres = new Set(userPreferences.favoriteGenres);
     const preferredArtists = new Set(userPreferences.favoriteArtists);
 
-    return allTracks
+    const scored = uniqueCandidates(allTracks, (track) => track._id)
+      .filter((track) => Boolean(track.audioUrl))
       .filter((track) => !recentIds.has(track._id))
       .map((track) => {
         let score = popularityBoost(track) + freshnessBoost(track.createdAt);
 
         normalizeTags(track.genre).forEach((genre) => {
-          score += (genreWeights.get(genre) || 0) * 2.6;
+          score += Math.min(10, (genreWeights.get(genre) || 0) * 2.6) / Math.max(1, normalizeTags(track.genre).length);
           if (preferredGenres.has(genre)) score += 4;
         });
 
         if (track.artist?._id) {
-          score += (artistWeights.get(track.artist._id) || 0) * 4.5;
+          score += Math.min(12, (artistWeights.get(track.artist._id) || 0) * 4.5);
           if (preferredArtists.has(track.artist._id)) score += 7;
           if (recentArtists.has(track.artist._id)) score -= 6;
         }
@@ -192,10 +188,8 @@ export const useAudioRecommendations = () => {
         if (track.isLiked) score += 6;
 
         return { track, score };
-      })
-      .sort((left, right) => right.score - left.score)
-      .slice(0, limit)
-      .map((entry) => entry.track);
+      });
+    return diversifyRanked(scored, { id: (entry) => entry.track._id, creator: (entry) => entry.track.artist?._id || '', score: (entry) => entry.score, limit: boundedInteger(limit, 10, 0, 100) }).map((entry) => entry.track);
   }, [userHistory, userPreferences.favoriteArtists, userPreferences.favoriteGenres]);
 
   const getAutoPlayNext = useCallback((currentTrack: Track, queue: Track[], allTracks: Track[]): Track | null => {
@@ -248,27 +242,28 @@ export const useAudioRecommendations = () => {
     const targetGenres = new Set(moodGenres[mood.toLowerCase()] || []);
     if (!targetGenres.size) return [];
 
-    return allTracks
-      .filter((track) => normalizeTags(track.genre).some((genre) => targetGenres.has(genre)))
-      .sort((left, right) => (popularityBoost(right) + freshnessBoost(right.createdAt)) - (popularityBoost(left) + freshnessBoost(left.createdAt)))
-      .slice(0, limit);
+    const matching = allTracks.filter((track) => track.audioUrl && normalizeTags(track.genre).some((genre) => targetGenres.has(genre)));
+    return diversifyRanked(matching, { id: (track) => track._id, creator: (track) => track.artist?._id || '',
+      score: (track) => popularityBoost(track) + freshnessBoost(track.createdAt), limit: boundedInteger(limit, 10, 0, 100) });
   }, []);
 
   const analyzeListeningSession = useCallback((track: Track, listenDuration: number) => {
     saveToHistory(track);
-    updatePreferences(track);
+    // A brief accidental play/skip is not a positive taste signal.
+    const qualified = finitePositive(listenDuration) >= Math.min(30, finitePositive(track.duration) > 0 ? track.duration * .5 : 30);
+    if (qualified) updatePreferences(track);
 
-    if (session?.user?.id) {
+    if (session?.user?.id && historyOwner === session.user.id) {
       setUserPreferences((previous) => {
         const nextPreferences = {
           ...previous,
-          listeningTime: previous.listeningTime + listenDuration,
+          listeningTime: previous.listeningTime + Math.min(finitePositive(listenDuration), finitePositive(track.duration) || finitePositive(listenDuration)),
         };
-        localStorage.setItem(`userPreferences_${session.user.id}`, JSON.stringify(nextPreferences));
+        try { localStorage.setItem(`userPreferences_${session.user.id}`, JSON.stringify(nextPreferences)); } catch { /* Optional persistence. */ }
         return nextPreferences;
       });
     }
-  }, [saveToHistory, session?.user?.id, updatePreferences]);
+  }, [saveToHistory, session?.user?.id, historyOwner, updatePreferences]);
 
   return {
     userHistory,

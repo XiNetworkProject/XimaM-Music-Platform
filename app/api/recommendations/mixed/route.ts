@@ -3,6 +3,7 @@ import { getApiSession } from '@/lib/getApiSession';
 import { dbAdmin } from '@/lib/database';
 import { buildRecommendationSignals, parseRecommendationExclusions, rerankPosts } from '@/lib/recommendation';
 import { applyPublicTrackFilter } from '@/lib/publicTracks';
+import { boundedInteger, RECOMMENDATION_ENGINE_VERSION, RECOMMENDATION_POLICY_VERSION } from '@/lib/recommendation/policy';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -71,14 +72,14 @@ async function likedPostIds(userId: string | null, postIds: string[]) {
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const limit = Math.min(Math.max(parseInt(searchParams.get('limit') || '12', 10) || 12, 1), 40);
-    const cursor = Math.max(parseInt(searchParams.get('cursor') || '0', 10) || 0, 0);
+    const limit = boundedInteger(searchParams.get('limit'), 12, 1, 40);
+    const cursor = boundedInteger(searchParams.get('cursor'), 0, 0, 20000);
     const debug = searchParams.get('debug') === '1';
     const recommendationSessionId = searchParams.get('session')?.slice(0, 120) || null;
     const excludedPostIds = parseRecommendationExclusions(searchParams.get('exclude'));
 
     const session = await getApiSession(request).catch(() => null);
-    const userId = (session?.user as any)?.id || searchParams.get('userId') || null;
+    const userId = (session?.user as any)?.id || null;
 
     const { data: rawPosts, error } = await dbAdmin
       .from('creator_posts')
@@ -127,7 +128,8 @@ export async function GET(request: NextRequest) {
         posts: page,
         nextCursor: nextCursor < ranked.length ? String(nextCursor) : null,
         hasMore: nextCursor < ranked.length,
-        engineVersion: 'discovery-v4',
+        engineVersion: RECOMMENDATION_ENGINE_VERSION,
+        policyVersion: RECOMMENDATION_POLICY_VERSION,
       },
       { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0' } },
     );

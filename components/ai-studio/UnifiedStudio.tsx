@@ -1,4 +1,5 @@
 'use client';
+import ProductHint from '@/components/benefits/ProductHint';
 
 import { useEffect, useRef, useState, type ReactNode, type CSSProperties } from 'react';
 import { useSearchParams } from 'next/navigation';
@@ -34,6 +35,8 @@ export interface UnifiedStudioProps {
   select: (track: GeneratedTrack) => void;
   actions: { play: (track: GeneratedTrack) => void; download: (track: GeneratedTrack) => void; share: (track: GeneratedTrack) => void; remix: (track: GeneratedTrack) => void; reuse: (track: GeneratedTrack) => void; copyLyrics: (track: GeneratedTrack) => void; like: (track: GeneratedTrack) => void; trash: (track: GeneratedTrack) => void; folder: (track: GeneratedTrack, folder: string | null) => void; video: (track: GeneratedTrack) => void; videoBusy: boolean; publish: () => Promise<void>; publishBusy: boolean; published: boolean; permissions: ReactNode; timedLyrics: ReactNode };
   modals: ReactNode;
+  draftRecovery?: ReactNode;
+  generationRecovery?: ReactNode;
 }
 
 const inspirations = [
@@ -113,6 +116,9 @@ export default function UnifiedStudio(p: UnifiedStudioProps) {
       <main className="us-workspace">
         <div className="us-composer-drawer" id="studio-creation-drawer"><div className="us-drawer-inner"><section className="us-composer" aria-label="Créer un morceau">
           <div className="us-composer-scroll">
+          <ProductHint placement="studio" compact enabled={view === 'create' && !details && !p.generation.busy && !p.quotaLoading} />
+          {p.draftRecovery}
+          {p.generationRecovery}
           <div className="us-composer-heading"><span className="us-eyebrow"><span className="us-dot" /> VOTRE ESPACE DE CRÉATION</span><h1>Faites du <em>bruit.</em></h1><div className="us-heading-waves" aria-hidden="true">{Array.from({length: 19}, (_, i) => <i key={i} style={{'--wave': `${i * 73}ms`} as CSSProperties} />)}</div></div>
           <div className="us-mode" role="group" aria-label="Mode de création">{([['simple', 'Une idée'], ['custom', 'Mes paroles'], ['remix', 'Un audio']] as const).map(([id, label]) => <button key={id} aria-pressed={form.mode.value === id} onClick={() => form.mode.set(id)}>{label}</button>)}</div>
           {form.sourceCredit}

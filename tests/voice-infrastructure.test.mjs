@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-const source = name => readFileSync(new URL(`../infra/voice/${name}`, import.meta.url), 'utf8');
+const source = name => readFileSync(new URL(`../infra/voice/${name}`, import.meta.url), 'utf8').replaceAll('\r\n', '\n');
 
 test('voice infrastructure keeps administration local and implicit rooms disabled', () => {
   const config = source('livekit.freebox.yaml');

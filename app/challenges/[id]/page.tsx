@@ -154,7 +154,7 @@ export default function ChallengeDetailPage() {
           <p className="text-lg font-black text-[#111111]">Défi introuvable</p>
           <p className="text-sm font-semibold text-black/50">Ce défi n'existe plus ou n'est plus disponible.</p>
           <Link href="/" className="inline-flex h-11 items-center gap-2 rounded-full bg-[#111111] px-5 text-sm font-black text-white">
-            <ArrowLeft className="h-4 w-4" /> Retour au Scroll
+            <ArrowLeft className="h-4 w-4" /> Retour à l’accueil
           </Link>
         </SynauraPanel>
       </SynauraAppShell>
@@ -163,10 +163,10 @@ export default function ChallengeDetailPage() {
 
   return (
     <SynauraAppShell contentClassName="max-w-[900px]">
-      <div className="chambre-challenge space-y-4 pb-24">
+      <div className="chambre-challenge experience-refresh challenge-refresh space-y-4 pb-24">
         <Link href="/" className="inline-flex h-11 items-center gap-2 rounded-full border border-black/[0.08] bg-white px-4 text-sm font-black text-black/58 transition hover:bg-[#111111] hover:text-white">
           <ArrowLeft className="h-4 w-4" />
-          Retour au Scroll
+          Retour à l’accueil
         </Link>
 
         <SynauraPanel className="overflow-hidden p-0">

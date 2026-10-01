@@ -179,7 +179,7 @@ export default function AlbumPage() {
   }
 
   return (
-    <div className="v2-album-page chambre-signature-album" data-chambre-music="album">
+    <div className="v2-album-page chambre-signature-album experience-refresh album-refresh" data-chambre-music="album">
       {/* Background glow */}
       {album.coverUrl && (
         <div className="fixed inset-0 pointer-events-none z-0">

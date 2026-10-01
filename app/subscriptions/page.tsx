@@ -21,6 +21,8 @@ import BuyCreditsModal from '@/components/BuyCreditsModal';
 import { fetchCreditsBalance } from '@/lib/credits';
 import { CREDITS_PER_GENERATION, PLANS, WELCOME_CREDITS } from '@/lib/billing/pricing';
 import { SynauraAppShell, SynauraPanel, SynauraTopBar } from '@/components/synaura/SynauraShell';
+import ExperienceMotionFrame from '@/components/ambient/ExperienceMotionFrame';
+import './membership.css';
 
 type UsageInfo = {
   tracks: { used: number; limit: number; percentage: number };
@@ -238,50 +240,18 @@ export default function SubscriptionsPage() {
     <SynauraAppShell contentClassName="max-w-7xl">
       <SynauraTopBar searchLabel="Rechercher un son, un post ou un profil..." primaryHref="/upload" primaryLabel="Publier" secondaryHref="/settings?tab=compte" secondaryLabel="Compte" />
 
-      <main className="chambre-subscriptions experience-membership pb-28">
+      <main className="chambre-subscriptions experience-membership membership-v3">
         <header className="experience-membership-heading">
           <motion.div initial={reduceMotion ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.35 }}>
-            <p className="experience-account-eyebrow"><span aria-hidden="true">03 /</span> Les abonnements</p>
-            <h1>Fais de la place<br />à <span className="chambre-type-accent">tes idées.</span></h1>
-            <p className="experience-membership-lede">Un premier son ou toute une discographie. Trouve l’espace qui suit ton rythme de création.</p>
-            <button type="button" onClick={() => plansRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="experience-membership-explore">Explorer les plans <ArrowDown size={16} aria-hidden="true" /></button>
+            <p className="experience-account-eyebrow"><Sparkles size={14} aria-hidden="true" /> Abonnements Synaura</p>
+            <h1>Ta musique.<br /><span className="membership-gradient">Un peu plus loin.</span></h1>
+            <p className="experience-membership-lede">Synaura reste gratuit. Envie de créer davantage ? Passe à ton rythme supérieur, avec plus de crédits et tous les modèles V6.</p>
+            <button type="button" onClick={() => plansRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="experience-membership-explore">Trouver mon rythme <ArrowDown size={16} aria-hidden="true" /></button>
+            <p className="membership-reassurance">Le gratuit reste une vraie option. À toi de choisir.</p>
           </motion.div>
-          <div className="experience-membership-sculpture" aria-hidden="true"><i /><i /><i /><span>CHAMBRE<br />SONORE</span></div>
+          <div aria-hidden="true"><ExperienceMotionFrame className="membership-resonance"><i /><i /><i /><i /><div className="membership-resonance-core"><Music2 size={34} strokeWidth={1.2} /></div><span>PLUS D’ESPACE POUR TES IDÉES</span></ExperienceMotionFrame></div>
         </header>
 
-        <section className="experience-membership-overview" aria-labelledby="membership-current-heading">
-          <div className="experience-membership-pass">
-            <div className="experience-membership-pass-title">
-              <span className="experience-membership-pass-mark" aria-hidden="true"><Music2 size={22} /></span>
-              <div><p className="experience-account-eyebrow">Ton accès actuel</p><h2 id="membership-current-heading">{planName}</h2></div>
-              <span className="experience-membership-status">{subscriptionStatus === 'none' ? 'Free' : subscriptionStatus}</span>
-            </div>
-            <dl className="experience-membership-billing">
-              <Kpi label="Période" value={billingPeriod} />
-              <Kpi label="Prochain paiement" value={nextBilling} icon={<Calendar className="h-4 w-4" />} />
-            </dl>
-            <div className="experience-membership-management">
-                {!isFreeActive ? (
-                  <>
-                    <button onClick={cancelSubscription} className="h-10 rounded-full bg-red-500/12 px-4 text-xs font-black text-red-100 transition hover:bg-red-500/20">
-                      Annuler
-                    </button>
-                    <button onClick={downgradeToFree} className="h-10 rounded-full bg-white/10 px-4 text-xs font-black text-white/72 transition hover:bg-white/16">
-                      Plan gratuit
-                    </button>
-                  </>
-                ) : null}
-            </div>
-          </div>
-          <div className="experience-membership-balance">
-            <div><p className="experience-account-eyebrow">Ta réserve créative</p><p className="experience-membership-credit-number">{creditsBalance}<span>crédits</span></p><p className="experience-membership-generation"><Wand2 size={14} aria-hidden="true" /> ≈ {Math.floor(creditsBalance / CREDITS_PER_GENERATION)} générations disponibles</p></div>
-            <button type="button" onClick={() => setShowBuyCredits(true)} className="experience-account-primary"><Coins size={16} aria-hidden="true" /> Acheter des crédits</button>
-          </div>
-          <dl className="experience-membership-usage">
-            <Kpi label="Pistes publiées" value={usage ? `${usage.tracks.used} / ${formatLimit(usage.tracks.limit)}` : '—'} icon={<Upload className="h-4 w-4" />} />
-            <Kpi label="Playlists" value={usage ? `${usage.playlists.used} / ${formatLimit(usage.playlists.limit)}` : '—'} icon={<Music2 className="h-4 w-4" />} />
-          </dl>
-        </section>
 
         {(hasPaymentIssue || quotaWarnings.length > 0) && (
           <div className="grid gap-3">
@@ -325,19 +295,23 @@ export default function SubscriptionsPage() {
           <div className="experience-membership-plans-inner">
             <div className="experience-membership-section-heading">
               <div>
-                <p className="experience-account-eyebrow">Choisir ton espace</p>
-                <h2 id="membership-plans-heading">À chaque rythme, un plan.</h2>
-                <p>Les crédits non utilisés sont conservés.</p>
+                <p className="experience-account-eyebrow">Gratuit ou abonné, toujours Synaura</p>
+                <h2 id="membership-plans-heading">Choisis ton rythme.</h2>
+                <p>{period === 'year' ? 'Paiement annuel en une fois. Les crédits arrivent chaque mois.' : 'Paiement mensuel. Les crédits arrivent chaque mois.'}</p>
               </div>
-              <PeriodToggle value={period} onChange={setPeriod} />
+              <PeriodToggle value={period} onChange={(nextPeriod) => {
+                setPeriod(nextPeriod);
+                setSelectedPriceId('');
+                setPreview(null);
+              }} />
             </div>
 
             <div className="chambre-plan-grid mt-6 grid gap-4 lg:grid-cols-3">
               <PlanCard
                 title="Free"
-                description="Le premier espace pour tes sons."
+                description="Pour découvrir et essayer la création IA."
                 priceText="Gratuit"
-                badge={isFreeActive ? 'Actif' : undefined}
+                badge={isFreeActive ? (current ? 'Actif' : 'Sans paiement') : undefined}
                 active={isFreeActive}
                 features={PLANS.free.features}
                 limits={[
@@ -350,9 +324,9 @@ export default function SubscriptionsPage() {
               />
               <PlanCard
                 title="Starter"
-                description="De la place pour créer régulièrement."
+                description="Pour donner vie à tes idées, régulièrement."
                 priceText={period === 'year' ? `${formatEuro(PLANS.starter.priceYearly)} / an` : `${formatEuro(PLANS.starter.priceMonthly)} / mois`}
-                subPrice={period === 'year' ? `soit ${formatEuro(PLANS.starter.priceYearly / 12)}/mois` : 'Taxes calculées au paiement'}
+                subPrice={period === 'year' ? `soit ${formatEuro(PLANS.starter.priceYearly / 12)}/mois · facturé à l’année` : 'Facturé chaque mois'}
                 badge={isStarterActive ? 'Actif' : undefined}
                 active={isStarterActive}
                 highlight
@@ -367,9 +341,9 @@ export default function SubscriptionsPage() {
               />
               <PlanCard
                 title="Pro"
-                description="Tout l’espace pour tes projets musicaux."
+                description="Pour créer plus, sans compter tes projets."
                 priceText={period === 'year' ? `${formatEuro(PLANS.pro.priceYearly)} / an` : `${formatEuro(PLANS.pro.priceMonthly)} / mois`}
-                subPrice={period === 'year' ? `soit ${formatEuro(PLANS.pro.priceYearly / 12)}/mois` : 'Taxes calculées au paiement'}
+                subPrice={period === 'year' ? `soit ${formatEuro(PLANS.pro.priceYearly / 12)}/mois · facturé à l’année` : 'Facturé chaque mois'}
                 badge={isProActive ? 'Actif' : undefined}
                 active={isProActive}
                 features={PLANS.pro.features}
@@ -382,14 +356,21 @@ export default function SubscriptionsPage() {
                 onChoose={isProActive ? undefined : () => choosePlan(priceMap.Pro[period])}
               />
             </div>
+            <p className="membership-billing-note"><CreditCard size={14} aria-hidden="true" /> Paiement sécurisé via Stripe. Taxes éventuelles et total confirmés avant paiement.</p>
           </div>
+        </section>
+
+        <section className="membership-why" aria-label="Comprendre les abonnements">
+          <div><Wand2 size={21} aria-hidden="true" /><h2>Plus d’idées prennent vie.</h2><p>V6 Mini en gratuit. V6, V6 Wild et V6 Mini dès Starter, avec davantage de crédits en Pro.</p></div>
+          <div><Coins size={21} aria-hidden="true" /><h2>Des crédits, à ton rythme.</h2><p>Une génération = {CREDITS_PER_GENERATION} crédits. Les crédits non utilisés sont conservés.</p></div>
+          <div><Music2 size={21} aria-hidden="true" /><h2>Pas besoin de s’abonner.</h2><p>Le plan Free reste disponible. Les packs de crédits permettent aussi de compléter ton solde ponctuellement.</p></div>
         </section>
 
         <SynauraPanel className="experience-membership-comparison p-5 sm:p-7">
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.18em] text-black/38">Comparaison</p>
-              <h2 className="mt-1 text-2xl font-black tracking-tight text-[#171313]">Ce que tu débloques</h2>
+              <h2 className="mt-1 text-2xl font-black tracking-tight text-[#171313]">Les détails, sans détour.</h2>
             </div>
             <Sparkles className="h-5 w-5 text-black/24" />
           </div>
@@ -403,7 +384,8 @@ export default function SubscriptionsPage() {
               <CompareRow label="Playlists" free={String(PLANS.free.limits.maxPlaylists)} starter={String(PLANS.starter.limits.maxPlaylists)} pro="Illimité" />
               <CompareRow label="Crédits" free={`${WELCOME_CREDITS} bienvenue`} starter={`${PLANS.starter.monthlyCredits}/mois`} pro={`${PLANS.pro.monthlyCredits.toLocaleString()}/mois`} />
               <CompareRow label="Qualité audio" free={`${PLANS.free.limits.audioQualityKbps} kbps`} starter={`${PLANS.starter.limits.audioQualityKbps} kbps`} pro={`${PLANS.pro.limits.audioQualityKbps} kbps`} />
-              <CompareRow label="Messagerie" free="—" starter={PLANS.starter.featureFlags.messaging ? 'Oui' : '—'} pro={PLANS.pro.featureFlags.messaging ? 'Oui' : '—'} />
+              <CompareRow label="Modèles IA" free="V6 Mini" starter="V6 · Wild · Mini" pro="V6 · Wild · Mini" />
+              <CompareRow label="Messagerie" free="Oui" starter={PLANS.starter.featureFlags.messaging ? 'Oui' : '—'} pro={PLANS.pro.featureFlags.messaging ? 'Oui' : '—'} />
               <CompareRow label="Statistiques avancées" free="—" starter="—" pro={PLANS.pro.featureFlags.analyticsAdvanced ? 'Oui' : '—'} />
               <CompareRow label="Téléchargement" free="—" starter="—" pro={PLANS.pro.featureFlags.download ? 'Oui' : '—'} />
               </tbody>
@@ -471,18 +453,54 @@ export default function SubscriptionsPage() {
           </SynauraPanel>
         ) : null}
 
+        <div className="membership-account-heading"><p className="experience-account-eyebrow">Déjà chez toi</p><h2>Ton espace, ton abonnement.</h2></div>
+        <section className="experience-membership-overview" aria-labelledby="membership-current-heading">
+          <div className="experience-membership-pass">
+            <div className="experience-membership-pass-title">
+              <span className="experience-membership-pass-mark" aria-hidden="true"><Music2 size={22} /></span>
+              <div><p className="experience-account-eyebrow">Ton accès actuel</p><h2 id="membership-current-heading">{current ? planName : 'Ton compte'}</h2></div>
+              <span className="experience-membership-status">{current ? (subscriptionStatus === 'none' ? 'Gratuit' : subscriptionStatus === 'active' ? 'Actif' : subscriptionStatus === 'canceled' ? 'Annulé' : subscriptionStatus === 'trial' ? 'Essai' : subscriptionStatus === 'expired' ? 'Expiré' : 'Paiement à vérifier') : 'Indisponible'}</span>
+            </div>
+            <dl className="experience-membership-billing">
+              <Kpi label="Période" value={billingPeriod} />
+              <Kpi label="Prochain paiement" value={nextBilling} icon={<Calendar className="h-4 w-4" />} />
+            </dl>
+            <div className="experience-membership-management">
+                {!isFreeActive ? (
+                  <>
+                    <button onClick={cancelSubscription} className="h-10 rounded-full bg-red-500/12 px-4 text-xs font-black text-red-100 transition hover:bg-red-500/20">
+                      Résilier l’abonnement
+                    </button>
+                    <button onClick={downgradeToFree} className="h-10 rounded-full bg-white/10 px-4 text-xs font-black text-white/72 transition hover:bg-white/16">
+                      Plan gratuit
+                    </button>
+                  </>
+                ) : null}
+            </div>
+          </div>
+          <div className="experience-membership-balance">
+            <div><p className="experience-account-eyebrow">Tes crédits</p><p className="experience-membership-credit-number">{current ? creditsBalance : '—'}<span>crédits</span></p><p className="experience-membership-generation"><Wand2 size={14} aria-hidden="true" /> {current ? `≈ ${Math.floor(creditsBalance / CREDITS_PER_GENERATION)} générations disponibles` : 'Connecte-toi pour consulter ton solde.'}</p></div>
+            <button type="button" onClick={() => setShowBuyCredits(true)} className="experience-account-primary"><Coins size={16} aria-hidden="true" /> Acheter des crédits</button>
+          </div>
+          <dl className="experience-membership-usage">
+            <Kpi label="Pistes publiées" value={usage ? `${usage.tracks.used} / ${formatLimit(usage.tracks.limit)}` : '—'} icon={<Upload className="h-4 w-4" />} />
+            <Kpi label="Playlists" value={usage ? `${usage.playlists.used} / ${formatLimit(usage.playlists.limit)}` : '—'} icon={<Music2 className="h-4 w-4" />} />
+          </dl>
+        </section>
+
         <SynauraPanel className="experience-membership-faq p-5 sm:p-7">
           <div className="flex items-start justify-between gap-4">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.18em] text-black/38">FAQ</p>
-              <h2 className="mt-1 text-2xl font-black tracking-tight text-[#171313]">Questions fréquentes</h2>
+              <h2 className="mt-1 text-2xl font-black tracking-tight text-[#171313]">Tout simplement.</h2>
             </div>
             <HelpCircle className="h-5 w-5 text-black/24" />
           </div>
           <div className="mt-5 grid gap-3 md:grid-cols-2">
-            <FaqItem q="Les crédits expirent ?" a="Non. Les crédits non utilisés sont conservés." />
+            <FaqItem q="Faut-il un abonnement pour utiliser Synaura ?" a="Non. Free permet de découvrir la musique et de commencer à créer avec V6 Mini. Les abonnements ajoutent des crédits et des possibilités, sans remplacer le gratuit." />
+            <FaqItem q="Les crédits expirent ?" a="Non. Les crédits non utilisés sont conservés. Un pack de crédits est un achat ponctuel, pas un abonnement, et ne change pas les modèles inclus dans ton plan." />
             <FaqItem q="Je peux annuler quand je veux ?" a="Oui. Tu gardes l’accès jusqu’à la fin de la période." />
-            <FaqItem q="Combien coûte une génération ?" a={`Une génération consomme ${CREDITS_PER_GENERATION} crédits.`} />
+            <FaqItem q="Comment fonctionne le paiement annuel ?" a="Le montant annuel affiché est facturé en une fois. Les crédits de ton abonnement sont attribués chaque mois, pas tous au début de l’année." />
             <FaqItem q="Je change de plan en cours de période ?" a="Si tu es déjà abonné, un aperçu de proration est affiché avant paiement." />
           </div>
         </SynauraPanel>
@@ -587,21 +605,21 @@ function PlanCard({
       data-plan-active={Boolean(active)}
       className="chambre-plan experience-membership-plan"
     >
-      <div className="experience-membership-plan-art" aria-hidden="true"><i /><i /><i /><span>{title === 'Free' ? '01' : title === 'Starter' ? '02' : '03'}</span></div>
+      <div className="experience-membership-plan-art" aria-hidden="true"><i /><i /><i /></div>
       <div className="experience-membership-plan-heading"><h3>{title}</h3>{badge ? <span className="experience-membership-plan-badge"><Check size={12} aria-hidden="true" />{badge}</span> : null}</div>
       <p className="experience-membership-plan-description">{description}</p>
       <div className="experience-membership-plan-price">
         <p>{priceText}</p>
-        <span>{subPrice || 'Sans abonnement payant'}</span>
+        <span>{subPrice || 'Sans carte bancaire · sans abonnement'}</span>
       </div>
-      <button type="button" disabled={!onChoose} onClick={onChoose} aria-label={active ? `Plan ${title} actif` : `Choisir le plan ${title}`} className="experience-membership-plan-choose">
-        {active ? 'Plan actif' : 'Choisir ce plan'}{active ? <Check size={16} aria-hidden="true" /> : <ArrowUpRight size={17} aria-hidden="true" />}
+      <button type="button" disabled={!onChoose} onClick={onChoose} aria-label={active ? (badge === 'Sans paiement' ? 'Free inclus avec un compte gratuit' : `Plan ${title} actif`) : `Choisir le plan ${title}`} className="experience-membership-plan-choose">
+        {active ? (badge === 'Sans paiement' ? 'Inclus avec ton compte' : 'Plan actif') : 'Choisir ce plan'}{active ? <Check size={16} aria-hidden="true" /> : <ArrowUpRight size={17} aria-hidden="true" />}
       </button>
       <dl className="experience-membership-plan-limits">
         {limits.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}
       </dl>
       <ul className="experience-membership-plan-features">
-        {features.filter(Boolean).slice(0, 6).map((feature) => <li key={feature}><Check size={14} aria-hidden="true" />{feature}</li>)}
+        {features.filter((feature) => Boolean(feature) && !/crédits/i.test(feature)).slice(0, 6).map((feature) => <li key={feature}><Check size={14} aria-hidden="true" />{feature}</li>)}
       </ul>
     </motion.article>
   );
@@ -615,9 +633,9 @@ function CompareRow({ label, free, starter, pro }: { label: string; free: string
 
 function FaqItem({ q, a }: { q: string; a: string }) {
   return (
-    <div className="experience-membership-faq-item">
-      <h3 className="text-sm font-black text-[#171313]">{q}</h3>
+    <details className="experience-membership-faq-item">
+      <summary>{q}<span aria-hidden="true">+</span></summary>
       <p className="mt-2 text-sm font-semibold leading-6 text-black/52">{a}</p>
-    </div>
+    </details>
   );
 }

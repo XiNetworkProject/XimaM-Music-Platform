@@ -4,6 +4,7 @@ import { applyPublicAiTrackFilter, applyPublicTrackFilter } from '@/lib/publicTr
 import { remixPermissionsFromRow } from '@/lib/remixPermissions';
 import { computeTrackDiscoveryMetrics, globalDiscoveryScore } from '@/lib/ranking';
 import type { RecommendedTrack } from './types';
+import { campaignDefinition, type ActiveCampaign } from '../boosters/campaigns.ts';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const RECENT_CANDIDATE_LIMIT = 240;
@@ -156,7 +157,7 @@ async function loadGlobalTrackCandidatesUncached(includeAi: boolean): Promise<Re
         .limit(AI_CANDIDATE_LIMIT)
     : Promise.resolve({ data: [], error: null } as any);
 
-  const [normalResult, popularRows, catalogRows, aiResult, statsRows, recentEvents, boosts] = await Promise.all([
+  const [normalResult, popularRows, catalogRows, aiResult, statsRows, recentEvents, boosts, artistBoosts, boostCatalog] = await Promise.all([
     normalQuery,
     optionalRows<any>(() => popularQuery),
     optionalRows<any>(() => catalogQuery),
@@ -175,9 +176,11 @@ async function loadGlobalTrackCandidatesUncached(includeAi: boolean): Promise<Re
       .limit(12000)),
     optionalRows<any>(() => dbAdmin
       .from('active_track_boosts')
-      .select('track_id, multiplier, expires_at')
+      .select('track_id, booster_id, multiplier, expires_at')
       .gt('expires_at', new Date(now).toISOString())
       .limit(1000)),
+    optionalRows<any>(() => dbAdmin.from('active_artist_boosts').select('artist_id, booster_id, multiplier, expires_at').gt('expires_at', new Date(now).toISOString()).limit(500)),
+    optionalRows<any>(() => dbAdmin.from('boosters').select('id,key').limit(1000)),
   ]);
   if (normalResult.error) throw normalResult.error;
   if (aiResult.error) throw aiResult.error;
@@ -199,8 +202,17 @@ async function loadGlobalTrackCandidatesUncached(includeAi: boolean): Promise<Re
         .select(NORMAL_TRACK_SELECT))
         .in('id', qualityIds))
     : [];
+  const boostKeys = new Map(boostCatalog.map((item: any) => [String(item.id), String(item.key)]));
+  const campaignTrackIds = Array.from(new Set(boosts.filter((row: any) => campaignDefinition(boostKeys.get(String(row.booster_id)))).map((row: any) => String(row.track_id))));
+  const campaignArtistIds = Array.from(new Set(artistBoosts.filter((row: any) => campaignDefinition(boostKeys.get(String(row.booster_id)))?.family === 'constellation').map((row: any) => String(row.artist_id))));
+  // Active campaigns must be candidates even when outside recent/popular windows.
+  // Two bounded batch reads, never a per-booster N+1 query; privacy filters stay on.
+  const [campaignTracks, campaignArtistTracks] = await Promise.all([
+    campaignTrackIds.length ? optionalRows<any>(() => applyPublicTrackFilter(dbAdmin.from('tracks').select(NORMAL_TRACK_SELECT)).in('id', campaignTrackIds).limit(1000)) : [],
+    campaignArtistIds.length ? optionalRows<any>(() => applyPublicTrackFilter(dbAdmin.from('tracks').select(NORMAL_TRACK_SELECT)).in('creator_id', campaignArtistIds).order('created_at', { ascending: false }).limit(300)) : [],
+  ]);
   const normalById = new Map<string, any>();
-  for (const row of [...(normalResult.data || []), ...popularRows, ...catalogRows, ...qualityRows]) {
+  for (const row of [...(normalResult.data || []), ...popularRows, ...catalogRows, ...qualityRows, ...campaignTracks, ...campaignArtistTracks]) {
     if (row?.id && !normalById.has(String(row.id))) normalById.set(String(row.id), row);
   }
   const normalRows = Array.from(normalById.values());
@@ -238,12 +250,23 @@ async function loadGlobalTrackCandidatesUncached(includeAi: boolean): Promise<Re
   const savesMap = new Map<string, number>();
   const reactionsMap = new Map<string, number>();
   const boostsMap = new Map<string, number>();
+  const campaignsMap = new Map<string, ActiveCampaign[]>();
+  const artistCampaignsMap = new Map<string, ActiveCampaign[]>();
   for (const row of commentRows) increment(commentsMap, row.track_id);
   for (const row of saveRows) increment(savesMap, row.track_id);
   for (const row of reactionRows) increment(reactionsMap, row.track_id);
   for (const row of boosts) {
     const id = String(row.track_id || '');
-    if (id) boostsMap.set(id, Math.max(boostsMap.get(id) || 1, Number(row.multiplier || 1)));
+    const key = boostKeys.get(String(row.booster_id));
+    if (id && campaignDefinition(key)) campaignsMap.set(id, [...(campaignsMap.get(id) || []), { key: key!, multiplier: Number(row.multiplier), expiresAt: row.expires_at }]);
+    else if (id) boostsMap.set(id, Math.max(boostsMap.get(id) || 1, Number(row.multiplier || 1)));
+  }
+  for (const row of artistBoosts) {
+    const key = boostKeys.get(String(row.booster_id));
+    if (campaignDefinition(key)?.family === 'constellation') {
+      const id = String(row.artist_id);
+      artistCampaignsMap.set(id, [...(artistCampaignsMap.get(id) || []), { key: key!, multiplier: Number(row.multiplier), expiresAt: row.expires_at }]);
+    }
   }
 
   const metricsFor = (id: string, row: any, profile: any, isAI: boolean) => {
@@ -251,9 +274,11 @@ async function loadGlobalTrackCandidatesUncached(includeAi: boolean): Promise<Re
     const created = row.created_at ? new Date(row.created_at).getTime() : now;
     const ageHours = Math.max(0, (now - created) / 3_600_000);
     return computeTrackDiscoveryMetrics({
-      plays_30d: Number(stats.plays_30d || (isAI ? row.play_count : row.plays) || 0),
+      // Missing rolling statistics are unknown, not lifetime totals. In
+      // particular, a measured zero must stay zero for dormant catalogue items.
+      plays_30d: Number(stats.plays_30d ?? 0),
       completes_30d: Number(stats.completes_30d || 0),
-      likes_30d: Number(stats.likes_30d || (isAI ? row.like_count : row.likes_count ?? row.likes) || 0),
+      likes_30d: Number(stats.likes_30d ?? 0),
       shares_30d: Number(stats.shares_30d || 0),
       favorites_30d: Number(stats.favorites_30d || 0),
       listen_ms_30d: Number(stats.listen_ms_30d || 0),
@@ -292,6 +317,8 @@ async function loadGlobalTrackCandidatesUncached(includeAi: boolean): Promise<Re
       audioUrl: track.audio_url,
       album: track.album || null,
       genre: track.genre || [],
+      discoveryTags: Array.isArray(readJsonObject(track.data).tags) ? readJsonObject(track.data).tags.filter((tag: unknown) => typeof tag === 'string').slice(0, 20) : [],
+      discoveryMood: typeof readJsonObject(track.data).mood === 'string' ? readJsonObject(track.data).mood.slice(0, 120) : '',
       lyrics: track.lyrics || null,
       likes: [],
       likesCount: Number(track.likes_count ?? track.likes ?? metrics.likes30d),
@@ -309,6 +336,7 @@ async function loadGlobalTrackCandidatesUncached(includeAi: boolean): Promise<Re
       isLiked: false,
       isBoosted: boostMultiplier > 1,
       boostMultiplier: boostMultiplier > 1 ? boostMultiplier : undefined,
+      boostCampaigns: [...(campaignsMap.get(String(track.id)) || []), ...(artistCampaignsMap.get(String(track.creator_id)) || [])],
       isFresh: metrics.freshnessScore >= 4.8,
       radarScore: Math.round(metrics.emergingScore * 10),
       ...remixPermissionsFromRow(track),
@@ -366,6 +394,6 @@ async function loadGlobalTrackCandidatesUncached(includeAi: boolean): Promise<Re
 
 export const loadGlobalTrackCandidates = unstable_cache(
   loadGlobalTrackCandidatesUncached,
-  ['synaura-discovery-v3-candidates'],
+  ['synaura-discovery-v5-candidates'],
   { revalidate: 45, tags: ['synaura-discovery-candidates'] },
 );

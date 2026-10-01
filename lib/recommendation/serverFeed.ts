@@ -6,6 +6,7 @@ import { loadGlobalTrackCandidates } from './candidates';
 import { rerankTracks } from './engine';
 import { sortTracksNewest } from './chronological';
 import type { RecommendationStrategy } from './types';
+import { boundedInteger, RECOMMENDATION_ENGINE_VERSION, RECOMMENDATION_POLICY_VERSION } from './policy';
 
 type DiscoveryFeedMode = 'all' | 'following' | 'boosted';
 
@@ -19,8 +20,7 @@ type DiscoveryFeedOptions = {
 };
 
 function integerParam(value: string | null, fallback: number, min: number, max: number) {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? Math.max(min, Math.min(max, Math.round(parsed))) : fallback;
+  return boundedInteger(value, fallback, min, max);
 }
 
 export async function legacyDiscoveryFeed(request: NextRequest, options: DiscoveryFeedOptions) {
@@ -41,23 +41,24 @@ export async function legacyDiscoveryFeed(request: NextRequest, options: Discove
       sessionId: requestedSessionId,
     });
 
-    let source = candidates;
+    let source = candidates.filter((track) => !signals.hiddenArtistIds.has(String(track.artist?._id || '')));
     if (options.mode === 'following') {
       if (!userId) source = [];
-      else source = candidates.filter((track) => signals.followedArtistIds.has(String(track.artist?._id || '')));
+      else source = source.filter((track) => signals.followedArtistIds.has(String(track.artist?._id || '')));
     } else if (options.mode === 'boosted') {
-      source = candidates.filter((track) => track.isBoosted);
+      source = source.filter((track) => track.isBoosted || track.boostCampaigns?.length);
     }
 
     const rankedSource = options.strictChronological
       ? sortTracksNewest(source)
       : rerankTracks(source, signals, {
+          surface: 'live',
           strategy: options.strategy,
           sessionSeed,
           maxConsecutiveArtists: 1,
           maxPerArtist: 3,
         });
-    const ranked = rankedSource.map((track) => ({
+    const ranked = rankedSource.filter((track) => options.mode !== 'boosted' || track.isBoosted || track.campaignPromoted).map((track) => ({
       ...track,
       isLiked: signals.likedTrackIds.has(String(track._id)),
     }));
@@ -68,7 +69,8 @@ export async function legacyDiscoveryFeed(request: NextRequest, options: Discove
       tracks,
       nextCursor,
       hasMore: nextCursor < ranked.length,
-      engineVersion: 'discovery-v2',
+      engineVersion: RECOMMENDATION_ENGINE_VERSION,
+      policyVersion: RECOMMENDATION_POLICY_VERSION,
       sessionId: sessionSeed,
     }, {
       headers: {

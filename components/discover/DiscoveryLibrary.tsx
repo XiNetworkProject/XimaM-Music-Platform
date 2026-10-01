@@ -1,4 +1,5 @@
 'use client';
+import ProductHint from '@/components/benefits/ProductHint';
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, type CSSProperties } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
@@ -162,6 +163,7 @@ export default function DiscoveryLibrary() {
       {tab === 'explore' && !mood && <><Hero tracks={tracks} total={total || 0} onBrowse={() => chooseTab('tracks')} />{catalogue.isError && <Failure retry={catalogue.refetch} />}
         <section className="dl-moods" aria-label="Explorer les ambiances"><div className="dl-moods-heading"><span className="dl-eyebrow">Trouvez votre fréquence</span><p>Vous êtes plutôt…</p></div><div className="dl-moods-grid">{DISCOVER_MOODS.map((item, i) => <button type="button" key={item.id} onClick={() => { setMood(item.id); returnToTop(); }} className={`dl-mood dl-mood--${i}`}><span className="dl-mood-art" aria-hidden="true">{i % 3 === 0 ? <Moon /> : i % 3 === 1 ? <Music2 /> : <Zap />}</span><span>{item.label}</span><ArrowUpRight size={15} /></button>)}</div></section>
         <section className="dl-section"><SectionHeading eyebrow="La sélection du moment" title="En rotation." onAction={() => chooseTab('tracks')} />{catalogue.isPending ? <Skeleton /> : tracks.length ? <div className="dl-track-grid">{tracks.slice(0, 6).map((track, index) => <DiscoveryTrackCard key={track._id} track={track} queue={tracks} index={index} />)}</div> : !catalogue.isError && <Empty />}</section>
+        <ProductHint placement="discover" />
         <Deferred><FreshSection onAll={() => chooseTab('newest')} /></Deferred>
         {!!artists.length && <section className="dl-section"><SectionHeading eyebrow="Rencontrez ceux qui font le son" title="Plus qu’une voix." onAction={() => chooseTab('artists')} /><div className="dl-artist-grid dl-artist-grid--preview">{artists.slice(0, 6).map(artist => <DiscoveryArtistCard key={artist._id} artist={artist} />)}</div></section>}
         <Deferred><PostsSection preview onAll={() => chooseTab('posts')} /></Deferred>

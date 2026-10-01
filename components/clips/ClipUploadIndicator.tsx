@@ -9,11 +9,11 @@ export default function ClipUploadIndicator() {
   const task = useSyncExternalStore(subscribeClientClipUpload, getClientClipUploadSnapshot, getClientClipUploadServerSnapshot);
   const busy = !['idle', 'failed', 'completed'].includes(task.status);
   useEffect(() => {
-    if (!busy) return;
+    if (!busy && task.status !== 'failed') return;
     const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ''; };
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
-  }, [busy]);
+  }, [busy, task.status]);
   if (task.status === 'idle') return null;
   const failed = task.status === 'failed';
   const completed = task.status === 'completed';
@@ -23,6 +23,7 @@ export default function ClipUploadIndicator() {
   return <aside className="clip-upload-badge" aria-label="Suivi de votre clip" data-state={task.status}>
     <span className="clip-upload-symbol" aria-hidden="true">{completed ? <Check /> : failed ? <RefreshCw /> : transferring ? <Upload /> : <Loader2 className="clip-upload-spinner" />}</span>
     <div className="clip-upload-description"><p role="status" aria-live="polite" aria-atomic="true">{label}</p><span>{failed ? task.error : busy ? 'Vous pouvez continuer à naviguer.' : 'Disponible dans Live'}</span>
+      {failed && <span>Le fichier reste disponible tant que cet onglet reste ouvert. Réessayer peut reprendre l’envoi depuis le début.</span>}
       {transferring && <progress value={percent} max={100} aria-label="Octets de la vidéo transférés" />}
     </div>
     {failed && <button onClick={retryClientClipUpload} aria-label="Réessayer l’envoi du clip"><RefreshCw size={17} /></button>}

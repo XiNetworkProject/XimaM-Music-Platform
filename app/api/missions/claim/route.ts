@@ -1,96 +1,14 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
-import { dbAdmin } from '@/lib/database';
-
+import { NextRequest } from 'next/server';
+import { boosterMutation } from '@/lib/boosters/http';
+import { claimMission, BoosterError } from '@/lib/boosters/service';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-
 export async function POST(request: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions);
-    const userId = (session?.user as any)?.id as string | undefined;
-    if (!userId) {
-      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
-    }
-
-    const body = await request.json();
-    const { missionId } = body || {};
-    if (!missionId) {
-      return NextResponse.json({ error: 'missionId requis' }, { status: 400 });
-    }
-
-    // Lire mission + progression
-    const [{ data: mission, error: mErr }, { data: um, error: uErr }] = await Promise.all([
-      dbAdmin.from('missions').select('id, reward_booster_id, threshold, cooldown_hours').eq('id', missionId).single(),
-      dbAdmin.from('user_missions').select('id, progress, completed_at, claimed').eq('user_id', userId).eq('mission_id', missionId).maybeSingle(),
-    ]);
-    if (mErr || !mission) {
-      return NextResponse.json({ error: 'Mission introuvable' }, { status: 404 });
-    }
-    // Reset si mission déjà réclamée et cooldown passé
-    if (um?.claimed && um?.completed_at && Number(mission.cooldown_hours || 0) > 0) {
-      const cdMs = Number(mission.cooldown_hours || 0) * 3_600_000;
-      const elapsed = Date.now() - new Date(um.completed_at).getTime();
-      if (elapsed >= cdMs) {
-        await dbAdmin
-          .from('user_missions')
-          .update({ progress: 0, completed_at: null, claimed: false, last_progress_at: null })
-          .eq('user_id', userId)
-          .eq('mission_id', missionId);
-        return NextResponse.json({ error: 'Mission réinitialisée (cooldown). Recommence-la.' }, { status: 400 });
-      }
-    }
-
-    if (!um || um.progress < mission.threshold || um.claimed) {
-      return NextResponse.json({ error: 'Mission non terminée ou déjà réclamée' }, { status: 400 });
-    }
-
-    // Attribuer booster si dispo
-    if (mission.reward_booster_id) {
-      const [{ data: booster }, { error: invErr }] = await Promise.all([
-        dbAdmin
-          .from('boosters')
-          .select('id, key, rarity, type, multiplier, duration_hours')
-          .eq('id', mission.reward_booster_id)
-          .maybeSingle(),
-        dbAdmin
-          .from('user_boosters')
-          .insert({ user_id: userId, booster_id: mission.reward_booster_id, status: 'owned', metadata: { source: 'mission' } }),
-      ]);
-      if (invErr) {
-        return NextResponse.json({ error: 'Erreur attribution récompense' }, { status: 500 });
-      }
-
-      // Historique best-effort
-      try {
-        await dbAdmin.from('user_booster_open_history').insert({
-          user_id: userId,
-          source: 'mission',
-          booster_id: mission.reward_booster_id,
-          booster_key: (booster as any)?.key ?? null,
-          rarity: (booster as any)?.rarity ?? null,
-          type: (booster as any)?.type ?? null,
-          multiplier: (booster as any)?.multiplier ?? null,
-          duration_hours: (booster as any)?.duration_hours ?? null,
-        });
-      } catch {}
-    }
-
-    // Marquer claim
-    const { error: updErr } = await dbAdmin
-      .from('user_missions')
-      .update({ claimed: true, completed_at: um.completed_at || new Date().toISOString() })
-      .eq('user_id', userId)
-      .eq('mission_id', missionId);
-    if (updErr) {
-      return NextResponse.json({ error: 'Erreur mise à jour claim' }, { status: 500 });
-    }
-
-    return NextResponse.json({ ok: true });
-  } catch (e) {
-    return NextResponse.json({ error: 'Erreur interne' }, { status: 500 });
-  }
+  const body = await request.json().catch(() => ({}));
+  return boosterMutation((db, userId) => {
+    const id = String(body?.missionId || '');
+    if (!/^[0-9a-f-]{36}$/i.test(id))
+      throw new BoosterError('Mission invalide.');
+    return claimMission(db, userId, id);
+  });
 }
-
-

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
 import { dbAdmin } from '@/lib/database';
 import { applyPublicTrackFilter } from '@/lib/publicTracks';
+import { boundedInteger, interleaveMusicAndPosts, RECOMMENDATION_ENGINE_VERSION, RECOMMENDATION_POLICY_VERSION } from '@/lib/recommendation/policy';
 import {
   buildRecommendationSignals,
   loadGlobalTrackCandidates,
@@ -117,14 +118,14 @@ async function loadPostCandidates(limit: number, userId: string | null) {
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
-    const limit = Math.min(Math.max(parseInt(searchParams.get('limit') || '24', 10) || 24, 1), 60);
-    const cursor = Math.max(parseInt(searchParams.get('cursor') || '0', 10) || 0, 0);
+    const limit = boundedInteger(searchParams.get('limit'), 24, 1, 60);
+    const cursor = boundedInteger(searchParams.get('cursor'), 0, 0, 20000);
     const debug = searchParams.get('debug') === '1';
     const recommendationSessionId = searchParams.get('session')?.slice(0, 120) || null;
     const excludedTrackIds = parseRecommendationExclusions(searchParams.get('excludeTracks'));
     const excludedPostIds = parseRecommendationExclusions(searchParams.get('excludePosts'));
     const session = await getApiSession(request).catch(() => null);
-    const userId = (session?.user as any)?.id || searchParams.get('userId') || null;
+    const userId = (session?.user as any)?.id || null;
 
     const [trackCandidates, postCandidates] = await Promise.all([
       loadTrackCandidates(limit),
@@ -139,6 +140,7 @@ export async function GET(request: NextRequest) {
     });
 
     const allRankedTracks = rerankTracks(trackCandidates, signals, {
+      surface: 'live',
       strategy: 'reco',
       debug,
       maxConsecutiveArtists: 1,
@@ -152,25 +154,11 @@ export async function GET(request: NextRequest) {
       ? allRankedPosts.filter((post) => !excludedPostIds.has(String(post.id)))
       : allRankedPosts;
     const dailyMix = allRankedTracks.slice(0, 12);
-    const weeklyTop = [...trackCandidates]
-      .sort((a: any, b: any) => (b.rankingScore || 0) - (a.rankingScore || 0))
-      .slice(0, 12);
-    const mixed: Array<{ id: string; type: 'track' | 'post'; score: number; track?: RecommendedTrack; post?: RecommendedPost }> = [];
-    let ti = 0;
-    let pi = 0;
-    while ((ti < tracks.length || pi < posts.length) && mixed.length < Math.max(180, limit * 8)) {
-      if (tracks[ti]) {
-        mixed.push({ id: `track-${tracks[ti]._id}`, type: 'track', score: tracks[ti].recommendationScore || 0, track: tracks[ti] });
-        ti += 1;
-      }
-      if (posts[pi] && mixed.length % 4 !== 3) {
-        mixed.push({ id: `post-${posts[pi].id}`, type: 'post', score: posts[pi].recommendationScore || 0, post: posts[pi] });
-        pi += 1;
-      } else if (posts[pi] && ti % 3 === 0) {
-        mixed.push({ id: `post-${posts[pi].id}`, type: 'post', score: posts[pi].recommendationScore || 0, post: posts[pi] });
-        pi += 1;
-      }
-    }
+    const weeklyTop = rerankTracks(trackCandidates, signals, { strategy: 'trending', sessionSeed: 'weekly-top' }).slice(0, 12);
+    const mixed: Array<{ id: string; type: 'track' | 'post'; score: number; track?: RecommendedTrack; post?: RecommendedPost }> =
+      interleaveMusicAndPosts(tracks, posts, 480).map((item) => item.type === 'track'
+        ? { id: `track-${item.value._id}`, type: 'track', score: item.value.recommendationScore || 0, track: item.value }
+        : { id: `post-${item.value.id}`, type: 'post', score: item.value.recommendationScore || 0, post: item.value });
 
     const page = mixed.slice(cursor, cursor + limit);
     const nextCursor = cursor + page.length;
@@ -184,7 +172,8 @@ export async function GET(request: NextRequest) {
         weeklyTop,
         nextCursor: nextCursor < mixed.length ? String(nextCursor) : null,
         hasMore: nextCursor < mixed.length,
-        engineVersion: 'discovery-v4',
+        engineVersion: RECOMMENDATION_ENGINE_VERSION,
+        policyVersion: RECOMMENDATION_POLICY_VERSION,
       },
       { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0' } },
     );

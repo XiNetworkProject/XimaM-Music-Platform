@@ -16,7 +16,7 @@ export function localHandoffUrl(href: string): URL | null {
 
 export function isHandoffDestination(href: string) {
   const path = localHandoffUrl(href)?.pathname;
-  return Boolean(path && /^(?:\/create(?:\/|$)|\/ai-generator$|\/ai-library$|\/studio$|\/upload$|\/clips\/new$|\/messages(?:\/|$)|\/notifications$|\/community(?:\/|$)|\/city$|\/posts(?:\/|$)|\/challenges(?:\/|$))/.test(path));
+  return Boolean(path && /^(?:\/create(?:\/|$)|\/ai-generator$|\/ai-library$|\/studio$|\/upload$|\/clips\/new$|\/messages(?:\/|$)|\/notifications$|\/community(?:\/|$)|\/city$|\/posts(?:\/|$)|\/challenges(?:\/|$)|\/boosters$|\/subscriptions$)/.test(path));
 }
 
 export function safeProfileReturn(value: string | null): string | null {

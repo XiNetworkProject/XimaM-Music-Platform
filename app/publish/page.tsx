@@ -3,6 +3,7 @@ import Link from '@/components/navigation/HandoffLink';
 import { ArrowRight, Upload } from 'lucide-react';
 import { SynauraAppShell, SynauraRouteNav, SynauraTopBar } from '@/components/synaura/SynauraShell';
 import HandoffReturn from '@/components/navigation/HandoffReturn';
+import ProductHint from '@/components/benefits/ProductHint';
 
 export const metadata: Metadata = {
   title: 'Publier ma musique — Synaura',
@@ -33,7 +34,7 @@ const STEPS = [
 
 export default function PublishPage() {
   return (
-    <SynauraAppShell contentClassName="v2-creation chambre-signature-publish experience-creation experience-publish !max-w-[1480px]">
+    <SynauraAppShell contentClassName="v2-creation chambre-signature-publish experience-creation experience-publish experience-refresh publish-refresh !max-w-[1480px]">
       <SynauraTopBar />
       <SynauraRouteNav />
       <div className="mb-6"><HandoffReturn fallbackHref="/create" fallbackLabel="Retour à l’atelier" /></div>
@@ -59,7 +60,7 @@ export default function PublishPage() {
           </div>
           <Link href="/clips/new" className="experience-release-path experience-release-clip">
             <span className="experience-release-path-index"><span className="experience-format-frame" aria-hidden="true" /><small>CLIP</small></span>
-            <span className="experience-release-path-copy"><strong>Un instant en image.</strong><span>Ta vidéo verticale et un son Synaura, réunis dans un Clip.</span><small>Préparer un Clip <ArrowRight size={16} aria-hidden="true" /></small></span>
+            <span className="experience-release-path-copy"><strong>Un instant en image.</strong><span>Ta vidéo et un son Synaura, réunis dans un Clip.</span><small>Préparer un Clip <ArrowRight size={16} aria-hidden="true" /></small></span>
           </Link>
           <Link href="/posts?compose=true" className="experience-release-path experience-release-post">
             <span className="experience-release-path-index"><span className="experience-format-lines" aria-hidden="true" /><small>POST</small></span>
@@ -75,6 +76,7 @@ export default function PublishPage() {
         </aside>
       </div>
       <div className="chambre-signature-release-guide">
+        <ProductHint placement="publish" />
         <div className="chambre-signature-section-heading"><p className="v2-kicker">Le parcours audio</p><h2>Trois étapes avant l’écoute.</h2><span>01 — 03</span></div>
         <section className="chambre-signature-release-steps" aria-label="Les étapes de publication">
           {STEPS.map(({ number, title, description, details, cta }) => (

@@ -1,6 +1,6 @@
 # Live Experience — bilan final Phase 4B
 
-**Phase 4B.8 validée techniquement ; livraison finale autorisée par l’utilisateur après les gates ciblés.** Point de retour avant livraison : `2af010a8dfb44bd7636f0d3a4d407d852f1bd657` (4B.7). La clôture production et le tag exigent le smoke et la vérification du SHA servi.
+**CLOSED / DEPLOYED : Phase 4B Live Experience.** Production et tag annoté poussé `synaura-live-4b-baseline` pointent exactement sur `f71bd509e9de9eecb1817f87bbc6b58fb23f517f`. Les sections historiques de validation ci-dessous sont complétées par le bilan opérationnel final. Rollback 4B.7 conservé : `2af010a8dfb44bd7636f0d3a4d407d852f1bd657`.
 
 ## Phases et architecture conservée
 
@@ -101,3 +101,29 @@ Build `MkYEeSiTGlua0BV-39ylB` PASS ; type-check et **268/268 tests PASS** ; gold
 - **Réserves QA : Android/Gboard réel NON TESTÉ ; NVDA réel NON TESTÉ.**
 - **Bugs externes OPEN : Community Feedback 500, hors 4B.8 ; Cloudinary historiques 401, correctif séparé.**
 - **Aucune nouvelle feature Aura ; aucune Phase 4B.9.**
+
+## Livraison opérationnelle — suivi postcommit local
+
+Commit livré : **`f71bd509e9de9eecb1817f87bbc6b58fb23f517f`**, push `origin/migration/freebox-storage` effectué. Déploiement canonique déclenché le 13 septembre à 00:00:48 Paris / 12 septembre 22:00:48 UTC. Aucun changement d’infrastructure, d’AudioCore ou de contrat métier ; 19 fichiers ciblés, neuf modifications utilisateur/natives laissées intactes.
+
+Les rapports de gates sont versionnés dans ce commit. Ce suivi opérationnel post-bascule reste local afin de ne pas provoquer un second déploiement documentaire ; le tag annoté identifie exactement la release servie après vérification.
+
+### Résultat final — production vérifiée
+
+Build serveur 15 min 51,968 s, préflight PASS, bascule saine à **00:18:27 Paris le 13 septembre 2026**. Une sonde à 8 s a expiré pendant le build sous pression mémoire ; recontrôles HTTP 200, aucun redémarrage automatique ni tuning. Incident documenté dans le rapport 4B.8, sans revendiquer une disponibilité ininterrompue.
+
+Smokes authentifiés **53/53 desktop + 53/53 mobile PASS** : Live, Peek, Comments/Moments, six Actions, Track → Back, AI → Retour Live, Notifications mobile nommées. Même activeItemId/filtre/queue ; un seul élément musical restant en lecture, zéro mutation audio supplémentaire et zéro item initial transitoire. Zéro exception JavaScript/nouvelle erreur console ou app ; quatre 401 Cloudinary et un 403 admin Suno attendu par passe sont distingués.
+
+Healthz HTTP 200 `ok`, service actif, NRestarts=0 ; logs depuis bascule sans nouvelle erreur ciblée ni entrée priorité error. Disque final **45 %, environ 32 Go libres**. Rétention canonique : 4B.5 retirée (~1,92 Go, reconstructible depuis Git), rollbacks 4B.7 et 4B.6 conservés ; aucun média utilisateur supprimé.
+
+`current` = `last-successful-sha` = HEAD/origin = **`f71bd509e9de9eecb1817f87bbc6b58fb23f517f`**. Tag annoté **`synaura-live-4b-baseline` créé et poussé seulement après production saine**, cible distante vérifiée identique au commit servi. Index vide ; aucun code modifié après commit ; modifications utilisateur/natives préservées. Les deux rapports comportent cet addendum local post-déploiement non committé, sans seconde livraison documentaire.
+
+### Conclusion
+
+**CLOSED / DEPLOYED : Phase 4B Live Experience.**
+
+**RÉSERVES QA : Android/Gboard réel NON TESTÉ ; NVDA réel NON TESTÉ.**
+
+**BUGS EXTERNES OUVERTS : Community Feedback 500 OPEN / hors 4B.8 ; Cloudinary historiques 401, correctif séparé.**
+
+Aucune nouvelle feature Aura ; aucune Phase 4B.9. Aucun nouveau chantier lancé.

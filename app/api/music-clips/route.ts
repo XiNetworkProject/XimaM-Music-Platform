@@ -4,6 +4,7 @@ import { dbAdmin } from '@/lib/database';
 import { assertCanCreateClip, formatMusicClips } from '@/lib/musicClips';
 import { normalizeRemixTrackRef } from '@/lib/remixServer';
 import { buildRecommendationSignals, parseRecommendationExclusions, rankMusicClips } from '@/lib/recommendation';
+import { boundedInteger, RECOMMENDATION_ENGINE_VERSION, RECOMMENDATION_POLICY_VERSION } from '@/lib/recommendation/policy';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -15,9 +16,7 @@ function parseLimit(value: string | null) {
 }
 
 function parseCursor(value: string | null) {
-  const n = Number(value || 0);
-  if (!Number.isFinite(n)) return 0;
-  return Math.max(0, Math.round(n));
+  return boundedInteger(value, 0, 0, 20000);
 }
 
 export async function GET(request: NextRequest) {
@@ -56,7 +55,7 @@ export async function GET(request: NextRequest) {
       .select('*, creator:profiles!music_clips_creator_id_fkey(id, username, name, avatar)')
       .order('created_at', { ascending: false });
 
-    if (isGeneralFeed) query = query.limit(Math.min(240, Math.max(80, (cursor + limit) * 4)));
+    if (isGeneralFeed) query = query.limit(240);
     else query = query.range(cursor, cursor + limit);
 
     if (!creatorId || String(creatorId) !== String(viewerId || '')) {
@@ -83,6 +82,7 @@ export async function GET(request: NextRequest) {
     const rows = data || [];
     const formatted = await formatMusicClips(isGeneralFeed ? rows : rows.slice(0, limit), { viewerId });
     let clips = formatted;
+    let availableCount = formatted.length;
     if (isGeneralFeed) {
       const sourceCandidates = formatted.map((clip) => ({
         _id: clip.sourceTrackId,
@@ -101,6 +101,7 @@ export async function GET(request: NextRequest) {
       const available = excludedClipIds.size
         ? ranked.filter((clip) => !excludedClipIds.has(String(clip.id)))
         : ranked;
+      availableCount = available.length;
       clips = available.slice(cursor, cursor + limit);
     }
     const nextCursor = cursor + clips.length;
@@ -108,8 +109,9 @@ export async function GET(request: NextRequest) {
       {
         clips,
         nextCursor,
-        hasMore: isGeneralFeed ? nextCursor < formatted.length : rows.length > limit,
-        engineVersion: isGeneralFeed ? 'discovery-v3' : undefined,
+        hasMore: isGeneralFeed ? nextCursor < availableCount : rows.length > limit,
+        engineVersion: isGeneralFeed ? RECOMMENDATION_ENGINE_VERSION : undefined,
+        policyVersion: isGeneralFeed ? RECOMMENDATION_POLICY_VERSION : undefined,
       },
       { headers: { 'Cache-Control': 'no-store, max-age=0' } },
     );

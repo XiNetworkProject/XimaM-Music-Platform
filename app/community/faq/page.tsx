@@ -66,7 +66,7 @@ export default function CommunityFAQPage() {
   };
 
   return (
-    <SynauraAppShell contentClassName="max-w-[1080px]">
+    <SynauraAppShell contentClassName="max-w-[1080px] experience-refresh community-refresh faq-refresh">
       <SynauraTopBar
         searchLabel="Chercher dans l’aide..."
         secondaryHref="/community/forum"
@@ -84,10 +84,10 @@ export default function CommunityFAQPage() {
               </Link>
               <h1 className="mt-5 text-5xl font-black leading-[0.92] tracking-[-0.06em] text-white sm:text-6xl">Besoin d’aide ?</h1>
               <p className="mt-5 max-w-2xl text-sm font-semibold leading-7 text-white/54 sm:text-base">
-                La FAQ reste disponible, mais Community est d’abord un espace musical. Pour un avis, un feat ou un remix, passe par le forum.
+                Lecture, création, compte : trouve une réponse et reprends ton écoute.
               </p>
             </div>
-            <div className="rounded-[1.35rem] bg-[#fffaf2] p-4 text-[#171313]">
+            <div className="faq-community-paths rounded-[1.35rem] bg-[#fffaf2] p-4 text-[#171313]">
               <p className="text-xs font-black uppercase tracking-[0.16em] text-black/36">Chemin recommandé</p>
               <div className="mt-3 grid gap-2">
                 <Link href="/community/forum/new?category=feedback" className="rounded-[1rem] bg-black/[0.045] p-3 text-sm font-black transition hover:bg-black/[0.07]">
@@ -104,7 +104,7 @@ export default function CommunityFAQPage() {
         <SynauraPanel className="p-4 sm:p-5">
           <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.18em] text-black/36">Support secondaire</p>
+              <p className="text-xs font-black uppercase tracking-[0.18em] text-black/36">Trouver une réponse</p>
               <h2 className="mt-1 text-2xl font-black tracking-[-0.04em] text-[#171313]">Articles utiles</h2>
             </div>
             <div className="relative w-full md:w-80">
@@ -112,17 +112,19 @@ export default function CommunityFAQPage() {
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
+                aria-label="Rechercher une question"
                 placeholder="Rechercher une question..."
                 className="h-11 w-full rounded-full border border-black/[0.08] bg-white pl-10 pr-4 text-sm font-semibold outline-none placeholder:text-black/28 focus:border-[#171313]"
               />
             </div>
           </div>
 
-          <div className="mb-5 flex gap-2 overflow-x-auto pb-1 synaura-no-scrollbar">
+          <div className="faq-categories mb-5 flex flex-wrap gap-2 pb-1">
             {CATEGORIES.map((item) => (
               <button
                 key={item.id}
                 type="button"
+                aria-pressed={category === item.id}
                 onClick={() => setCategory(item.id)}
                 className={`h-10 shrink-0 rounded-full px-4 text-xs font-black transition ${category === item.id ? 'bg-[#171313] text-white' : 'bg-black/[0.055] text-black/46 hover:bg-black/[0.08] hover:text-black'}`}
               >

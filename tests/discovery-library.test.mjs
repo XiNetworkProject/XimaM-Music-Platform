@@ -116,7 +116,7 @@ function moreHarness() {
   const { More } = compile(main, {
     react, 'next/navigation': {}, '@/components/ambient/useLivingMotion': {}, '@/components/ambient/ExperienceMotionFrame': {},
     '@/components/pilot/PilotImage': {}, '@/components/pilot/PilotLink': {}, '@/lib/discoverMoods': {}, '@/lib/discoverLibrary': model,
-    './DiscoveryCards': {}, './useDiscoveryData': {}, './discovery-library.css': {},
+    './DiscoveryCards': {}, './useDiscoveryData': {}, './discovery-library.css': {}, '@/components/benefits/ProductHint': { default: () => null },
   }, { window: { IntersectionObserver: Observer }, IntersectionObserver: Observer }, '\nexport { More };');
   let cleanups = [];
   const render = (props = {}) => { cleanups.forEach(fn => fn?.()); cleanups = []; effects.length = 0; cursor = 0;

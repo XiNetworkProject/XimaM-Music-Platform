@@ -27,6 +27,8 @@ export function useBackgroundGeneration() {
   const pollingRefs = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const generationsRef = useRef<BackgroundGeneration[]>([]);
   const keyRef = useRef<string | null>(null);
+  const ownerEpoch = useRef(0);
+  const inFlight = useRef(new Set<string>());
   const MAX_RETRIES = 8;
   const DEBUG = process.env.NODE_ENV !== 'production';
 
@@ -35,7 +37,7 @@ export function useBackgroundGeneration() {
     if (!key) return;
     generationsRef.current = items;
     setGenerations(items);
-    localStorage.setItem(key, JSON.stringify(items));
+    try { localStorage.setItem(key, JSON.stringify(items)); } catch { /* In-memory job remains usable. */ }
   }, []);
 
   const updateGeneration = useCallback((taskId: string, updater: (g: BackgroundGeneration) => BackgroundGeneration) => {
@@ -43,12 +45,13 @@ export function useBackgroundGeneration() {
       const next = prev.map((g) => (g.taskId === taskId ? updater(g) : g));
       generationsRef.current = next;
       const key = keyRef.current;
-      if (key) localStorage.setItem(key, JSON.stringify(next));
+      if (key) { try { localStorage.setItem(key, JSON.stringify(next)); } catch { /* Keep current job in memory. */ } }
       return next;
     });
   }, []);
 
   const stopPolling = useCallback((taskId: string) => {
+    inFlight.current.delete(taskId);
     const timeout = pollingRefs.current.get(taskId);
     if (timeout) clearTimeout(timeout);
     pollingRefs.current.delete(taskId);
@@ -60,13 +63,23 @@ export function useBackgroundGeneration() {
   }, []);
 
   useEffect(() => {
+    ownerEpoch.current += 1;
+    pollingRefs.current.forEach(clearTimeout);
+    pollingRefs.current.clear();
+    inFlight.current.clear();
+    keyRef.current = null;
+    generationsRef.current = [];
+    setGenerations([]);
+    setActiveGenerations(new Set());
     if (!session?.user?.id) return;
     const key = `bg_generations_${session.user.id}`;
     keyRef.current = key;
-    const storedGenerations = localStorage.getItem(key);
+    let storedGenerations: string | null = null;
+    try { storedGenerations = localStorage.getItem(key); } catch { /* Private browsing/storage full. */ }
     if (storedGenerations) {
       try {
-        const parsed = JSON.parse(storedGenerations) as BackgroundGeneration[];
+        const raw = JSON.parse(storedGenerations);
+        const parsed = (Array.isArray(raw) ? raw : []).filter((g:any)=>g&&typeof g.taskId==='string'&&Number.isFinite(g.startTime)&&['pending','first','completed','failed'].includes(g.status)).slice(0,50) as BackgroundGeneration[];
         generationsRef.current = parsed;
         setGenerations(parsed);
         const active = new Set<string>(
@@ -110,7 +123,9 @@ export function useBackgroundGeneration() {
   }, []);
 
   const startPolling = useCallback((taskId: string) => {
-    if (pollingRefs.current.has(taskId)) return;
+    if (!keyRef.current || pollingRefs.current.has(taskId) || inFlight.current.has(taskId)) return;
+    const epoch=ownerEpoch.current;
+    inFlight.current.add(taskId);
 
     const mergeTracksById = (existing: any[], incoming: any[]) => {
       const map = new Map<string, any>();
@@ -138,6 +153,7 @@ export function useBackgroundGeneration() {
     };
 
     const poll = async () => {
+      if(epoch!==ownerEpoch.current)return;
       try {
         const response = await fetch(`/api/suno/status?taskId=${encodeURIComponent(taskId)}`, {
           cache: "no-store",
@@ -150,6 +166,7 @@ export function useBackgroundGeneration() {
         }
 
         const data = await response.json();
+        if(epoch!==ownerEpoch.current)return;
         const statusUpper = String(data.status || '').toUpperCase();
         const tracks = Array.isArray(data.tracks) ? data.tracks : [];
         const current = generationsRef.current.find((g) => g.taskId === taskId);
@@ -310,6 +327,7 @@ export function useBackgroundGeneration() {
           }
         }
 
+        if(epoch!==ownerEpoch.current)return;
         const generation = generationsRef.current.find((g) => g.taskId === taskId);
         const elapsed = generation ? Date.now() - generation.startTime : 0;
         let delay = availableTracks.length > 0 ? 4000 : 2500;
@@ -320,6 +338,7 @@ export function useBackgroundGeneration() {
         const timeout = setTimeout(poll, delay);
         pollingRefs.current.set(taskId, timeout);
       } catch (error) {
+        if(epoch!==ownerEpoch.current)return;
         const message = error instanceof Error ? error.message : 'Erreur polling génération';
         let retries = 0;
         updateGeneration(taskId, (g) => {
@@ -372,6 +391,13 @@ export function useBackgroundGeneration() {
     startPolling(generation.taskId);
   }, [saveToStorage, startPolling, updateGeneration]);
 
+  const resumeBackgroundGeneration = useCallback((taskId:string)=>{
+    const job=generationsRef.current.find(g=>g.taskId===taskId);
+    if(!job || !job.lastError?.startsWith('Polling timeout:'))return;
+    updateGeneration(taskId,g=>({...g,status:'pending',retryCount:0,lastError:undefined}));
+    startPolling(taskId); // Status lookup only: never requests another paid generation.
+  },[startPolling,updateGeneration]);
+
   useEffect(() => {
     // Reprendre automatiquement le polling des jobs actifs après refresh/navigation.
     const resumable = generationsRef.current.filter((g) => g.status === 'pending' || g.status === 'first');
@@ -395,6 +421,7 @@ export function useBackgroundGeneration() {
 
   useEffect(() => {
     return () => {
+      ownerEpoch.current += 1;
       pollingRefs.current.forEach((timeout) => clearTimeout(timeout));
       pollingRefs.current.clear();
     };
@@ -405,5 +432,6 @@ export function useBackgroundGeneration() {
     activeGenerations,
     startBackgroundGeneration,
     cleanupCompletedGenerations
+    ,resumeBackgroundGeneration
   };
 }

@@ -10,9 +10,9 @@ import {
   type RecommendationStrategy,
 } from '@/lib/recommendation';
 
-export const dynamic = 'force-dynamic';
+import { boundedInteger, isLowExposure, RECOMMENDATION_ENGINE_VERSION, RECOMMENDATION_POLICY_VERSION } from '@/lib/recommendation/policy';
 
-const clamp = (value: number, min: number, max: number) => Math.max(min, Math.min(max, value));
+export const dynamic = 'force-dynamic';
 
 function normalizeGenres(value: RecommendedTrack['genre']) {
   if (Array.isArray(value)) return value.map((genre) => String(genre || '').trim().toLowerCase()).filter(Boolean);
@@ -94,10 +94,10 @@ export async function GET(request: NextRequest) {
     const { searchParams } = request.nextUrl;
     const category = searchParams.get('category') || 'all';
     const sort = searchParams.get('sort') || 'trending';
-    const page = Math.max(0, Number(searchParams.get('page') || 0));
-    const limit = clamp(Number(searchParams.get('limit') || 24), 6, 48);
-    const profilePage = Math.max(0, Number(searchParams.get('profilePage') || page));
-    const profileLimit = clamp(Number(searchParams.get('profileLimit') || 12), 4, 24);
+    const page = boundedInteger(searchParams.get('page'), 0, 0, 20000);
+    const limit = boundedInteger(searchParams.get('limit'), 24, 6, 48);
+    const profilePage = boundedInteger(searchParams.get('profilePage'), page, 0, 20000);
+    const profileLimit = boundedInteger(searchParams.get('profileLimit'), 12, 4, 24);
     const sessionId = searchParams.get('session')?.slice(0, 120) || null;
     const session = await getApiSession(request).catch(() => null);
     const userId = (session?.user as any)?.id ? String((session?.user as any).id) : null;
@@ -108,26 +108,28 @@ export async function GET(request: NextRequest) {
     });
     const signals = await buildRecommendationSignals({ db: dbAdmin, userId, candidateTracks: candidates, sessionId });
     const strategy = strategyForSort(sort);
-    let source = candidates;
+    const visibleCandidates = candidates.filter((track) => !signals.hiddenArtistIds.has(String(track.artist?._id || '')));
+    let source = visibleCandidates;
 
     if (sort === 'hidden') {
-      const emerging = candidates.filter((track) => {
+      const emerging = visibleCandidates.filter((track) => {
         const metrics = track.discoveryMetrics;
-        return Number(track.plays || 0) < 500 && (metrics?.emergingScore || 0) >= 2.5;
+        return isLowExposure(track) && (metrics?.emergingScore || 0) >= 2.5;
       });
-      source = (emerging.length ? emerging : candidates.filter((track) => Number(track.plays || 0) < 500)).map((track) => ({
+      source = (emerging.length ? emerging : visibleCandidates.filter(isLowExposure)).map((track) => ({
         ...track,
         rankingScore: track.discoveryMetrics?.emergingScore || track.rankingScore || 0,
       }));
     } else if (sort === 'featured') {
-      const featured = candidates.filter((track) => track.isFeatured);
-      source = featured.length ? featured : candidates;
+      const featured = visibleCandidates.filter((track) => track.isFeatured);
+      source = featured.length ? featured : visibleCandidates;
     }
 
     const rankingSeed = sessionId || `${userId || 'anonymous'}:${new Date().toISOString().slice(0, 10)}:discover:${sort}:${category}`;
     const rankedSource = sort === 'newest'
       ? sortTracksNewest(source)
       : rerankTracks(source, signals, {
+          surface: 'discover',
           strategy,
           sessionSeed: rankingSeed,
           maxConsecutiveArtists: 1,
@@ -156,7 +158,8 @@ export async function GET(request: NextRequest) {
       totalArtists: artists.length,
       category,
       sort,
-      engineVersion: 'discovery-v2',
+      engineVersion: RECOMMENDATION_ENGINE_VERSION,
+      policyVersion: RECOMMENDATION_POLICY_VERSION,
     }, { headers: { 'Cache-Control': userId || sessionId ? 'private, no-store' : 'public, s-maxage=30, stale-while-revalidate=90' } });
   } catch (error: any) {
     console.error('Discover API error:', error);

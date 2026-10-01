@@ -593,7 +593,7 @@ export default function UploadPage() {
       : 'Immediatement';
 
   return (
-    <SynauraAppShell contentClassName="v2-creation v2-upload chambre-signature-upload !max-w-[1680px]">
+    <SynauraAppShell contentClassName="v2-creation v2-upload chambre-signature-upload experience-refresh upload-refresh !max-w-[1440px]">
       <SynauraTopBar
         searchLabel="Rechercher avant de publier..."
         secondaryHref="/ai-generator"
@@ -604,17 +604,17 @@ export default function UploadPage() {
       <SynauraRouteNav />
       <SynauraAnnouncementStrip />
       <CreateArrivalBanner context={challengeId ? 'challenge' : 'upload'} title={challengeId ? challengeTitle : null} className="mb-4" />
-      <SynauraEventsRail variant="compact" className="mb-4" />
+      <details className="upload-extra"><summary>Publier pour un événement</summary><SynauraEventsRail variant="compact" className="mb-4" /></details>
 
       <header className="v2-upload-header chambre-upload-cover">
         <div className="v2-creative-header">
           <div>
             <p className="v2-kicker">L’atelier / Publication · {releaseLabel}</p>
-            <h1>TON SON.<br /><span>SA PROCHAINE VIE.</span></h1>
+            <h1>Publie <span>ton son.</span></h1>
             <p>Importe tes fichiers, soigne leur présentation et choisis comment ils seront diffusés.</p>
           </div>
           <div className="chambre-signature-upload-destinations flex flex-wrap gap-3">
-            <button type="button" onClick={() => router.push('/ai-generator')} className="inline-flex min-h-11 items-center gap-2 text-sm"><Wand2 size={16} />AI Generator</button>
+            <button type="button" onClick={() => router.push('/ai-generator')} className="inline-flex min-h-11 items-center gap-2 text-sm"><Wand2 size={16} />Studio IA</button>
             <button type="button" onClick={() => router.push('/library')} className="inline-flex min-h-11 items-center gap-2 text-sm"><Library size={16} />Bibliothèque</button>
           </div>
         </div>
@@ -718,7 +718,7 @@ export default function UploadPage() {
             <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
               <div className="min-w-0">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--v2-muted)]">
-                  Etape {currentStep}/{totalSteps}
+                  Étape {currentStep}/{totalSteps}
                 </p>
                 <h2 className="mt-1 truncate text-2xl font-semibold tracking-[-0.04em] text-white">
                   {currentStep === 1 ? 'Fichier audio' : currentStep === 2 ? 'Cover & informations' : 'Diffusion & droits de creation'}
@@ -764,7 +764,7 @@ export default function UploadPage() {
             <AnimatePresence mode="wait">
               {currentStep === 1 && (
                 <motion.div key="upload-files" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} className="space-y-4">
-                  <div className="grid gap-3 sm:grid-cols-3">
+                  <div className="upload-format-choices grid gap-3 sm:grid-cols-3">
                     <ReleaseTypeSelector
                       value={releaseType}
                       onChange={(value) => {
@@ -785,7 +785,7 @@ export default function UploadPage() {
                         isAudioDrag ? 'border-[var(--v2-line)] bg-[var(--v2-accent)]' : 'border-white/[0.12] bg-[var(--v2-raised)] hover:border-white/24',
                       ].join(' ')}
                     >
-                      <input {...getAudioIP()} />
+                      <input {...getAudioIP()} aria-label="Choisir le fichier audio" />
                       <Upload className="mx-auto mb-3 h-10 w-10 text-[var(--v2-muted)]" />
                       <p className="text-base font-semibold text-white">Ajoute ton morceau principal</p>
                       <p className="mt-1 text-xs font-semibold text-[var(--v2-muted)]">MP3, WAV, FLAC - max {uploadLimitLabel}</p>
@@ -1126,7 +1126,7 @@ export default function UploadPage() {
           </div>
         </section>
 
-        <aside className="min-w-0 space-y-3">
+        <aside className="upload-preview min-w-0 space-y-3">
           <SynauraPanel className="p-3 sm:p-4">
             <div className="aspect-square overflow-hidden rounded-[1.1rem] bg-[var(--v2-surface)]">
               {coverPreviewUrl ? (

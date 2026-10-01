@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import { projectProductJourneys } from './reviewed-product-journeys.mjs';
 
 // The unified UI is a new, authorized presentation boundary, not a new provider
 // implementation. Project ONLY this exact adapter out of historical visual
 // snapshots. Existing requests, effects, audio, billing and track handlers remain
 // audited by those tests. The new surface has its own contract tests.
 export function projectUnifiedStudio(file, source) {
+  source = projectProductJourneys(file,source);
   if (file !== 'app/ai-generator/page.tsx') return source;
   const addedImport = "import UnifiedStudio from '@/components/ai-studio/UnifiedStudio';";
   if (!source.includes(addedImport)) {

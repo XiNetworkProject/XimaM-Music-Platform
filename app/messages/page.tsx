@@ -1,4 +1,5 @@
 "use client";
+import ProductHint from '@/components/benefits/ProductHint';
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
@@ -518,6 +519,7 @@ function MessagesContent() {
         </nav>
 
         <div className="v2-inbox-stack">
+        {activeTab === 'conversations' && !query && <ProductHint placement="messages" />}
         <div className="v2-inbox-content relative mb-5">
           <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-syn-textSecondary" />
           <input

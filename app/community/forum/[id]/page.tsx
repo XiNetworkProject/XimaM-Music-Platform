@@ -123,7 +123,7 @@ export default function CommunityPostDetailPage() {
   const Icon = meta.icon;
 
   return (
-    <SynauraAppShell contentClassName="max-w-[980px]">
+    <SynauraAppShell contentClassName="max-w-[1100px] experience-refresh community-refresh thread-refresh">
       <SynauraTopBar searchLabel="Chercher dans Community..." primaryHref="/community/forum/new?category=feedback" primaryLabel="Demander un avis" />
       <SynauraRouteNav />
 
@@ -162,7 +162,12 @@ export default function CommunityPostDetailPage() {
                 </div>
               </div>
             </>
-          ) : null}
+          ) :
+            <div role="status" className="py-10">
+              <h1 className="text-3xl font-bold">Discussion indisponible.</h1>
+              <p className="mt-3">Impossible de charger cette discussion pour le moment. Tu peux retrouver les autres échanges dans le forum.</p>
+            </div>
+          }
         </SynauraInkPanel>
 
         {post ? (

@@ -69,7 +69,7 @@ export default function PostsFeedPage() {
   }, []);
 
   return (
-    <SynauraAppShell contentClassName="max-w-[980px]">
+    <SynauraAppShell contentClassName="max-w-[980px] experience-refresh community-refresh posts-refresh">
       <SynauraTopBar
         searchLabel="Rechercher un post, un son ou un createur..."
         secondaryHref="/upload"

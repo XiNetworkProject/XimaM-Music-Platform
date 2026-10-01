@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { CheckCircle, Crown, Loader2, Music, Settings, Sparkles } from 'lucide-react';
 import { SynauraAppShell, SynauraInkPanel, SynauraPanel, SynauraTopBar } from '@/components/synaura/SynauraShell';
+import { subscriptionConfirmed } from '@/lib/subscriptionConfirmation';
 
 function SubscriptionSuccessContent() {
   const router = useRouter();
@@ -19,30 +20,40 @@ function SubscriptionSuccessContent() {
     nextBilling: string | null;
   } | null>(null);
   const [error, setError] = useState('');
+  const [confirmed,setConfirmed] = useState(false);
+  const [revision,setRevision] = useState(0);
 
   useEffect(() => {
     const sessionId = searchParams.get('session_id');
+    const controller = new AbortController();
 
     (async () => {
       try {
         setLoading(true);
         setError('');
+        setConfirmed(false);
+        let verified=false;
 
         if (sessionId) {
           const verifyRes = await fetch('/api/billing/verify-checkout', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ sessionId }),
+            signal: controller.signal,
           });
-          if (!verifyRes.ok) {
-            setError("Paiement vérifié, mais impossible de confirmer l'activation automatiquement.");
-          }
+          const verifyPayload=await verifyRes.json().catch(()=>null);
+          verified=verifyRes.ok && verifyPayload?.success===true;
+          if (!verified && !controller.signal.aborted) setError("L’activation n’est pas confirmée. Ne relance pas un achat : vérifie à nouveau dans un instant.");
         }
 
         const subRes = await fetch('/api/subscriptions/my-subscription', {
           headers: { 'Cache-Control': 'no-store' },
+          signal: controller.signal,
         });
+        if(!subRes.ok) throw new Error(subRes.status===401?'Reconnecte-toi pour vérifier ton abonnement.':'Abonnement indisponible. Aucune activation confirmée.');
         const subJson = await subRes.json().catch(() => null);
+        if(controller.signal.aborted)return;
+        setConfirmed(subscriptionConfirmed(verified,subJson));
         const plan = subJson?.subscription || null;
         const userSub = subJson?.userSubscription || null;
 
@@ -60,19 +71,20 @@ function SubscriptionSuccessContent() {
             price: Number(plan.price || 0),
             currency: String(plan.currency || 'EUR'),
             interval: String(plan.interval || ''),
-            status: String(userSub?.status || 'active'),
+            status: String(userSub?.status || 'non confirmé'),
             nextBilling,
           });
         } else {
           setSubscriptionData(null);
         }
       } catch (e: any) {
-        setError(e?.message || 'Erreur lors du chargement.');
+        if(!controller.signal.aborted) setError(e?.message || 'Erreur lors du chargement.');
       } finally {
-        setLoading(false);
+        if(!controller.signal.aborted) setLoading(false);
       }
     })();
-  }, [searchParams]);
+    return ()=>controller.abort();
+  }, [searchParams,revision]);
 
   if (loading) {
     return (
@@ -96,14 +108,14 @@ function SubscriptionSuccessContent() {
             <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_8%,rgba(16,185,129,0.26),transparent_32%),radial-gradient(circle_at_82%_18%,rgba(124,92,255,0.24),transparent_34%),radial-gradient(circle_at_55%_100%,rgba(0,194,203,0.18),transparent_34%)]" />
             <div className="relative">
               <div className="mx-auto grid h-20 w-20 place-items-center rounded-[1.6rem] bg-white text-[#171313] shadow-[0_16px_34px_rgba(255,255,255,0.16)]">
-                <CheckCircle className="h-10 w-10 text-emerald-600" />
+                {confirmed?<CheckCircle className="h-10 w-10 text-emerald-600" />:<Settings className="h-10 w-10" />}
               </div>
-              <p className="mt-6 text-xs font-black uppercase tracking-[0.18em] text-white/48">Abonnement activé</p>
+              <p className="mt-6 text-xs font-black uppercase tracking-[0.18em] text-white/48">{confirmed?'Abonnement activé':'Activation à vérifier'}</p>
               <h1 className="mx-auto mt-3 max-w-2xl text-5xl font-black leading-[0.95] tracking-tight text-white sm:text-6xl">
-                Tes avantages sont prêts.
+                {confirmed?'Tes avantages sont prêts.':'Vérifions ton abonnement.'}
               </h1>
               <p className="mx-auto mt-4 max-w-xl text-sm font-semibold leading-6 text-white/60">
-                Tu peux retourner créer, publier ou gérer ton abonnement depuis les paramètres.
+                {confirmed?'Tu peux retourner créer, publier ou gérer ton abonnement depuis les paramètres.':'Le retour sur cette page ne suffit pas à confirmer un paiement. Aucun nouvel achat n’est nécessaire pour vérifier.'}
               </p>
             </div>
           </SynauraInkPanel>
@@ -122,19 +134,19 @@ function SubscriptionSuccessContent() {
             </div>
             <div className="min-w-0">
               <h2 className="truncate text-2xl font-black text-[#171313]">
-                {subscriptionData ? `Plan ${subscriptionData.name}` : 'Plan activé'}
+                {subscriptionData ? `Plan ${subscriptionData.name}` : 'Plan non confirmé'}
               </h2>
               <p className="text-sm font-semibold text-black/44">
-                Statut: {subscriptionData?.status || 'actif'}
+                Statut: {subscriptionData?.status || 'non confirmé'}
               </p>
             </div>
           </div>
 
           {subscriptionData ? (
             <div className="mt-6 grid gap-3 sm:grid-cols-3">
-              <Metric label="Prix" value={`${Number.isFinite(subscriptionData.price) ? subscriptionData.price : 0}€/${subscriptionData.interval || 'mois'}`} />
+              <Metric label="Formule du compte" value={subscriptionData.name} />
               <Metric label="Prochain paiement" value={subscriptionData.nextBilling || '—'} />
-              <Metric label="Avantages" value="Débloqués" />
+              <Metric label="Activation vérifiée" value={confirmed?'Oui':'Non confirmée'} />
             </div>
           ) : null}
 
@@ -145,6 +157,7 @@ function SubscriptionSuccessContent() {
         </SynauraPanel>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
+          {!confirmed&&<button type="button" onClick={()=>setRevision(v=>v+1)} className="min-h-12 px-5 rounded-full bg-[var(--syn-soft)]">Vérifier à nouveau</button>}
           <button onClick={() => router.push('/')} className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-[#171313] px-5 text-sm font-black text-white transition hover:scale-[1.02]">
             <Music className="h-4 w-4" />
             Retour à la musique

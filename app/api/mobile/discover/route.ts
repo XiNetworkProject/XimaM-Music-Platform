@@ -4,6 +4,7 @@ import { dbAdmin } from '@/lib/database';
 import { attachLikedFlag, getRadarTracks } from '@/lib/discoverData';
 import { getFeaturedEditorialCollections } from '@/lib/editorialCollections';
 import { applyPublicTrackFilter } from '@/lib/publicTracks';
+import { isLowExposure, RECOMMENDATION_POLICY_VERSION } from '@/lib/recommendation/policy';
 import {
   buildRecommendationSignals,
   loadGlobalTrackCandidates,
@@ -35,22 +36,25 @@ export async function GET(request: NextRequest) {
       sessionId,
     });
     const seed = sessionId || `${userId || 'anonymous'}:${new Date().toISOString().slice(0, 10)}:discover-overview`;
-    const newest = withLikeState(sortTracksNewest(candidates).slice(0, 20), signals.likedTrackIds);
+    const visibleCandidates = candidates.filter((track) => !signals.hiddenArtistIds.has(String(track.artist?._id || '')));
+    const newest = withLikeState(sortTracksNewest(visibleCandidates).slice(0, 20), signals.likedTrackIds);
     const popular = withLikeState(rerankTracks(candidates, signals, {
+      surface: 'discover',
       strategy: 'popular',
       sessionSeed: `${seed}:popular`,
       maxPerArtist: 3,
     }).slice(0, 20), signals.likedTrackIds);
-    const emerging = candidates.filter((track) => Number(track.plays || 0) < 500 && (track.discoveryMetrics?.emergingScore || 0) >= 2.5);
-    const hiddenPool = emerging.length ? emerging : candidates.filter((track) => Number(track.plays || 0) < 500);
+    const emerging = visibleCandidates.filter((track) => isLowExposure(track) && (track.discoveryMetrics?.emergingScore || 0) >= 2.5);
+    const hiddenPool = emerging.length ? emerging : visibleCandidates.filter(isLowExposure);
     const hidden = withLikeState(rerankTracks(hiddenPool, signals, {
+      surface: 'discover',
       strategy: 'reco',
       sessionSeed: `${seed}:hidden`,
       maxPerArtist: 2,
     }).slice(0, 20), signals.likedTrackIds);
 
     const [radarSelection, collections] = await Promise.all([
-      getRadarTracks(12),
+      getRadarTracks(12, signals.hiddenArtistIds),
       getFeaturedEditorialCollections(12),
     ]);
     const radar = await attachLikedFlag(radarSelection, userId);
@@ -64,6 +68,7 @@ export async function GET(request: NextRequest) {
       totalTracks: Math.max(0, Number(publicCountResult.count || 0)),
       generatedAt: new Date().toISOString(),
       engineVersion: 'discover-overview-v3',
+      policyVersion: RECOMMENDATION_POLICY_VERSION,
     }, {
       headers: {
         'Cache-Control': userId || sessionId ? 'private, no-store' : 'public, s-maxage=30, stale-while-revalidate=90',

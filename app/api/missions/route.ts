@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import { dbAdmin } from '@/lib/database';
+import { missionHasReset } from '@/lib/boosters/policy';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -34,30 +35,17 @@ export async function GET(request: NextRequest) {
         .select('mission_id, progress, completed_at, claimed')
         .eq('user_id', userId)
         .in('mission_id', missionIds);
-      if (!pErr && Array.isArray(p)) progress = p;
+      if (pErr) throw new Error('Progression indisponible');
+      if (Array.isArray(p)) progress = p;
     }
 
     const map = new Map(progress.map(r => [r.mission_id, r]));
     const nowIso = new Date().toISOString();
 
-    // Cooldown/reset: si mission réclamée et cooldown passé => reset
+    // GET stays read-only; the next real event performs the reset atomically.
     for (const m of missions || []) {
       const um = map.get(m.id);
-      const cd = Number(m.cooldown_hours || 0);
-      if (!um || !cd || cd <= 0) continue;
-      if (!um.completed_at) continue;
-      if (!um.claimed) continue;
-      const hours = Math.abs(new Date(nowIso).getTime() - new Date(um.completed_at).getTime()) / 3_600_000;
-      if (hours >= cd) {
-        try {
-          await dbAdmin
-            .from('user_missions')
-            .update({ progress: 0, completed_at: null, claimed: false, last_progress_at: null })
-            .eq('user_id', userId)
-            .eq('mission_id', m.id);
-          map.set(m.id, { ...um, progress: 0, completed_at: null, claimed: false, last_progress_at: null });
-        } catch {}
-      }
+      if (missionHasReset(m, um, Date.now())) map.set(m.id, { ...um, progress: 0, completed_at: null, claimed: false });
     }
 
     const enriched = (missions || []).map(m => {

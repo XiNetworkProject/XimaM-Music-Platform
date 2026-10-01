@@ -1,10 +1,10 @@
 import type { MusicClip } from '@/lib/musicClips';
 import { deterministicUnit } from './engine';
 import type { UserRecommendationSignals } from './types';
+import { diversifyRanked, finitePositive, normalizedGenres, uniqueCandidates } from './policy.ts';
 
 function genres(value: unknown) {
-  if (Array.isArray(value)) return value.map((item) => String(item || '').trim().toLowerCase()).filter(Boolean);
-  return [];
+  return normalizedGenres(value);
 }
 
 function seenPenalty(clipId: string, signals: UserRecommendationSignals, now: number) {
@@ -23,12 +23,15 @@ export function rankMusicClips(
   signals: UserRecommendationSignals,
   input: { now?: number; sessionSeed?: string | null } = {},
 ) {
-  const now = input.now || Date.now();
-  const scored = clips.map((clip) => {
-    const created = clip.createdAt ? new Date(clip.createdAt).getTime() : now;
-    const ageHours = Math.max(0, (now - created) / 3_600_000);
+  const now = input.now ?? Date.now();
+  const scored = uniqueCandidates(clips, (clip) => String(clip.id || ''))
+    .filter((clip) => clip.visibility === 'published' && Boolean(clip.videoUrl) && clip.sourceTrack?.isPublic === true)
+    .filter((clip) => !signals.hiddenArtistIds.has(String(clip.creatorId || '')) && !signals.hiddenArtistIds.has(String(clip.sourceTrack?.artist?._id || '')))
+    .map((clip) => {
+    const created = Date.parse(clip.createdAt || '');
+    const ageHours = Number.isFinite(created) ? Math.max(0, (now - created) / 3_600_000) : 24 * 365;
     const fresh = 8 * Math.exp(-ageHours * Math.LN2 / (24 * 7));
-    const social = Math.log1p(Math.max(0, clip.likesCount)) * 1.7 + Math.log1p(Math.max(0, clip.commentsCount)) * 2.4;
+    const social = Math.min(6, Math.log1p(finitePositive(clip.likesCount)) * 1.7) + Math.min(7, Math.log1p(finitePositive(clip.commentsCount)) * 2.4);
     const sourceId = String(clip.sourceTrackId || '');
     const sourceArtistId = String(clip.sourceTrack?.artist?._id || '');
     const creatorId = String(clip.creatorId || '');
@@ -47,32 +50,21 @@ export function rankMusicClips(
     const genreAffinity = genres(clip.sourceTrack?.genre).reduce((sum, genre) => sum + (signals.preferredGenres.get(genre) || 0), 0);
     const exposurePenalty = seenPenalty(clip.id, signals, now);
     const jitter = (deterministicUnit(input.sessionSeed || 'synaura-clips', clip.id) - 0.5) * 0.18;
-    const score = (fresh + social + sourceAffinity + creatorAffinity + Math.min(3.5, genreAffinity * 0.35)) * exposurePenalty + jitter;
+    const avoidedGenre = genres(clip.sourceTrack?.genre).reduce((sum, genre) => sum + (signals.avoidedGenres.get(genre) || 0) + (signals.currentSessionAvoidedGenres.get(genre) || 0), 0);
+    const negative = Math.min(8, (signals.artistAversion.get(creatorId) || 0) + (signals.currentSessionArtistAversion.get(creatorId) || 0)) + Math.min(6, avoidedGenre);
+    const skipped = signals.currentSessionSkippedTrackIds.has(sourceId) ? .08 : signals.skippedTrackIds.has(sourceId) ? .35 : 1;
+    const score = Math.max(0, fresh + social + sourceAffinity + creatorAffinity + Math.min(3.5, genreAffinity * 0.35) - negative) * exposurePenalty * skipped + jitter;
     const reasons = [
       fresh >= 3.5 ? 'fresh' : null,
       social > 0 ? 'social_engagement' : null,
       sourceAffinity > 0 ? 'source_affinity' : null,
       creatorAffinity > 0 ? 'creator_affinity' : null,
       exposurePenalty < 1 ? 'already_seen' : null,
+      skipped < 1 ? 'skip_penalty' : null,
     ].filter((reason): reason is string => Boolean(reason));
     return { ...clip, recommendationScore: Number(score.toFixed(6)), recommendationReasons: reasons.length ? reasons : ['exploration'] };
   }).sort((a, b) => Number(b.recommendationScore || 0) - Number(a.recommendationScore || 0));
 
-  const result: typeof scored = [];
-  const deferred: typeof scored = [];
-  const creatorCounts = new Map<string, number>();
-  const sourceCounts = new Map<string, number>();
-  for (const clip of scored) {
-    const creatorCount = creatorCounts.get(clip.creatorId) || 0;
-    const sourceCount = sourceCounts.get(clip.sourceTrackId) || 0;
-    const repeatsCreator = result[result.length - 1]?.creatorId === clip.creatorId;
-    if ((repeatsCreator || creatorCount >= 3 || sourceCount >= 2) && result.length < 24) {
-      deferred.push(clip);
-      continue;
-    }
-    result.push(clip);
-    creatorCounts.set(clip.creatorId, creatorCount + 1);
-    sourceCounts.set(clip.sourceTrackId, sourceCount + 1);
-  }
-  return [...result, ...deferred];
+  return diversifyRanked(scored, { id: (clip) => clip.id, creator: (clip) => String(clip.creatorId || ''),
+    source: (clip) => String(clip.sourceTrackId || ''), score: (clip) => clip.recommendationScore });
 }

@@ -8,6 +8,7 @@ import {
   type RecommendationStrategy,
 } from '@/lib/recommendation';
 import { getApiSession } from '@/lib/getApiSession';
+import { boundedInteger, RECOMMENDATION_ENGINE_VERSION, RECOMMENDATION_POLICY_VERSION } from '@/lib/recommendation/policy';
 import { getPublishedVariationCounts, getRemixAttributionForChildren, normalizeRemixTrackRef } from '@/lib/remixServer';
 
 export const runtime = 'nodejs';
@@ -19,8 +20,7 @@ function parseStrategy(value: string | null): RecommendationStrategy {
 }
 
 function parseNumber(value: string | null, fallback: number, min: number, max: number) {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? Math.max(min, Math.min(max, Math.round(parsed))) : fallback;
+  return boundedInteger(value, fallback, min, max);
 }
 
 function sessionSeed(input: { requested: string | null; userId: string | null; strategy: RecommendationStrategy; genre: string | null }) {
@@ -99,6 +99,7 @@ export async function GET(request: NextRequest) {
 
     const rankingStartedAt = Date.now();
     const ranked = rerankTracks(candidates, signals, {
+      surface: 'live',
       strategy,
       debug,
       genreFilter,
@@ -128,7 +129,8 @@ export async function GET(request: NextRequest) {
       tracks,
       nextCursor,
       hasMore: nextCursor < available.length,
-      engineVersion: 'discovery-v5',
+      engineVersion: RECOMMENDATION_ENGINE_VERSION,
+      policyVersion: RECOMMENDATION_POLICY_VERSION,
       sessionId: rankingSeed,
     }, {
       headers: {

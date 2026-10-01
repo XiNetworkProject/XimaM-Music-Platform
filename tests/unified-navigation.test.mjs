@@ -2,11 +2,24 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { usesUnifiedNavigation } from '../lib/unifiedNavigation.ts';
+import { getRouteChrome, shouldRenderGlobalMiniPlayer } from '../lib/routeChrome.ts';
 const read = path => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
 test('product destinations share chrome; entry and subproducts are not accidentally migrated', () => {
-  for (const route of ['/live','/discover','/create','/library','/studio','/settings','/subscriptions','/notifications','/messages/123','/community','/profile/test2','/track/a','/v2/live','/dev/studio']) assert.equal(usesUnifiedNavigation(route), true, route);
-  for (const route of ['/', '/landing','/auth/signin','/onboarding','/admin','/meteo','/embed','/dev/ui','/library-extra','/v20',null]) assert.equal(usesUnifiedNavigation(route), false, route);
+  for (const route of ['/live','/discover','/create','/library','/studio','/settings','/subscriptions','/notifications','/messages/123','/community','/profile/test2','/track/a','/v2/live','/dev/studio','/stats','/dev/stats']) assert.equal(usesUnifiedNavigation(route), true, route);
+  for (const route of ['/', '/landing','/auth/signin','/onboarding','/admin','/meteo','/embed','/dev/ui','/dev/stats-other','/dev/stats/other','/library-extra','/v20',null]) assert.equal(usesUnifiedNavigation(route), false, route);
+});
+
+test('Stats preview has the exact real-page frame, player and one shared navigation', () => {
+  const before=process.env.NODE_ENV;
+  try {
+    process.env.NODE_ENV='development';
+    assert.deepEqual(getRouteChrome('/dev/stats'),getRouteChrome('/stats'));
+    assert.equal(shouldRenderGlobalMiniPlayer('/dev/stats'),shouldRenderGlobalMiniPlayer('/stats'));
+    assert.equal(getRouteChrome('/dev/stats-extra').showSidebar,true);
+    process.env.NODE_ENV='production';
+    assert.equal(getRouteChrome('/dev/stats').showSidebar,true); // route itself is 404, no broad dev alias.
+  } finally { if(before===undefined)delete process.env.NODE_ENV;else process.env.NODE_ENV=before; }
 });
 test('one navigation owner; legacy headers and docks opt out without changing media ownership', () => {
   assert.match(read('components/ConditionalNav.tsx'), /if \(usesUnifiedNavigation\(pathname\)\) return <div className="syn-unified-app"><AppNavigation/);

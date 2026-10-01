@@ -184,7 +184,7 @@ export default function PostPage() {
   }
 
   return (
-    <SynauraAppShell contentClassName="max-w-[980px]">
+    <SynauraAppShell contentClassName="max-w-[980px] experience-refresh community-refresh post-refresh">
       <SynauraTopBar
         searchLabel="Rechercher un post, un son ou un createur..."
         secondaryHref="/upload"

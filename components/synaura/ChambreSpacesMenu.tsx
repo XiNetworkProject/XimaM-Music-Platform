@@ -2,7 +2,7 @@
 
 import { useCallback, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { ArrowUpRight, Grid2X2 } from 'lucide-react';
+import { ArrowUpRight, Grid2X2, Sparkles, Zap } from 'lucide-react';
 import Link from '@/components/navigation/HandoffLink';
 import { getWebProfileHref } from '@/lib/primaryNavigation';
 import { SynauraOverlay, SynauraOverlayTitle } from '@/components/ui/SynauraOverlay';
@@ -42,8 +42,6 @@ export default function ChambreSpacesMenu({ username, authenticated = false, tri
     { href: getWebProfileHref(username, authenticated), label: 'Mon profil' },
     { href: '/settings', label: 'Paramètres' },
     { href: '/stats', label: 'Statistiques' },
-    { href: '/subscriptions', label: 'Abonnement' },
-    { href: '/boosters', label: 'Boosters' },
     { href: '/support', label: 'Aide' },
   ];
   return <>
@@ -63,6 +61,10 @@ export default function ChambreSpacesMenu({ username, authenticated = false, tri
             <span><strong>{link.label}</strong><small>{link.detail}</small></span><ArrowUpRight size={17} aria-hidden="true" />
           </Link>)}
         </section>)}
+      </nav>
+      <nav aria-label="Les petits plus Synaura" className="chambre-spaces-benefits">
+        <Link href="/boosters" prefetch={false} onClick={close}><Zap size={20} aria-hidden="true" /><span><strong>Boosters & récompenses</strong><small>Un coup de pouce pour ton son.</small></span><ArrowUpRight size={16} /></Link>
+        <Link href="/subscriptions" prefetch={false} onClick={close}><Sparkles size={20} aria-hidden="true" /><span><strong>Abonnements</strong><small>Plus de possibilités, à ton rythme.</small></span><ArrowUpRight size={16} /></Link>
       </nav>
       <nav aria-label="Compte et services" className="chambre-spaces-account">
         {accountLinks.map(link => <Link key={link.href} href={link.href} prefetch={false} onClick={close} aria-current={pathname === link.href ? 'page' : undefined}>{link.label}<ArrowUpRight size={13} aria-hidden="true" /></Link>)}

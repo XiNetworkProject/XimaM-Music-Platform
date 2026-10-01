@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import { projectProductJourneys } from './reviewed-product-journeys.mjs';
 
 /** Explicit functional changes requested after the presentation-only gates.
  * Restore only these exact reviewed slots for historical comparisons; live-media-
  * continuity and audio-core tests execute their new behavior. No baseline changes. */
 export function projectLiveMedia(file, raw) {
+  raw = projectProductJourneys(file,raw);
   let text = raw.replaceAll('\r\n','\n');
   const replace = (from,to='') => { assert.equal(text.split(from).length,2,`${file}: reviewed Live media slot`);text=text.replace(from,to); };
   if(file==='components/home/SynauraScroll.tsx') {

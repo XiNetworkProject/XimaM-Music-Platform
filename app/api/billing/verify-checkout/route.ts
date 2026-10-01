@@ -20,6 +20,13 @@ export async function POST(req: NextRequest) {
       expand: ['subscription']
     });
 
+    // The return URL is untrusted. Only the account bound when checkout was
+    // created may reconcile this subscription; never accept another user's ID.
+    const boundSubscription = checkoutSession.subscription as any;
+    if (checkoutSession.mode !== 'subscription' || !boundSubscription || typeof boundSubscription === 'string' || boundSubscription.metadata?.userId !== session.user.id) {
+      return NextResponse.json({ error: 'Session de paiement non autorisée' }, { status: 403 });
+    }
+
     if (checkoutSession.payment_status !== 'paid') {
       return NextResponse.json({ 
         error: 'Paiement non confirmé',

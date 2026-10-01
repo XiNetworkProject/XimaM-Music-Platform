@@ -7,6 +7,7 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import ts from 'typescript';
 import postcss from 'postcss';
+import { projectProductJourneys } from './helpers/reviewed-product-journeys.mjs';
 
 const root = new URL('../', import.meta.url);
 const read = (path) => readFileSync(new URL(path, root), 'utf8');
@@ -48,7 +49,12 @@ function controlContracts(text) {
       const element = node.parent.parent;
       if (node.name.getText(file) === 'value' && ['Kpi', 'MetricCard'].includes(element.tagName?.getText(file))) return;
       if (node.initializer && ts.isJsxExpression(node.initializer) && node.initializer.expression) {
-        contracts.add(`${node.name.getText(file)}=${normalize(node.initializer.expression, file)}`);
+        let binding = normalize(node.initializer.expression, file);
+        // Verified UI defect: switching the billing interval after selection
+        // used to retain a mismatched Stripe price. The dedicated regression
+        // below requires this exact reset; no other handler is exempted.
+        if (element.tagName?.getText(file) === 'PeriodToggle' && node.name.getText(file) === 'onChange' && binding.replace(/\s+/g, '') === "(nextPeriod)=>{setPeriod(nextPeriod);setSelectedPriceId('');setPreview(null);}") binding = 'setPeriod';
+        contracts.add(`${node.name.getText(file)}=${binding}`);
       }
     }
     ts.forEachChild(node, visit);
@@ -69,6 +75,10 @@ export function accountBehaviorFingerprint(text, path) {
   const presentationIcons = isMembership ? ['ArrowUpRight', 'Shield', 'Zap'] : ['ArrowUpRight'];
   const normalized = ts.transform(file, [(context) => {
     const visit = (node) => {
+      // The new subscription skin is a local, presentation-only stylesheet.
+      // Do not exempt other imports (including billing/session/service modules).
+      if (isMembership && ts.isImportDeclaration(node) && !node.importClause && node.moduleSpecifier.text === './membership.css') return undefined;
+      if (isMembership && ts.isImportDeclaration(node) && node.moduleSpecifier.text === '@/components/ambient/ExperienceMotionFrame' && node.importClause?.name?.text === 'ExperienceMotionFrame' && !node.importClause.namedBindings) return undefined;
       if (ts.isImportDeclaration(node) && node.importClause?.namedBindings && ts.isNamedImports(node.importClause.namedBindings)) {
         const module = node.moduleSpecifier.text;
         const omitted = module === 'lucide-react' ? presentationIcons : module === 'framer-motion' ? ['useReducedMotion'] : module === '@/components/synaura/SynauraShell' ? ['SynauraInkPanel'] : [];
@@ -124,6 +134,9 @@ export function accountBehaviorFingerprint(text, path) {
       const expression = node.expression;
       let value = normalize(expression, file);
       if (value.includes('PLANS.')) {
+        // Authorized copy now explicitly states the actual billing cadence.
+        // Keep every plan reference, amount and selected period in the signature.
+        value = value.replace('/mois · facturé à l’année`', '/mois`').replace("'Facturé chaque mois'", "'Taxes calculées au paiement'");
         // The source has always used -1 to mean unlimited. These are the only
         // two quota-text corrections; the numeric constants stay untouched.
         value = value.replaceAll('`${PLANS.pro.limits.maxTracks}/mois`', "formatLimit(PLANS.pro.limits.maxTracks, '/mois')").replaceAll('String(PLANS.pro.limits.maxTracks)', 'formatLimit(PLANS.pro.limits.maxTracks)');
@@ -171,7 +184,7 @@ test('all existing account business statements, effects and individual control c
   for (const [index, name] of ['SubscriptionsPage', 'SettingsClient'].entries()) {
     const path = paths[index];
     const before = readFileSync(new URL(path, backup), 'utf8');
-    const after = read(path);
+    const after = projectProductJourneys(path,read(path));
     assert.equal(businessBody(after, name), businessBody(before, name), `${path}: data, effects, guards, payloads and state updates`);
     assert.deepEqual(controlContracts(after), controlContracts(before), `${path}: control bindings`);
   }

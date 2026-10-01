@@ -218,18 +218,18 @@ function withRadarSignals(track: PublicTrackRow, input: RadarScoreInput): Public
  * corriges par un prior statistique : un like sur une seule ecoute reste un bon
  * debut, mais ne peut plus battre artificiellement un signal confirme.
  */
-export async function getRadarTracks(limit = 16): Promise<PublicTrackRow[]> {
-  const candidates = (await loadGlobalTrackCandidates(false)).filter((track) => !track.isAI);
+export async function getRadarTracks(limit = 16, hiddenArtistIds: ReadonlySet<string> = new Set()): Promise<PublicTrackRow[]> {
+  const candidates = (await loadGlobalTrackCandidates(false)).filter((track) => !track.isAI && !hiddenArtistIds.has(String(track.artist?._id || '')));
   if (!candidates.length) return [];
   const scored = candidates.map((candidate) => {
     const track = candidate as any;
     const metrics = candidate.discoveryMetrics!;
     const input: RadarScoreInput = {
       plays: Number(candidate.plays || 0),
-      likes: Number(metrics.likes30d || track.likesCount || 0),
-      saves: Number(metrics.saves30d || track.savesCount || 0),
-      comments: Number(metrics.comments30d || track.commentsCount || 0),
-      reactions: Number(metrics.reactions30d || track.reactionsCount || 0),
+      likes: Number(metrics.likes30d ?? 0),
+      saves: Number(metrics.saves30d ?? 0),
+      comments: Number(metrics.comments30d ?? 0),
+      reactions: Number(metrics.reactions30d ?? 0),
       completionRate: Number(metrics.completionRate30d || 0),
       ageDays: Number(metrics.ageHours || 0) / 24,
       recentPlays: Number(metrics.plays30d || 0),

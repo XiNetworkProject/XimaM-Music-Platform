@@ -1,182 +1,228 @@
-"use client";
+'use client';
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useSession } from "next-auth/react";
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useSession } from 'next-auth/react';
+import type { Booster, Plan, Pity, Rarity } from '@/lib/boosters/policy';
 
-export interface BoosterCatalogItem {
-  id: string;
-  key: string;
-  name: string;
-  description: string;
-  type: "track" | "artist";
-  rarity: "common" | "rare" | "epic" | "legendary";
-  multiplier: number;
-  duration_hours: number;
-}
-
+export type BoosterCatalogItem = Booster;
 export interface InventoryItem {
-  id: string; // inventory id
-  status: "owned" | "used";
+  id: string;
+  status: 'owned' | 'used';
   obtained_at: string;
   used_at?: string | null;
-  booster: BoosterCatalogItem;
+  booster: Booster;
+  metadata?: {
+    activation?: {
+      type: string;
+      targetId: string;
+      multiplier: number;
+      expiresAt: string;
+    };
+  };
 }
-
-interface InventoryResponse {
+type InventoryResponse = {
+  catalog?: Booster[];
   inventory: InventoryItem[];
   cooldownMs: number;
-  remainingMs: number | null;
+  remainingMs: number;
   streak: number;
-  plan?: 'free' | 'starter' | 'pro' | 'enterprise';
-  pity?: { opens_since_rare: number; opens_since_epic: number; opens_since_legendary: number };
-  packs?: Record<string, { periodStart: string; claimed: number; perWeek: number }>;
-}
+  plan: Plan;
+  pity: Pity;
+  nextRarity: Rarity;
+  odds: { rarity: Rarity; percent: number }[];
+  packs: Record<
+    string,
+    {
+      periodStart: string;
+      claimed: number;
+      perWeek: number;
+      size: number;
+      eligible: boolean;
+    }
+  >;
+};
+type MutationResult = {
+  ok: boolean;
+  error?: string;
+  data?: any;
+  received?: { inventoryId: string; booster: Booster } | null;
+};
 
 export function useBoosters() {
-  const { status } = useSession();
-  const [loading, setLoading] = useState<boolean>(false);
-  const [inventory, setInventory] = useState<InventoryItem[]>([]);
-  const [cooldownMs, setCooldownMs] = useState<number>(24 * 3_600_000);
-  const [remainingMs, setRemainingMs] = useState<number>(0);
-  const [streak, setStreak] = useState<number>(0);
-  const [lastOpened, setLastOpened] = useState<{ inventoryId: string; booster: BoosterCatalogItem } | null>(null);
-  const [plan, setPlan] = useState<'free' | 'starter' | 'pro' | 'enterprise'>('free');
-  const [pity, setPity] = useState<{ opens_since_rare: number; opens_since_epic: number; opens_since_legendary: number }>({
-    opens_since_rare: 0,
-    opens_since_epic: 0,
-    opens_since_legendary: 0,
-  });
-  const [packs, setPacks] = useState<Record<string, { periodStart: string; claimed: number; perWeek: number }>>({});
-
-  const canOpen = useMemo(() => !loading && (!remainingMs || remainingMs <= 0), [loading, remainingMs]);
-
-  const tickRemaining = useCallback(() => {
-    setRemainingMs((prev) => (prev > 0 ? Math.max(0, prev - 1000) : 0));
-  }, []);
-
-  useEffect(() => {
-    if (!remainingMs || remainingMs <= 0) return;
-    const id = setInterval(tickRemaining, 1000);
-    return () => clearInterval(id);
-  }, [remainingMs, tickRemaining]);
+  const { data: session, status } = useSession();
+  const identity = status === 'authenticated' ? session?.user?.id || '' : '';
+  const identityRef = useRef(identity);
+  identityRef.current = identity;
+  const [snapshot, setSnapshot] = useState<{
+    identity: string;
+    data: InventoryResponse;
+  } | null>(null);
+  const [reading, setReading] = useState(true),
+    [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [deadline, setDeadline] = useState(0),
+    [now, setNow] = useState(Date.now);
+  const [lastOpened, setLastOpened] = useState<{
+    inventoryId: string;
+    booster: Booster;
+  } | null>(null);
+  const [revision, setRevision] = useState(0);
+  const controller = useRef<AbortController | null>(null),
+    request = useRef(0),
+    mutation = useRef(false);
+  const data = snapshot?.identity === identity ? snapshot.data : null;
 
   const fetchInventory = useCallback(async () => {
-    if (status !== "authenticated") {
-      setInventory([]);
-      setRemainingMs(0);
-      setLoading(false);
-      return;
-    }
-
+    controller.current?.abort();
+    if (!identity) return;
+    const version = ++request.current,
+      abort = new AbortController();
+    controller.current = abort;
+    setReading(true);
     try {
-      setLoading(true);
-      const res = await fetch("/api/boosters", { cache: "no-store" });
-      if (!res.ok) {
-        setInventory([]);
+      const response = await fetch('/api/boosters', {
+        cache: 'no-store',
+        signal: abort.signal,
+      });
+      const json = await response.json();
+      if (!response.ok) throw new Error(json.error || 'Chargement impossible.');
+      if (
+        abort.signal.aborted ||
+        version !== request.current ||
+        identityRef.current !== identity
+      )
         return;
-      }
-      const data: InventoryResponse = await res.json();
-      setInventory(data.inventory || []);
-      setCooldownMs(data.cooldownMs || 24 * 3_600_000);
-      setRemainingMs(data.remainingMs || 0);
-      setStreak(data.streak || 0);
-      if (data.plan) setPlan(data.plan);
-      if (data.pity) setPity(data.pity);
-      if (data.packs) setPacks(data.packs);
-    } catch {
-      setInventory([]);
+      setSnapshot({ identity, data: json });
+      setError(null);
+      setDeadline(Date.now() + Math.max(0, Number(json.remainingMs) || 0));
+      setNow(Date.now());
+    } catch (cause) {
+      if (!abort.signal.aborted && identityRef.current === identity)
+        setError(
+          cause instanceof Error ? cause.message : 'Connexion indisponible.'
+        );
     } finally {
-      setLoading(false);
+      if (version === request.current && identityRef.current === identity)
+        setReading(false);
     }
-  }, [status]);
+  }, [identity]);
 
   useEffect(() => {
-    if (status !== "loading") void fetchInventory();
-  }, [fetchInventory, status]);
+    setSnapshot(null);
+    setLastOpened(null);
+    setError(null);
+    setDeadline(0);
+    setReading(!!identity);
+    if (identity) void fetchInventory();
+    return () => {
+      controller.current?.abort();
+      request.current++;
+    };
+  }, [identity, fetchInventory]);
+  useEffect(() => {
+    const update = () => setNow(Date.now());
+    const timer = setInterval(update, 1000);
+    document.addEventListener('visibilitychange', update);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener('visibilitychange', update);
+    };
+  }, []);
 
-  const openDaily = useCallback(async () => {
-    if (!canOpen) return { ok: false as const };
-    setLoading(true);
-    try {
-      const res = await fetch("/api/boosters/open", { method: "POST" });
-      if (res.status === 429) {
-        const j = await res.json().catch(() => ({}));
-        setRemainingMs(typeof j.remainingMs === "number" ? j.remainingMs : cooldownMs);
-        return { ok: false as const };
+  const perform = useCallback(
+    async (url: string, body?: unknown): Promise<MutationResult> => {
+      if (!identity || mutation.current)
+        return { ok: false, error: 'Une opération est déjà en cours.' };
+      mutation.current = true;
+      setBusy(true);
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          ...(body ? { body: JSON.stringify(body) } : {}),
+        });
+        const json = await response.json();
+        if (identityRef.current !== identity)
+          return { ok: false, error: 'Le compte a changé.' };
+        if (!response.ok) {
+          if (typeof json.remainingMs === 'number')
+            setDeadline(Date.now() + json.remainingMs);
+          throw new Error(json.error || 'Opération indisponible.');
+        }
+        const received = json.received?.booster
+          ? {
+              inventoryId:
+                json.received.inventoryId || json.received.inventory_id,
+              booster: json.received.booster,
+            }
+          : null;
+        if (received) setLastOpened(received);
+        setRevision((value) => value + 1);
+        await fetchInventory();
+        return { ok: true, data: json, received };
+      } catch (cause) {
+        return {
+          ok: false,
+          error:
+            cause instanceof Error
+              ? cause.message
+              : 'Connexion interrompue. Actualise tes boosts avant de réessayer.',
+        };
+      } finally {
+        mutation.current = false;
+        setBusy(false);
       }
-      if (!res.ok) return { ok: false as const };
-      const json = await res.json();
-      const received = json?.received;
-      const normalized = received
-        ? {
-            inventoryId: received.inventoryId || received.inventory_id,
-            booster: received.booster,
-          }
-        : null;
-      if (normalized) setLastOpened(normalized);
-      await fetchInventory();
-      return { ok: true as const, received: normalized };
-    } finally {
-      setLoading(false);
-    }
-  }, [canOpen, cooldownMs, fetchInventory]);
+    },
+    [identity, fetchInventory]
+  );
 
+  const remainingMs = Math.max(0, deadline - now);
+  const loading = reading || busy;
+  const canOpen =
+    !!identity && !!data && !error && !loading && remainingMs === 0;
+  const openDaily = useCallback(
+    () =>
+      canOpen
+        ? perform('/api/boosters/open')
+        : Promise.resolve({
+            ok: false,
+            error: 'Booster non disponible.',
+          } as MutationResult),
+    [canOpen, perform]
+  );
   const useOnTrack = useCallback(
-    async (inventoryId: string, targetTrackId: string) => {
-      if (!inventoryId || !targetTrackId) return { ok: false as const };
-      setLoading(true);
-      try {
-        const res = await fetch("/api/boosters/use", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ inventoryId, targetTrackId }),
-        });
-        if (!res.ok) return { ok: false as const };
-        await fetchInventory();
-        return { ok: true as const };
-      } finally {
-        setLoading(false);
-      }
-    },
-    [fetchInventory]
+    (inventoryId: string, targetTrackId: string) =>
+      perform('/api/boosters/use', { inventoryId, targetTrackId }),
+    [perform]
   );
-
   const useOnArtist = useCallback(
-    async (inventoryId: string) => {
-      if (!inventoryId) return { ok: false as const };
-      setLoading(true);
-      try {
-        const res = await fetch("/api/boosters/use", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ inventoryId }),
-        });
-        if (!res.ok) return { ok: false as const };
-        await fetchInventory();
-        return { ok: true as const };
-      } finally {
-        setLoading(false);
-      }
-    },
-    [fetchInventory]
+    (inventoryId: string) => perform('/api/boosters/use', { inventoryId }),
+    [perform]
   );
-
   return {
     loading,
-    inventory,
-    cooldownMs,
+    busy,
+    ready: !!data,
+    error,
+    revision,
+    identity,
+    now,
+    inventory: data?.inventory || [],
+    catalog: data?.catalog || [],
+    cooldownMs: data?.cooldownMs || 86_400_000,
     remainingMs,
-    streak,
+    streak: data?.streak || 0,
     lastOpened,
     canOpen,
-    plan,
-    pity,
-    packs,
+    plan: data?.plan || 'free',
+    pity: data?.pity,
+    packs: data?.packs || {},
+    odds: data?.odds || [],
+    nextRarity: data?.nextRarity || 'common',
     fetchInventory,
     openDaily,
     useOnTrack,
     useOnArtist,
+    perform,
   };
 }
-
-

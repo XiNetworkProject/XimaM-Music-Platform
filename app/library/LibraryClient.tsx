@@ -1139,9 +1139,9 @@ export default function LibraryClient() {
       <div className="v2-library-title flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="v2-kicker">SYNAURA / BIBLIOTHÈQUE</p>
-          <h1 className="mt-3 text-[var(--syn-text-primary)]">Votre<br /><span className="chambre-type-accent">discothèque.</span></h1>
+          <h1 className="mt-3 text-[var(--syn-text-primary)]">Ta <span className="chambre-type-accent">bibliothèque.</span></h1>
           <p className="mt-1 text-sm font-semibold text-[var(--syn-text-secondary)]">
-            Les morceaux passent. Les vôtres restent.
+            Tes découvertes, au même endroit.
           </p>
         </div>
         {tab === 'playlists' && !selectedPlaylistId ? (
@@ -1369,7 +1369,7 @@ export default function LibraryClient() {
       <SynauraTopBar searchHref="/discover" searchLabel="Explorer le catalogue Synaura..." />
       <SynauraRouteNav />
       <SynauraAnnouncementStrip />
-      <div className={cx(LIBRARY_SCOPE_CLASS, 'space-y-8 experience-collection')}>
+      <div className={cx(LIBRARY_SCOPE_CLASS, 'space-y-8 experience-collection experience-refresh library-refresh')}>
         <main className="min-w-0">
           <div className="v2-library-layout signature-library-layout text-foreground-primary">
             {nativeLibraryHeader}
@@ -1513,8 +1513,8 @@ export default function LibraryClient() {
               >
                 <div className="signature-library-collection-bar flex items-center justify-between">
                   <div className="text-sm text-foreground-secondary">
-                    <p className="v2-kicker">UNE AMBIANCE, UNE COLLECTION</p>
-                    <h2>Vos playlists <span className="experience-collection-total">{visiblePlaylists.length}</span></h2>
+                    <p className="v2-kicker">À TON IMAGE</p>
+                    <h2>Tes playlists <span className="experience-collection-total">{visiblePlaylists.length}</span></h2>
                   </div>
                   <button
                     type="button"

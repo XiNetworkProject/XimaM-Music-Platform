@@ -65,17 +65,9 @@ async function run() {
       void recordClipFunnelEvent(input.source._id, 'clip_draft_created');
     }
     if (!currentUpload) {
-      let lastError: unknown = null;
-      for (let attempt = 0; attempt < 2 && !currentUpload; attempt += 1) {
-        try {
-          emit({ status: 'uploading', progress: 0 });
-          currentUpload = await uploadVideo(input.file, (progress) => emit({ progress }));
-        } catch (error) {
-          lastError = error;
-          if (attempt === 0) await new Promise((resolve) => setTimeout(resolve, 1200));
-        }
-      }
-      if (!currentUpload) throw lastError;
+      // No automatic replay of a write with an unknown server outcome.
+      emit({ status: 'uploading', progress: 0 });
+      currentUpload = await uploadVideo(input.file, (progress) => emit({ progress }));
     }
     emit({ status: 'publishing', progress: 1 });
     const publishResponse = await fetch(`/api/music-clips/${currentClipId}`, {

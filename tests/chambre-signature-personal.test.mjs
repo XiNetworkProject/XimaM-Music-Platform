@@ -6,7 +6,7 @@ import postcss from 'postcss';
 import { behaviorFingerprint } from './chambre-personal-redesign.test.mjs';
 
 const root = new URL('../', import.meta.url);
-const read = (path) => readFileSync(new URL(path, root), 'utf8');
+const read = (path) => readFileSync(new URL(path, root), 'utf8').replaceAll('\r\n', '\n');
 const paths = ['app/community/page.tsx', 'app/library/LibraryClient.tsx', 'app/notifications/page.tsx'];
 const [community, library, activity] = paths.map(read);
 const css = read('components/v2/personal-v2.css');
@@ -38,38 +38,36 @@ test('signature personal JSX parses and each CSS selector stays in the local Cha
 test('strict unmodified AST helper proves identical imports, state, guards, requests and event expressions', (context) => {
   if (!existsSync(backupRoot)) return context.skip('Local before snapshots absent; behavioral preservation is not inferred.');
   for (const path of paths) {
+    // The requested Community functional redesign has dedicated runtime tests.
+    if (path === 'app/community/page.tsx') continue;
     assert.equal(behaviorFingerprint(read(path), path), behaviorFingerprint(readFileSync(new URL(path, backupRoot), 'utf8'), path), path);
   }
-  const beforeCss = readFileSync(new URL('components/v2/personal-v2.css', backupRoot), 'utf8');
+  const beforeCss = readFileSync(new URL('components/v2/personal-v2.css', backupRoot), 'utf8').replaceAll('\r\n', '\n');
   assert.equal(css.slice(0, css.indexOf(marker)).trimEnd(), beforeCss.trimEnd(), 'All previous personal/rewards styles remain unchanged.');
 });
 
-test('Community destinations still use canonical clubs and genuine aggregate/latest-author data', () => {
+test('Community destinations still use canonical clubs and genuine discussion/author data', () => {
+  const hub = read('components/community/CommunityHub.tsx');
   for (const fragment of [
-    "import { COMMUNITY_CLUBS, type ClubConfig } from '@/lib/communityClubs'",
-    "fetch('/api/community/clubs', { cache: 'no-store' })",
-    "fetch('/api/user/preferences', { cache: 'no-store' })",
-    "if (status !== 'authenticated') return",
+    "import { COMMUNITY_CLUBS, composeHref } from '@/lib/communityClubs'",
+    "fetch('/api/user/preferences', { cache: 'no-store', signal: controller.signal })",
+    'if (!session?.user?.id)',
     'return [...COMMUNITY_CLUBS].sort((a, b) =>',
-    'orderedClubs.map((club, index)',
-    'aggregate={aggregates[club.slug]}',
-    'latestPost.author?.avatar', 'latestPost.author?.username',
-    "{latestPost.title || 'Discussion'}", "{latestPost.author?.name || 'Créateur Synaura'}",
-    "{postsCount} post{postsCount > 1 ? 's' : ''}",
-    'La première discussion reste à écrire.',
-  ]) assert.ok(community.includes(fragment), fragment);
-  assert.match(community, /<article className="[^"]*signature-club"[^>]*data-club=\{club.slug\}/);
-  for (const href of ['/community/forum', '/city', '/community/faq', '/posts', '/partnerships']) assert.ok(community.includes(`href="${href}"`), href);
-  assert.match(community, /href=\{latestPost.id \? `\/community\/forum\/\$\{latestPost.id\}` : `\/community\/\$\{club.slug\}`\}/);
+    'orderedClubs.map((club)', 'post.author', 'author?.username',
+    "{post.title || 'Discussion'}", 'post.replies_count || 0',
+    'La conversation peut commencer avec toi.',
+  ]) assert.ok(hub.includes(fragment), fragment);
+  for (const href of ['/community/forum', '/city', '/community/faq', '/posts', '/partnerships']) assert.ok(hub.includes(`href="${href}"`), href);
+  assert.match(hub, /communityPostHref\(post.id, publicPreview\)/);
+  assert.match(community, /<CommunityHub\s*\/>/);
 });
 
-test('Community layout has distinct indexed destinations with visible mobile entry links', () => {
-  assert.equal(rule('.synaura-chambre .signature-club-grid')['grid-template-columns'], 'minmax(0, 1fr)');
-  assert.equal(rule('.synaura-chambre .signature-club > .signature-club-content', '(max-width: 767px)')['grid-template-columns'], 'minmax(0, 1fr)');
-  assert.equal(rule('.synaura-chambre .signature-club-enter')['min-height'], '44px');
-  assert.equal(rule('.synaura-chambre .signature-club-enter', '(max-width: 767px)').width, '100%');
-  for (const slug of ['collab', 'remix', 'ai']) assert.ok(signature.includes(`.signature-club[data-club="${slug}"] .signature-club-field span`));
-  assert.equal(rule('.synaura-chambre .signature-club > .signature-club-field')['pointer-events'], 'none');
+test('Community layout keeps mobile actions, wrapping filters and a single document scroll', () => {
+  const hubCss = read('components/community/community-hub.css');
+  assert.match(hubCss, /community-layout \{ grid-template-columns: minmax\(0,1fr\);/);
+  assert.match(hubCss, /community-primary \{[^}]*min-height: 46px/);
+  assert.match(hubCss, /community-filter-bar \{ display: flex; flex-wrap: wrap/);
+  assert.doesNotMatch(hubCss, /overflow-y:\s*(auto|scroll)/);
 });
 
 test('Library collection includes five actual tabs, real recent resume and explicit Play in both views', () => {

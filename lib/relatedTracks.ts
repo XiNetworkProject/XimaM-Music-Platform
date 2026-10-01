@@ -1,3 +1,5 @@
+import { boundedInteger, diversifyRanked, finitePositive } from './recommendation/policy.ts';
+
 export type RelatedPlaylistMatch = {
   id: string;
   title: string;
@@ -113,7 +115,7 @@ export function rankRelatedTrackCandidates<T>(
     }
     if (relationScore <= 0) return [];
 
-    const quality = Math.min(9, Math.log10(Math.max(0, Number(candidate.plays || 0)) + 1) * 2.2);
+    const quality = Math.min(9, Math.log10(finitePositive(candidate.plays) + 1) * 2.2);
     const score = relationScore
       + quality
       + freshnessBonus(candidate.createdAt)
@@ -126,31 +128,7 @@ export function rankRelatedTrackCandidates<T>(
     }];
   });
 
-  const selected: RankedRelatedTrack<T>[] = [];
-  const artistExposure = new Map<string, number>();
-  const recentGenres: string[] = [];
-  while (scored.length && selected.length < Math.max(1, Math.min(20, limit))) {
-    scored.sort((left, right) => {
-      const adjusted = (entry: (typeof scored)[number]) => {
-        const artist = normalized(entry.candidate.artistId);
-        const artistPenalty = (artistExposure.get(artist) || 0) * 18;
-        const genrePenalty = entry.primaryGenre
-          ? recentGenres.slice(-3).filter((genre) => genre === entry.primaryGenre).length * 8
-          : 0;
-        return entry.score - artistPenalty - genrePenalty;
-      };
-      return adjusted(right) - adjusted(left);
-    });
-    const next = scored.shift()!;
-    const artist = normalized(next.candidate.artistId);
-    if (artist) artistExposure.set(artist, (artistExposure.get(artist) || 0) + 1);
-    if (next.primaryGenre) recentGenres.push(next.primaryGenre);
-    selected.push({
-      track: next.candidate.track,
-      score: Number(next.score.toFixed(3)),
-      reasons: next.reasons,
-    });
-  }
-
-  return selected;
+  return diversifyRanked(scored, { id: (entry) => entry.candidate.id, creator: (entry) => normalized(entry.candidate.artistId),
+    score: (entry) => entry.score, limit: boundedInteger(limit, 8, 0, 20) })
+    .map((entry) => ({ track: entry.candidate.track, score: Number(entry.score.toFixed(3)), reasons: entry.reasons }));
 }

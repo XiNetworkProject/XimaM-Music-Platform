@@ -13,6 +13,7 @@ import { canUseSoundClientSide } from '@/lib/clipPermissions';
 import { downloadAudioFile, generateFilename } from '@/hooks/useDownloadPermission';
 import { useTrackActions } from './useTrackActions';
 import FavoriteAction from './FavoriteAction';
+import { TasteControls } from '@/components/recommendations/TasteControls';
 import { SynauraImage } from '@/components/ui/SynauraImage';
 
 const button = 'v2-context-action syn-interactive min-h-11 rounded-lg px-3 py-2 text-sm font-medium hover:bg-[var(--syn-soft)] disabled:opacity-45';
@@ -88,6 +89,7 @@ function ActionContent({ entry, closeSurface }: ContextSurfaceRendererProps) {
       {!ready && !trackState.isError && <p role="status" className="py-5">Chargement…</p>}
       {trackState.isError && entry.surface !== 'queue' && <div role="alert"><p>{trackState.error.message}</p><button className={button} onClick={() => void trackState.refetch()}>Réessayer</button></div>}
       {ready && entry.surface === 'track-options' && <>
+        <TasteControls key={`${viewer}:${track._id}`} viewer={viewer} trackId={track._id} artistId={track.artist._id || ''} />
         <FavoriteAction track={track} label className="mb-3 w-full border border-[var(--syn-border)]" />
         <div role="menu" aria-label="Actions du morceau" onKeyDown={e => {
           if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) return;

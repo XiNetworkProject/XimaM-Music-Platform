@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getPublicClip } from './clipData';
 import SynauraLogo from '@/components/brand/SynauraLogo';
+import PublicClipVideo from '@/components/clips/PublicClipVideo';
 
 const PUBLIC_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://synaura.fr';
 
@@ -30,11 +31,12 @@ export default async function ClipPage({ params }: { params: { id: string } }) {
   const flowUrl = `/?filter=clips&clipId=${encodeURIComponent(clip.id)}`;
 
   return (
-    <main className="v2-creation chambre-public-clip min-h-screen bg-[var(--v2-bg)] px-5 py-8 text-[var(--v2-text)] sm:px-10 sm:py-12">
+    <main className="v2-creation chambre-public-clip experience-refresh clip-refresh min-h-screen bg-[var(--v2-bg)] px-5 py-8 text-[var(--v2-text)] sm:px-10 sm:py-12">
       <div className="v2-clip-stage">
-        <div className="overflow-hidden rounded-lg bg-[#111111] shadow-2xl shadow-black/20">
-          <video
-            className="aspect-[9/16] w-full bg-[#111111] object-cover"
+        <div className="clip-refresh-screen overflow-hidden rounded-lg bg-[#111111] shadow-2xl shadow-black/20">
+          <PublicClipVideo
+            className="clip-refresh-video w-full bg-[#111111] object-contain"
+            aria-label={`Clip de ${creator}`}
             src={clip.videoUrl}
             poster={clip.posterUrl || undefined}
             controls

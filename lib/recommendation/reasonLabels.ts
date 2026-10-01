@@ -1,4 +1,5 @@
 const REASON_LABELS: Record<string, string> = {
+  promotion: 'Mis en avant',
   global_performance: 'De bons signaux auprès des auditeurs',
   fresh: 'Tout juste publié',
   followed_artist: 'Un artiste que tu suis',
@@ -9,7 +10,7 @@ const REASON_LABELS: Record<string, string> = {
   collaborative: 'Apprécié par des auditeurs aux goûts proches',
   quality_signal: 'Une écoute particulièrement engageante',
   momentum: 'Ce son progresse rapidement',
-  emerging_creator: 'Un petit créateur prometteur',
+  emerging_creator: 'Un créateur encore peu exposé ici',
   catalog_rediscovery: 'Une pépite du catalogue à redécouvrir',
   social_engagement: 'La communauté réagit à ce son',
   post_track_match: 'Lié à un post qui pourrait te plaire',

@@ -1,6 +1,7 @@
 # Correctif séparé — Community posts HTTP 500
 
-Statut : **VALIDÉE — commit/push/déploiement autorisés, clôture conditionnée au smoke production**.
+Statut : **CLOSED / DEPLOYED — smoke production validé le 13 septembre 2026**.
+La clôture ci-dessous est un addendum local post-déploiement, non committé : un seul commit applicatif livré, aucune seconde livraison documentaire.
 Validation locale : 13 septembre 2026 (Europe/Paris). Baseline protégée : `f71bd509e9de9eecb1817f87bbc6b58fb23f517f`, tag `synaura-live-4b-baseline`.
 Le contexte historique ci-dessous explique l'ouverture du ticket, pas l'état de cette candidate.
 
@@ -141,3 +142,26 @@ Les mutations sociales sont bloquées par le navigateur de test (hors authentifi
 Décision utilisateur : candidate du **500 de liste** validée, commit isolé/push/déploiement canonique autorisés. La [dette de population des clubs](community-historical-category-debt.md) reste séparée. Le runner accepte désormais explicitement la production via COMMUNITY_E2E_BASE_URL ; aucune modification applicative supplémentaire. La clôture effective sera consignée après contrôle de production, sans anticiper le résultat.
 
 Contrôle production final en lecture seule : current et last-successful-sha = `f71bd509e9de9eecb1817f87bbc6b58fb23f517f`, comme HEAD et le tag local dé-référencé ; service active, healthz public `ok`, racine à 45 %, 32 Go disponibles. Aucun changement de production effectué.
+
+## Livraison et clôture — 13 septembre 2026
+
+Les paragraphes précédents décrivent l'audit et la candidate avant déploiement. Ce bilan les complète sans prétendre que les réserves de données ont disparu.
+
+- Commit isolé : **d0ac45379227b4ad86042b6b8eb2156535f1b817**, `fix(community): resolve post authors without legacy relation`.
+- Push origin/migration/freebox-storage effectué. Dix fichiers relus, aucun fichier natif/utilisateur, environnement, cache, dump, clé ou artifact ajouté. Scan staged : zéro secret détecté (motifs + 13 valeurs privées connues), zéro chemin interdit ; index vide après commit. Les modifications préexistantes sont préservées.
+- Avant commit : type-check et **284/284 tests PASS**, syntaxe du runner PASS, diff/cached check PASS. Code applicatif identique au build local validé.
+- Déploiement via le service installé **synaura-deploy.service**, démarré le 12 septembre à 22:49:43 UTC. Workflow inchangé : worktree isolé, npm ci, build, préflight, bascule/health avec rollback prévu, rétention canonique.
+- Build serveur **PASS en 16 min 25,513 s**, `PREFLIGHT OK`. Bascule à **23:09:03 UTC / 01:09:03 Paris**. Trois refus de connexion des retries initiaux correspondent au redémarrage, puis `APPLICATION SAINE` et `DEPLOIEMENT REUSSI`. Aucun rollback.
+- **current = last-successful-sha = HEAD = origin : d0ac45379227b4ad86042b6b8eb2156535f1b817**. Le passage suivant du timer répond « Déjà à jour ». Service applicatif active/running, NRestarts=0, déploiement Result=success.
+- Rétention automatique : ancienne release 4B.6 **2a6ab2a834146494c795650840b673c411206a02** retirée, 1 912 679 018 octets estimés. Pas de corbeille, reconstructible depuis Git. Aucun média utilisateur supprimé. Baseline 4B f71bd509, précédente 4B.7 2af010a8 et release épinglée c744b4fb conservées. Tag synaura-live-4b-baseline inchangé sur f71bd509.
+
+### Smoke production
+
+- GET public `/api/community/posts?category=feedback&limit=30&sort=recent` : **200**. collab/remix/ai/ai_prompt avec les mêmes paramètres : **200** également. États vides conformes aux données, aucun reclassement.
+- Compte E2E réel : **35/35 PASS** sur Community → Feedback/Collab/Remix/AI → retour, puis `/community/forum`. Les **10 vrais posts et leurs auteurs** sont affichés ; zéro refetch auteur redondant, zéro erreur console/HTTP/JS, zéro mutation sociale tentée. Captures et résultats : `artifacts/community-posts-fix/production-smoke/`. Capture des posts inspectée ; Feedback aussi vérifié dans le navigateur intégré, sans erreur console.
+- Runner de handoffs existant, inchangé : **55/55 PASS**, dont **Live → Community → Back**. Même activeItemId/index non nul, même filtre et queue, aucun item 0 transitoire, zéro play/pause/load/seek du lecteur principal pendant l'aller-retour, lecture continue. Les six autres parcours du runner passent également. Preuves : `artifacts/community-posts-fix/production-live-return/results.json`.
+- Aucun HTTP Community en erreur dans ce second smoke, contrôlé explicitement malgré son ancienne allowlist 500. Aucun nouvel échec HTTP/console : uniquement Cloudinary 401 historiques et Suno crédits 403 connu sur le parcours AI ; hors correction. Zéro exception JS.
+- Logs du service applicatif inspectés depuis la bascule à 23:09:03 UTC jusqu'à la fin du smoke : **0 PG_ERROR, 0 Relation PostgreSQL introuvable, 0 QueryError, 0 SQLSTATE**, et zéro ligne error/erreur/exception. Les deux smokes n'ont fait apparaître aucune erreur SQL.
+- Sonde applicative `/` sur port 3000 : **200** ; frontal `https://synaura.fr/healthz` : **ok**. Racine **45 %**, environ **32 Go libres**. Contrôle current/last/service/disque répété à 23:11:34 UTC.
+
+**Ticket Community posts 500 : CLOSED / DEPLOYED.** Aucune migration, reclassification ou modification de catégorie historique. La [dette des catégories historiques](community-historical-category-debt.md) est documentée séparément et reste non traitée ; aucun nouveau chantier Community ouvert.

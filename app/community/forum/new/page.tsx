@@ -1,6 +1,7 @@
 'use client';
 
-import { Suspense, useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { DraftRecovery } from '@/components/recovery/DraftRecovery';
 import Link from '@/components/navigation/HandoffLink';
 import { useSearchParams } from 'next/navigation';
 import { useHandoffRouter as useRouter } from '@/hooks/useHandoffRouter';
@@ -81,6 +82,8 @@ function NewCommunityPostContent() {
   const [trackSearch, setTrackSearch] = useState('');
   const [loadingTracks, setLoadingTracks] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const submitLock = useRef(false);
+  const [published, setPublished] = useState(false);
 
   const meta = categoryMeta(category);
   const ActiveIcon = meta.icon;
@@ -157,6 +160,7 @@ function NewCommunityPostContent() {
   }, [category]);
 
   const submitPost = async () => {
+    if (submitLock.current) return;
     if (!session?.user) {
       router.push(`/auth/signup?callbackUrl=${encodeURIComponent(`/community/forum/new?category=${category}${selectedTrack ? `&trackId=${selectedTrack.id}` : ''}`)}`);
       return;
@@ -165,6 +169,7 @@ function NewCommunityPostContent() {
       notify.error('Post incomplet', 'Ajoute un titre et un texte.');
       return;
     }
+    submitLock.current = true;
     setSubmitting(true);
     try {
       const response = await fetch('/api/community/posts', {
@@ -180,11 +185,13 @@ function NewCommunityPostContent() {
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload?.error || 'Publication impossible');
+      setPublished(true);
       notify.success('Community', 'Ta discussion est publiée.');
       router.push(payload?.id ? `/community/forum/${payload.id}` : `/community/forum?category=${category}`);
     } catch (error: any) {
       notify.error('Publication', error?.message || 'Impossible de publier.');
     } finally {
+      submitLock.current = false;
       setSubmitting(false);
     }
   };
@@ -193,12 +200,15 @@ function NewCommunityPostContent() {
     <SynauraAppShell contentClassName="max-w-[1180px]">
       <SynauraTopBar searchLabel="Chercher un avis, un feat, un défi..." primaryHref="/community/forum/new?category=feedback" primaryLabel="Nouveau post" />
       <SynauraRouteNav />
+      <DraftRecovery owner={session?.user?.id || ''} scope="community-post" fields={{title,content,category}} empty={!title.trim() && CATEGORIES.some(c=>c.prompt===content)} completed={published}
+        reset={()=>{setTitle('');setContent(initialCategory.prompt);setSelectedTrack(null);}}
+        apply={d=>{setTitle(d.title||'');setContent(d.content||'');setCategory(categoryMeta(d.category).id);setSelectedTrack(null);}} />
 
-      <div className="space-y-5 pb-36 sm:pb-28">
+      <div className="space-y-5 pb-36 sm:pb-28 experience-refresh community-refresh compose-refresh">
         <SynauraInkPanel className="v2-community-hero">
           <Link href="/community" className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-xs font-black text-white/58 transition hover:bg-white/14 hover:text-white">
             <ArrowLeft className="h-3.5 w-3.5" />
-            Retour Community
+            Retour à la communauté
           </Link>
           <div className="mt-6 grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-end">
             <div>
@@ -207,7 +217,7 @@ function NewCommunityPostContent() {
                 {meta.question}
               </h1>
               <p className="mt-4 max-w-2xl text-sm font-semibold leading-7 text-white/54">
-                Choisis une intention, attache un morceau, puis publie une demande claire pour obtenir avis, feat ou remix.
+                Une idée, une question, un son à partager.
               </p>
             </div>
             <div className="rounded-[1.35rem] border border-white/10 bg-white/8 p-4">
@@ -236,6 +246,7 @@ function NewCommunityPostContent() {
                     key={item.id}
                     type="button"
                     onClick={() => setCategory(item.id)}
+                    aria-pressed={active}
                     className={`rounded-[1.15rem] border p-3 text-left transition ${
                       active ? 'border-[#171313] bg-[#171313] text-white' : 'border-black/[0.08] bg-black/[0.035] text-[#171313] hover:bg-white'
                     }`}
@@ -252,12 +263,14 @@ function NewCommunityPostContent() {
             <div className="mt-5 grid gap-3">
               <input
                 value={title}
+                aria-label="Titre de la discussion"
                 onChange={(event) => setTitle(event.target.value)}
                 placeholder="Ex : Besoin d’un avis sur mon refrain"
                 className="h-12 w-full rounded-full border border-black/[0.08] bg-white px-4 text-sm font-black text-[#171313] outline-none placeholder:text-black/28 focus:border-[#171313]"
               />
               <textarea
                 value={content}
+                aria-label="Texte de la discussion"
                 onChange={(event) => setContent(event.target.value)}
                 rows={8}
                 placeholder="Décris ton attente : mix, paroles, feat, remix, contraintes..."

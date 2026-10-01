@@ -1,0 +1,345 @@
+/* Product rooms: deliberately scoped. Live, entry, players and navigation are untouched. */
+.synaura-chambre .experience-refresh {
+  --room-light: color-mix(in srgb, var(--syn-accent) 14%, transparent);
+  --room-soft: color-mix(in srgb, var(--syn-surface) 80%, transparent);
+  --room-ink: var(--syn-text-primary);
+  --room-muted: var(--syn-text-secondary);
+  color: var(--room-ink);
+  min-width: 0;
+  isolation: isolate;
+}
+.synaura-chambre .experience-refresh :is(input, textarea, select) {
+  font-size: 16px;
+  max-width: 100%;
+  color: var(--room-ink);
+  accent-color: var(--syn-accent);
+}
+.synaura-chambre .experience-refresh textarea { resize: vertical; }
+.synaura-chambre .experience-refresh :is(button, a, input, textarea, select, summary):focus-visible {
+  outline: 2px solid var(--syn-accent);
+  outline-offset: 4px;
+}
+.synaura-chambre .experience-refresh :is(button, a) { -webkit-tap-highlight-color: transparent; }
+.synaura-chambre .experience-refresh :is(h1, h2, h3) { text-wrap: balance; overflow-wrap: anywhere; }
+.synaura-chambre .experience-refresh h1 { letter-spacing: -.055em; }
+.synaura-chambre .experience-refresh :is(p, li) { overflow-wrap: anywhere; }
+
+/* A quiet light arc echoes the entry. No canvas, audio observer or extra frame loop. */
+.synaura-chambre .experience-refresh :is(.experience-collection-header, .experience-settings-heading, .signature-activity-heading, .v2-upload-header, .v2-community-hero, .v2-city-intro, .v2-boosters-intro, .chambre-support-heading) {
+  position: relative;
+  isolation: isolate;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+.synaura-chambre .experience-refresh :is(.experience-collection-header, .experience-settings-heading, .signature-activity-heading, .v2-upload-header, .v2-community-hero, .v2-city-intro, .v2-boosters-intro, .chambre-support-heading)::after {
+  content: '';
+  position: absolute;
+  inset: -20px 0 0 24%;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: 48% 52% 32% 65%;
+  background: radial-gradient(ellipse at 62% 12%, var(--room-light), transparent 68%);
+  opacity: .8;
+  animation: room-breathe 9s ease-in-out infinite alternate;
+  animation-play-state: paused;
+}
+body:has(.living-ambience[data-moving="true"]) .experience-refresh :is(.experience-collection-header, .experience-settings-heading, .signature-activity-heading, .v2-upload-header, .v2-community-hero, .v2-city-intro, .v2-boosters-intro, .chambre-support-heading)::after { animation-play-state: running; }
+@keyframes room-breathe { from { opacity: .35; transform: translateY(0); } to { opacity: .85; transform: translateY(10px); } }
+
+/* Library: useful content above the fold, a listening shelf, not a giant dashboard. */
+.synaura-chambre .experience-refresh.library-refresh .signature-library-layout { padding-top: 24px; }
+.synaura-chambre .experience-refresh.library-refresh .experience-collection-header {
+  grid-template-columns: minmax(0,1fr) minmax(260px,.7fr);
+  gap: 20px 40px;
+  padding: 12px 0 0;
+  margin-bottom: 28px;
+}
+.synaura-chambre .experience-refresh.library-refresh .v2-library-title { grid-row: 1 !important; align-items: center !important; }
+.synaura-chambre .experience-refresh.library-refresh .v2-library-title h1 { font-size: clamp(32px,4.4vw,60px) !important; max-width: none; margin-top: 12px; }
+.synaura-chambre .experience-refresh.library-refresh .v2-library-title p:last-child { margin-top: 10px; }
+.synaura-chambre .experience-refresh.library-refresh .signature-library-search { grid-row: 2; grid-column: 1; align-self: center; }
+.synaura-chambre .experience-refresh.library-refresh .signature-library-search-input { border-radius: 16px; border-color: transparent; background: var(--room-soft); height: 52px; }
+.synaura-chambre .experience-refresh.library-refresh .signature-library-resume {
+  grid-row: 1 / span 2; grid-column: 2;
+  align-self: center; padding: 18px; border: 0;
+  border-radius: 24px; gap: 16px;
+  grid-template-columns: 84px minmax(0,1fr) 42px;
+  background: linear-gradient(125deg, var(--room-light), var(--room-soft));
+  transition: background .2s, transform .2s;
+}
+.synaura-chambre .experience-refresh.library-refresh .signature-library-resume img.signature-library-resume-cover { width: 84px; height: 84px; border-radius: 14px; box-shadow: 0 12px 30px #0005; }
+.synaura-chambre .experience-refresh.library-refresh .signature-library-resume-play { border-radius: 50%; background: var(--syn-text-primary); color: var(--syn-background); }
+.synaura-chambre .experience-refresh.library-refresh .experience-collection-header > .experience-collection-index { margin-top: 4px; border: 0; padding: 8px 0; }
+.synaura-chambre .experience-refresh.library-refresh .experience-collection-header .v2-library-categories { display: flex; flex-wrap: wrap; gap: 8px; }
+.synaura-chambre .experience-refresh.library-refresh .experience-collection-header .v2-library-categories button { border: 0; border-radius: 50px; min-height: 44px; padding: 0 17px; background: transparent; flex: 0 1 auto; }
+.synaura-chambre .experience-refresh.library-refresh .experience-collection-header .v2-library-categories button[aria-pressed="true"] { background: var(--syn-text-primary); color: var(--syn-background); box-shadow: none; }
+.synaura-chambre .experience-refresh.library-refresh .v2-library-categories button[aria-pressed="true"] .experience-collection-count { color: inherit; opacity: .7; }
+.synaura-chambre .experience-refresh.library-refresh .signature-library-collection-bar h2 { font-size: 25px; }
+.synaura-chambre .experience-refresh.library-refresh .signature-personal-primary { border-radius: 50px; min-height: 46px; border: 0; background: var(--syn-accent); color: var(--syn-background); }
+.synaura-chambre .experience-refresh.library-refresh .signature-library-records--grid { grid-template-columns: repeat(auto-fill,minmax(min(210px,100%),1fr)); gap: 28px; }
+.synaura-chambre .experience-refresh.library-refresh .signature-library-record { max-width: 340px; padding: 0; background: transparent; border: 0; border-radius: 20px; }
+.synaura-chambre .experience-refresh.library-refresh .signature-library-record-cover { border-radius: 20px; box-shadow: 0 15px 36px #0004; transition: transform .25s, box-shadow .25s; }
+.synaura-chambre .experience-refresh.library-refresh .experience-collection-sleeve-label { padding: 4px 2px; font-size: 10px; }
+.synaura-chambre .experience-refresh.library-refresh .signature-library-record-title { font-size: 18px; font-weight: 650; }
+.synaura-chambre .experience-refresh.library-refresh .signature-library-track { min-height: 78px; border-radius: 16px; }
+.synaura-chambre .experience-refresh.library-refresh .signature-library-track-cover { border-radius: 12px; border: 0; }
+.synaura-chambre .experience-refresh.library-refresh .signature-library-content { min-width: 0; }
+.synaura-chambre .experience-refresh.library-refresh .signature-library-content > div { border-color: transparent; }
+.synaura-chambre .experience-refresh.library-refresh .signature-library-empty { padding: 40px 24px; border: 0; border-radius: 24px; background: var(--room-soft); }
+.synaura-chambre .experience-refresh.library-refresh .chambre-library-detail { flex-wrap: wrap; }
+/* Some older signature rules use !important. Override only these reviewed surfaces. */
+.synaura-chambre .experience-refresh.library-refresh .signature-library-search { grid-column: 1 !important; grid-row: 2 !important; }
+.synaura-chambre .experience-refresh.library-refresh .signature-library-record { border: 0 !important; background: transparent !important; padding: 0 !important; }
+.synaura-chambre .experience-refresh.library-refresh .signature-library-resume { border: 0 !important; border-radius: 24px !important; }
+.synaura-chambre .experience-refresh.library-refresh .experience-collection-index { border: 0 !important; }
+.synaura-chambre .experience-refresh.library-refresh .experience-collection-header::before { content: none !important; }
+.synaura-chambre .experience-refresh.library-refresh .v2-library-categories button { border: 0 !important; }
+.synaura-chambre .experience-refresh.library-refresh .v2-library-categories button[aria-pressed="true"] { background: var(--syn-text-primary) !important; color: var(--syn-background) !important; }
+
+/* Collections: cover-led identity and a comfortable tracklist, no fixed backdrop leak. */
+.synaura-chambre .experience-refresh:is(.playlist-refresh, .album-refresh) { background: var(--syn-background) !important; position: relative; }
+.synaura-chambre .experience-refresh.playlist-refresh > .fixed { position: absolute !important; max-height: 720px; }
+.synaura-chambre .experience-refresh :is(.v2-playlist-main, .v2-album-main) { max-width: 1380px; margin-inline: auto; padding: 30px clamp(20px,4vw,60px) 120px; }
+.synaura-chambre .experience-refresh :is(.v2-playlist-identity, .v2-album-identity) { display: grid; grid-template-columns: minmax(180px,280px) minmax(0,1fr); gap: clamp(24px,5vw,72px); align-items: center; padding-block: 28px 42px; }
+.synaura-chambre .experience-refresh :is(.v2-playlist-cover, .v2-album-cover) { border-radius: 22px; overflow: hidden; box-shadow: 0 25px 70px #0007; transform: none; }
+.synaura-chambre .experience-refresh :is(.v2-playlist-identity, .v2-album-identity) h1 { font-size: clamp(36px,5.5vw,78px); line-height: 1.02; }
+.synaura-chambre .experience-refresh .chambre-signature-album-disc { opacity: .4; transform: translateX(18%); }
+.synaura-chambre .experience-refresh .v2-album-actions { flex-wrap: wrap; gap: 12px; padding-block: 12px 28px; }
+.synaura-chambre .experience-refresh .v2-playlist-toolbar { padding: 18px; border: 0; border-radius: 22px; background: var(--room-soft); margin-bottom: 30px; }
+.synaura-chambre .experience-refresh .v2-playlist-toolbar > div { grid-template-columns: minmax(0,1fr) auto; }
+.synaura-chambre .experience-refresh .v2-playlist-toolbar > div > div:nth-child(2) { grid-row: 2; grid-column: 1 / -1; flex-wrap: wrap; overflow: visible; }
+.synaura-chambre .experience-refresh .v2-playlist-content-grid { grid-template-columns: minmax(0,1fr) minmax(220px,280px); gap: 32px; }
+.synaura-chambre .experience-refresh .v2-playlist-content-grid > section > div { border-radius: 16px; }
+.synaura-chambre .experience-refresh .chambre-signature-playlist-track-heading h2 { font-size: 28px; }
+.synaura-chambre .experience-refresh .v2-album-tracklist { border: 0; border-radius: 24px; padding: 20px; background: var(--room-soft); }
+.synaura-chambre .experience-refresh .v2-album-tracklist .v2-collection-heading { font-size: 28px !important; max-width: none; margin-block: 14px 24px !important; }
+.synaura-chambre .experience-refresh.album-refresh .v2-album-main { display: block !important; }
+.synaura-chambre .experience-refresh.album-refresh .v2-album-identity { width: 100%; grid-template-columns: minmax(180px,280px) minmax(0,1fr) !important; }
+.synaura-chambre .experience-refresh.album-refresh .v2-album-copy { min-width: 0; }
+.synaura-chambre .experience-refresh.album-refresh .v2-album-copy h1 { max-width: 24ch; }
+.synaura-chambre .experience-refresh.album-refresh > .fixed { position: absolute !important; }
+.synaura-chambre .experience-refresh.playlist-refresh .v2-playlist-identity { display: block !important; }
+.synaura-chambre .experience-refresh.playlist-refresh .v2-playlist-identity-grid { display: grid; grid-template-columns: minmax(180px,280px) minmax(0,1fr) !important; gap: 48px !important; width: 100%; }
+.synaura-chambre .experience-refresh.playlist-refresh .v2-playlist-copy { min-width: 0; }
+.synaura-chambre .experience-refresh.playlist-refresh .v2-playlist-cover { min-width: 0; width: 100%; }
+.synaura-chambre .experience-refresh.playlist-refresh .v2-playlist-identity > :first-child { max-width: none; }
+
+/* Publication: three visible steps and one working surface. */
+.synaura-chambre .experience-refresh.upload-refresh .v2-upload-header { padding-block: 20px 32px; min-height: 0; }
+.synaura-chambre .experience-refresh.upload-refresh .v2-upload-header h1 { font-size: clamp(36px,5vw,64px); max-width: none; line-height: 1.06; }
+.synaura-chambre .experience-refresh.upload-refresh .v2-upload-layout { display: grid; grid-template-columns: 230px minmax(0,1fr); gap: 28px; align-items: start; }
+.synaura-chambre .experience-refresh.upload-refresh .v2-upload-layout > aside { position: sticky; top: calc(var(--app-header-height,72px) + 20px); }
+.synaura-chambre .experience-refresh.upload-refresh .v2-upload-layout > aside > * { border: 0; border-radius: 20px; box-shadow: none; }
+.synaura-chambre .experience-refresh.upload-refresh .v2-upload-layout > aside button[aria-current="step"] { background: var(--room-light); box-shadow: inset 3px 0 var(--syn-accent); }
+.synaura-chambre .experience-refresh.upload-refresh .chambre-signature-upload-workspace { border-radius: 26px; background: var(--room-soft); box-shadow: none; }
+.synaura-chambre .experience-refresh.upload-refresh [data-signature-drop] { min-height: 260px; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 22px; background: linear-gradient(150deg,var(--room-light),transparent); border-color: var(--syn-accent); }
+.synaura-chambre .experience-refresh.upload-refresh [data-drag-active="true"] { background: var(--room-light); box-shadow: inset 0 0 0 2px var(--syn-accent); }
+.synaura-chambre .experience-refresh.upload-refresh .chambre-signature-upload-progress { background: var(--syn-accent); }
+.synaura-chambre .experience-refresh.upload-refresh .chambre-signature-upload-workspace > div:first-child { padding: 24px; background: transparent; }
+.synaura-chambre .experience-refresh.upload-refresh .chambre-signature-upload-workspace > div:first-child button[aria-pressed="true"] { background: var(--syn-text-primary); color: var(--syn-background); }
+.synaura-chambre .experience-refresh.upload-refresh .upload-extra { margin-block: 6px; font-size: 12px; color: var(--room-muted); }
+.synaura-chambre .experience-refresh.upload-refresh .upload-extra > summary { min-height: 44px; display: list-item; cursor: pointer; padding-top: 12px; }
+.synaura-chambre .experience-refresh.upload-refresh .upload-format-choices { display: none; } /* The identical Single/EP/Album control stays in the workspace header. */
+.synaura-chambre .experience-refresh.upload-refresh .v2-upload-header { padding-block: 12px 22px !important; }
+.synaura-chambre .experience-refresh.upload-refresh .v2-creative-header { padding: 0 !important; }
+.synaura-chambre .experience-refresh.upload-refresh .v2-upload-layout { gap: 24px !important; }
+.synaura-chambre .experience-refresh.upload-refresh .chambre-signature-upload-workspace { border: 0 !important; }
+.synaura-chambre .experience-refresh.upload-refresh .upload-preview { grid-column: 2; position: static !important; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.synaura-chambre .experience-refresh.upload-refresh .upload-preview > :first-child > :first-child { max-width: 140px; }
+.synaura-chambre .experience-refresh.publish-refresh .experience-release-path { border: 0; border-radius: 24px; padding: 24px; background: var(--room-soft); }
+.synaura-chambre .experience-refresh.publish-refresh .experience-release-heading h1 { font-size: clamp(40px,5vw,68px); }
+
+/* Settings: an index and a form, without card-inside-card visual clutter. */
+.synaura-chambre .experience-refresh.settings-refresh .experience-settings-heading { padding-block: 24px 32px; margin-bottom: 16px; }
+.synaura-chambre .experience-refresh.settings-refresh .experience-settings-heading h1 { font-size: clamp(36px,4.8vw,62px); }
+.synaura-chambre .experience-refresh.settings-refresh .experience-settings-identity { border: 0; border-radius: 20px; background: var(--room-soft); padding: 16px 20px; }
+.synaura-chambre .experience-refresh.settings-refresh .v2-settings-layout { display: grid; grid-template-columns: 220px minmax(0,1fr); gap: 40px; align-items: start; }
+.synaura-chambre .experience-refresh.settings-refresh .v2-settings-nav { position: sticky; top: calc(var(--app-header-height,72px) + 16px); border: 0; background: transparent; padding: 0; }
+.synaura-chambre .experience-refresh.settings-refresh .experience-settings-nav-item { min-height: 60px; border: 0; border-radius: 16px; padding: 12px; margin-block: 4px; }
+.synaura-chambre .experience-refresh.settings-refresh .experience-settings-nav-item[aria-selected="true"],
+.synaura-chambre .experience-refresh.settings-refresh .experience-settings-nav-item[aria-pressed="true"] { background: var(--room-light); box-shadow: inset 3px 0 var(--syn-accent); }
+.synaura-chambre .experience-refresh.settings-refresh :is(.v2-settings-card,.v2-settings-inner) { border: 0; box-shadow: none; border-radius: 24px; padding: clamp(18px,2.5vw,30px); background: var(--room-soft); }
+.synaura-chambre .experience-refresh.settings-refresh .v2-settings-inner { background: var(--syn-soft); border-radius: 18px; }
+.synaura-chambre .experience-refresh.settings-refresh .experience-settings-section-heading h2 { font-size: 28px; }
+.synaura-chambre .experience-refresh.settings-refresh :is(input:not([type=checkbox]):not([type=range]):not([type=color]), select, textarea) { border-radius: 12px; }
+.synaura-chambre .experience-refresh.settings-refresh .experience-settings-save-actions { flex-wrap: wrap; }
+
+/* Community's inner pages: a conversation and a writing desk, not another landing page. */
+.synaura-chambre .experience-refresh.community-refresh .v2-community-hero { border-radius: 24px; padding: 28px 0; }
+.synaura-chambre .experience-refresh.community-refresh .v2-community-hero h1 { font-size: clamp(30px,4.6vw,52px); line-height: 1.08; }
+.synaura-chambre .experience-refresh.community-refresh .v2-community-hero p { color: var(--room-muted); }
+.synaura-chambre .experience-refresh.compose-refresh .v2-community-hero > div { grid-template-columns: minmax(0,1fr); }
+.synaura-chambre .experience-refresh.compose-refresh .v2-community-hero > div > div:last-child:not(:first-child) { display: none; } /* Redundant intention summary; selected control and attachment remain visible below. */
+.synaura-chambre .experience-refresh.compose-refresh .chambre-forum-compose { grid-template-columns: minmax(0,1fr) 280px; gap: 28px; align-items: start; }
+.synaura-chambre .experience-refresh.compose-refresh .chambre-forum-compose > :first-child { padding: 26px; border: 0; border-radius: 24px; background: var(--room-soft); }
+.synaura-chambre .experience-refresh.compose-refresh .chambre-forum-compose > :first-child > div:first-child { display: flex; flex-wrap: wrap; gap: 8px; }
+.synaura-chambre .experience-refresh.compose-refresh .chambre-forum-compose > :first-child > div:first-child button { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 12px; border-radius: 30px; border: 0; background: transparent; }
+.synaura-chambre .experience-refresh.compose-refresh .chambre-forum-compose > :first-child > div:first-child button > span { width: 26px; height: 26px; border-radius: 50%; }
+.synaura-chambre .experience-refresh.compose-refresh .chambre-forum-compose > :first-child > div:first-child button p { margin: 0; font-size: 12px; }
+.synaura-chambre .experience-refresh.compose-refresh .chambre-forum-compose button[aria-pressed="true"] { background: var(--room-light) !important; color: var(--syn-text-primary); box-shadow: inset 0 -2px var(--syn-accent); }
+.synaura-chambre .experience-refresh.compose-refresh .chambre-forum-compose textarea { min-height: 260px; border-radius: 18px; line-height: 1.8; padding: 18px; }
+.synaura-chambre .experience-refresh.compose-refresh .chambre-forum-compose input { border-radius: 14px; min-height: 52px; }
+.synaura-chambre .experience-refresh.compose-refresh .chambre-forum-compose aside { position: sticky; top: calc(var(--app-header-height,72px) + 16px); }
+.synaura-chambre .experience-refresh.compose-refresh .chambre-forum-compose aside h2 { font-size: 18px; }
+.synaura-chambre .experience-refresh.community-refresh :is(.synaura-panel, .synaura-ink-panel) { border-radius: 24px; }
+.synaura-chambre .experience-refresh.thread-refresh textarea { min-height: 140px; border-radius: 18px; padding: 18px; }
+.synaura-chambre .experience-refresh.thread-refresh .v2-community-hero { padding-inline: 24px; background: var(--room-soft) !important; }
+.synaura-chambre .experience-refresh.club-refresh .v2-community-hero { background: linear-gradient(125deg,var(--room-light),transparent) !important; padding: 32px !important; border-radius: 24px !important; }
+.synaura-chambre .experience-refresh.posts-refresh { max-width: 960px; }
+.synaura-chambre .experience-refresh.post-refresh :is(.rounded-2xl,.rounded-3xl) { border-color: transparent; }
+
+/* Activity is a journal. The filters become a wrapping row, no horizontal trap. */
+.synaura-chambre .experience-refresh.activity-refresh { display: block; }
+.synaura-chambre .experience-refresh.activity-refresh .signature-activity-heading { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 28px 0; min-height: 0; }
+.synaura-chambre .experience-refresh.activity-refresh .signature-activity-heading h1 { font-size: clamp(34px,4.8vw,62px); }
+.synaura-chambre .experience-refresh.activity-refresh .signature-activity-field { display: none; }
+.synaura-chambre .experience-refresh.activity-refresh .signature-activity-index { position: static; padding: 8px 0 28px; border: 0; background: transparent; }
+.synaura-chambre .experience-refresh.activity-refresh .signature-activity-index > p { display: none; }
+.synaura-chambre .experience-refresh.activity-refresh .signature-activity-tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+.synaura-chambre .experience-refresh.activity-refresh .signature-activity-tabs button { min-height: 44px; border-radius: 30px; padding: 10px 16px; border: 0; }
+.synaura-chambre .experience-refresh.activity-refresh .signature-activity-tabs button[aria-selected="true"] { background: var(--room-light); color: var(--room-ink); box-shadow: inset 0 -2px var(--syn-accent); }
+.synaura-chambre .experience-refresh.activity-refresh .signature-activity-day { border: 0; padding-block: 8px 24px; }
+.synaura-chambre .experience-refresh.activity-refresh .signature-activity-tools button { min-height: 44px; min-width: 44px; border: 0; border-radius: 50px; }
+.synaura-chambre .experience-refresh.activity-refresh .signature-activity-empty { border: 0; border-radius: 24px; background: var(--room-soft); padding: 40px; }
+
+/* Public clip: respect the source aspect ratio, keep native explicit playback. */
+.synaura-chambre .experience-refresh.clip-refresh { padding-top: 30px; padding-bottom: calc(100px + env(safe-area-inset-bottom)); }
+.synaura-chambre .experience-refresh.clip-refresh .v2-clip-stage { max-width: 1440px; margin-inline: auto; display: grid; grid-template-columns: minmax(0,1.5fr) minmax(280px,.65fr); align-items: center; gap: 40px; }
+.synaura-chambre .experience-refresh.clip-refresh .clip-refresh-screen { display: grid; place-items: center; min-width: 0; background: var(--syn-background); border-radius: 24px; }
+.synaura-chambre .experience-refresh.clip-refresh video.clip-refresh-video { display: block; width: 100%; height: auto; max-height: min(76svh,900px); object-fit: contain !important; aspect-ratio: var(--clip-source-ratio, auto) !important; }
+.synaura-chambre .experience-refresh.clip-refresh h1 { font-size: clamp(28px,3.6vw,50px); }
+.synaura-chambre .experience-refresh.clip-refresh .v2-clip-source { border: 0; background: var(--room-soft); padding: 24px; border-radius: 20px; }
+
+/* Participate, rewards and help: real state first, clearer places to act. */
+.synaura-chambre .experience-refresh.city-refresh .v2-city-intro { padding: 36px 0; }
+.synaura-chambre .experience-refresh.city-refresh .v2-city-intro h1 { font-size: clamp(36px,5.2vw,68px); }
+.synaura-chambre .experience-refresh.city-refresh .chambre-city-events { gap: 20px; }
+.synaura-chambre .experience-refresh.city-refresh .chambre-city-events > * { border: 0; border-radius: 24px; overflow: hidden; transition: transform .2s; }
+.synaura-chambre .experience-refresh.challenge-refresh .v2-community-hero { padding: 32px !important; background: linear-gradient(145deg,var(--room-light),var(--room-soft)) !important; }
+.synaura-chambre .experience-refresh.challenge-refresh > div { border: 0; border-radius: 24px; overflow: hidden; }
+.synaura-chambre .experience-refresh.rewards-refresh { background: transparent; padding: 0 0 120px; }
+.synaura-chambre .experience-refresh.rewards-refresh .v2-boosters-intro { padding: 36px 24px; }
+.synaura-chambre .experience-refresh.rewards-refresh .v2-boosters-intro h1 { font-size: clamp(36px,4.8vw,62px); }
+.synaura-chambre .experience-refresh.rewards-refresh .chambre-booster-card { border-radius: 20px; overflow: hidden; background: var(--room-soft); }
+.synaura-chambre .experience-refresh.rewards-refresh .chambre-booster-card > div { border: 0; border-radius: 20px; }
+.synaura-chambre .experience-refresh.rewards-refresh .chambre-rewards-entry-actions button { min-height: 48px; border-radius: 50px; }
+.synaura-chambre .experience-refresh.support-refresh .v2-support-layout { max-width: 1120px; padding: 24px clamp(20px,4vw,48px) 120px; margin-inline: auto; }
+.synaura-chambre .experience-refresh.support-refresh .chambre-support-heading { padding-block: 24px; }
+.synaura-chambre .experience-refresh.support-refresh .chambre-support-heading h1 { font-size: clamp(36px,5vw,62px); }
+.synaura-chambre .experience-refresh.support-refresh .chambre-support-heading .chambre-resonance { opacity: .2; }
+.synaura-chambre .experience-refresh.support-refresh :is(form,.chambre-support-resources) { border: 0; border-radius: 24px; padding: 24px; background: var(--room-soft); }
+.synaura-chambre .experience-refresh.support-refresh :is(input,select,textarea) { min-height: 48px; border-radius: 12px; }
+.synaura-chambre .experience-refresh.faq-refresh .chambre-faq > .grid { gap: 24px; }
+.synaura-chambre .experience-refresh.faq-refresh .chambre-faq input { min-height: 52px; border-radius: 16px; }
+.synaura-chambre .experience-refresh.faq-refresh .faq-community-paths { background: var(--room-soft) !important; color: var(--room-ink) !important; }
+.synaura-chambre .experience-refresh.faq-refresh .faq-community-paths p { color: var(--room-muted) !important; }
+.synaura-chambre .experience-refresh.faq-refresh .faq-community-paths a { color: var(--room-ink) !important; min-height: 44px; }
+.synaura-chambre .experience-refresh.faq-refresh .faq-categories { flex-wrap: wrap; }
+.synaura-chambre .experience-refresh.faq-refresh .faq-categories button { min-height: 44px; }
+.synaura-chambre .experience-refresh.faq-refresh .faq-categories button[aria-pressed="true"] { background: var(--room-light) !important; color: var(--room-ink) !important; }
+.synaura-chambre .experience-refresh.recovery-refresh { position: relative; border-radius: 32px; background: radial-gradient(ellipse at top right,var(--room-light),transparent 65%); }
+.synaura-chambre .experience-refresh.recovery-refresh .v2-action { border-radius: 50px; min-height: 48px; }
+
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  body:has(.living-ambience[data-moving="true"]) .experience-refresh.library-refresh .signature-library-record:hover .signature-library-record-cover { transform: translateY(-5px) rotate(-1deg); box-shadow: 0 20px 40px #0006; }
+  body:has(.living-ambience[data-moving="true"]) .experience-refresh.city-refresh .chambre-city-events > *:hover { transform: translateY(-4px); }
+}
+@media (max-width: 1100px) {
+  .synaura-chambre .experience-refresh .v2-playlist-content-grid { grid-template-columns: minmax(0,1fr); }
+  .synaura-chambre .experience-refresh.library-refresh .experience-collection-header { grid-template-columns: minmax(0,1fr) minmax(240px,.8fr); gap: 20px; }
+  .synaura-chambre .experience-refresh.library-refresh .signature-library-resume { grid-template-columns: 58px minmax(0,1fr) 34px; padding: 14px; gap: 10px; }
+  .synaura-chambre .experience-refresh.library-refresh .signature-library-resume img.signature-library-resume-cover { width: 58px; height: 58px; }
+  .synaura-chambre .experience-refresh.settings-refresh .v2-settings-layout { grid-template-columns: 190px minmax(0,1fr); gap: 24px; }
+}
+@media (max-width: 760px) {
+  .synaura-chambre .experience-refresh.library-refresh .experience-collection-header { display: flex; flex-direction: column; gap: 18px; }
+  .synaura-chambre .experience-refresh.library-refresh .v2-library-title { width: 100%; }
+  .synaura-chambre .experience-refresh.library-refresh .v2-library-title h1 { font-size: clamp(30px,8vw,42px) !important; }
+  .synaura-chambre .experience-refresh.library-refresh .v2-library-title > div:first-child { min-width: 0; flex: 1; }
+  .synaura-chambre .experience-refresh.library-refresh .v2-library-title h1 { font-size: 28px !important; margin-top: 8px !important; }
+  .synaura-chambre .experience-refresh.library-refresh .v2-library-title p:last-child { max-width: none !important; margin-top: 8px !important; }
+  .synaura-chambre .experience-refresh.library-refresh .signature-library-search { width: 100%; order: 1; }
+  .synaura-chambre .experience-refresh.library-refresh .signature-library-resume { width: 100%; order: 0; }
+  .synaura-chambre .experience-refresh.library-refresh .signature-library-resume { min-height: 80px !important; grid-template-columns: 48px minmax(0,1fr) 40px !important; padding: 12px !important; gap: 12px !important; }
+  .synaura-chambre .experience-refresh.library-refresh .signature-library-resume img.signature-library-resume-cover { width: 48px !important; height: 48px !important; }
+  .synaura-chambre .experience-refresh.library-refresh .signature-library-resume-title { font-size: 14px !important; margin-top: 3px !important; }
+  .synaura-chambre .experience-refresh.library-refresh .experience-collection-header > .experience-collection-index { width: 100%; order: 2; margin: 0; }
+  .synaura-chambre .experience-refresh.library-refresh .experience-collection-filters { order: 3; }
+  .synaura-chambre .experience-refresh.library-refresh .experience-collection-header .v2-library-categories { gap: 5px; }
+  .synaura-chambre .experience-refresh.library-refresh .experience-collection-header .v2-library-categories button { padding: 0 11px; font-size: 12px; }
+  .synaura-chambre .experience-refresh.library-refresh .signature-library-collection-bar { flex-wrap: wrap; }
+  .synaura-chambre .experience-refresh.library-refresh .signature-library-records--grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 20px 14px; }
+  .synaura-chambre .experience-refresh.library-refresh .signature-library-record-cover { border-radius: 15px; }
+  .synaura-chambre .experience-refresh.library-refresh .signature-library-record-title { font-size: 15px; }
+  .synaura-chambre .experience-refresh.library-refresh .chambre-library-detail > div > div { flex-wrap: wrap; }
+  .synaura-chambre .experience-refresh.library-refresh .chambre-library-detail-actions { width: 100%; }
+  .synaura-chambre .experience-refresh :is(.v2-playlist-identity, .v2-album-identity) { grid-template-columns: minmax(0,1fr); gap: 24px; padding-top: 20px; }
+  .synaura-chambre .experience-refresh :is(.v2-playlist-identity, .v2-album-identity) > :first-child { max-width: 260px; margin-inline: auto; width: 100%; }
+  .synaura-chambre .experience-refresh :is(.v2-playlist-main, .v2-album-main) { padding-inline: 18px; }
+  .synaura-chambre .experience-refresh.album-refresh .v2-album-identity,
+  .synaura-chambre .experience-refresh.playlist-refresh .v2-playlist-identity-grid { grid-template-columns: minmax(0,1fr) !important; gap: 24px !important; }
+  .synaura-chambre .experience-refresh.playlist-refresh .v2-playlist-copy { grid-column: 1 !important; grid-row: 2 !important; }
+  .synaura-chambre .experience-refresh.playlist-refresh .v2-playlist-cover { grid-column: 1 !important; grid-row: 1 !important; max-width: 240px; margin-inline: auto; }
+  .synaura-chambre .experience-refresh.playlist-refresh .v2-playlist-cover [class*="grid-cols-3"] { grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; margin-top: 16px; padding-top: 12px; }
+  .synaura-chambre .experience-refresh.playlist-refresh .v2-playlist-cover [class*="grid-cols-3"] > div > p:last-child { font-size: 16px; }
+  .synaura-chambre .experience-refresh .v2-playlist-toolbar > div { grid-template-columns: minmax(0,1fr); }
+  .synaura-chambre .experience-refresh .v2-playlist-toolbar select { width: 100%; }
+  .synaura-chambre .experience-refresh .v2-album-tracklist { padding: 12px; }
+  .synaura-chambre .experience-refresh.upload-refresh .v2-upload-layout { grid-template-columns: minmax(0,1fr); gap: 16px; }
+  .synaura-chambre .experience-refresh.upload-refresh .v2-upload-layout { margin-top: 0 !important; }
+  .synaura-chambre .experience-refresh.upload-refresh .v2-upload-header { margin: 0 !important; padding-block: 12px 18px !important; }
+  .synaura-chambre .experience-refresh.upload-refresh .v2-upload-header h1 { font-size: 32px !important; margin-block: 8px !important; }
+  .synaura-chambre .experience-refresh.upload-refresh .v2-creative-header > div:first-child > p:last-child { display: none; }
+  .synaura-chambre .experience-refresh.upload-refresh .chambre-signature-upload-destinations { padding: 0 !important; margin: 0 !important; }
+  .synaura-chambre .experience-refresh.upload-refresh .v2-upload-facts { padding-block: 10px !important; margin-top: 10px !important; }
+  .synaura-chambre .experience-refresh.upload-refresh .v2-upload-layout > aside { position: static; display: grid; grid-template-columns: minmax(0,1fr); gap: 12px; }
+  .synaura-chambre .experience-refresh.upload-refresh .chambre-signature-release-context { display: none; } /* File limit and release timing remain in the header, format in the composer. */
+  .synaura-chambre .experience-refresh.upload-refresh .chambre-signature-release-progress { display: grid !important; grid-template-columns: repeat(3,minmax(0,1fr)) !important; }
+  .synaura-chambre .experience-refresh.upload-refresh .chambre-signature-release-progress button { flex-direction: column; align-items: flex-start; gap: 8px; padding: 10px; min-width: 0; }
+  .synaura-chambre .experience-refresh.upload-refresh .chambre-signature-release-progress button > span { max-width: 100%; }
+  .synaura-chambre .experience-refresh.upload-refresh .chambre-signature-release-progress button span.truncate { white-space: normal; font-size: 11px; }
+  .synaura-chambre .experience-refresh.upload-refresh .chambre-signature-release-progress button > span:last-child > span:last-child { display: none; }
+  .synaura-chambre .experience-refresh.upload-refresh .chambre-signature-release-stepper > div:last-child { display: none; }
+  .synaura-chambre .experience-refresh.upload-refresh .chambre-signature-release-progress { margin-top: 0; }
+  .synaura-chambre .experience-refresh.upload-refresh .chambre-signature-release-stepper > div:first-child { display: none; } /* Back remains available through global navigation and Annuler. */
+  .synaura-chambre .experience-refresh.upload-refresh .upload-preview { grid-column: 1; grid-template-columns: minmax(0,1fr); }
+  .synaura-chambre .experience-refresh.upload-refresh [data-signature-drop] { min-height: 230px; }
+  .synaura-chambre .experience-refresh.upload-refresh .chambre-signature-upload-workspace > div:first-child { padding: 18px; }
+  .synaura-chambre .experience-refresh.settings-refresh .v2-settings-layout { grid-template-columns: minmax(0,1fr); gap: 24px; }
+  .synaura-chambre .experience-refresh.settings-refresh .v2-settings-nav { position: static; }
+  .synaura-chambre .experience-refresh.settings-refresh .v2-settings-sections { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 6px; }
+  .synaura-chambre .experience-refresh.settings-refresh .experience-settings-heading { display: flex !important; padding-block: 12px 18px !important; margin-bottom: 8px !important; }
+  .synaura-chambre .experience-refresh.settings-refresh .experience-settings-title { flex: 1; min-width: 0; }
+  .synaura-chambre .experience-refresh.settings-refresh .experience-settings-heading h1 { font-size: 32px !important; margin-block: 12px !important; }
+  .synaura-chambre .experience-refresh.settings-refresh .experience-settings-identity { display: flex !important; align-items: center; text-align: left; width: 100%; gap: 12px; min-height: 0 !important; }
+  .synaura-chambre .experience-refresh.settings-refresh .experience-settings-identity img { width: 40px !important; height: 40px !important; }
+  .synaura-chambre .experience-refresh.settings-refresh .experience-settings-identity small { display: none; }
+  .synaura-chambre .experience-refresh.settings-refresh .experience-settings-index { padding: 0 !important; }
+  .synaura-chambre .experience-refresh.settings-refresh .v2-settings-sections { padding: 0 !important; }
+  .synaura-chambre .experience-refresh.settings-refresh .experience-settings-nav-item { margin: 0; min-width: 0; min-height: 54px; padding: 10px; }
+  .synaura-chambre .experience-refresh.settings-refresh .experience-settings-heading { flex-wrap: wrap; gap: 18px; }
+  .synaura-chambre .experience-refresh.settings-refresh .experience-settings-identity { padding: 12px; }
+  .synaura-chambre .experience-refresh.compose-refresh .chambre-forum-compose { grid-template-columns: minmax(0,1fr); }
+  .synaura-chambre .experience-refresh.compose-refresh .chambre-forum-compose aside { position: static; }
+  .synaura-chambre .experience-refresh.compose-refresh .chambre-forum-compose > :first-child { padding: 18px; }
+  .synaura-chambre .experience-refresh.community-refresh .v2-community-hero { padding-block: 20px; }
+  .synaura-chambre .experience-refresh.club-refresh .v2-community-hero { padding: 22px !important; }
+  .synaura-chambre .experience-refresh.activity-refresh .signature-activity-heading { align-items: flex-start; flex-wrap: wrap; }
+  .synaura-chambre .experience-refresh.activity-refresh .signature-activity-heading { padding-block: 14px 20px !important; }
+  .synaura-chambre .experience-refresh.activity-refresh .signature-activity-tools { margin-top: 0 !important; }
+  .synaura-chambre .experience-refresh.activity-refresh .signature-activity-tabs { gap: 4px; }
+  .synaura-chambre .experience-refresh.activity-refresh .signature-activity-tabs button { padding: 10px 12px; font-size: 12px; }
+  .synaura-chambre .experience-refresh.clip-refresh .v2-clip-stage { grid-template-columns: minmax(0,1fr); gap: 24px; }
+  .synaura-chambre .experience-refresh.clip-refresh video.clip-refresh-video { max-height: 68svh; }
+  .synaura-chambre .experience-refresh.clip-refresh .clip-refresh-screen { border-radius: 18px; }
+  .synaura-chambre .experience-refresh.challenge-refresh .v2-community-hero { padding: 22px !important; }
+  .synaura-chambre .experience-refresh.rewards-refresh .v2-boosters-intro { padding-inline: 18px; }
+  .synaura-chambre .experience-refresh.recovery-refresh { margin: 16px !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .synaura-chambre .experience-refresh *, .synaura-chambre .experience-refresh *::before, .synaura-chambre .experience-refresh *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+}
+body:has(.living-ambience[data-moving="false"]) .experience-refresh *,
+body:has(.living-ambience[data-moving="false"]) .experience-refresh *::before,
+body:has(.living-ambience[data-moving="false"]) .experience-refresh *::after { animation-play-state: paused !important; }

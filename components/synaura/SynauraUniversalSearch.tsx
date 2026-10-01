@@ -1,345 +1,150 @@
 'use client';
-
-import { useCallback, useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
+import { useEffect, useId, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowRight, FileText, Library, Loader2, Play, Search, User, X } from 'lucide-react';
-import { useAudioPlayer } from '@/app/providers';
+import { ArrowUpRight } from 'lucide-react';
+import SearchBox from '@/components/search/SearchBox';
+import { useCatalogueSearch } from '@/components/search/useCatalogueSearch';
 import { SynauraImage } from '@/components/ui/SynauraImage';
-
-type SearchTrack = {
-  id: string;
-  title: string;
-  artist: string;
-  coverUrl?: string | null;
-  audioUrl?: string | null;
-  duration?: number;
-  plays?: number;
-  likes?: number;
-};
-
-type SearchPost = {
-  id: string;
-  content: string;
-  author: string;
-  avatar?: string | null;
-};
-
-type SearchArtist = {
-  id: string;
-  username: string;
-  name: string;
-  avatar?: string | null;
-};
-
-type SearchPlaylist = {
-  id: string;
-  title: string;
-  description?: string | null;
-  coverUrl?: string | null;
-  trackCount?: number;
-};
-
-type SearchResults = {
-  tracks: SearchTrack[];
-  posts: SearchPost[];
-  artists: SearchArtist[];
-  playlists: SearchPlaylist[];
-};
-
-const emptyResults: SearchResults = { tracks: [], posts: [], artists: [], playlists: [] };
-
-function safeString(value: unknown, fallback = '') {
-  return typeof value === 'string' && value.trim() ? value.trim() : fallback;
-}
-
-function normalizeTrack(raw: any): SearchTrack | null {
-  const id = safeString(raw?._id || raw?.id);
-  const title = safeString(raw?.title);
-  if (!id || !title) return null;
-
-  return {
-    id,
-    title,
-    artist: safeString(raw?.artist?.artistName || raw?.artist?.name || raw?.artist_name || raw?.artist, 'Artiste inconnu'),
-    coverUrl: raw?.coverUrl || raw?.cover_url || null,
-    audioUrl: raw?.audioUrl || raw?.audio_url || null,
-    duration: Number(raw?.duration || 0),
-    plays: Number(raw?.plays || 0),
-    likes: Number(raw?.likes || 0),
-  };
-}
-
-function normalizeArtist(raw: any): SearchArtist | null {
-  const id = safeString(raw?._id || raw?.id);
-  const username = safeString(raw?.username);
-  const name = safeString(raw?.artistName || raw?.name || username, 'Créateur');
-  if (!id || !username) return null;
-  return { id, username, name, avatar: raw?.avatar || null };
-}
-
-function normalizePlaylist(raw: any): SearchPlaylist | null {
-  const id = safeString(raw?._id || raw?.id);
-  const title = safeString(raw?.title || raw?.name);
-  if (!id || !title) return null;
-  return {
-    id,
-    title,
-    description: raw?.description || null,
-    coverUrl: raw?.coverUrl || raw?.cover_url || null,
-    trackCount: Number(raw?.trackCount || raw?.tracks_count || 0),
-  };
-}
-
-function normalizePost(raw: any): SearchPost | null {
-  const id = safeString(raw?._id || raw?.id);
-  const content = safeString(raw?.content || raw?.text || raw?.excerpt, 'Post');
-  const creator = raw?.creator || raw?.profiles || raw?.author || {};
-  const author = safeString(creator?.name || creator?.username || raw?.authorName, 'Créateur');
-  if (!id) return null;
-  return { id, content, author, avatar: creator?.avatar || raw?.avatar || null };
-}
-
-function AvatarMark({ value, image }: { value: string; image?: string | null }) {
-  if (image) {
-    return <SynauraImage src={image} fallbackSrc="/default-avatar.png" alt="" className="h-10 w-10 rounded-full border border-[var(--syn-border)] object-cover" />;
-  }
-
-  return (
-    <div className="grid h-10 w-10 place-items-center rounded-full border border-[var(--syn-border)] bg-[var(--syn-soft)] text-xs font-black uppercase text-[var(--syn-text-secondary)]">
-      {value.slice(0, 1) || '?'}
-    </div>
-  );
-}
+import {
+  SEARCH_KINDS,
+  SEARCH_LABELS,
+  creatorName,
+  resultHref,
+  searchHref,
+} from '@/lib/search/model';
+import { withCurrentHandoff } from '@/lib/creationHandoffClient';
+import Link from '@/components/navigation/HandoffLink';
+import '@/components/search/search-experience.css';
 
 export default function SynauraUniversalSearch({
   compact = false,
-  placeholder = 'Rechercher un son, un post, une playlist, un profil...',
+  placeholder = 'Un son, un artiste…',
 }: {
   compact?: boolean;
   placeholder?: string;
 }) {
-  const router = useRouter();
-  const { playTrack } = useAudioPlayer();
-  const rootRef = useRef<HTMLDivElement | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState<SearchResults>(emptyResults);
-  const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [failed, setFailed] = useState(false);
-
-  const totalResults = results.tracks.length + results.posts.length + results.artists.length + results.playlists.length;
-
-  const clearSearch = useCallback(() => {
-    abortRef.current?.abort();
-    setQuery('');
-    setResults(emptyResults);
-    setOpen(false);
-    setLoading(false);
-    setFailed(false);
-  }, []);
-
-  const runSearch = useCallback(async (value: string) => {
-    const q = value.trim();
-    if (q.length < 2) {
-      abortRef.current?.abort();
-      setResults(emptyResults);
-      setOpen(false);
-      setLoading(false);
-      return;
-    }
-
-    abortRef.current?.abort();
-    const controller = new AbortController();
-    abortRef.current = controller;
-    setLoading(true);
-    setFailed(false);
-    setOpen(true);
-
-    try {
-      const response = await fetch(`/api/search?query=${encodeURIComponent(q)}&filter=all&limit=6`, {
-        cache: 'no-store',
-        signal: controller.signal,
-      });
-      const json = await response.json().catch(() => null);
-      if (controller.signal.aborted) return;
-      if (!response.ok) throw new Error('Recherche indisponible');
-      setResults({
-        tracks: (Array.isArray(json?.tracks) ? json.tracks : []).map(normalizeTrack).filter(Boolean) as SearchTrack[],
-        posts: (Array.isArray(json?.posts) ? json.posts : []).map(normalizePost).filter(Boolean) as SearchPost[],
-        artists: (Array.isArray(json?.artists) ? json.artists : []).map(normalizeArtist).filter(Boolean) as SearchArtist[],
-        playlists: (Array.isArray(json?.playlists) ? json.playlists : []).map(normalizePlaylist).filter(Boolean) as SearchPlaylist[],
-      });
-    } catch (error: any) {
-      if (!controller.signal.aborted && error?.name !== 'AbortError') { setResults(emptyResults); setFailed(true); }
-    } finally {
-      if (!controller.signal.aborted) setLoading(false);
-    }
-  }, []);
-
+  const router = useRouter(),
+    root = useRef<HTMLDivElement>(null),
+    id = useId();
+  const [query, setQuery] = useState(''),
+    [open, setOpen] = useState(false),
+    [active, setActive] = useState(-1);
+  const { results, loading, error } = useCatalogueSearch(query, 'all', 3, open);
+  const items = SEARCH_KINDS.flatMap((kind) =>
+    results[kind].slice(0, kind === 'tracks' ? 3 : 2).map((item) => ({ kind, item })),
+  ).slice(0, 10);
+  const show = open && query.trim().length >= 2;
   useEffect(() => {
-    const timer = window.setTimeout(() => void runSearch(query), 240);
-    return () => window.clearTimeout(timer);
-  }, [query, runSearch]);
-
+    if (show && active >= 0)
+      document.getElementById(`${id}-${active}`)?.scrollIntoView({ block: 'nearest' });
+  }, [active, show, id]);
   useEffect(() => {
-    const onPointerDown = (event: MouseEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+    const close = (event: PointerEvent) => {
+      if (!root.current?.contains(event.target as Node)) setOpen(false);
     };
-    document.addEventListener('mousedown', onPointerDown);
-    return () => document.removeEventListener('mousedown', onPointerDown);
+    document.addEventListener('pointerdown', close);
+    return () => document.removeEventListener('pointerdown', close);
   }, []);
-
-  const goToSearchPage = () => {
-    const q = query.trim();
-    if (!q) return;
+  const all = () => {
     setOpen(false);
-    router.push(`/search?q=${encodeURIComponent(q)}`, { scroll: false });
+    router.push(withCurrentHandoff(searchHref(query)));
   };
-
   return (
-    <div ref={rootRef} className="v2-universal-search relative min-w-0 flex-1">
-      <div className="relative">
-        <Search className={`pointer-events-none absolute top-1/2 -translate-y-1/2 text-[var(--syn-text-secondary)] ${compact ? 'left-2.5 h-3.5 w-3.5' : 'left-3 h-4 w-4 sm:left-4'}`} />
-        <input
-          value={query}
-          onChange={(event) => {
-            setQuery(event.target.value);
-            if (event.target.value.trim().length >= 2) setOpen(true);
-          }}
-          onFocus={() => {
-            if (query.trim().length >= 2) setOpen(true);
-          }}
-          onKeyDown={(event) => {
-            if (event.key === 'Escape') setOpen(false);
-            if (event.key === 'Enter') {
-              event.preventDefault();
-              goToSearchPage();
-            }
-          }}
-          placeholder={placeholder}
-          className="h-11 w-full rounded-[var(--v2-radius-sm)] border border-[var(--v2-line)] bg-transparent pl-10 pr-11 text-base text-[var(--v2-text)] transition focus:bg-[var(--v2-surface)] sm:text-sm"
-          aria-label="Recherche globale"
-        />
-        {query ? (
-          <button
-            type="button"
-            onClick={clearSearch}
-            className="absolute right-0 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-[var(--v2-radius-sm)] text-[var(--syn-text-secondary)] transition hover:bg-[var(--syn-soft)]"
-            aria-label="Effacer la recherche"
-          >
-            <X className="h-3.5 w-3.5" />
-          </button>
-        ) : null}
-      </div>
-
-      {open ? (
-        <div className="fixed left-3 right-3 top-[5.2rem] z-[1000] max-h-[min(72vh,620px)] overflow-y-auto rounded-[14px] border border-[var(--syn-border)] bg-[var(--syn-elevated-surface)] p-2 shadow-[0_28px_90px_var(--syn-shadow)] sm:left-1/2 sm:right-auto sm:w-[min(760px,calc(100vw-2rem))] sm:-translate-x-1/2 lg:absolute lg:left-0 lg:right-0 lg:top-[calc(100%+0.55rem)] lg:w-auto lg:translate-x-0">
-          <div className="flex items-center justify-between rounded-[10px] bg-[var(--syn-surface-muted)] px-3 py-2">
-            <p className="text-xs font-black uppercase text-[var(--syn-text-secondary)]">
-              {loading ? 'Recherche...' : totalResults ? `${totalResults} résultat(s)` : 'Recherche'}
-            </p>
-            {loading ? <Loader2 className="h-4 w-4 animate-spin text-[var(--syn-text-secondary)]" /> : null}
-          </div>
-
-          {!loading && failed ? <p role="status" className="p-5 text-sm leading-6 text-[var(--v2-muted)]">La recherche est momentanément indisponible. Réessaie dans un instant.</p> : null}
-          {!loading && !failed && !totalResults ? (
-            <div className="rounded-[10px] bg-[var(--syn-surface-muted)] p-5 text-center">
-              <Search className="mx-auto h-7 w-7 text-[var(--syn-text-secondary)]" />
-              <p className="mt-2 text-sm font-black text-[var(--syn-text-secondary)]">Aucun résultat pour "{query}"</p>
-            </div>
-          ) : null}
-
-          {results.tracks.length ? (
-            <div className="mt-2 space-y-1">
-              <p className="px-2 pt-1 text-[10px] font-black uppercase text-[var(--syn-text-secondary)]">Sons</p>
-              {results.tracks.slice(0, 4).map((track) => (
-                <button
-                  key={track.id}
-                  type="button"
-                  onClick={() => {
-                    if (track.audioUrl) {
-                      void playTrack({
-                        _id: track.id,
-                        id: track.id,
-                        title: track.title,
-                        artist: track.artist,
-                        audioUrl: track.audioUrl,
-                        coverUrl: track.coverUrl || '/default-cover.svg',
-                        duration: track.duration || 0,
-                        likes: track.likes || 0,
-                        plays: track.plays || 0,
-                      } as any);
-                    } else {
-                      router.push(`/track/${encodeURIComponent(track.id)}`, { scroll: false });
-                    }
-                    setOpen(false);
-                  }}
-                  className="flex w-full items-center gap-3 rounded-[10px] bg-[var(--syn-surface)] p-2 text-left transition hover:bg-[var(--syn-soft-strong)]"
+    <div
+      className="sx-quick"
+      ref={root}
+      onFocus={() => setOpen(true)}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
+      }}
+    >
+      <SearchBox
+        compact={compact}
+        value={query}
+        placeholder={placeholder}
+        role="combobox"
+        aria-expanded={show}
+        aria-controls={show ? id : undefined}
+        aria-activedescendant={
+          show && active >= 0 && active < items.length ? `${id}-${active}` : undefined
+        }
+        onChange={(value) => {
+          setQuery(value);
+          setActive(-1);
+          setOpen(true);
+        }}
+        onSubmit={all}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape') {
+            setOpen(false);
+            setActive(-1);
+          }
+          if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            setOpen(true);
+            setActive((n) => Math.min(n + 1, items.length - 1));
+          }
+          if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            setActive((n) => Math.max(n - 1, -1));
+          }
+          if (event.key === 'Enter' && show && active >= 0 && items[active]) {
+            event.preventDefault();
+            const { kind, item } = items[active];
+            setOpen(false);
+            router.push(withCurrentHandoff(resultHref(kind, item)));
+          }
+        }}
+      />
+      {show && (
+        <div className="sx-quick-results">
+          <div role="listbox" id={id} aria-label="Suggestions de recherche">
+            {loading ? (
+              <p role="status">Recherche…</p>
+            ) : error ? (
+              <p role="status">{error}</p>
+            ) : items.length ? (
+              items.map(({ kind, item }, i) => (
+                <Link
+                  role="option"
+                  aria-selected={i === active}
+                  id={`${id}-${i}`}
+                  className="sx-quick-option"
+                  key={`${kind}-${item._id}`}
+                  href={resultHref(kind, item)}
+                  onClick={() => setOpen(false)}
+                  onMouseEnter={() => setActive(i)}
                 >
-                  <SynauraImage src={track.coverUrl || '/default-cover.svg'} alt="" className="h-11 w-11 rounded-[8px] object-cover" />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-black text-[var(--syn-text-primary)]">{track.title}</span>
-                    <span className="block truncate text-xs font-semibold text-[var(--syn-text-secondary)]">{track.artist}</span>
+                  <SynauraImage
+                    src={item.coverUrl || item.avatar || item.imageUrl || '/default-cover.svg'}
+                    alt=""
+                  />
+                  <span>
+                    <strong>
+                      {kind === 'artists'
+                        ? item.artistName || item.name
+                        : kind === 'posts'
+                          ? item.content
+                          : item.title || item.name}
+                    </strong>
+                    <small>
+                      {SEARCH_LABELS[kind]} ·{' '}
+                      {kind === 'artists' ? `@${item.username}` : creatorName(item)}
+                    </small>
                   </span>
-                  <Play className="h-4 w-4 text-[var(--syn-text-secondary)]" />
-                </button>
-              ))}
-            </div>
-          ) : null}
-
-          {results.posts.length ? (
-            <div className="mt-2 space-y-1">
-              <p className="px-2 pt-1 text-[10px] font-black uppercase text-[var(--syn-text-secondary)]">Posts</p>
-              {results.posts.slice(0, 4).map((post) => (
-                <Link key={post.id} href={`/posts/${encodeURIComponent(post.id)}`} onClick={() => setOpen(false)} className="flex items-start gap-3 rounded-[10px] bg-[var(--syn-surface)] p-2 transition hover:bg-[var(--syn-soft-strong)]">
-                  <AvatarMark value={post.author} image={post.avatar} />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-black text-[var(--syn-text-primary)]">{post.author}</span>
-                    <span className="line-clamp-2 text-xs font-semibold leading-5 text-[var(--syn-text-secondary)]">{post.content}</span>
-                  </span>
+                  <ArrowUpRight size={14} />
                 </Link>
-              ))}
-            </div>
-          ) : null}
-
-          {(results.artists.length || results.playlists.length) ? (
-            <div className="mt-2 grid gap-1 sm:grid-cols-2">
-              {results.artists.slice(0, 3).map((artist) => (
-                <Link key={artist.id} href={`/profile/${encodeURIComponent(artist.username)}`} onClick={() => setOpen(false)} className="flex items-center gap-2 rounded-[10px] bg-[var(--syn-surface)] p-2 transition hover:bg-[var(--syn-soft-strong)]">
-                  <AvatarMark value={artist.name || artist.username} image={artist.avatar} />
-                  <span className="min-w-0">
-                    <span className="block truncate text-sm font-black text-[var(--syn-text-primary)]">{artist.name}</span>
-                    <span className="block truncate text-xs text-[var(--syn-text-secondary)]">@{artist.username}</span>
-                  </span>
-                </Link>
-              ))}
-              {results.playlists.slice(0, 3).map((playlist) => (
-                <Link key={playlist.id} href={`/playlists/${encodeURIComponent(playlist.id)}`} onClick={() => setOpen(false)} className="flex items-center gap-2 rounded-[10px] bg-[var(--syn-surface)] p-2 transition hover:bg-[var(--syn-soft-strong)]">
-                  <div className="grid h-10 w-10 place-items-center rounded-[8px] bg-[var(--syn-soft)]">
-                    <Library className="h-4 w-4 text-[var(--syn-text-secondary)]" />
-                  </div>
-                  <span className="min-w-0">
-                    <span className="block truncate text-sm font-black text-[var(--syn-text-primary)]">{playlist.title}</span>
-                    <span className="block truncate text-xs text-[var(--syn-text-secondary)]">{playlist.trackCount || 0} sons</span>
-                  </span>
-                </Link>
-              ))}
-            </div>
-          ) : null}
-
-          <button
-            type="button"
-            onClick={goToSearchPage}
-            className="mt-2 flex w-full items-center justify-center gap-2 rounded-[10px] bg-[var(--syn-contrast-bg)] px-4 py-3 text-sm font-black text-[var(--syn-contrast-text)] transition hover:opacity-90"
-          >
-            <FileText className="h-4 w-4" />
-            Voir tous les résultats
-            <ArrowRight className="h-4 w-4" />
+              ))
+            ) : (
+              <p role="status">Aucune correspondance. Essaie un autre mot.</p>
+            )}
+          </div>
+          <button type="button" className="sx-quick-all" onClick={all}>
+            Ouvrir la recherche complète
+            <ArrowUpRight size={17} />
           </button>
         </div>
-      ) : null}
+      )}
     </div>
   );
 }

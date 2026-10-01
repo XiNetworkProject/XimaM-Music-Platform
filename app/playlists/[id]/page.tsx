@@ -287,7 +287,7 @@ export default function PublicPlaylistPage() {
 
   return (
     <div
-      className="v2-playlist-page chambre-signature-playlist relative min-h-screen overflow-hidden text-[#fffaf2]"
+      className="v2-playlist-page chambre-signature-playlist experience-refresh playlist-refresh relative min-h-screen overflow-hidden text-[#fffaf2]"
       data-chambre-music="playlist"
       style={{
         background: `radial-gradient(circle at 8% 0%, ${colors[0]}66, transparent 34%), radial-gradient(circle at 92% 8%, ${colors[1] || colors[0]}55, transparent 32%), linear-gradient(135deg, #171313 0%, ${colors[0]} 48%, ${colors[2] || colors[1] || colors[0]} 100%)`,
@@ -392,7 +392,7 @@ export default function PublicPlaylistPage() {
           <section className="space-y-3">
             <header className="chambre-signature-playlist-track-heading">
               <p className="v2-kicker">Dans cette sélection</p>
-              <h2>Le fil musical.</h2>
+              <h2>Les morceaux.</h2>
               <span>{visibleTracks.length} / {data.tracks.length} titres</span>
             </header>
             {visibleTracks.map((track, idx) => {

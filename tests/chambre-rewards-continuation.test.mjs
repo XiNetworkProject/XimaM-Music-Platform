@@ -23,7 +23,10 @@ test('rewards markup and isolated styles parse without touching the approved ent
 
 test('exact original AST fingerprint preserves every owner, request, guard and reward expression', (context) => {
   if (!existsSync(backupRoot)) return context.skip('Local before evidence absent; no behavioral result inferred.');
-  for (const path of paths) {
+  // The Boosters page now has a user-requested functional redesign. Its new
+  // contracts and transactional grants are covered in boosters-redesign.test
+  // and boosters-postgres-fixtures; legacy reward modals remain unchanged.
+  for (const path of paths.slice(0, 3)) {
     assert.equal(behaviorFingerprint(read(path), path), behaviorFingerprint(readFileSync(new URL(path, backupRoot), 'utf8'), path), path);
   }
 });
@@ -40,7 +43,7 @@ test('inline animation timings and transforms are also unchanged, beyond the pre
     visit(file);
     return values;
   };
-  for (const path of paths) assert.deepEqual(choreography(read(path), path), choreography(readFileSync(new URL(path, backupRoot), 'utf8'), path), path);
+  for (const path of paths.slice(0, 3)) assert.deepEqual(choreography(read(path), path), choreography(readFileSync(new URL(path, backupRoot), 'utf8'), path), path);
 });
 
 test('booster opening retains anticipation, explosion, foil, values and explicit open callback', () => {
@@ -73,12 +76,10 @@ test('pack revelation keeps sort/rank, auto/manual steps and received values wit
   assert.match(rewardCss, /\.chambre-pack-card-info h3 \{[^}]*overflow-wrap: anywhere;/);
 });
 
-test('entry buttons and both shop cards preserve plan/stock restrictions and original owners', () => {
+test('new Boosters workbench uses server entitlements and explicit reward owners', () => {
   const source = read(paths[3]);
-  for (const marker of ['onClick={() => setShowDailyModal(true)}', 'disabled={!canOpen || boostersLoading}', 'onClick={() => setShowSpinModal(true)}', "onClick={() => claimPack('starter_weekly')}", "onClick={() => claimPack('pro_weekly')}", "disabled={plan === 'free'", "disabled={(plan !== 'pro' && plan !== 'enterprise')", 'packs.starter_weekly.claimed >= packs.starter_weekly.perWeek', 'packs.pro_weekly.claimed >= packs.pro_weekly.perWeek']) assert.ok(source.includes(marker), marker);
-  assert.equal((source.match(/className="chambre-reward-shop-pack relative"/g) || []).length, 2);
-  assert.match(source, /onOpenBooster=\{openDaily\}/);
-  assert.match(source, /<BoosterPackOpenModal isOpen=\{showPackModal\}/);
+  for (const marker of ['disabled={!canOpen}', 'await openDaily()', 'state?.eligible', 'state.claimed < state.perWeek', 'Object.entries(PACKS)', 'onClick={() => claimPack(key)}', 'Confirmer l’activation']) assert.ok(source.includes(marker), marker);
+  assert.match(source, /boosts\.perform\('\/api\/daily-spin'\)/);
 });
 
 test('a single received pack card has a bounded desktop track while mobile retains two columns', () => {
