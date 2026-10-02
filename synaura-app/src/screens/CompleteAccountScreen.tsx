@@ -13,7 +13,7 @@ import {
   AuthTitle,
   authStyles,
 } from '@/components/auth/AuthUI';
-import { colors } from '@/theme/tokens';
+import { authColors as colors } from '@/components/auth/AuthUI';
 
 type Visibility = 'private' | 'friends' | 'public';
 

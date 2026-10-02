@@ -11,7 +11,7 @@ import { colors, radius, spacing } from '@/theme/tokens';
 const NUDGE_KEY = 'synaura.native.push.nudge.v2';
 const NUDGE_DELAY_MS = 4200;
 const NUDGE_COOLDOWN_MS = 14 * 24 * 60 * 60 * 1000;
-const BLOCKED_ROUTES = new Set(['Welcome', 'Onboarding', 'Login', 'Register', 'ForgotPassword']);
+const BLOCKED_ROUTES = new Set(['Welcome', 'Onboarding', 'Login', 'Register', 'ForgotPassword', 'PhoneAuth']);
 
 export function NativeNotificationNudge({ activeRoute }: { activeRoute: string }) {
   const auth = useAuth();
@@ -26,6 +26,10 @@ export function NativeNotificationNudge({ activeRoute }: { activeRoute: string }
     const eligible = Boolean(
       auth.user
       && auth.token
+      && !auth.loading
+      && !auth.mfaRequired
+      && !auth.biometricLocked
+      && auth.user.profileComplete !== false
       && mobileSettings.settings.pushDevice
       && !notifications.token
       && notifications.status !== 'ready'
@@ -53,7 +57,7 @@ export function NativeNotificationNudge({ activeRoute }: { activeRoute: string }
       mounted = false;
       if (timer) clearTimeout(timer);
     };
-  }, [activeRoute, auth.token, auth.user, mobileSettings.settings.pushDevice, notifications.status, notifications.token]);
+  }, [activeRoute, auth.token, auth.user, auth.loading, auth.mfaRequired, auth.biometricLocked, mobileSettings.settings.pushDevice, notifications.status, notifications.token]);
 
   const close = async () => {
     setVisible(false);

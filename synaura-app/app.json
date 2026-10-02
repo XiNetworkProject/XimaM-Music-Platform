@@ -3,9 +3,9 @@
     "name": "Synaura",
     "slug": "synaura",
     "scheme": "synaura",
-    "version": "0.25.11",
+    "version": "0.26.0",
     "newArchEnabled": true,
-    "icon": "./src/assets/synaura-symbol-2026.png",
+    "icon": "./src/assets/entry/launcher.png",
     "orientation": "default",
     "userInterfaceStyle": "automatic",
     "assetBundlePatterns": [
@@ -23,12 +23,13 @@
     "android": {
       "package": "com.synaura.music",
       "googleServicesFile": "./google-services.json",
-      "versionCode": 82,
+      "versionCode": 83,
       "newArchEnabled": true,
       "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
-        "foregroundImage": "./src/assets/synaura-symbol-2026.png",
-        "backgroundColor": "#050505"
+        "foregroundImage": "./src/assets/entry/adaptive-foreground.png",
+        "monochromeImage": "./src/assets/entry/adaptive-foreground.png",
+        "backgroundColor": "#060810"
       },
       "permissions": [
         "android.permission.FOREGROUND_SERVICE",
@@ -43,17 +44,17 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#0D0D0D",
-          "image": "./src/assets/synaura-symbol-2026.png",
-          "imageWidth": 170,
+          "backgroundColor": "#060810",
+          "image": "./src/assets/entry/splash.png",
+          "imageWidth": 140,
           "resizeMode": "contain"
         }
       ],
       [
         "expo-notifications",
         {
-          "icon": "./src/assets/synaura-symbol-2026.png",
-          "color": "#7357C6",
+          "icon": "./src/assets/entry/notification.png",
+          "color": "#6650D9",
           "defaultChannel": "synaura-activity"
         }
       ],
@@ -69,12 +70,12 @@
       "expo-web-browser"
     ],
     "androidStatusBar": {
-      "backgroundColor": "#0D0D0D",
+      "backgroundColor": "#060810",
       "barStyle": "light-content",
       "translucent": false
     },
     "androidNavigationBar": {
-      "backgroundColor": "#0D0D0D",
+      "backgroundColor": "#060810",
       "barStyle": "light-content"
     },
     "extra": {

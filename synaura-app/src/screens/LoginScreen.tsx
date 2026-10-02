@@ -99,8 +99,8 @@ export function LoginScreen() {
       <AuthCard>
         <AuthTitle
           eyebrow="Connexion"
-          title="Ravi de te revoir."
-          text="Retrouve tes posts, tes sons, tes messages et tes notifications."
+          title="De retour dans ton univers."
+          text="Tes sons et tes rencontres t’attendent."
         />
 
         {success ? <AuthAlert kind="success" text={success} /> : null}

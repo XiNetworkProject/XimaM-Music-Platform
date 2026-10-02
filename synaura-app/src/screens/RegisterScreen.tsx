@@ -23,7 +23,7 @@ import {
 } from '@/components/auth/AuthUI';
 import { Reveal } from '@/components/motion/Motion';
 import { isOnboardingCompleted } from '@/onboarding/checkOnboarding';
-import { colors } from '@/theme/tokens';
+import { authColors as colors } from '@/components/auth/AuthUI';
 
 type FormData = {
   firstName: string;
@@ -44,9 +44,9 @@ type UserCount = {
 };
 
 const STEPS = [
-  { eyebrow: 'Identite', title: 'Qui es-tu ?', text: 'Commence par ton prenom et ton nom.' },
-  { eyebrow: 'Profil', title: 'Cree ton espace.', text: 'Choisis ce que les autres membres verront.' },
-  { eyebrow: 'Securite', title: 'Protege ton acces.', text: 'Valide ton email et choisis un mot de passe solide.' },
+  { eyebrow: 'FAIS COMME CHEZ TOI', title: 'Tout commence avec toi.', text: 'Ton prénom et ton nom restent privés.' },
+  { eyebrow: 'TON IDENTITÉ MUSICALE', title: 'Trouve ta signature.', text: 'Le nom que la communauté découvrira.' },
+  { eyebrow: 'DERNIÈRE ÉTAPE', title: 'Ton univers t’attend.', text: 'Un email et un mot de passe pour le retrouver.' },
 ] as const;
 
 const EMPTY_FORM: FormData = {

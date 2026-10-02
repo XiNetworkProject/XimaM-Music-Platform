@@ -1,14 +1,13 @@
 {
-  "title": "Synaura 0.25.11",
+  "title": "Synaura 0.26.0 — Entre dans ton univers",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Restauration de l'experience native moderne Synaura Signal et Flow",
-    "Accueil immersif, slides Signal et dock moderne reintegres",
-    "Parcours de compte complet restaure : Google natif, profil prive et controle des sessions",
-    "Double authentification TOTP et verrouillage biometrique local disponibles sans Supabase",
-    "Connexion au backend PostgreSQL local et au stockage media Synaura",
-    "Medias servis par l'infrastructure Synaura locale sans dependance runtime Vercel, Supabase ou Cloudinary",
-    "Build Android Release explicitement execute en environnement production"
+    "Nouveau logo haute définition et démarrage lumineux, plus fluide",
+    "Présentation à swiper : découvrir, ressentir, créer et se retrouver",
+    "Connexion, inscription et premiers pas dans le nouvel univers Synaura",
+    "Nouvel accueil Live : ton morceau continue quand tu entres dans le fil",
+    "Navigation épurée et animations respectant la réduction des mouvements",
+    "Mise à jour compatible avec les installations existantes, sans désinstallation"
   ]
 }

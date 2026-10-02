@@ -1,0 +1,7 @@
+{
+  "androidPackage": "com.synaura.music",
+  "signerSha256": "00c7a51970ef352183a03e0dfb0f8093663c205aeb16c46d1855aa7f35dc7502",
+  "baselineVersionCode": 82,
+  "baselineApkSha256": "8be799e86881a5626a37bb913aa35379eb6c7433d7fdd665b817645f06470797",
+  "baselineVerifiedFrom": "https://media.synaura.fr/mobile-releases/apks/synaura-0.25.11-82.apk"
+}

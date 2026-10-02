@@ -3,6 +3,7 @@ import { Animated, Easing, Image, StyleSheet, View, ViewStyle } from 'react-nati
 import { LinearGradient } from 'expo-linear-gradient';
 import { colors } from '@/theme/tokens';
 import { useMobileSettings } from '@/settings/MobileSettingsProvider';
+import { SynauraMark } from '@/components/brand/SynauraMark';
 
 export function MobileAnimatedLogo({
   playing = false,
@@ -57,7 +58,7 @@ export function MobileAnimatedLogo({
           },
         ]}
       >
-        <Image source={require('../../assets/synaura-symbol-2026.png')} resizeMode="contain" style={{ width: size * 0.84, height: size * 0.84 }} />
+        <SynauraMark size={size * .9} color={colors.text} />
       </Animated.View>
     </View>
   );
@@ -68,8 +69,6 @@ const styles = StyleSheet.create({
   logoFrame: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(255,255,255,0.96)',
-    borderWidth: 1,
-    borderColor: 'rgba(23,19,19,0.08)',
+    backgroundColor: 'transparent',
   },
 });

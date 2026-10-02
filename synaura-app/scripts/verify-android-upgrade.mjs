@@ -1,0 +1,23 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import crypto from 'node:crypto';
+import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const identity = JSON.parse(fs.readFileSync(path.join(root,'release-identity.json'),'utf8'));
+const config = JSON.parse(fs.readFileSync(path.join(root,'app.json'),'utf8')).expo;
+const apk = path.resolve(process.argv[2] || path.join(root,'android/app/build/outputs/apk/release/app-release.apk'));
+const buildTools = process.env.SYNAURA_ANDROID_BUILD_TOOLS;
+if (!buildTools) throw Error('Set SYNAURA_ANDROID_BUILD_TOOLS to the installed Android build-tools directory.');
+const badging = execFileSync(path.join(buildTools, process.platform === 'win32' ? 'aapt.exe' : 'aapt'), ['dump','badging',apk], {encoding:'utf8'});
+if (badging.includes('application-debuggable')) throw Error('Debug APK cannot be published.');
+const pkg = badging.match(/package: name='([^']+)' versionCode='(\d+)' versionName='([^']+)'/);
+if (!pkg || pkg[1] !== identity.androidPackage || pkg[1] !== config.android.package) throw Error('Published Android package mismatch. Do not distribute this APK.');
+if (+pkg[2] !== config.android.versionCode || +pkg[2] <= identity.baselineVersionCode || pkg[3] !== config.version) throw Error('APK version mismatch or downgrade.');
+const certificates = execFileSync('java',['-jar',path.join(buildTools,'lib/apksigner.jar'),'verify','--print-certs',apk],{encoding:'utf8'});
+const signers = [...certificates.matchAll(/Signer #\d+ certificate SHA-256 digest: ([a-f0-9]+)/g)].map(match=>match[1]);
+if (signers.length !== 1 || signers[0] !== identity.signerSha256) throw Error('Historical signing key mismatch. Android would reject an upgrade.');
+const hash = crypto.createHash('sha256');
+for await (const chunk of fs.createReadStream(apk)) hash.update(chunk);
+console.log(JSON.stringify({ compatible:true, packageName:pkg[1], versionCode:+pkg[2], versionName:pkg[3], signerSha256:signers[0], sha256:hash.digest('hex'), sizeBytes:fs.statSync(apk).size },null,2));

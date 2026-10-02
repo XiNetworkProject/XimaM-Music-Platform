@@ -3,6 +3,7 @@ import { ActivityIndicator, DeviceEventEmitter, Platform, Text, View } from 'rea
 import { NavigationContainer, DefaultTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { StatusBar } from 'expo-status-bar';
+import * as SplashScreen from 'expo-splash-screen';
 import { useFonts } from 'expo-font';
 import * as NavigationBar from 'expo-navigation-bar';
 import { Inter_600SemiBold } from '@expo-google-fonts/inter/600SemiBold';
@@ -75,6 +76,7 @@ export type RootStackParamList = RootTabsParamList & {
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+void SplashScreen.preventAutoHideAsync().catch(() => {});
 const ROOT_GATE_TIMEOUT_MS = 2400;
 const ROOT_BOOT_WATCHDOG_MS = 5000;
 const linking = {
@@ -224,7 +226,7 @@ function SynauraRuntime() {
   const [playerOpen, setPlayerOpen] = React.useState(false);
   const [activeRoute, setActiveRoute] = React.useState('Swipe');
   const { resolvedTheme } = useMobileSettings();
-  const usesDarkSystemChrome = resolvedTheme === 'dark' || activeRoute === 'Swipe';
+  const usesDarkSystemChrome = resolvedTheme === 'dark' || ['Swipe', 'Welcome', 'Onboarding', 'Login', 'Register', 'ForgotPassword', 'PhoneAuth'].includes(activeRoute);
   const navigationTheme = React.useMemo(() => ({
     ...DefaultTheme,
     dark: resolvedTheme === 'dark',
@@ -294,6 +296,7 @@ function SynauraRuntime() {
 }
 
 export default function App() {
+  const [fontDeadlineReached, setFontDeadlineReached] = useState(false);
   const [fontsLoaded, fontError] = useFonts({
     Inter_600SemiBold,
     Inter_700Bold,
@@ -301,8 +304,16 @@ export default function App() {
     Inter_900Black,
   });
 
-  if (!fontsLoaded && !fontError) {
-    return <View style={{ flex: 1, backgroundColor: '#09090B' }} />;
+  useEffect(() => {
+    const deadline = setTimeout(() => setFontDeadlineReached(true), 2500);
+    return () => clearTimeout(deadline);
+  }, []);
+  useEffect(() => {
+    if (fontsLoaded || fontError || fontDeadlineReached) void SplashScreen.hideAsync().catch(() => {});
+  }, [fontsLoaded, fontError, fontDeadlineReached]);
+
+  if (!fontsLoaded && !fontError && !fontDeadlineReached) {
+    return <View style={{ flex: 1, backgroundColor: '#060810' }} />;
   }
 
   return (

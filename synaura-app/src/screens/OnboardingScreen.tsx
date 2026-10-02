@@ -4,7 +4,10 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { StatusBar } from 'expo-status-bar';
-import { SynauraIntroStage } from '@/components/onboarding/SynauraIntroStage';
+import { SynauraIntroStage } from '@/components/entry/EntryStage';
+import { EntryAtmosphere } from '@/components/entry/EntryAtmosphere';
+import { SynauraMark } from '@/components/brand/SynauraMark';
+import { entry } from '@/theme/entry';
 import { colors } from '@/theme/tokens';
 import { getUserPreferences, updateUserPreferences } from '@/api/client';
 import {
@@ -156,7 +159,7 @@ export function OnboardingScreen() {
   }
 
   return (
-    <View style={styles.screen}>
+    <EntryAtmosphere>
       <StatusBar style="light" backgroundColor="#0D0D0D" />
       <ScrollView
         contentInsetAdjustmentBehavior="never"
@@ -174,7 +177,7 @@ export function OnboardingScreen() {
       >
         <View style={styles.topBar}>
           <View style={styles.brand}>
-            <View style={styles.brandMark}><Ionicons name="musical-notes" size={15} color="#FFFFFF" /></View>
+            <SynauraMark size={36} />
             <View>
               <Text style={styles.brandName}>Synaura</Text>
               <Text style={styles.brandContext}>{isEdit ? 'Mes préférences' : 'Premiers pas'}</Text>
@@ -327,7 +330,7 @@ export function OnboardingScreen() {
               <MotionPressable style={styles.primaryButton} onPress={() => void savePreferences(false)} disabled={saving} scaleTo={0.97}>
                 {saving ? <ActivityIndicator color="#F7F6F3" /> : (
                   <>
-                    <Text style={styles.primaryText}>{isEdit ? 'Enregistrer mes choix' : 'Ouvrir Pour toi'}</Text>
+                    <Text style={styles.primaryText}>{isEdit ? 'Enregistrer mes choix' : 'Entrer dans Live'}</Text>
                     <Ionicons name="arrow-forward" size={17} color="#F7F6F3" />
                   </>
                 )}
@@ -336,7 +339,7 @@ export function OnboardingScreen() {
           ) : null}
         </Reveal>
       </ScrollView>
-    </View>
+    </EntryAtmosphere>
   );
 }
 
@@ -385,7 +388,7 @@ function SummaryBlock({ icon, label, value }: { icon: keyof typeof Ionicons.glyp
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#0D0D0D' },
+  screen: { flex: 1, backgroundColor: entry.background },
   loadingFill: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 14 },
   loadingMark: { width: 48, height: 48, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: '#7357C6' },
   content: { flexGrow: 1 },
@@ -403,14 +406,14 @@ const styles = StyleSheet.create({
   progressSegmentCurrent: { flex: 1.65, backgroundColor: '#7357C6' },
   progressCount: { width: 39, marginLeft: 4, color: 'rgba(247,246,243,0.42)', fontSize: 8, fontWeight: '900', textAlign: 'right' },
   step: { marginTop: 16 },
-  introStage: { overflow: 'hidden', borderRadius: 8, backgroundColor: '#111111', shadowColor: '#111111', shadowOpacity: 0.16, shadowRadius: 24, shadowOffset: { width: 0, height: 14 }, elevation: 5 },
+  introStage: { overflow: 'hidden', borderRadius: 26, backgroundColor: 'transparent' },
   stageFill: { flex: 1, minHeight: 0 },
   introCopy: { paddingTop: 24 },
-  eyebrow: { color: '#7357C6', fontSize: 10, fontWeight: '900' },
+  eyebrow: { color: entry.violet, fontSize: 10, fontWeight: '700', letterSpacing: 1.4 },
   introTitle: { marginTop: 8, maxWidth: 560, color: '#F7F6F3', fontSize: 31, lineHeight: 36, fontWeight: '900' },
   introTitleNarrow: { fontSize: 27, lineHeight: 32 },
   introText: { marginTop: 11, maxWidth: 520, color: 'rgba(247,246,243,0.62)', fontSize: 14, lineHeight: 21, fontWeight: '600' },
-  primaryButton: { width: '100%', minHeight: 54, marginTop: 24, borderRadius: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, paddingHorizontal: 16, backgroundColor: '#7357C6' },
+  primaryButton: { width: '100%', minHeight: 56, marginTop: 24, borderRadius: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, paddingHorizontal: 16, backgroundColor: entry.primary },
   primaryText: { flexShrink: 1, color: '#F7F6F3', fontSize: 13, fontWeight: '900', textAlign: 'center' },
   stepHeader: { marginBottom: 22 },
   backButton: { width: 42, height: 42, marginBottom: 17, borderRadius: 8, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(247,246,243,0.14)', backgroundColor: '#1C1C1C' },
@@ -420,16 +423,16 @@ const styles = StyleSheet.create({
   stepSubtitle: { marginTop: 9, maxWidth: 560, color: 'rgba(247,246,243,0.58)', fontSize: 13, lineHeight: 19, fontWeight: '600' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   gridCompact: { gap: 8 },
-  tile: { minHeight: 112, position: 'relative', alignItems: 'flex-start', justifyContent: 'space-between', borderRadius: 8, borderWidth: 1, borderColor: 'rgba(247,246,243,0.12)', padding: 12, backgroundColor: '#151515' },
+  tile: { minHeight: 112, position: 'relative', alignItems: 'flex-start', justifyContent: 'space-between', borderRadius: 22, borderWidth: 1, borderColor: entry.line, padding: 16, backgroundColor: entry.surface },
   tileCompact: { minHeight: 92, padding: 10 },
-  tileActive: { borderColor: '#7357C6', backgroundColor: 'rgba(115,87,198,0.17)' },
+  tileActive: { borderColor: entry.violet, backgroundColor: 'rgba(99,89,200,.26)' },
   tileIcon: { width: 38, height: 38, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(247,246,243,0.08)' },
   tileIconActive: { backgroundColor: '#7357C6' },
   tileLabel: { maxWidth: '88%', color: '#F7F6F3', fontSize: 12, lineHeight: 16, fontWeight: '900' },
   check: { position: 'absolute', right: 10, top: 10, width: 20, height: 20, borderRadius: 6, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: 'rgba(247,246,243,0.22)' },
   checkActive: { borderColor: '#7357C6', backgroundColor: '#7357C6' },
   intentions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  intention: { width: '100%', minHeight: 58, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 8, borderWidth: 1, borderColor: 'rgba(247,246,243,0.12)', paddingHorizontal: 11, backgroundColor: '#151515' },
+  intention: { width: '100%', minHeight: 62, flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 18, borderWidth: 1, borderColor: entry.line, paddingHorizontal: 16, backgroundColor: entry.surface },
   intentionCompact: { minHeight: 52 },
   intentionTablet: { width: '49%' },
   intentionActive: { borderColor: '#7357C6', backgroundColor: 'rgba(115,87,198,0.17)' },

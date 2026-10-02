@@ -14,10 +14,16 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { SynauraBackground } from '@/components/SynauraBackground';
+import { EntryAtmosphere } from '@/components/entry/EntryAtmosphere';
+import { SynauraMark } from '@/components/brand/SynauraMark';
+import { LinearGradient } from 'expo-linear-gradient';
+import { StatusBar } from 'expo-status-bar';
 import { MotionPressable, Reveal } from '@/components/motion/Motion';
-import { colors } from '@/theme/tokens';
+import { entry } from '@/theme/entry';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
+
+export const authColors = { text: entry.text, textSecondary: entry.muted, textTertiary: entry.faint, surface: entry.surface, surfaceStrong: entry.raised, surfaceMuted: entry.raised, border: entry.line, borderStrong: entry.line, violet: entry.violet, coral: entry.violet, cyan: entry.cyan };
+const colors = authColors;
 
 export function AuthScreen({
   children,
@@ -29,7 +35,8 @@ export function AuthScreen({
   const insets = useSafeAreaInsets();
   const layout = useResponsiveLayout();
   return (
-    <SynauraBackground variant="warm">
+    <EntryAtmosphere>
+      <StatusBar style="light" />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={keyboardOffset}
@@ -39,7 +46,7 @@ export function AuthScreen({
           contentContainerStyle={[
             styles.screenContent,
             layout.pageContent,
-            { paddingTop: insets.top + 14, paddingBottom: insets.bottom + 28 },
+            { maxWidth: 540, paddingTop: insets.top + 14, paddingBottom: insets.bottom + 28 },
           ]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
@@ -47,7 +54,7 @@ export function AuthScreen({
           {children}
         </ScrollView>
       </KeyboardAvoidingView>
-    </SynauraBackground>
+    </EntryAtmosphere>
   );
 }
 
@@ -63,7 +70,7 @@ export function AuthTopBar({
     <View style={styles.topBar}>
       <View style={styles.brand}>
         <View style={styles.logoWrap}>
-          <Image source={require('../../assets/synaura-symbol-2026.png')} style={styles.logo} />
+          <SynauraMark size={38} />
         </View>
         <View>
           <Text style={styles.brandName}>Synaura</Text>
@@ -121,6 +128,8 @@ export function AuthField({
         <Ionicons name={icon} size={17} color={colors.textTertiary} style={styles.inputIcon} />
         <TextInput
           {...props}
+          accessibilityLabel={props.accessibilityLabel || label}
+          selectionColor={entry.violet}
           placeholderTextColor={colors.textTertiary}
           style={[styles.input, rightIcon ? styles.inputWithRight : null, props.style]}
         />
@@ -146,7 +155,7 @@ export function AuthAlert({
       <Ionicons
         name={kind === 'success' ? 'checkmark-circle' : 'alert-circle'}
         size={17}
-        color={kind === 'success' ? '#15803D' : '#B42318'}
+        color={kind === 'success' ? '#81DEB2' : '#FFAAAD'}
       />
       <Text style={[styles.alertText, kind === 'success' && styles.alertTextSuccess]}>{text}</Text>
     </View>
@@ -174,6 +183,7 @@ export function AuthPrimaryButton({
       style={[styles.primaryButton, (disabled || loading) && styles.disabled]}
       scaleTo={0.97}
     >
+      <LinearGradient pointerEvents="none" colors={['#8067EC', '#536EE0']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
       {loading ? <ActivityIndicator color="#FFFAF2" /> : (
         <>
           <Text style={styles.primaryText}>{label}</Text>
@@ -299,7 +309,7 @@ export const authStyles = StyleSheet.create({
 const styles = StyleSheet.create({
   fill: { flex: 1 },
   screenContent: { flexGrow: 1, justifyContent: 'center', paddingVertical: 18 },
-  topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 28 },
+  topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 40 },
   brand: { flexDirection: 'row', alignItems: 'center', gap: 10, minWidth: 0, flexShrink: 1 },
   logoWrap: {
     width: 46,
@@ -307,29 +317,22 @@ const styles = StyleSheet.create({
     borderRadius: 23,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.surfaceStrong,
-    borderWidth: 1,
-    borderColor: colors.borderStrong,
+    backgroundColor: 'transparent',
   },
   logo: { width: 38, height: 38, resizeMode: 'contain' },
-  brandName: { color: colors.text, fontSize: 21, lineHeight: 23, fontWeight: '900' },
+  brandName: { color: colors.text, fontSize: 21, lineHeight: 25, fontFamily: 'Inter_800ExtraBold' },
   brandCaption: { marginTop: 2, color: colors.textTertiary, fontSize: 9, fontWeight: '900', textTransform: 'uppercase' },
-  backButton: { height: 40, paddingHorizontal: 11, borderRadius: 20, flexDirection: 'row', alignItems: 'center', gap: 5, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+  backButton: { minHeight: 44, paddingHorizontal: 11, borderRadius: 20, flexDirection: 'row', alignItems: 'center', gap: 5 },
   backButtonNarrow: { width: 38, paddingHorizontal: 0, justifyContent: 'center' },
   backText: { color: colors.textSecondary, fontSize: 11, fontWeight: '900' },
   card: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderTopColor: colors.violet,
-    borderTopWidth: 3,
-    borderRadius: 16,
-    backgroundColor: colors.surface,
-    padding: 22,
+    backgroundColor: 'transparent',
+    padding: 10,
   },
-  cardNarrow: { paddingHorizontal: 16 },
+  cardNarrow: { paddingHorizontal: 4 },
   titleBlock: { marginBottom: 24 },
   eyebrow: { color: colors.coral, fontSize: 10, fontWeight: '900', textTransform: 'uppercase' },
-  title: { marginTop: 9, color: colors.text, fontSize: 36, lineHeight: 40, fontWeight: '900' },
+  title: { marginTop: 12, color: colors.text, fontSize: 38, lineHeight: 44, fontFamily: 'Inter_800ExtraBold' },
   titleNarrow: { fontSize: 31, lineHeight: 36 },
   subtitle: { marginTop: 10, color: colors.textSecondary, fontSize: 14, lineHeight: 21, fontWeight: '500' },
   field: { gap: 7 },
@@ -337,32 +340,32 @@ const styles = StyleSheet.create({
   inputWrap: { position: 'relative', justifyContent: 'center' },
   inputIcon: { position: 'absolute', left: 15, zIndex: 2 },
   input: {
-    height: 50,
-    borderRadius: 12,
+    minHeight: 56,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: colors.border,
-    backgroundColor: colors.surfaceStrong,
+    backgroundColor: 'rgba(25,31,48,.85)',
     paddingLeft: 44,
     paddingRight: 14,
     color: colors.text,
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: '600',
   },
   inputWithRight: { paddingRight: 48 },
   rightIcon: { position: 'absolute', right: 4, width: 42, height: 42, alignItems: 'center', justifyContent: 'center' },
   alert: { marginBottom: 14, padding: 11, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(239,68,68,0.10)', borderWidth: 1, borderColor: 'rgba(239,68,68,0.20)' },
   alertSuccess: { backgroundColor: 'rgba(34,197,94,0.10)', borderColor: 'rgba(34,197,94,0.20)' },
-  alertText: { flex: 1, color: '#B42318', fontSize: 12, lineHeight: 17, fontWeight: '800' },
-  alertTextSuccess: { color: '#15803D' },
-  primaryButton: { flex: 1, height: 54, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8, backgroundColor: colors.violet },
+  alertText: { flex: 1, color: '#FFAAAD', fontSize: 12, lineHeight: 17, fontWeight: '800' },
+  alertTextSuccess: { color: '#81DEB2' },
+  primaryButton: { flexGrow: 1, minHeight: 56, overflow: 'hidden', borderRadius: 18, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8, backgroundColor: entry.primary },
   primaryText: { color: '#FFFAF2', fontSize: 13, fontWeight: '900' },
   disabled: { opacity: 0.45 },
   pressed: { transform: [{ scale: 0.985 }], opacity: 0.88 },
-  providerButton: { height: 52, borderRadius: 8, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surfaceStrong, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
+  providerButton: { minHeight: 54, borderRadius: 16, backgroundColor: colors.surfaceStrong, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
   providerText: { color: colors.text, fontSize: 13, fontWeight: '900' },
   checkRow: { minHeight: 42, flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
   checkbox: { width: 22, height: 22, borderRadius: 5, borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: colors.surfaceStrong, alignItems: 'center', justifyContent: 'center' },
-  checkboxChecked: { borderColor: colors.violet, backgroundColor: colors.violet },
+  checkboxChecked: { borderColor: entry.primary, backgroundColor: entry.primary },
   checkLabel: { flex: 1, color: colors.textSecondary, fontSize: 11, lineHeight: 17, fontWeight: '700' },
   divider: { marginVertical: 18, flexDirection: 'row', alignItems: 'center', gap: 10 },
   dividerLine: { flex: 1, height: 1, backgroundColor: colors.border },

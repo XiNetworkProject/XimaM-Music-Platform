@@ -99,10 +99,13 @@ test('tablet cards use the broader web rail proportions', () => {
   assert.equal(wideBreakpoint.pulseHeight, 400);
 });
 
-test('the approved native home keeps the activity rail and Flow transition', () => {
-  assert.match(nativePreludeSource, /const BANNER_ROTATION_MS = 4_?200/);
-  assert.match(nativePreludeSource, /styles\.pulseCard/);
-  assert.match(nativePreludeSource, /styles\.railWrap/);
-  assert.match(nativePreludeSource, /styles\.flowPreview/);
-  assert.match(nativePreludeSource, /PanResponder\.create/);
+test('the native entry keeps real discovery, social actions and the same track into Live', () => {
+  assert.match(nativePreludeSource, /selectEntryTrack\(playable, currentTrack\?\._id\)/);
+  assert.match(nativePreludeSource, /props\.onOpenTrack\(featured\)/);
+  assert.match(nativePreludeSource, /props\.onToggleLike\(featured\)/);
+  assert.match(nativePreludeSource, /props\.onOpenComments\(featured\)/);
+  assert.match(nativePreludeSource, /props\.onShareTrack\(featured\)/);
+  assert.match(nativePreludeSource, /props\.posts\[0\]/);
+  assert.match(nativePreludeSource, /<ScrollView horizontal/);
+  assert.doesNotMatch(nativePreludeSource, /Quelqu’un pourrait t’avoir suivi/);
 });
