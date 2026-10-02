@@ -13,7 +13,6 @@ import {
   AuthTopBar,
   authStyles,
 } from '@/components/auth/AuthUI';
-import { isOnboardingCompleted } from '@/onboarding/checkOnboarding';
 
 export function PhoneAuthScreen() {
   const navigation = useNavigation<any>();
@@ -24,14 +23,6 @@ export function PhoneAuthScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const codeSent = Boolean(verifiedPhone);
-
-  const afterLogin = async () => {
-    const completed = await isOnboardingCompleted();
-    navigation.reset({
-      index: 0,
-      routes: [{ name: completed ? 'Tabs' : 'Onboarding' }],
-    });
-  };
 
   const sendCode = async () => {
     if (!phone.trim()) {
@@ -59,7 +50,6 @@ export function PhoneAuthScreen() {
     setError('');
     try {
       await auth.verifyPhoneCode(verifiedPhone, code);
-      await afterLogin();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Code incorrect');
     } finally {

@@ -13,6 +13,7 @@ import { Inter_900Black } from '@expo-google-fonts/inter/900Black';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AuthProvider, useAuth } from '@/auth/AuthProvider';
+import { entryIdentity, entryRoute, takeAuthDestination, type AuthDestination, type EntryRoute } from '@/auth/entryGate';
 import { PlayerProvider } from '@/player/PlayerProvider';
 import { LibraryProvider } from '@/library/LibraryProvider';
 import { MiniPlayer } from '@/components/MiniPlayer';
@@ -78,7 +79,6 @@ export type RootStackParamList = RootTabsParamList & {
 const Stack = createNativeStackNavigator<RootStackParamList>();
 void SplashScreen.preventAutoHideAsync().catch(() => {});
 const ROOT_GATE_TIMEOUT_MS = 2400;
-const ROOT_BOOT_WATCHDOG_MS = 5000;
 const linking = {
   prefixes: ['synaura://'],
   config: {
@@ -99,54 +99,40 @@ function getActiveRouteName(state: any): string {
   return route.name || 'Home';
 }
 
-/**
- * Decide l'ecran initial une fois la session restauree (AuthProvider.loading
- * passe a false) : si un utilisateur deja connecte n'a pas termine l'onboarding
- * V1, Tabs n'est jamais monte en premier (donc jamais de flash "Pour toi") -
- * Onboarding devient l'ecran initial du stack racine. Ne s'execute qu'une seule
- * fois par montage de l'app. Si la session change pendant la lecture locale,
- * la decision redemarre au lieu de laisser le gate verrouille.
- */
+// Resolve entry only after security gates, once per identity (not per token).
 function RootStackNavigator() {
   const auth = useAuth();
   const { settings } = useMobileSettings();
-  const [gate, setGate] = useState<{ ready: boolean; initialRoute: 'Tabs' | 'Onboarding' | 'Welcome' }>({
-    ready: false,
+  const [gate, setGate] = useState<{ identity: string | null; initialRoute: EntryRoute; returnTo?: AuthDestination }>({
+    identity: null,
     initialRoute: 'Tabs',
   });
   const authenticated = Boolean(auth.user?.id && auth.token);
+  const identity = entryIdentity(auth);
 
   useEffect(() => {
-    if (gate.ready) return undefined;
-    const watchdog = setTimeout(() => {
-      setGate({ ready: true, initialRoute: 'Tabs' });
-    }, ROOT_BOOT_WATCHDOG_MS);
-    return () => clearTimeout(watchdog);
-  }, [gate.ready]);
-
-  useEffect(() => {
-    if (auth.loading || gate.ready) return undefined;
+    if (!identity || gate.identity === identity) return undefined;
     let mounted = true;
     let settled = false;
     let timeout: ReturnType<typeof setTimeout>;
-    const finish = (initialRoute: 'Tabs' | 'Onboarding' | 'Welcome') => {
+    const finish = (initialRoute: EntryRoute) => {
       if (!mounted || settled) return;
       settled = true;
       clearTimeout(timeout);
-      setGate({ ready: true, initialRoute });
+      setGate({ identity, initialRoute, returnTo: identity === 'guest' ? undefined : takeAuthDestination() });
     };
 
     // Aucune lecture reseau ou locale ne doit pouvoir retenir la navigation sur
     // un ecran vide. En cas de stockage/reseau lent, l'app reste accessible.
     timeout = setTimeout(() => finish('Tabs'), ROOT_GATE_TIMEOUT_MS);
 
-    if (!authenticated) {
+    if (identity === 'guest') {
       void isWelcomeCompleted()
-        .then((completed) => finish(completed ? 'Tabs' : 'Welcome'))
+        .then((completed) => finish(entryRoute(identity, completed)))
         .catch(() => finish('Tabs'));
     } else {
       void isOnboardingCompleted()
-        .then((completed) => finish(completed ? 'Tabs' : 'Onboarding'))
+        .then((completed) => finish(entryRoute(identity, completed)))
         .catch(() => finish('Tabs'));
     }
 
@@ -154,7 +140,7 @@ function RootStackNavigator() {
       mounted = false;
       clearTimeout(timeout);
     };
-  }, [auth.loading, authenticated, gate.ready]);
+  }, [identity, gate.identity]);
 
   if (!auth.loading && authenticated && auth.biometricLocked) {
     return <BiometricLockScreen />;
@@ -168,7 +154,7 @@ function RootStackNavigator() {
     return <CompleteAccountScreen />;
   }
 
-  if (!gate.ready) {
+  if (!identity || gate.identity !== identity) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, backgroundColor: colors.background }}>
         <ActivityIndicator color={colors.violet} />
@@ -179,6 +165,7 @@ function RootStackNavigator() {
 
   return (
     <Stack.Navigator
+      key={identity}
       screenOptions={{
         headerShown: false,
         animation: settings.reducedMotion ? 'none' : 'slide_from_right',
@@ -187,7 +174,7 @@ function RootStackNavigator() {
       }}
       initialRouteName={gate.initialRoute}
     >
-      <Stack.Screen name="Tabs" component={Tabs} />
+      <Stack.Screen name="Tabs" component={Tabs} initialParams={gate.returnTo || { screen: 'Swipe' }} />
       <Stack.Screen name="Home" component={HomeV2Screen} />
       <Stack.Screen name="Radar" component={RadarScreen} />
       <Stack.Screen name="DiscoverMood" component={DiscoverMoodScreen} />
@@ -216,7 +203,7 @@ function RootStackNavigator() {
       <Stack.Screen name="Register" component={RegisterScreen} />
       <Stack.Screen name="PhoneAuth" component={PhoneAuthScreen} />
       <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
-      <Stack.Screen name="Onboarding" component={OnboardingScreen} options={{ animation: settings.reducedMotion ? 'none' : 'slide_from_right' }} />
+      <Stack.Screen name="Onboarding" component={OnboardingScreen} initialParams={{ returnTo: gate.returnTo }} options={{ animation: settings.reducedMotion ? 'none' : 'slide_from_right' }} />
       <Stack.Screen name="Welcome" component={WelcomeScreen} options={{ animation: settings.reducedMotion ? 'none' : 'fade' }} />
     </Stack.Navigator>
   );

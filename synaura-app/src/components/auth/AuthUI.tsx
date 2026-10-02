@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -19,6 +19,7 @@ import { SynauraMark } from '@/components/brand/SynauraMark';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
 import { MotionPressable, Reveal } from '@/components/motion/Motion';
+import { EntryPressable } from '@/components/entry/EntryPressable';
 import { entry } from '@/theme/entry';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 
@@ -121,6 +122,7 @@ export function AuthField({
   rightIcon?: keyof typeof Ionicons.glyphMap;
   onRightPress?: () => void;
 }) {
+  const [focused, setFocused] = useState(false);
   return (
     <View style={styles.field}>
       <Text style={styles.fieldLabel}>{label}</Text>
@@ -128,10 +130,12 @@ export function AuthField({
         <Ionicons name={icon} size={17} color={colors.textTertiary} style={styles.inputIcon} />
         <TextInput
           {...props}
+          onFocus={event => { setFocused(true); props.onFocus?.(event); }}
+          onBlur={event => { setFocused(false); props.onBlur?.(event); }}
           accessibilityLabel={props.accessibilityLabel || label}
           selectionColor={entry.violet}
           placeholderTextColor={colors.textTertiary}
-          style={[styles.input, rightIcon ? styles.inputWithRight : null, props.style]}
+          style={[styles.input, focused && { borderColor: entry.violet, backgroundColor: '#23253F' }, rightIcon ? styles.inputWithRight : null, props.style]}
         />
         {rightIcon && onRightPress ? (
           <Pressable accessibilityLabel="Afficher ou masquer" onPress={onRightPress} style={styles.rightIcon}>
@@ -176,21 +180,21 @@ export function AuthPrimaryButton({
   onPress: () => void;
 }) {
   return (
-    <MotionPressable
+    <EntryPressable
       accessibilityRole="button"
       disabled={disabled || loading}
       onPress={onPress}
       style={[styles.primaryButton, (disabled || loading) && styles.disabled]}
       scaleTo={0.97}
     >
-      <LinearGradient pointerEvents="none" colors={['#8067EC', '#536EE0']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-      {loading ? <ActivityIndicator color="#FFFAF2" /> : (
+      <LinearGradient pointerEvents="none" colors={['#C5B5FF', '#A4BBFF']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+      {loading ? <ActivityIndicator color="#17142E" /> : (
         <>
           <Text style={styles.primaryText}>{label}</Text>
-          {icon ? <Ionicons name={icon} size={17} color="#FFFAF2" /> : null}
+          {icon ? <Ionicons name={icon} size={17} color="#17142E" /> : null}
         </>
       )}
-    </MotionPressable>
+    </EntryPressable>
   );
 }
 
@@ -309,7 +313,7 @@ export const authStyles = StyleSheet.create({
 const styles = StyleSheet.create({
   fill: { flex: 1 },
   screenContent: { flexGrow: 1, justifyContent: 'center', paddingVertical: 18 },
-  topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 40 },
+  topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 28 },
   brand: { flexDirection: 'row', alignItems: 'center', gap: 10, minWidth: 0, flexShrink: 1 },
   logoWrap: {
     width: 46,
@@ -332,7 +336,7 @@ const styles = StyleSheet.create({
   cardNarrow: { paddingHorizontal: 4 },
   titleBlock: { marginBottom: 24 },
   eyebrow: { color: colors.coral, fontSize: 10, fontWeight: '900', textTransform: 'uppercase' },
-  title: { marginTop: 12, color: colors.text, fontSize: 38, lineHeight: 44, fontFamily: 'Inter_800ExtraBold' },
+  title: { marginTop: 12, color: colors.text, fontSize: 34, lineHeight: 40, letterSpacing: -1.1, fontFamily: 'Inter_600SemiBold' },
   titleNarrow: { fontSize: 31, lineHeight: 36 },
   subtitle: { marginTop: 10, color: colors.textSecondary, fontSize: 14, lineHeight: 21, fontWeight: '500' },
   field: { gap: 7 },
@@ -358,7 +362,7 @@ const styles = StyleSheet.create({
   alertText: { flex: 1, color: '#FFAAAD', fontSize: 12, lineHeight: 17, fontWeight: '800' },
   alertTextSuccess: { color: '#81DEB2' },
   primaryButton: { flexGrow: 1, minHeight: 56, overflow: 'hidden', borderRadius: 18, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8, backgroundColor: entry.primary },
-  primaryText: { color: '#FFFAF2', fontSize: 13, fontWeight: '900' },
+  primaryText: { color: '#17142E', fontSize: 14, fontWeight: '700' },
   disabled: { opacity: 0.45 },
   pressed: { transform: [{ scale: 0.985 }], opacity: 0.88 },
   providerButton: { minHeight: 54, borderRadius: 16, backgroundColor: colors.surfaceStrong, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },

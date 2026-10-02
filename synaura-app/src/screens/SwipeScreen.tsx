@@ -7,6 +7,7 @@ import {
   FlatList,
   InteractionManager,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -66,7 +67,7 @@ import { ArtistSpotlightSlide } from '@/components/swipe/ArtistSpotlightSlide';
 import { ChallengeSlide } from '@/components/swipe/ChallengeSlide';
 import { ClipSlide } from '@/components/swipe/ClipSlide';
 import { CollectionSlide } from '@/components/swipe/CollectionSlide';
-import { CommentsSheet } from '@/components/swipe/CommentsSheet';
+import { CommentsSheet, LiveProfilePeek } from '@/components/swipe/CommentsSheet';
 import {
   buildAnnouncementItem,
   buildArtistSpotlightItems,
@@ -79,6 +80,7 @@ import {
 } from '@/components/swipe/feedTypes';
 import { HeartBurst } from '@/components/swipe/HeartBurst';
 import { HomeFlowPrelude } from '@/components/swipe/HomeFlowPrelude';
+import { LiveAmbienceSheet } from '@/components/swipe/LiveAmbienceSheet';
 import { LyricsSheet } from '@/components/swipe/LyricsSheet';
 import { QueueSheet } from '@/components/swipe/QueueSheet';
 import { ShareSheet } from '@/components/swipe/ShareSheet';
@@ -156,6 +158,7 @@ export function SwipeScreen() {
   const auth = useAuth();
   const { settings } = useMobileSettings();
   const [feedMode, setFeedMode] = useState<FeedMode>(() => (route.params?.mode === 'clips' ? 'clips' : 'reco'));
+  const [ambienceOpen, setAmbienceOpen] = useState(false);
   const sourceTrackFilter = route.params?.sourceTrackId ? String(route.params.sourceTrackId) : '';
   const clipIdFilter = route.params?.clipId ? String(route.params.clipId) : '';
   const [seedGenre, setSeedGenre] = useState<string | null>(null);
@@ -179,6 +182,9 @@ export function SwipeScreen() {
   const [launchingCollectionId, setLaunchingCollectionId] = useState<string | null>(null);
 
   const [commentsOpen, setCommentsOpen] = useState(false);
+  // A conversation belongs to the explicit opening gesture, not the next audio item.
+  const [commentTarget, setCommentTarget] = useState<{ track: Track | null; clip: MusicClip | null } | null>(null);
+  const [peekUsername, setPeekUsername] = useState<string | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
   const [lyricsOpen, setLyricsOpen] = useState(false);
   const [queueOpen, setQueueOpen] = useState(false);
@@ -757,29 +763,30 @@ export function SwipeScreen() {
     void player.mergeQueue(playableQueue);
   }, [feedMode, homePreludeVisible, loadState, player.current?._id, player.isReady, player.mergeQueue, player.setQueueAndPlay, playableQueue]);
 
-  // Le Flow est la source de verite pendant un geste. Une transition native ne
-  // peut avancer l'ecran que vers le morceau immediatement suivant, une fois la
-  // commande du swipe stabilisee. Elle ne peut jamais faire rebondir en arriere.
+  // Pendant un geste, le Flow garde la main. Hors geste, suivre le morceau
+  // réellement choisi par la queue native : son ordre peut différer des futures
+  // recommandations rerankées. Ne jamais relancer l'audio pour suivre l'écran.
   useEffect(() => {
+    if (!isFocused || homePreludeVisible) return;
     if (!flowOwnsPlaybackRef.current || scrollInProgressRef.current) return;
     if (loadState !== 'ready' || !feedItems.length || !player.current) return;
-    if (lastFlowRequestedTrackRef.current === player.current._id) {
-      lastFlowRequestedTrackRef.current = null;
+    if (lastFlowRequestedTrackRef.current) {
+      if (lastFlowRequestedTrackRef.current === player.current._id) lastFlowRequestedTrackRef.current = null;
       return;
     }
     if (playableTrackOfItem(feedItems[activeIndexRef.current])?._id === player.current._id) return;
-    const idx = feedItems.findIndex((it) => playableTrackOfItem(it)?._id === player.current?._id);
+    let idx = feedItems.findIndex((it) => playableTrackOfItem(it)?._id === player.current?._id);
     const currentIndex = activeIndexRef.current;
-    if (idx <= currentIndex || Date.now() - lastFlowCommitAtRef.current < 1400) return;
-
-    const nextPlayableIndex = feedItems.findIndex((item, index) => (
-      index > currentIndex && Boolean(playableTrackOfItem(item))
-    ));
-    if (idx !== nextPlayableIndex) return;
-    const hasContextCardBetween = feedItems
-      .slice(currentIndex + 1, idx)
-      .some((item) => !playableTrackOfItem(item));
-    if (hasContextCardBetween) return;
+    if (idx === currentIndex || Date.now() - lastFlowCommitAtRef.current < 1400) return;
+    // A restored native queue can include a real track outside the current API
+    // page. Show that item instead of keeping an unrelated silent cover visible.
+    if (idx < 0) {
+      idx = currentIndex + 1;
+      const item: ScrollFeedItem = { id: `track-${player.current._id}`, kind: 'track', track: player.current };
+      const next = [...feedItems.slice(0, idx), item, ...feedItems.slice(idx)];
+      feedItemsRef.current = next;
+      setFeedItems(next);
+    }
 
     activeIndexRef.current = idx;
     lastCommittedIndexRef.current = idx;
@@ -794,7 +801,7 @@ export function SwipeScreen() {
         }, 80);
       }
     });
-  }, [player.current?._id, loadState, feedItems]);
+  }, [player.current?._id, loadState, feedItems, isFocused, homePreludeVisible]);
 
   // Le Clip actif utilise maintenant sa session media locale (ClipSlide). Le
   // lecteur musical global est seulement mis en pause pour eviter deux audios;
@@ -1090,6 +1097,7 @@ export function SwipeScreen() {
       return;
     }
     if (action === 'comment') {
+      setCommentTarget({ track: activeTrack, clip: activeClip });
       Haptics.selectionAsync().catch(() => {});
       setCommentTimestamp(null);
       setShareOpen(false);
@@ -1118,7 +1126,7 @@ export function SwipeScreen() {
       library.toggleFavorite(activeTrack);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     }
-  }, [activeTrack, handleToggleLike, library, useThisSound]);
+  }, [activeTrack, activeClip, handleToggleLike, library, useThisSound]);
 
   const handleToggleFollow = useCallback(async (usernameParam?: string) => {
     const username = usernameParam || activeTrack?.artist?.username;
@@ -1165,6 +1173,8 @@ export function SwipeScreen() {
     setPlayingClipId(null);
     const target = playableTrackOfItem(feedItems[activeIndexRef.current]) || playableQueue[0] || null;
     if (!target?.audioUrl) return;
+    flowOwnsPlaybackRef.current = true;
+    lastFlowRequestedTrackRef.current = player.current?._id === target._id ? null : target._id;
     if (player.current?._id === target._id) {
       if (!player.isPlaying) void player.play();
     } else {
@@ -1183,6 +1193,8 @@ export function SwipeScreen() {
     setPreludeActionTrack(null);
     setPlayingClipId(null);
     if (index >= 0) {
+      flowOwnsPlaybackRef.current = true;
+      lastFlowRequestedTrackRef.current = player.current?._id === track._id ? null : track._id;
       activeIndexRef.current = index;
       lastCommittedIndexRef.current = index;
       gestureStartIndexRef.current = index;
@@ -1199,18 +1211,17 @@ export function SwipeScreen() {
   }, [feedItems, player]);
 
   const openPreludeComments = useCallback((track: Track) => {
+    setCommentTarget({ track, clip: null });
     Haptics.selectionAsync().catch(() => {});
-    openPreludeTrack(track);
     setPreludeActionTrack(track);
     setCommentTimestamp(null);
     setShareOpen(false);
     setLyricsOpen(false);
     setCommentsOpen(true);
-  }, [openPreludeTrack]);
+  }, []);
 
   const sharePreludeTrack = useCallback((track: Track) => {
     Haptics.selectionAsync().catch(() => {});
-    openPreludeTrack(track);
     setPreludeActionTrack(track);
     setCommentsOpen(false);
     setLyricsOpen(false);
@@ -1404,6 +1415,7 @@ export function SwipeScreen() {
           onDoubleTapLike={handleDoubleTapLike}
           onToggleLike={() => void handleToggleLike()}
           onOpenComments={() => {
+            setCommentTarget({ track: item.track, clip: item.clip });
             Haptics.selectionAsync().catch(() => {});
             setPreludeActionTrack(null);
             setShareOpen(false);
@@ -1415,8 +1427,7 @@ export function SwipeScreen() {
             navigation.navigate('TrackDetail', { trackId: clipTrackId, track: item.track });
           }}
           onOpenCreator={() => {
-            setPlayingClipId(null);
-            if (creatorKey) navigation.navigate('PublicProfile', { username: creatorKey });
+            if (creatorKey) setPeekUsername(creatorKey);
           }}
           onToggleFollowCreator={() => void handleToggleFollow(creatorKey)}
           onShare={() => {
@@ -1567,6 +1578,7 @@ export function SwipeScreen() {
         onDoubleTapLike={handleDoubleTapLike}
         onPress={() => {
           flowOwnsPlaybackRef.current = true;
+          lastFlowRequestedTrackRef.current = player.current?._id === track._id ? null : track._id;
           playbackIntentRef.current += 1;
           if (player.current?._id === track._id) void player.togglePlayPause();
           else void player.playTrack(track);
@@ -1574,13 +1586,14 @@ export function SwipeScreen() {
         onAction={handleSlideAction}
         onSeek={handleSeek}
         onCreateMoment={(seconds) => {
+          setCommentTarget({ track, clip: null });
           setShareOpen(false);
           setLyricsOpen(false);
           setCommentTimestamp(seconds);
           setCommentsOpen(true);
         }}
         onToggleFollow={() => void handleToggleFollow()}
-        onOpenArtist={() => track.artist?.username && navigation.navigate('PublicProfile', { username: track.artist.username })}
+        onOpenArtist={() => track.artist?.username && setPeekUsername(track.artist.username)}
       />
     );
   }, [
@@ -1643,34 +1656,15 @@ export function SwipeScreen() {
 
       <Animated.View style={[styles.header, headerStyle]} pointerEvents="box-none">
         <View style={[styles.headerInner, responsive.contentFrame]}>
-          <MotionPressable accessibilityLabel="Ouvrir l'accueil Synaura" onPress={() => setHomePreludeVisible(true)} style={styles.scrollIdentity} scaleTo={0.94}>
-            <View style={styles.scrollMark}><Ionicons name="pulse" size={23} color="#F7F6F3" /></View>
-            {!responsive.isNarrow ? (
-              <View>
-                <Text style={styles.scrollName}>Synaura</Text>
-                <Text style={styles.scrollSubtitle}>Accueil</Text>
-              </View>
-            ) : null}
-          </MotionPressable>
-          <SegmentedControl
-            value={feedMode}
-            dark
-            compact
-            style={styles.modeWrap}
-            options={(['reco', 'trending', 'clips'] as FeedMode[]).map((mode) => ({ value: mode, label: FEED_MODE_META[mode].label }))}
-            onChange={switchFeedMode}
-          />
-          <View style={styles.headerActions}>
-            {!responsive.isUltraNarrow ? (
-              <MotionPressable accessibilityLabel="Rechercher" onPress={() => navigation.navigate('Search')} style={styles.queueButton} scaleTo={0.9}>
-                <Ionicons name="search" size={19} color="#FFFAF2" />
-              </MotionPressable>
-            ) : null}
-            <MessageInboxButton dark compact />
-            <NotificationBellButton dark compact />
-          </View>
+          <MotionPressable accessibilityLabel="Ouvrir l'accueil Synaura" onPress={() => setHomePreludeVisible(true)} style={{ width: 40, height: 44, alignItems: 'center', justifyContent: 'center' }} scaleTo={0.94}><Ionicons name="radio-outline" size={23} color="#CDC4EB" /></MotionPressable>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ alignItems: 'center', gap: 18, paddingHorizontal: 4 }} style={{ flex: 1 }}>
+            {(['reco', 'trending', 'clips', 'boost'] as FeedMode[]).map(mode => <Pressable key={mode} accessibilityRole="tab" accessibilityState={{ selected: mode === feedMode }} onPress={() => switchFeedMode(mode)} style={{ minHeight: 44, justifyContent: 'center', paddingHorizontal: 2 }}>
+              <Text style={{ color: mode === feedMode ? '#F5F4FF' : '#A3A5B8', fontSize: 12, fontWeight: '700' }}>{FEED_MODE_META[mode].label}</Text>
+              {mode === feedMode ? <View style={{ position: 'absolute', bottom: 1, width: 18, height: 2, borderRadius: 1, alignSelf: 'center', backgroundColor: '#DDD0FF' }} /> : null}
+            </Pressable>)}
+          </ScrollView>
+          <MotionPressable accessibilityLabel="Régler l’ambiance Live et rechercher" onPress={() => setAmbienceOpen(true)} style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }} scaleTo={0.9}><Ionicons name="options-outline" size={22} color="#D8D7E6" /></MotionPressable>
         </View>
-        <View style={styles.feedProgressTrack}><Animated.View style={[styles.feedProgressFill, { width: feedProgress.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }) }]} /></View>
       </Animated.View>
 
       <ClipUploadIndicator top={insets.top + 82} left={responsive.insets.left + 10} />
@@ -1728,6 +1722,7 @@ export function SwipeScreen() {
         </View>
       ) : null}
 
+      <LiveAmbienceSheet visible={ambienceOpen && isFocused} onClose={() => setAmbienceOpen(false)} onSearch={() => navigation.navigate('Search')} />
       <HomeFlowPrelude
         visible={isFocused && homePreludeVisible && feedMode === 'reco'}
         loading={loadState === 'loading'}
@@ -1758,25 +1753,31 @@ export function SwipeScreen() {
         onRetry={() => setReloadKey((value) => value + 1)}
       />
 
-      <HeartBurst visible={burstVisible} burstKey={burstKey} />
+      <HeartBurst visible={burstVisible && Boolean(activeClip)} burstKey={burstKey} />
+      <LiveProfilePeek username={peekUsername} onClose={() => setPeekUsername(null)} />
 
       <CommentsSheet
         visible={commentsOpen}
-        track={preludeActionTrack || activeTrack}
-        clip={preludeActionTrack ? null : activeClip}
-        commentCount={preludeActionTrack
-          ? commentsCounts[preludeActionTrack._id] ?? preludeActionTrack.commentsCount ?? 0
-          : activeClip
-          ? commentsCounts[clipInteractionKey(activeClip.id)] ?? activeClip.commentsCount
-          : activeTrack ? commentsCounts[activeTrack._id] ?? activeTrack.commentsCount ?? 0 : 0}
+        track={commentTarget?.track || null}
+        clip={commentTarget?.clip || null}
+        commentCount={commentTarget?.clip
+          ? commentsCounts[clipInteractionKey(commentTarget.clip.id)] ?? commentTarget.clip.commentsCount
+          : commentTarget?.track ? commentsCounts[commentTarget.track._id] ?? commentTarget.track.commentsCount ?? 0 : 0}
         onClose={() => {
           setCommentsOpen(false);
           setPreludeActionTrack(null);
         }}
         initialTimestamp={commentTimestamp}
+        onSeek={(seconds) => {
+          const target = commentTarget?.track;
+          if (!target) return;
+          // Opening the sheet is passive; only this explicit gesture may play.
+          if (player.current?._id === target._id) void player.seekTo(seconds);
+          else void player.playTrack(target).then(() => player.seekTo(seconds));
+        }}
         onCountChange={(id, next) => setCommentsCounts((current) => ({
           ...current,
-          [preludeActionTrack ? id : activeClip ? clipInteractionKey(id) : id]: next,
+          [commentTarget?.clip ? clipInteractionKey(id) : id]: next,
         }))}
       />
 

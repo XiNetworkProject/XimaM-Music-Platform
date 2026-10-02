@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/authOptions';
+import { getApiSession } from '@/lib/getApiSession';
 import { dbAdmin } from '@/lib/database';
 
 // POST /api/tracks/[id]/comments/[commentId]/moderation
 // Actions: delete, favorite, filter, unfilter
 export async function POST(request: NextRequest, { params }: { params: { id: string; commentId: string } }) {
-  const session = await getServerSession(authOptions).catch(() => null);
+  const session = await getApiSession(request).catch(() => null);
   const userId = (session?.user as any)?.id;
   if (!userId) return NextResponse.json({ error: 'Non autorisé' }, { status: 401 });
 

@@ -3,7 +3,7 @@ import { Linking, Pressable, Text, View } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { API_BASE_URL } from '@/api/client';
 import { useAuth } from '@/auth/AuthProvider';
-import { isOnboardingCompleted } from '@/onboarding/checkOnboarding';
+import { rememberAuthDestination } from '@/auth/entryGate';
 import {
   AuthAlert,
   AuthCard,
@@ -44,23 +44,6 @@ export function LoginScreen() {
     else navigation.navigate('Tabs');
   };
 
-  // Apres une connexion reussie (nouveau compte ou compte existant), on verifie
-  // l'onboarding V1 avant de rejoindre l'app : s'il n'est pas termine, on l'ouvre
-  // en conservant le contexte (returnTo) pour y revenir une fois termine.
-  const afterLogin = async () => {
-    const returnTo = route.params?.returnTo;
-    const completed = await isOnboardingCompleted();
-    if (!completed) {
-      navigation.navigate('Onboarding', { returnTo });
-      return;
-    }
-    if (returnTo?.screen) {
-      navigation.reset({ index: 0, routes: [{ name: 'Tabs', params: { screen: returnTo.screen, params: returnTo.params } }] });
-      return;
-    }
-    navigation.reset({ index: 0, routes: [{ name: 'Tabs', params: { screen: 'Swipe' } }] });
-  };
-
   const submit = async () => {
     if (!email.trim() || !password.trim()) {
       setError('Remplis ton email et ton mot de passe.');
@@ -70,8 +53,8 @@ export function LoginScreen() {
     setError('');
     setSuccess('');
     try {
+      rememberAuthDestination(route.params?.returnTo);
       await auth.login(email.trim().toLowerCase(), password);
-      await afterLogin();
     } catch {
       setError('Email ou mot de passe incorrect.');
     } finally {
@@ -84,8 +67,8 @@ export function LoginScreen() {
     setError('');
     setSuccess('');
     try {
+      rememberAuthDestination(route.params?.returnTo);
       await auth.loginWithGoogle();
-      await afterLogin();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Connexion Google impossible.');
     } finally {

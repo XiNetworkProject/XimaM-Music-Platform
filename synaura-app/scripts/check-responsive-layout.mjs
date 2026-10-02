@@ -51,7 +51,17 @@ for (const file of sourceFiles) {
   if (/Ã.|Â.|â€™|â€œ|â€|�/.test(source)) {
     failures.push(`${path.relative(root, file)} contient encore du texte mal encode.`);
   }
-  if (/letterSpacing:\s*-/.test(source) && !negativeTrackingAllowed.has(path.basename(file))) {
+  // Exact display-title values approved with the native entry screenshots.
+  // Do not exempt either whole file: inputs, descriptions and future styles
+  // remain subject to the normal tracking check.
+  const reviewedEntryTitles = {
+    'src/components/auth/AuthUI.tsx': -1.1,
+    'src/screens/WelcomeScreen.tsx': -1.4,
+  };
+  const titleTracking = reviewedEntryTitles[path.relative(root, file).replaceAll('\\', '/')];
+  const trackingSource = titleTracking === undefined ? source : source.replace(/\btitle:\s*\{[^}]*\}/g, title =>
+    title.replace(new RegExp(`letterSpacing:\\s*${String(titleTracking).replace('.', '\\.')}\\b`), 'letterSpacing: 0'));
+  if (/letterSpacing:\s*-/.test(trackingSource) && !negativeTrackingAllowed.has(path.basename(file))) {
     failures.push(`${path.relative(root, file)} utilise encore un espacement de lettres negatif.`);
   }
 }

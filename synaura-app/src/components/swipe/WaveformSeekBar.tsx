@@ -136,6 +136,7 @@ type Props = {
   showTimes?: boolean;
   barCount?: number;
   immersive?: boolean;
+  minimal?: boolean;
   onCreateMoment?: (seconds: number) => void;
   refreshKey?: string | number;
   style?: StyleProp<ViewStyle>;
@@ -151,6 +152,7 @@ export function WaveformSeekBar({
   showTimes = true,
   barCount = 56,
   immersive = false,
+  minimal = false,
   onCreateMoment,
   refreshKey = 0,
   style,
@@ -332,7 +334,7 @@ export function WaveformSeekBar({
         onPress={handleTap}
         onLongPress={onCreateMoment ? handleLongPress : undefined}
         onLayout={(event) => setWidth(Math.max(1, event.nativeEvent.layout.width))}
-        style={[styles.waveZone, immersive ? styles.waveZoneImmersive : styles.waveZoneDefault, { height }]}
+        style={[styles.waveZone, immersive ? styles.waveZoneImmersive : styles.waveZoneDefault, minimal && { borderWidth: 0, backgroundColor: 'transparent' }, { height }]}
       >
         {width > 0 && path ? (
           <Svg pointerEvents="none" width={width} height={height} style={StyleSheet.absoluteFill}>
@@ -346,8 +348,7 @@ export function WaveformSeekBar({
                 <Rect x={0} y={0} width={Math.max(0, width * progress)} height={height} />
               </ClipPath>
             </Defs>
-            <Path d={path} fill="rgba(255,255,255,0.22)" />
-            <Path d={path} fill={`url(#${clipId}-gradient)`} clipPath={`url(#${clipId}-progress)`} />
+            {minimal ? sampledPeaks.map((peak, index) => <Rect key={index} x={index * width / sampledPeaks.length} y={(height - Math.max(2, peak * height * .85)) / 2} width={Math.max(1, width / sampledPeaks.length - 1.6)} height={Math.max(2, peak * height * .85)} rx={.7} fill={index / sampledPeaks.length < progress ? '#C4ADFF' : 'rgba(216,216,236,.36)'} />) : <><Path d={path} fill="rgba(255,255,255,0.22)" /><Path d={path} fill={`url(#${clipId}-gradient)`} clipPath={`url(#${clipId}-progress)`} /></>}
           </Svg>
         ) : null}
         <View pointerEvents="none" style={styles.waveAxis} />

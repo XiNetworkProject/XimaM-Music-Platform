@@ -2092,6 +2092,26 @@ export async function deleteComment(kind: 'track' | 'post' | 'clip', targetId: s
   await request(path, { method: 'DELETE' });
 }
 
+// These contracts exist for track comments only, not posts or clips.
+export async function replyToTrackComment(trackId: string, commentId: string, content: string): Promise<HomeComment> {
+  const json = await request<any>(`/api/tracks/${encodeURIComponent(trackId)}/comments/${encodeURIComponent(commentId)}/replies`, {
+    method: 'POST', body: JSON.stringify({ content }),
+  });
+  const reply = normalizeComment(json?.reply);
+  if (!reply) throw new Error('Réponse invalide');
+  return reply;
+}
+
+export async function toggleTrackCommentLike(trackId: string, commentId: string): Promise<{ isLiked: boolean; likesCount: number }> {
+  return request(`/api/tracks/${encodeURIComponent(trackId)}/comments/${encodeURIComponent(commentId)}/like`, { method: 'POST' });
+}
+
+export async function hideTrackComment(trackId: string, commentId: string) {
+  await request(`/api/tracks/${encodeURIComponent(trackId)}/comments/${encodeURIComponent(commentId)}/moderation`, {
+    method: 'POST', body: JSON.stringify({ action: 'delete' }),
+  });
+}
+
 export async function createPost(input: { content: string; imageUrl?: string | null; trackId?: string | null; type?: 'text' | 'photo' | 'track_share' }): Promise<HomePost> {
   const json = await request<any>('/api/posts', {
     method: 'POST',

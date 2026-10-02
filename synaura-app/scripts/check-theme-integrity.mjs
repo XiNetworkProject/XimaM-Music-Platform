@@ -21,7 +21,13 @@ for (const semantic of ['background', 'surface', 'surfaceStrong', 'elevatedSurfa
 
 requireText('src/settings/MobileSettingsProvider.tsx', 'sanitizeSettings', 'Les preferences de theme ne sont plus validees au demarrage.');
 requireText('src/App.tsx', "resolvedTheme === 'dark'", 'Le theme de navigation ne suit plus le theme resolu.');
-requireText('src/App.tsx', 'ROOT_BOOT_WATCHDOG_MS', "Le demarrage n'a plus de garde-fou global.");
+// The former global watchdog could resolve the guest entry during MFA.
+// Check both bounded stages of the identity-aware gate, not the old name.
+requireText('src/auth/AuthProvider.tsx', '}, AUTH_RESTORE_TIMEOUT_MS)', 'La restauration de session doit rester bornee.');
+requireText('src/auth/AuthProvider.tsx', 'if (mounted) setLoading(false)', 'Le timeout de restauration doit liberer le chargement.');
+requireText('src/App.tsx', "setTimeout(() => finish('Tabs'), ROOT_GATE_TIMEOUT_MS)", 'Le choix de route doit rester borne.');
+requireText('src/App.tsx', 'if (!identity || gate.identity === identity)', 'Le garde-fou de navigation doit attendre les verifications de securite.');
+requireText('src/auth/entryGate.ts', 'session.biometricLocked || session.mfaRequired || session.user.profileComplete === false', 'Les gates de securite doivent preceder la navigation.');
 requireText('src/components/AppErrorBoundary.tsx', 'recoveryKey', "La relance apres erreur ne remonte plus l'interface.");
 requireText('src/navigation/Tabs.tsx', "const dark = resolvedTheme === 'dark'", 'Le dock ne suit plus le theme resolu.');
 forbidText('src/navigation/Tabs.tsx', 'const dark = true', 'Le dock est force en mode sombre.');

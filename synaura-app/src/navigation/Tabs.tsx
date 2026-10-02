@@ -15,6 +15,7 @@ import { colors } from '@/theme/tokens';
 import { useMobileSettings } from '@/settings/MobileSettingsProvider';
 import type { MusicChallenge, Track } from '@/api/types';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
+import { EntryMotionScope, useEntryMotion } from '@/components/entry/EntryAtmosphere';
 
 export type MessagingSharePayload = {
   type: 'track' | 'clip' | 'post' | 'playlist';
@@ -58,16 +59,18 @@ type PrimaryTabParamList = Pick<RootTabsParamList, 'Swipe' | 'Discover' | 'Creat
 const Tab = createBottomTabNavigator<PrimaryTabParamList>();
 
 function AnimatedTabButton({ children, accessibilityState, onPress, style, ...props }: any) {
+  const motion = useEntryMotion();
   const scale = useRef(new Animated.Value(1)).current;
   const selected = Boolean(accessibilityState?.selected);
 
   useEffect(() => {
+    if (!motion) { scale.stopAnimation(); scale.setValue(1); return; }
     if (!selected) return;
     Animated.sequence([
       Animated.spring(scale, { toValue: 1.08, speed: 34, bounciness: 6, useNativeDriver: true }),
       Animated.spring(scale, { toValue: 1, speed: 28, bounciness: 4, useNativeDriver: true }),
     ]).start();
-  }, [scale, selected]);
+  }, [scale, selected, motion]);
 
   return (
     <Pressable
@@ -77,8 +80,8 @@ function AnimatedTabButton({ children, accessibilityState, onPress, style, ...pr
         void Haptics.selectionAsync().catch(() => {});
         onPress?.(event);
       }}
-      onPressIn={() => Animated.spring(scale, { toValue: 0.92, speed: 34, bounciness: 0, useNativeDriver: true }).start()}
-      onPressOut={() => Animated.spring(scale, { toValue: 1, speed: 28, bounciness: 4, useNativeDriver: true }).start()}
+      onPressIn={() => { if (motion) Animated.spring(scale, { toValue: 0.92, speed: 34, bounciness: 0, useNativeDriver: true }).start(); }}
+      onPressOut={() => { if (motion) Animated.spring(scale, { toValue: 1, speed: 28, bounciness: 4, useNativeDriver: true }).start(); }}
       style={style}
     >
       <Animated.View style={[styles.tabMotion, { transform: [{ scale }] }]}>
@@ -92,9 +95,9 @@ function SynauraScrollIcon({ focused, signal }: { focused: boolean; signal: bool
   return (
     <View style={[styles.scrollTab, signal && styles.signalIconBubble, focused && styles.scrollTabActive, signal && focused && styles.signalIconBubbleActive]}>
       <Ionicons
-        name={focused ? 'pulse' : 'pulse-outline'}
+        name="radio-outline"
         size={22}
-        color={focused ? colors.cyan : signal ? 'rgba(255,255,255,0.58)' : colors.textTertiary}
+        color={focused && signal ? '#E2D9FF' : focused ? colors.cyan : signal ? '#9299B0' : colors.textTertiary}
       />
     </View>
   );
@@ -154,7 +157,7 @@ function SynauraTabBar({ state, navigation }: BottomTabBarProps) {
           <>
             <LinearGradient
               pointerEvents="none"
-              colors={['rgba(115,87,198,0.18)', 'rgba(74,158,170,0.08)', 'rgba(217,109,99,0.17)']}
+              colors={['rgba(6,8,16,0)', 'rgba(6,8,16,0)']}
               start={{ x: 0, y: 0.5 }}
               end={{ x: 1, y: 0.5 }}
               style={StyleSheet.absoluteFillObject}
@@ -199,11 +202,11 @@ function SynauraTabBar({ state, navigation }: BottomTabBarProps) {
                 <SynauraScrollIcon focused={focused} signal={signal} />
               ) : isCreate ? (
                 <LinearGradient
-                  colors={signal ? ['#F7F6F3', '#ECE8FF', '#FBE7E3'] : [colors.paper, colors.paper]}
-                  style={[styles.createDockFrame, layout.compactControls && styles.createDockFrameCompact]}
+                  colors={signal ? ['transparent', 'transparent'] : [colors.paper, colors.paper]}
+                  style={[styles.createDockFrame, layout.compactControls && styles.createDockFrameCompact, signal && { elevation: 0, shadowOpacity: 0, transform: [{ translateY: 0 }] }]}
                 >
                   <View style={[styles.createDock, layout.compactControls && styles.createDockCompact, signal && styles.createDockSignal]}>
-                    <Ionicons name="add" size={layout.compactControls ? 23 : 25} color={colors.black} />
+                    <Ionicons name="add" size={signal ? 32 : 25} color={signal ? '#CCB7FF' : colors.black} />
                   </View>
                 </LinearGradient>
               ) : (
@@ -211,7 +214,7 @@ function SynauraTabBar({ state, navigation }: BottomTabBarProps) {
                   <Ionicons
                     name={primaryIcon(route.name as (typeof PRIMARY_ROUTES)[number], focused)}
                     size={21}
-                    color={focused ? colors.cyan : signal ? 'rgba(255,255,255,0.58)' : colors.textTertiary}
+                    color={focused && signal ? '#E2D9FF' : focused ? colors.cyan : signal ? '#9299B0' : colors.textTertiary}
                   />
                 </View>
               )}
@@ -227,15 +230,16 @@ function SynauraTabBar({ state, navigation }: BottomTabBarProps) {
                   focused && styles.dockLabelActive,
                   signal && focused && styles.dockLabelActiveSignal,
                   isCreate && styles.dockLabelCreate,
+                  signal && { fontWeight: '500', fontSize: 10 },
                 ]}
               >
                 {label}
               </Text>
 
               {focused && !isCreate ? (
-                <View style={styles.activeIndicatorClip}>
+                <View style={[styles.activeIndicatorClip, signal && { top: undefined, bottom: 3, width: 3, height: 3, borderRadius: 2 }]}>
                   <LinearGradient
-                    colors={signal ? ['#7357C6', '#4A9EAA', '#D96D63'] : [colors.cyan, colors.cyan]}
+                    colors={signal ? ['#CCB7FF', '#CCB7FF'] : [colors.cyan, colors.cyan]}
                     start={{ x: 0, y: 0.5 }}
                     end={{ x: 1, y: 0.5 }}
                     style={StyleSheet.absoluteFillObject}
@@ -266,7 +270,7 @@ export function Tabs() {
       <Tab.Navigator
         initialRouteName="Swipe"
         backBehavior="history"
-        tabBar={(props) => <SynauraTabBar {...props} />}
+        tabBar={(props) => <EntryMotionScope><SynauraTabBar {...props} /></EntryMotionScope>}
         screenOptions={() => ({
           headerShown: false,
           tabBarHideOnKeyboard: true,
@@ -328,13 +332,13 @@ const styles = StyleSheet.create({
   scrollTab: { width: 36, height: 31, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   scrollTabActive: { transform: [{ translateY: -1 }] },
   signalIconBubble: { backgroundColor: 'transparent' },
-  signalIconBubbleActive: { backgroundColor: 'rgba(182,162,255,0.10)' },
+  signalIconBubbleActive: { backgroundColor: 'transparent' },
   dockWrap: { position: 'absolute', bottom: 0, zIndex: 80 },
   dockWrapEditorial: { backgroundColor: colors.background },
-  dockWrapSignal: { backgroundColor: 'rgba(6,8,16,0.97)' },
+  dockWrapSignal: { backgroundColor: '#060810' },
   dock: { alignSelf: 'center', overflow: 'hidden', flexDirection: 'row', alignItems: 'center', paddingHorizontal: 4 },
   dockLight: { borderColor: colors.border, backgroundColor: colors.glassDark },
-  dockSignal: { backgroundColor: 'rgba(6,8,16,0.94)' },
+  dockSignal: { backgroundColor: '#060810' },
   signalTopLine: { display: 'none' },
   signalWhiteLine: { display: 'none' },
   dockItem: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 2 },
@@ -343,12 +347,12 @@ const styles = StyleSheet.create({
   createDockFrameCompact: { width: 44, height: 44, borderRadius: 22 },
   createDock: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.paper, borderWidth: 2, borderColor: colors.background },
   createDockCompact: { width: 40, height: 40, borderRadius: 20 },
-  createDockSignal: { borderColor: 'rgba(9,9,11,0.82)' },
+  createDockSignal: { borderWidth: 0, backgroundColor: 'transparent' },
   dockLabel: { maxWidth: '100%', color: colors.textTertiary, fontSize: 10, fontWeight: '700' },
   dockLabelSignal: { color: 'rgba(255,255,255,0.48)' },
   dockLabelNarrow: { fontSize: 9 },
   dockLabelActive: { color: colors.black },
-  dockLabelActiveSignal: { color: colors.cyan, fontWeight: '900' },
+  dockLabelActiveSignal: { color: '#E2D9FF', fontWeight: '600' },
   dockLabelCreate: { marginTop: -7 },
   activeIndicatorClip: { position: 'absolute', top: 0, width: 28, height: 2.5, overflow: 'hidden', borderRadius: 2 },
 });

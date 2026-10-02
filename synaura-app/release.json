@@ -1,13 +1,14 @@
 {
-  "title": "Synaura 0.26.0 — Entre dans ton univers",
+  "title": "Synaura 0.26.1 — Ton Live, à ton rythme",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Nouveau logo haute définition et démarrage lumineux, plus fluide",
-    "Présentation à swiper : découvrir, ressentir, créer et se retrouver",
-    "Connexion, inscription et premiers pas dans le nouvel univers Synaura",
-    "Nouvel accueil Live : ton morceau continue quand tu entres dans le fil",
-    "Navigation épurée et animations respectant la réduction des mouvements",
-    "Mise à jour compatible avec les installations existantes, sans désinstallation"
+    "Présentation animée par chapitres et connexion plus lisible",
+    "Correction du retour à l’accueil après la double authentification",
+    "Accueil Live plus pratique, avec accès au fil toujours à portée de pouce",
+    "Pochettes, lumière et réactions animées, avec une ambiance personnalisable",
+    "Commentaires et moments améliorés : la conversation reste sur le morceau choisi",
+    "Meilleure adaptation aux petits écrans et navigation respectant la réduction des animations",
+    "Mise à jour sans désinstallation, en conservant les données de l’app"
   ]
 }

@@ -22,7 +22,6 @@ import {
   authStyles,
 } from '@/components/auth/AuthUI';
 import { Reveal } from '@/components/motion/Motion';
-import { isOnboardingCompleted } from '@/onboarding/checkOnboarding';
 import { authColors as colors } from '@/components/auth/AuthUI';
 
 type FormData = {
@@ -125,20 +124,11 @@ export function RegisterScreen() {
     return '';
   };
 
-  const afterSocialLogin = async () => {
-    const completed = await isOnboardingCompleted();
-    navigation.reset({
-      index: 0,
-      routes: [{ name: completed ? 'Tabs' : 'Onboarding' }],
-    });
-  };
-
   const continueWithGoogle = async () => {
     setProviderLoading(true);
     setError('');
     try {
       await auth.loginWithGoogle();
-      await afterSocialLogin();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'Connexion Google impossible');
     } finally {

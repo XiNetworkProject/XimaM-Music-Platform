@@ -476,7 +476,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         const response = await authFetch('/api/auth/mobile/me', restoredToken);
-        if (!mounted) return;
+        if (!mounted || tokenRef.current !== restoredToken) return;
         if (response.status === 401 || response.status === 403) {
           const renewed = await refreshSession();
           if (!renewed) await clearSession();
@@ -484,7 +484,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         if (!response.ok) return;
         const json = await response.json().catch(() => null);
-        if (json?.user?.id && mounted) {
+        if (json?.user?.id && mounted && tokenRef.current === restoredToken) {
           const nextUser = normalizeMobileUser({ ...restoredUser, ...json.user } as MobileUser);
           setUser(nextUser);
           setMfaFactors(Array.isArray(json.mfaFactors) ? json.mfaFactors : []);
@@ -541,6 +541,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let activeToken = tokenRef.current;
     if (!activeToken) return;
     let response = await authFetch('/api/auth/mobile/me', activeToken);
+    if (activeToken !== tokenRef.current) return;
     if (response.status === 401 || response.status === 403) {
       const renewed = await refreshSession();
       activeToken = tokenRef.current;
@@ -549,6 +550,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     if (!response.ok) return;
     const json = await response.json().catch(() => null);
+    if (activeToken !== tokenRef.current) return;
     if (json?.user?.id) {
       const nextUser = normalizeMobileUser({ ...user, ...json.user } as MobileUser);
       setUser(nextUser);
@@ -731,6 +733,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [postContact]);
 
   const postMfa = useCallback(async (body: Record<string, unknown>) => {
+    // Do not submit a factor against refresh credentials that are rotating.
+    if (refreshPromiseRef.current) await refreshPromiseRef.current;
     const activeToken = tokenRef.current;
     const activeRefreshToken = refreshTokenRef.current;
     if (!activeToken || !activeRefreshToken) throw new Error('Connexion requise');
@@ -739,6 +743,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       body: JSON.stringify({ ...body, refreshToken: activeRefreshToken }),
     });
     const json = await response.json().catch(() => null);
+    if (activeToken !== tokenRef.current) throw new Error('La session a changé. Réessaie la vérification.');
     if (!response.ok || !json?.data) throw new Error(json?.error || 'Operation 2FA impossible');
     const nestedSession = json.data.session as SessionPayload | undefined;
     if (nestedSession?.token && nestedSession?.user) {
