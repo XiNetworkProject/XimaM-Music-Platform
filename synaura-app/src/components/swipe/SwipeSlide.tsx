@@ -2,14 +2,14 @@ import React, { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import { ArtworkHalo } from './ArtworkHalo';
+import { mobile } from '@/components/mobile/SoundRoom';
 import { EntryPressable } from '@/components/entry/EntryPressable';
 import { EntryMotionScope, useEntryMotion } from '@/components/entry/EntryAtmosphere';
 import * as Haptics from 'expo-haptics';
 import type { Track, MomentReactionType } from '@/api/types';
 import { addMomentReaction } from '@/api/client';
 import { useAuth } from '@/auth/AuthProvider';
-import { fmtCount, trackArtistName } from './helpers';
+import { fmtCount, fmtTime, trackArtistName } from './helpers';
 import { WaveformSeekBar, invalidateTrackMoments } from './WaveformSeekBar';
 import { TrackCover, getTrackCoverImage } from '@/components/TrackCover';
 import { usePlayer, usePlayerProgress } from '@/player/PlayerProvider';
@@ -32,7 +32,7 @@ export function LiveAction({ icon, label, active, count, onPress, disabled }: {
   icon: keyof typeof Ionicons.glyphMap; label: string; active?: boolean; count?: number; disabled?: boolean; onPress: () => void;
 }) {
   return <EntryPressable accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ selected: active, disabled }} disabled={disabled} onPress={onPress} style={styles.action} scaleTo={.88}>
-    <Ionicons name={icon} size={25} color={active ? '#C4ADFF' : '#E4E6F0'} />
+    <Ionicons name={icon} size={25} color={active ? '#FF91B7' : mobile.text} />
     {count != null ? <Text style={styles.count}>{fmtCount(count)}</Text> : null}
   </EntryPressable>;
 }
@@ -73,6 +73,7 @@ function LiveTimeline({ track, onSeek, onCreateMoment }: Pick<Props, 'track' | '
   const duration = player.current?._id === track._id ? progress.durationSec || track.duration || 0 : track.duration || 0;
   const momentsAvailable = !track._id.startsWith('ai-') && !track._id.startsWith('radio-');
   const [error, setError] = useState('');
+  const [reactionsOpen, setReactionsOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const busyRef = useRef(false);
   const [revision, setRevision] = useState(0);
@@ -94,9 +95,16 @@ function LiveTimeline({ track, onSeek, onCreateMoment }: Pick<Props, 'track' | '
       if (alive.current) setError(caught instanceof Error ? caught.message : 'Réaction non envoyée.');
     } finally { busyRef.current = false; if (alive.current) setBusy(false); }
   };
-  return <View>
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}><WaveformSeekBar minimal style={{ flex: 1 }} trackId={track._id} position={position} duration={duration} onSeek={onSeek} onCreateMoment={momentsAvailable ? onCreateMoment : undefined} showMoments={momentsAvailable} height={28} refreshKey={revision} />{momentsAvailable ? <LiveAction icon="time-outline" label="Commenter cet instant" onPress={() => onCreateMoment(position)} /> : null}</View>
-    {momentsAvailable ? <View style={styles.reactions}>
+  return <View style={styles.timeline}>
+    <WaveformSeekBar minimal showTimes={false} trackId={track._id} position={position} duration={duration} onSeek={onSeek} onCreateMoment={momentsAvailable ? onCreateMoment : undefined} showMoments={momentsAvailable} height={32} refreshKey={revision} />
+    <View style={styles.timelineMeta}>
+      <Text style={styles.time}>{fmtTime(position)} <Text style={{ color: mobile.faint }}> / {fmtTime(duration)}</Text></Text>
+      {momentsAvailable ? <View style={{ flexDirection: 'row', gap: 8 }}>
+        <EntryPressable accessibilityRole="button" accessibilityLabel="Commenter cet instant" onPress={() => onCreateMoment(position)} style={styles.moment}><Ionicons name="time-outline" size={16} color={mobile.blue} /><Text style={styles.momentText}>Cet instant</Text></EntryPressable>
+        <EntryPressable accessibilityRole="button" accessibilityLabel={reactionsOpen ? 'Fermer les réactions' : 'Réagir à cet instant'} accessibilityState={{ expanded: reactionsOpen }} onPress={() => setReactionsOpen(value => !value)} style={styles.reactionToggle}><Ionicons name={reactionsOpen ? 'close' : 'happy-outline'} size={23} color={mobile.text} /></EntryPressable>
+      </View> : null}
+    </View>
+    {momentsAvailable && reactionsOpen ? <View style={styles.reactions}>
       {MOMENT_REACTIONS.map(reaction => <EntryPressable key={reaction.type} accessibilityRole="button" accessibilityLabel={reaction.label} disabled={busy} onPress={() => void react(reaction.type)} style={styles.reaction} scaleTo={1.18}>
         <Text style={styles.emoji}>{EMOJI[reaction.type]}</Text>
         {flight?.type === reaction.type ? <ReactionFlight key={flight.key} emoji={EMOJI[reaction.type]} onEnd={() => setFlight(null)} /> : null}
@@ -112,50 +120,57 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
   const { settings } = useMobileSettings();
   const reveal = useRef(new Animated.Value(isActive ? 1 : 0)).current;
   const landscape = layout.isLandscape;
-  const compact = layout.isVeryShort && !landscape;
-  const available = Math.max(180, height - topPad - bottomPad - 60);
-  const coverSize = compact ? 112 : Math.max(110, Math.min(landscape ? available - 34 : available - 278, layout.safeWidth - 98, landscape ? layout.safeWidth * .4 : 370));
+  const bodyHeight = height - topPad - bottomPad - 66;
+  const compact = bodyHeight < 480;
+  const coverSize = Math.max(88, Math.min(
+    layout.safeWidth - (compact || landscape ? 44 : 102),
+    landscape ? bodyHeight - 90 : bodyHeight - (compact ? 275 : 240),
+    landscape ? layout.safeWidth * .42 : 410,
+  ));
   const gesture = useMemo(() => Gesture.Exclusive(
     Gesture.Tap().enabled(isActive).numberOfTaps(2).maxDelay(240).maxDistance(12).runOnJS(true).onEnd((_event, success) => { if (success) onDoubleTapLike(); }),
     Gesture.Tap().enabled(isActive).maxDistance(12).runOnJS(true).onEnd((_event, success) => { if (success) onPress(); }),
   ), [isActive, onDoubleTapLike, onPress]);
   useEffect(() => {
-    Animated.timing(reveal, { toValue: isActive ? 1 : 0, duration: settings.reducedMotion ? 0 : 260, easing: Easing.out(Easing.cubic), useNativeDriver: true, isInteraction: false }).start();
+    const animation = Animated.timing(reveal, { toValue: isActive ? 1 : 0, duration: settings.reducedMotion ? 0 : 280, easing: Easing.out(Easing.cubic), useNativeDriver: true, isInteraction: false });
+    animation.start(); return () => animation.stop();
   }, [isActive, settings.reducedMotion, reveal]);
+  const actions = <>
+    <LiveAction icon={props.isLiked ? 'heart' : 'heart-outline'} active={props.isLiked} label={props.isLiked ? 'Retirer mon like' : 'Aimer'} count={props.likesCount} onPress={() => onAction('like')} />
+    <LiveAction icon="chatbubble-outline" label="Commentaires et moments" count={props.commentsCount} disabled={track._id.startsWith('ai-')} onPress={() => onAction('comment')} />
+    <LiveAction icon="share-outline" label="Partager" onPress={() => onAction('share')} />
+    <LiveAction icon={props.isFavorite ? 'bookmark' : 'bookmark-outline'} active={props.isFavorite} label={props.isFavorite ? 'Retirer des favoris' : 'Enregistrer'} onPress={() => onAction('save')} />
+    <LiveAction icon="ellipsis-horizontal" label="Plus d’actions" onPress={() => onAction('more')} />
+  </>;
+  const identity = <>
+    <Text accessibilityRole="header" numberOfLines={landscape ? 1 : 2} style={[styles.title, compact && { fontSize: 25, lineHeight: 30 }, landscape && { fontSize: 19, lineHeight: 24 }]}>{track.title}</Text>
+    <View style={styles.artistRow}>
+      <Pressable accessibilityRole="button" accessibilityLabel={'Profil de ' + trackArtistName(track)} onPress={props.onOpenArtist} style={styles.artistButton}><Text numberOfLines={1} style={styles.artist}>{trackArtistName(track)}</Text><Ionicons name="chevron-forward" size={13} color={mobile.muted} /></Pressable>
+      {track.artist?.username ? <EntryPressable accessibilityRole="button" accessibilityLabel={props.isFollowing ? 'Ne plus suivre cet artiste' : 'Suivre cet artiste'} disabled={props.followLoading} onPress={props.onToggleFollow} style={styles.follow}><Text style={styles.followText}>{props.isFollowing ? 'Suivi' : 'Suivre'}</Text></EntryPressable> : null}
+    </View>
+  </>;
   return <EntryMotionScope active={isActive}><View style={[styles.page, { height }]}>
     <LiveAtmosphere cover={getTrackCoverImage(track)} active={isActive && isPlaying} />
-    <Animated.View style={[styles.layout, { paddingTop: topPad + 58, paddingBottom: bottomPad + 12, opacity: reveal.interpolate({ inputRange: [0, 1], outputRange: [.6, 1] }), transform: [{ translateY: reveal.interpolate({ inputRange: [0, 1], outputRange: [22, 0] }) }] }, landscape && styles.landscape, compact && { justifyContent: 'center', paddingHorizontal: 18 }]}>
-      <View style={[styles.artZone, landscape && { flex: 1 }, compact && { flex: 0, position: 'absolute', top: topPad + 86, left: 18, width: 112, height: 112, paddingBottom: 0 }]}>
-        <View style={{ width: coverSize, height: coverSize }}>
-          <ArtworkHalo size={coverSize} active={isActive && isPlaying} />
+    <Animated.View style={[styles.layout, { paddingTop: topPad + 58, paddingBottom: bottomPad + 8, opacity: reveal.interpolate({ inputRange: [0, 1], outputRange: [.65, 1] }), transform: [{ translateY: reveal.interpolate({ inputRange: [0, 1], outputRange: [16, 0] }) }] }, landscape && styles.landscape]}>
+      <View style={[styles.artZone, landscape && { flex: 1, flexDirection: 'column', paddingBottom: 0 }]}>
+        <View style={{ alignItems: 'center', flex: 1 }}>
           <GestureDetector gesture={gesture}>
-            <View accessible accessibilityRole="button" accessibilityLabel={`${isPlaying ? 'Mettre en pause' : 'Écouter'} ${track.title}`} onAccessibilityTap={onPress} style={[styles.art, { width: coverSize, height: coverSize, transform: [{ rotate: '-3deg' }] }]}>
+            <View accessible accessibilityRole="button" accessibilityLabel={(isPlaying ? 'Mettre en pause ' : 'Écouter ') + track.title} onAccessibilityTap={onPress} style={[styles.art, { width: coverSize, height: coverSize }]}>
               <TrackCover track={track} active={isActive && isPlaying} autoPlayVideo={isActive && isPlaying} style={StyleSheet.absoluteFill} />
+              {!isPlaying || props.isLoading ? <View pointerEvents="none" style={styles.playOverlay}><View style={styles.play}>
+                {props.isLoading ? <ActivityIndicator color={mobile.text} /> : <Ionicons name="play" size={29} color={mobile.text} />}
+              </View></View> : null}
               <LikeEcho key={track._id} liked={props.isLiked} active={isActive} />
             </View>
           </GestureDetector>
-          <EntryPressable accessibilityRole="button" accessibilityLabel={isPlaying ? 'Mettre en pause' : 'Lire le morceau'} onPress={onPress} style={[styles.play, compact && { width: 44, height: 44, borderRadius: 22, right: -8, bottom: -8 }]}>
-            {props.isLoading ? <ActivityIndicator color="#101424" /> : <Ionicons name={isPlaying ? 'pause' : 'play'} size={26} color="#101424" />}
-          </EntryPressable>
         </View>
+        {landscape ? <View style={{ width: '100%', marginTop: 8 }}>{identity}</View> : !compact ? <View style={styles.sideActions}>{actions}</View> : null}
       </View>
       <View style={[styles.content, landscape && { flex: 1, maxWidth: 440 }]}>
-        <View style={compact && { paddingLeft: 140, minHeight: 154 }}>
-        <Text numberOfLines={1} style={styles.eyebrow}>{track.isBoosted ? 'À DÉCOUVRIR · BOOSTÉ' : track.genre?.slice(0, 2).join(' · ').toUpperCase() || 'SYNAURA / LIVE'}{track.isAI ? ' · IA' : ''}</Text>
-        <Text accessibilityRole="header" numberOfLines={2} style={[styles.title, layout.isShort && { fontSize: 26, lineHeight: 29 }, compact && { fontSize: 21, lineHeight: 25, letterSpacing: -.5 }]}>{track.title}</Text>
-        <View style={[styles.artistRow, compact && { flexDirection: 'column', alignItems: 'flex-start', gap: 0 }]}>
-          <Pressable accessibilityRole="button" accessibilityLabel={`Profil de ${trackArtistName(track)}`} onPress={props.onOpenArtist} style={styles.artistButton}><Text numberOfLines={1} style={styles.artist}>{trackArtistName(track)}</Text><Ionicons name="arrow-up-outline" size={13} color="#A9B0C6" style={{ transform: [{ rotate: '45deg' }] }} /></Pressable>
-          {track.artist?.username ? <Pressable accessibilityRole="button" accessibilityLabel={props.isFollowing ? 'Ne plus suivre cet artiste' : 'Suivre cet artiste'} disabled={props.followLoading} onPress={props.onToggleFollow} style={styles.follow}><Text style={styles.followText}>{props.isFollowing ? 'Suivi' : '+ Suivre'}</Text></Pressable> : null}
-        </View>
-        </View>
-        <View style={styles.actions}>
-          <LiveAction icon={props.isLiked ? 'heart' : 'heart-outline'} active={props.isLiked} label={props.isLiked ? 'Retirer mon like' : 'Aimer'} count={props.likesCount} onPress={() => onAction('like')} />
-          <LiveAction icon="chatbubble-outline" label="Commentaires et moments" count={props.commentsCount} disabled={track._id.startsWith('ai-')} onPress={() => onAction('comment')} />
-          <LiveAction icon="share-social-outline" label="Partager" onPress={() => onAction('share')} />
-          <LiveAction icon="list-outline" label="File d’attente" onPress={() => onAction('queue')} />
-          <LiveAction icon="ellipsis-horizontal" label="Plus d’actions" onPress={() => onAction('more')} />
-        </View>
-        {isActive ? <LiveTimeline key={track._id} track={track} onSeek={props.onSeek} onCreateMoment={props.onCreateMoment} /> : <View style={{ height: 112 }} />}
+        <View style={styles.labelRow}><View style={styles.labelDot} /><Text numberOfLines={1} style={styles.eyebrow}>{track.isBoosted ? 'À DÉCOUVRIR · BOOSTÉ' : track.genre?.slice(0, 2).join(' / ') || 'Synaura Live'}{track.isAI ? ' · IA' : ''}</Text><EntryPressable accessibilityRole="button" accessibilityLabel="File d’attente" onPress={() => onAction('queue')} style={styles.queue}><Ionicons name="list-outline" size={21} color={mobile.muted} /></EntryPressable></View>
+        {!landscape ? identity : null}
+        {compact || landscape ? <View style={styles.actions}>{actions}</View> : null}
+        {isActive ? <LiveTimeline key={track._id} track={track} onSeek={props.onSeek} onCreateMoment={props.onCreateMoment} /> : <View style={{ height: 76 }} />}
         {track.remixAttribution ? <Text numberOfLines={1} style={styles.attribution}>Inspiré de {track.remixAttribution.title}</Text> : null}
       </View>
     </Animated.View>
@@ -163,13 +178,14 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
 });
 
 const styles = StyleSheet.create({
-  page: { width: '100%', backgroundColor: '#06080E', overflow: 'hidden' }, layout: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24 },
-  landscape: { flexDirection: 'row', gap: 30 }, artZone: { flex: 1, minHeight: 110, width: '100%', alignItems: 'center', justifyContent: 'center', paddingBottom: 20 },
-  art: { borderRadius: 22, overflow: 'hidden', backgroundColor: '#161929', elevation: 12, shadowColor: '#000', shadowOpacity: .4, shadowRadius: 22, shadowOffset: { width: 0, height: 15 } },
-  play: { position: 'absolute', bottom: -13, right: -14, width: 58, height: 58, borderRadius: 29, backgroundColor: '#E5E6FF', alignItems: 'center', justifyContent: 'center', elevation: 14 },
-  content: { width: '100%', maxWidth: 490 }, eyebrow: { color: '#A9ABC0', fontSize: 9, letterSpacing: 1.8, marginBottom: 8 }, title: { color: '#F5F5FF', fontFamily: 'Inter_700Bold', fontSize: 30, lineHeight: 35, letterSpacing: -1.2 },
-  artistRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginTop: 3 }, artistButton: { flexDirection: 'row', alignItems: 'center', gap: 9, flexShrink: 1, minHeight: 44 }, artist: { color: '#C4C8DA', fontSize: 14, flexShrink: 1 }, follow: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 9 }, followText: { color: '#C4ADFF', fontSize: 11, fontWeight: '600' },
-  actions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4, marginBottom: 8 }, action: { minWidth: 44, height: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5 }, count: { color: '#AEB3C9', fontSize: 11 },
-  reactions: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: 4 }, reaction: { width: 44, height: 46, alignItems: 'center', justifyContent: 'center', overflow: 'visible' }, emoji: { fontSize: 23 }, flight: { position: 'absolute', bottom: 16 }, error: { color: '#FFABB9', fontSize: 11, paddingTop: 4 }, attribution: { color: '#B9A7DD', fontSize: 10, marginTop: 4 },
+  page: { width: '100%', backgroundColor: mobile.bg, overflow: 'hidden' }, layout: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 20 },
+  landscape: { flexDirection: 'row', gap: 26 }, artZone: { flex: 1, minHeight: 88, width: '100%', maxWidth: 520, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingBottom: 12 },
+  art: { borderRadius: 18, overflow: 'hidden', backgroundColor: mobile.surface, elevation: 8, shadowColor: '#000', shadowOpacity: .3, shadowRadius: 20, shadowOffset: { width: 0, height: 12 } },
+  playOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,.08)' }, play: { width: 64, height: 64, borderRadius: 32, backgroundColor: 'rgba(7,10,16,.62)', alignItems: 'center', justifyContent: 'center' },
+  content: { width: '100%', maxWidth: 490 }, labelRow: { flexDirection: 'row', alignItems: 'center', gap: 7, minHeight: 36 }, labelDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: mobile.blue }, eyebrow: { color: mobile.muted, fontSize: 10, flex: 1 }, queue: { minWidth: 44, minHeight: 44, justifyContent: 'center', alignItems: 'flex-end' }, title: { color: mobile.text, fontFamily: 'Inter_600SemiBold', fontSize: 30, lineHeight: 35 },
+  artistRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 14 }, artistButton: { flexDirection: 'row', alignItems: 'center', gap: 9, flexShrink: 1, minHeight: 44 }, artist: { color: mobile.muted, fontSize: 14, flexShrink: 1 }, follow: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 9 }, followText: { color: mobile.blue, fontSize: 12, fontWeight: '600' },
+  sideActions: { width: 52, marginLeft: 13, gap: 8 }, actions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, action: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center', gap: 3 }, count: { color: '#D3DBE9', fontSize: 10 },
+  timeline: { paddingTop: 5, zIndex: 2 }, timelineMeta: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44 }, time: { color: mobile.muted, fontSize: 11, fontVariant: ['tabular-nums'] }, moment: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 6 }, momentText: { color: mobile.blue, fontSize: 11 }, reactionToggle: { minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  reactions: { position: 'absolute', bottom: 52, left: 0, right: 0, flexDirection: 'row', justifyContent: 'space-between', backgroundColor: '#172233', borderRadius: 22, paddingHorizontal: 5, paddingVertical: 8, elevation: 16 }, reaction: { flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center', overflow: 'visible' }, emoji: { fontSize: 23 }, flight: { position: 'absolute', bottom: 16 }, error: { color: '#FFABB9', fontSize: 11, paddingTop: 4 }, attribution: { color: mobile.muted, fontSize: 10, marginTop: 4 },
 });
 export default SwipeSlide;

@@ -131,7 +131,11 @@ export async function openInternalLink(
     navigation.navigate('AIStudio');
     return true;
   }
-  if (root === 'boosters' || root === 'subscriptions' || root === 'pricing') {
+  if (root === 'boosters') {
+    navigation.navigate('Boosters');
+    return true;
+  }
+  if (root === 'subscriptions' || root === 'pricing') {
     navigation.navigate('Subscriptions');
     return true;
   }

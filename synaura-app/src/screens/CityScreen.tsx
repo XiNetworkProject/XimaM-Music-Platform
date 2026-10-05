@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Animated,
@@ -39,10 +39,13 @@ import { useAuth } from '@/auth/AuthProvider';
 import { TrackCover } from '@/components/TrackCover';
 import { MotionPressable, Reveal } from '@/components/motion/Motion';
 import { BattleDuel, EventCard as EventSummaryCard, EventTicker, PulseBadge, PulseBar, SectionHeader, VoteCountdownBanner } from '@/components/events/SynauraEvents';
-import { SynauraBackground } from '@/components/SynauraBackground';
+import { CollectionSurface, CollectionHeader, CollectionIconButton, CollectionTabs, CollectionEmpty } from '@/components/mobile/CollectionUI';
+import { useSurfaceColors } from '@/components/mobile/useSurfaceColors';
+import { useMobileSettings } from '@/settings/MobileSettingsProvider';
 import { MobileAccountButton } from '@/components/account/MobileAccountMenu';
 import { usePlayer } from '@/player/PlayerProvider';
-import { colors, spacing } from '@/theme/tokens';
+import { serverDateLabel } from '@/utils/serverDate';
+import { spacing } from '@/theme/tokens';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { SynauraImage } from '@/components/ui/SynauraImage';
 
@@ -82,12 +85,16 @@ function iconName(value: string): any {
 }
 
 export function CityScreen() {
+  const colors = useSurfaceColors(); const styles = useMemo(() => createStyles(colors), [colors]);
+  const { settings } = useMobileSettings();
   const navigation = useNavigation<any>();
   const insets = useSafeAreaInsets();
   const responsive = useResponsiveLayout();
   const scrollRef = useRef<ScrollView>(null);
   const auth = useAuth();
   const player = usePlayer();
+  const [section, setSection] = useState<'events' | 'discover' | 'progress'>('events');
+  const loadEpoch = useRef(0); const mutationLock = useRef(false);
   const [city, setCity] = useState<SynauraCityData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -100,21 +107,21 @@ export function CityScreen() {
   const [celebrationEvent, setCelebrationEvent] = useState<CityEvent | null>(null);
 
   const load = useCallback(async (refresh = false) => {
+    const epoch = ++loadEpoch.current;
     if (refresh) setRefreshing(true);
     else setLoading(true);
     setError(null);
     try {
-      setCity(await getSynauraCity());
+      const data = await getSynauraCity(); if (epoch === loadEpoch.current) setCity(data);
     } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : 'Impossible de charger les Events Synaura.');
+      if (epoch === loadEpoch.current) setError(nextError instanceof Error ? nextError.message : 'Impossible de charger City.');
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (epoch === loadEpoch.current) { setLoading(false); setRefreshing(false); }
     }
   }, [auth.token]);
 
   useEffect(() => {
-    void load();
+    void load(); return () => { loadEpoch.current++; };
   }, [load]);
 
   useEffect(() => {
@@ -133,15 +140,17 @@ export function CityScreen() {
     if (!city) return;
     const winner = city.events.find((event) => event.userIsWinner && event.celebration);
     if (!winner) return;
-    void AsyncStorage.getItem(`synaura.city.win.seen.${winner.id}`).then((seen) => {
-      if (seen !== '1') setCelebrationEvent(winner);
-    });
-  }, [city]);
+    let active = true;
+    void AsyncStorage.getItem(`synaura.city.win.seen.${auth.user?.id || 'guest'}.${winner.id}`).then((seen) => {
+      if (active && seen !== '1') setCelebrationEvent(winner);
+    }).catch(() => {});
+    return () => { active = false; };
+  }, [city, auth.user?.id]);
 
   const closeCelebration = useCallback(() => {
-    if (celebrationEvent) void AsyncStorage.setItem(`synaura.city.win.seen.${celebrationEvent.id}`, '1');
+    if (celebrationEvent) void AsyncStorage.setItem(`synaura.city.win.seen.${auth.user?.id || 'guest'}.${celebrationEvent.id}`, '1').catch(() => {});
     setCelebrationEvent(null);
-  }, [celebrationEvent]);
+  }, [celebrationEvent, auth.user?.id]);
 
   const play = useCallback(async (track: Track) => {
     if (player.current?._id === track._id) await player.togglePlayPause();
@@ -149,13 +158,13 @@ export function CityScreen() {
   }, [player]);
 
   const vote = useCallback(async (eventId: string, trackId: string) => {
-    if (voting) return;
+    if (mutationLock.current) return;
     if (!auth.requireAuth()) {
       setToast('Connecte-toi pour voter.');
       navigation.navigate('Login');
       return;
     }
-    setVoting(true);
+    mutationLock.current = true; setVoting(true);
     setError(null);
     try {
       await voteSynauraCityBattle(eventId, trackId);
@@ -165,7 +174,7 @@ export function CityScreen() {
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : 'Vote impossible.');
     } finally {
-      setVoting(false);
+      mutationLock.current = false; setVoting(false);
     }
   }, [auth, load, navigation, voting]);
 
@@ -179,7 +188,7 @@ export function CityScreen() {
   }, [auth, navigation]);
 
   const participate = useCallback(async (event: CityEvent, trackId: string) => {
-    if (actingEventId) return;
+    if (mutationLock.current) return; mutationLock.current = true;
     setActingEventId(event.id);
     setError(null);
     try {
@@ -191,29 +200,28 @@ export function CityScreen() {
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : 'Participation impossible.');
     } finally {
-      setActingEventId(null);
+      mutationLock.current = false; setActingEventId(null);
     }
   }, [actingEventId, load]);
 
   const claim = useCallback(async (event: CityEvent) => {
-    if (actingEventId || !auth.requireAuth()) return;
+    if (mutationLock.current || !auth.requireAuth()) return; mutationLock.current = true;
     setActingEventId(event.id);
     setError(null);
     try {
       const result = await claimCityEventReward(event.id);
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      setToast(result.message || 'Boost x1,35 actif pendant 24 h.');
+      setToast(result.message || 'Récompense récupérée.');
       await load(true);
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : 'Récompense impossible.');
     } finally {
-      setActingEventId(null);
+      mutationLock.current = false; setActingEventId(null);
     }
   }, [actingEventId, auth, load]);
 
   return (
-    <View style={styles.root}>
-      <SynauraBackground variant="warm" />
+    <CollectionSurface>
       <ScrollView
         ref={scrollRef}
         contentContainerStyle={[
@@ -224,25 +232,18 @@ export function CityScreen() {
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={colors.text} />}
       >
-        <View style={styles.topbar}>
-          <MotionPressable onPress={() => navigation.goBack()} style={styles.roundButton}><Ionicons name="chevron-back" size={20} color={colors.text} /></MotionPressable>
-          <View style={styles.topCopy}><Text style={styles.topKicker}>SYNAURA LIVE</Text><Text style={styles.topTitle}>Events</Text></View>
-          <View style={styles.topActions}>
-            <MotionPressable onPress={() => void load(true)} style={styles.roundButton}><Ionicons name="refresh" size={18} color={colors.text} /></MotionPressable>
-            <MobileAccountButton compact />
-          </View>
-        </View>
-
-        {city ? <EventTicker city={city} /> : null}
-        {city ? <VoteCountdownBanner current={city.currentVoteSession} next={city.nextVoteSession} onOpen={() => setDetailEvent(city.currentVoteSession || city.nextVoteSession || null)} onNotify={() => setToast('Rappel activé pour le prochain vote.')} /> : null}
+        <CollectionHeader title="City" eyebrow="ÇA SE PASSE ICI" onBack={() => navigation.goBack()} actions={<CollectionIconButton icon="refresh" label="Actualiser City" onPress={() => void load(true)} />} />
+        <CollectionTabs options={[{ value: 'events', label: 'Événements', icon: 'flash-outline' }, { value: 'discover', label: 'À découvrir', icon: 'planet-outline' }, { value: 'progress', label: 'Ma progression', icon: 'trophy-outline' }]} value={section} onChange={setSection} />
         {loading && !city ? <LoadingEvents /> : null}
         {error ? <View style={styles.error}><Ionicons name="alert-circle" size={16} color={colors.danger} /><Text style={styles.errorText}>{error}</Text></View> : null}
 
         {city ? (
           <>
+            {section === 'events' ? <>
             <EventsHero city={city} onUpload={() => navigation.navigate('Upload')} onCommunity={() => navigation.navigate('Community')} />
 
-            <SectionHeader eyebrow="EN LIVE MAINTENANT" title="Les rendez-vous actifs" subtitle="Vote, participe et gagne de la visibilité." />
+            <VoteCountdownBanner current={city.currentVoteSession} next={city.nextVoteSession} onOpen={() => setDetailEvent(city.currentVoteSession || city.nextVoteSession || null)} />
+            <SectionHeader eyebrow="LES RENDEZ-VOUS" title="Les rendez-vous actifs" subtitle="Vote, participe et gagne de la visibilité." />
             <View style={styles.stack}>
               {city.events.map((event, index) => (
                 event.kind === 'battle'
@@ -251,6 +252,9 @@ export function CityScreen() {
               ))}
             </View>
 
+            {!city.events.length ? <CollectionEmpty icon="calendar-outline" title="Le prochain rendez-vous arrive" text="Les événements s’afficheront ici dès leur ouverture." /> : null}
+            </> : null}
+            {section === 'discover' ? <>
             <SectionHeader eyebrow="LA VITRINE DU JOUR" title="Aujourd’hui sur Synaura" subtitle="Des découvertes différentes à chaque visite." />
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.horizontalRail}>
               {city.showcase.map((item, index) => <ShowcaseCard key={item.id} item={item} index={index} playing={player.current?._id === item.track._id && player.isPlaying} onPlay={play} />)}
@@ -276,9 +280,12 @@ export function CityScreen() {
             ) : null}
 
             <Radar tracks={city.radar} player={player} onPlay={play} />
+            </> : null}
+            {section === 'progress' ? <>
             <HallOfFame awards={city.hallOfFame} onPlay={play} />
             <Badges badges={city.listenerBadges} />
             <CreatorProgress artist={city.creatorCard} onCreate={() => navigation.navigate('Upload')} />
+            </> : null}
           </>
         ) : null}
       </ScrollView>
@@ -318,21 +325,25 @@ export function CityScreen() {
       />
 
       {toast ? <View pointerEvents="none" style={[styles.toast, { bottom: insets.bottom + 112 }]}><Ionicons name="checkmark-circle" size={16} color={colors.paper} /><Text style={styles.toastText}>{toast}</Text></View> : null}
-    </View>
+    </CollectionSurface>
   );
 }
 
 function LoadingEvents() {
+  const colors = useSurfaceColors(); const styles = useMemo(() => createStyles(colors), [colors]);
+  const { settings } = useMobileSettings();
   return <View style={styles.loading}><ActivityIndicator color={colors.text} /><Text style={styles.loadingText}>Le Pulse se met à jour...</Text></View>;
 }
 
 function EventsHero({ city, onUpload, onCommunity }: { city: SynauraCityData; onUpload: () => void; onCommunity: () => void }) {
+  const colors = useSurfaceColors(); const styles = useMemo(() => createStyles(colors), [colors]);
+  const { settings } = useMobileSettings();
   const hot = city.pulse.filter((track) => track.pulse >= 78).length;
   const live = city.events.filter((event) => event.isLive).length;
   return (
     <View style={styles.hero}>
-      <LinearGradient colors={['#151413', '#292423', '#31575A']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-      <View style={styles.heroBadge}><View style={styles.heroDot} /><Text style={styles.heroBadgeText}>LE PULSE EST EN LIVE</Text></View>
+      <LinearGradient colors={['#172D41', '#1C283F', '#1C403E']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+      <View style={styles.heroBadge}><View style={styles.heroDot} /><Text style={styles.heroBadgeText}>LES TALENTS FONT LA VILLE</Text></View>
       <Text style={styles.heroTitle}>{city.cityMood.title}</Text>
       <Text style={styles.heroSubtitle}>{city.cityMood.subtitle}</Text>
       <View style={styles.heroStats}>
@@ -349,14 +360,18 @@ function EventsHero({ city, onUpload, onCommunity }: { city: SynauraCityData; on
 }
 
 function HeroStat({ value, label }: { value: string; label: string }) {
+  const colors = useSurfaceColors(); const styles = useMemo(() => createStyles(colors), [colors]);
+  const { settings } = useMobileSettings();
   return <View style={styles.heroStat}><Text style={styles.heroStatValue}>{value}</Text><Text style={styles.heroStatLabel}>{label}</Text></View>;
 }
 
 function ShowcaseCard({ item, index, playing, onPlay }: { item: CityShowcaseItem; index: number; playing: boolean; onPlay: (track: Track) => void }) {
+  const colors = useSurfaceColors(); const styles = useMemo(() => createStyles(colors), [colors]);
+  const { settings } = useMobileSettings();
   return (
     <Reveal delay={index * 45}>
       <MotionPressable onPress={() => onPlay(item.track)} style={styles.showcase}>
-        <TrackCover track={item.track} active style={StyleSheet.absoluteFill} />
+        <TrackCover track={item.track} active={playing} autoPlayVideo={playing} style={StyleSheet.absoluteFill} />
         <LinearGradient colors={['rgba(23,19,19,0.02)', 'rgba(23,19,19,0.88)']} style={StyleSheet.absoluteFill} />
         <View style={styles.showcaseLabel}><Ionicons name={iconName(item.icon)} size={12} color={item.accent} /><Text style={styles.showcaseLabelText}>{item.label}</Text></View>
         <View style={styles.showcasePlay}><Ionicons name={playing ? 'pause' : 'play'} size={15} color={colors.black} /></View>
@@ -367,6 +382,8 @@ function ShowcaseCard({ item, index, playing, onPlay }: { item: CityShowcaseItem
 }
 
 function PulseTrackCard({ track, rank, playing, onPlay }: { track: CityPulseTrack; rank: number; playing: boolean; onPlay: (track: Track) => void }) {
+  const colors = useSurfaceColors(); const styles = useMemo(() => createStyles(colors), [colors]);
+  const { settings } = useMobileSettings();
   return (
     <MotionPressable onPress={() => onPlay(track)} style={styles.pulseCard}>
       <Text style={styles.pulseRank}>{String(rank).padStart(2, '0')}</Text>
@@ -382,6 +399,8 @@ function PulseTrackCard({ track, rank, playing, onPlay }: { track: CityPulseTrac
 }
 
 function ArtistCard({ artist, index, onOpen, onPlay }: { artist: CityArtist; index: number; onOpen: () => void; onPlay: (track: Track) => void }) {
+  const colors = useSurfaceColors(); const styles = useMemo(() => createStyles(colors), [colors]);
+  const { settings } = useMobileSettings();
   return (
     <Reveal delay={index * 45}>
       <View style={styles.artistCard}>
@@ -403,6 +422,8 @@ function ArtistCard({ artist, index, onOpen, onPlay }: { artist: CityArtist; ind
 }
 
 function PremiereCard({ track, index, playing, onPlay }: { track: CityPulseTrack; index: number; playing: boolean; onPlay: (track: Track) => void }) {
+  const colors = useSurfaceColors(); const styles = useMemo(() => createStyles(colors), [colors]);
+  const { settings } = useMobileSettings();
   return (
     <Reveal delay={index * 45}>
       <MotionPressable onPress={() => onPlay(track)} style={styles.premiere}>
@@ -417,6 +438,8 @@ function PremiereCard({ track, index, playing, onPlay }: { track: CityPulseTrack
 }
 
 function LiveEventCard({ event, index, busy, onDetails, onParticipate, onClaim, onPlay }: { event: CityEvent; index: number; busy: boolean; onDetails: () => void; onParticipate: () => void; onClaim: () => void; onPlay: (track: Track) => void }) {
+  const colors = useSurfaceColors(); const styles = useMemo(() => createStyles(colors), [colors]);
+  const { settings } = useMobileSettings();
   const first = event.tracks?.[0];
   const participated = Boolean(event.userParticipation);
   const claimable = event.claimStatus === 'available';
@@ -426,7 +449,7 @@ function LiveEventCard({ event, index, busy, onDetails, onParticipate, onClaim, 
       <View style={styles.liveEvent}>
         <EventSummaryCard event={event} onOpen={onDetails} />
         <Text style={styles.liveEventDescription}>{event.description}</Text>
-        {event.activeBoost ? <Text style={styles.activeBoostText}>Boost x1,35 actif jusqu'au {new Date(event.activeBoost.expiresAt).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</Text> : null}
+        {event.activeBoost ? <Text style={styles.activeBoostText}>Boost x1,35 actif jusqu'au {serverDateLabel(event.activeBoost.expiresAt)}</Text> : null}
         <View style={styles.liveEventActions}>
           <MotionPressable disabled={busy || ((participated || boosted) && !claimable)} onPress={claimable ? onClaim : onParticipate} style={[styles.primaryButton, (participated || boosted) && !claimable && styles.doneButton]}>
             <Ionicons name={boosted ? 'sparkles' : participated && !claimable ? 'checkmark' : claimable ? 'gift' : 'add'} size={15} color={colors.paper} />
@@ -441,6 +464,8 @@ function LiveEventCard({ event, index, busy, onDetails, onParticipate, onClaim, 
 }
 
 function BattleCard({ event, voting, player, onPlay, onVote, onDetails, onClaim }: { event: CityEvent; voting: boolean; player: ReturnType<typeof usePlayer>; onPlay: (track: Track) => void; onVote: (trackId: string) => void; onDetails: () => void; onClaim: () => void }) {
+  const colors = useSurfaceColors(); const styles = useMemo(() => createStyles(colors), [colors]);
+  const { settings } = useMobileSettings();
   const tracks = event.tracks || [];
   const total = tracks.reduce((sum, track) => sum + Number(event.voteCounts?.[track._id] || 0), 0) || 1;
   const canVote = Boolean(event.isLive);
@@ -466,12 +491,14 @@ function BattleCard({ event, voting, player, onPlay, onVote, onDetails, onClaim 
         })}
       </View>
       {event.claimStatus === 'available' ? <MotionPressable onPress={onClaim} style={styles.battleRewardButton}><Ionicons name="sparkles" size={15} color={colors.paper} /><Text style={styles.battleRewardButtonText}>Activer le boost x1,35</Text></MotionPressable> : null}
-      {event.activeBoost ? <Text style={styles.activeBoostText}>Boost x1,35 actif jusqu'au {new Date(event.activeBoost.expiresAt).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</Text> : null}
+      {event.activeBoost ? <Text style={styles.activeBoostText}>Boost x1,35 actif jusqu'au {serverDateLabel(event.activeBoost.expiresAt)}</Text> : null}
     </View>
   );
 }
 
 function Radar({ tracks, player, onPlay }: { tracks: CityPulseTrack[]; player: ReturnType<typeof usePlayer>; onPlay: (track: Track) => void }) {
+  const colors = useSurfaceColors(); const styles = useMemo(() => createStyles(colors), [colors]);
+  const { settings } = useMobileSettings();
   const scan = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     const animation = Animated.loop(Animated.timing(scan, { toValue: 1, duration: 2600, useNativeDriver: true }));
@@ -490,6 +517,8 @@ function Radar({ tracks, player, onPlay }: { tracks: CityPulseTrack[]; player: R
 }
 
 function HallOfFame({ awards, onPlay }: { awards: CityAward[]; onPlay: (track: Track) => void }) {
+  const colors = useSurfaceColors(); const styles = useMemo(() => createStyles(colors), [colors]);
+  const { settings } = useMobileSettings();
   return (
     <View style={styles.panel}>
       <SectionHeader eyebrow="HALL OF FAME" title="Gagnants récents" subtitle="Les moments marquants de la semaine." />
@@ -503,6 +532,8 @@ function HallOfFame({ awards, onPlay }: { awards: CityAward[]; onPlay: (track: T
 }
 
 function Badges({ badges }: { badges: CityBadge[] }) {
+  const colors = useSurfaceColors(); const styles = useMemo(() => createStyles(colors), [colors]);
+  const { settings } = useMobileSettings();
   return (
     <View style={styles.panel}>
       <SectionHeader eyebrow="BADGES AUDITEUR" title="Ta présence compte" subtitle="Soutiens les artistes tôt et débloque des badges." />
@@ -512,6 +543,8 @@ function Badges({ badges }: { badges: CityBadge[] }) {
 }
 
 function CreatorProgress({ artist, onCreate }: { artist: CityArtist | null; onCreate: () => void }) {
+  const colors = useSurfaceColors(); const styles = useMemo(() => createStyles(colors), [colors]);
+  const { settings } = useMobileSettings();
   const progress = artist ? Math.min(100, artist.xp / Math.max(1, artist.nextLevelXp) * 100) : 0;
   return (
     <View style={styles.creatorProgress}>
@@ -540,6 +573,8 @@ function EventDetailSheet({
   onVote: (eventId: string, trackId: string) => void;
   onParticipate: (event: CityEvent) => void;
 }) {
+  const colors = useSurfaceColors(); const styles = useMemo(() => createStyles(colors), [colors]);
+  const { settings } = useMobileSettings();
   const insets = useSafeAreaInsets();
   const participants = event?.participants?.length
     ? event.participants
@@ -556,14 +591,14 @@ function EventDetailSheet({
       }));
 
   return (
-    <Modal visible={Boolean(event)} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal visible={Boolean(event)} transparent animationType={settings.reducedMotion ? "none" : "slide"} onRequestClose={onClose}>
       <View style={styles.sheetBackdrop}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         <View style={[styles.eventDetailSheet, { paddingBottom: insets.bottom + 14 }]}>
           <View style={styles.eventDetailHero}>
             {event?.tracks?.[0] ? <TrackCover track={event.tracks[0]} style={StyleSheet.absoluteFill} /> : null}
             <LinearGradient colors={['rgba(23,19,19,0.36)', 'rgba(23,19,19,0.94)']} style={StyleSheet.absoluteFill} />
-            <View style={styles.eventDetailTop}><View style={styles.eventDetailStatus}><View style={styles.eventDetailDot} /><Text style={styles.eventDetailStatusText}>{event?.isLive ? 'EN LIVE' : 'EVENT SYNAURA'}</Text></View><MotionPressable onPress={onClose} style={styles.eventDetailClose}><Ionicons name="close" size={18} color={colors.paper} /></MotionPressable></View>
+            <View style={styles.eventDetailTop}><View style={styles.eventDetailStatus}><View style={styles.eventDetailDot} /><Text style={styles.eventDetailStatusText}>{event?.isLive ? 'EN LIVE' : 'EVENT SYNAURA'}</Text></View><MotionPressable accessibilityRole="button" accessibilityLabel="Fermer l’événement" onPress={onClose} style={styles.eventDetailClose}><Ionicons name="close" size={18} color={colors.paper} /></MotionPressable></View>
             <View style={styles.eventDetailHeroCopy}><Text style={styles.eventDetailTitle}>{event?.title}</Text><Text style={styles.eventDetailDescription}>{event?.description}</Text><Text style={styles.eventDetailMeta}>{participants.length} inscrit{participants.length > 1 ? 's' : ''}{event?.kind === 'battle' ? ` · ${event.totalVotes || 0} votes` : ''}</Text></View>
           </View>
           <ScrollView style={styles.eventDetailList} contentContainerStyle={styles.eventDetailListContent} showsVerticalScrollIndicator={false}>
@@ -589,6 +624,8 @@ function EventDetailSheet({
 }
 
 function TrackPickerSheet({ event, busy, onClose, onPick, onCreate }: { event: CityEvent | null; busy: boolean; onClose: () => void; onPick: (trackId: string) => void; onCreate: () => void }) {
+  const colors = useSurfaceColors(); const styles = useMemo(() => createStyles(colors), [colors]);
+  const { settings } = useMobileSettings();
   const insets = useSafeAreaInsets();
   const [tracks, setTracks] = useState<MyTrackSummary[] | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -600,12 +637,12 @@ function TrackPickerSheet({ event, busy, onClose, onPick, onCreate }: { event: C
       setLoadError(null);
       return;
     }
-    let active = true;
+    let active = true; setTracks(null); setSelected(null); setLoadError(null);
     getMyTracks().then((next) => active && setTracks(next)).catch((nextError) => active && setLoadError(nextError instanceof Error ? nextError.message : 'Impossible de charger tes sons.'));
     return () => { active = false; };
   }, [event]);
   return (
-    <Modal visible={Boolean(event)} transparent animationType="slide" onRequestClose={onClose}>
+    <Modal visible={Boolean(event)} transparent animationType={settings.reducedMotion ? "none" : "slide"} onRequestClose={onClose}>
       <View style={styles.sheetBackdrop}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
         <View style={[styles.sheet, { paddingBottom: insets.bottom + 16 }]}>
@@ -615,7 +652,7 @@ function TrackPickerSheet({ event, busy, onClose, onPick, onCreate }: { event: C
           {loadError ? <Text style={styles.sheetError}>{loadError}</Text> : tracks === null ? <View style={styles.sheetLoading}><ActivityIndicator color={colors.text} /></View> : tracks.length === 0 ? <View style={styles.sheetEmpty}><Ionicons name="musical-notes" size={26} color={colors.textTertiary} /><Text style={styles.sheetEmptyText}>Tu n’as pas encore publié de son.</Text><MotionPressable onPress={onCreate} style={styles.primaryButton}><Text style={styles.primaryButtonText}>Publier un son</Text></MotionPressable></View> : (
             <FlatList data={tracks} keyExtractor={(item) => item.id} style={styles.sheetList} showsVerticalScrollIndicator={false} renderItem={({ item }) => {
               const isSelected = selected === item.id;
-              return <Pressable onPress={() => setSelected(item.id)} style={[styles.sheetTrack, isSelected && styles.sheetTrackSelected]}><SynauraImage source={item.coverVideoPosterUrl || item.coverUrl ? { uri: item.coverVideoPosterUrl || item.coverUrl || '' } : require('../assets/synaura-symbol-2026.png')} lowPriority style={styles.sheetCover} /><View style={styles.sheetTrackCopy}><Text numberOfLines={1} style={styles.sheetTrackTitle}>{item.title}</Text><Text numberOfLines={1} style={styles.sheetTrackDate}>{item.createdAt ? new Date(item.createdAt).toLocaleDateString('fr-FR') : 'Mon son'}</Text></View><View style={[styles.sheetCheck, isSelected && styles.sheetCheckSelected]}>{isSelected ? <Ionicons name="checkmark" size={14} color={colors.paper} /> : null}</View></Pressable>;
+              return <Pressable onPress={() => setSelected(item.id)} style={[styles.sheetTrack, isSelected && styles.sheetTrackSelected]}><SynauraImage source={item.coverVideoPosterUrl || item.coverUrl ? { uri: item.coverVideoPosterUrl || item.coverUrl || '' } : require('../assets/synaura-symbol-2026.png')} lowPriority style={styles.sheetCover} /><View style={styles.sheetTrackCopy}><Text numberOfLines={1} style={styles.sheetTrackTitle}>{item.title}</Text><Text numberOfLines={1} style={styles.sheetTrackDate}>{item.createdAt ? serverDateLabel(item.createdAt) : 'Mon son'}</Text></View><View style={[styles.sheetCheck, isSelected && styles.sheetCheckSelected]}>{isSelected ? <Ionicons name="checkmark" size={14} color={colors.paper} /> : null}</View></Pressable>;
             }} />
           )}
           <MotionPressable disabled={!selected || busy} onPress={() => selected && onPick(selected)} style={[styles.sheetSubmit, (!selected || busy) && styles.sheetSubmitDisabled]}><Ionicons name={busy ? 'hourglass' : 'rocket'} size={15} color={colors.paper} /><Text style={styles.sheetSubmitText}>{busy ? 'Inscription en cours...' : 'Inscrire ce son'}</Text></MotionPressable>
@@ -626,9 +663,11 @@ function TrackPickerSheet({ event, busy, onClose, onPick, onCreate }: { event: C
 }
 
 function WinnerCelebration({ event, busy, onClose, onClaim }: { event: CityEvent | null; busy: boolean; onClose: () => void; onClaim: () => void }) {
+  const colors = useSurfaceColors(); const styles = useMemo(() => createStyles(colors), [colors]);
+  const { settings } = useMobileSettings();
   const insets = useSafeAreaInsets();
   return (
-    <Modal visible={Boolean(event)} transparent animationType="fade" onRequestClose={onClose}>
+    <Modal visible={Boolean(event)} transparent animationType={settings.reducedMotion ? "none" : "fade"} onRequestClose={onClose}>
       <View style={styles.winnerBackdrop}>
         <View style={[styles.winnerCard, { paddingBottom: insets.bottom + 18 }]}>
           <LinearGradient colors={['#2A2026', '#171313']} style={StyleSheet.absoluteFill} />
@@ -652,197 +691,197 @@ function WinnerCelebration({ event, busy, onClose, onClaim }: { event: CityEvent
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof useSurfaceColors>) => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.background },
   content: { paddingHorizontal: 16, paddingBottom: 130, gap: 18 },
   topbar: { minHeight: 58, flexDirection: 'row', alignItems: 'center', gap: 10 },
   topActions: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   roundButton: { width: 42, height: 42, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   topCopy: { flex: 1 },
-  topKicker: { color: colors.violet, fontSize: 8, fontWeight: '900', letterSpacing: 1.5 },
-  topTitle: { marginTop: 1, color: colors.text, fontSize: 24, fontWeight: '900' },
+  topKicker: { color: colors.violet, fontSize: 12, fontWeight: '700', letterSpacing: 1.5 },
+  topTitle: { marginTop: 1, color: colors.text, fontSize: 24, fontWeight: '700' },
   loading: { minHeight: 430, alignItems: 'center', justifyContent: 'center' },
-  loadingText: { marginTop: 12, color: colors.textTertiary, fontSize: 11, fontWeight: '900' },
+  loadingText: { marginTop: 12, color: colors.textTertiary, fontSize: 12, fontWeight: '700' },
   error: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 18, borderWidth: 1, borderColor: 'rgba(217,45,32,0.2)', backgroundColor: 'rgba(217,45,32,0.07)', padding: 12 },
-  errorText: { flex: 1, color: colors.danger, fontSize: 10, fontWeight: '800' },
-  toast: { position: 'absolute', alignSelf: 'center', maxWidth: '90%', flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 22, backgroundColor: '#090909', borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, paddingHorizontal: 16, paddingVertical: 11, elevation: 10 },
-  toastText: { color: colors.paper, fontSize: 10, fontWeight: '900' },
-  hero: { minHeight: 320, overflow: 'hidden', borderRadius: 20, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.16)', padding: 17 },
+  errorText: { flex: 1, color: colors.danger, fontSize: 12, fontWeight: '800' },
+  toast: { position: 'absolute', alignSelf: 'center', maxWidth: '90%', flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 22, backgroundColor: '#090909', paddingHorizontal: 16, paddingVertical: 11, elevation: 10 },
+  toastText: { color: colors.paper, fontSize: 12, fontWeight: '700' },
+  hero: { overflow: 'hidden', borderRadius: 28, padding: 25 },
   heroBadge: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, borderLeftWidth: 3, borderLeftColor: colors.coral, paddingLeft: 8, paddingVertical: 4 },
   heroDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.coral },
-  heroBadgeText: { color: colors.paper, fontSize: 8, fontWeight: '900' },
-  heroTitle: { marginTop: 24, maxWidth: 360, color: colors.paper, fontSize: 32, lineHeight: 36, fontWeight: '900' },
+  heroBadgeText: { color: colors.paper, fontSize: 12, fontWeight: '700' },
+  heroTitle: { marginTop: 24, maxWidth: 420, color: colors.paper, fontSize: 36, lineHeight: 41, fontWeight: '700' },
   heroSubtitle: { marginTop: 10, maxWidth: 340, color: 'rgba(247,246,243,0.66)', fontSize: 12, lineHeight: 18, fontWeight: '700' },
   heroStats: { marginTop: 18, flexDirection: 'row', gap: 8 },
   heroStat: { flex: 1, borderTopWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.22)', paddingVertical: 10 },
-  heroStatValue: { color: colors.paper, fontSize: 19, fontWeight: '900' },
-  heroStatLabel: { marginTop: 2, color: 'rgba(247,246,243,0.46)', fontSize: 8, fontWeight: '900', textTransform: 'uppercase' },
-  heroActions: { marginTop: 18, flexDirection: 'row', gap: 8 },
-  primaryButton: { minHeight: 42, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 11, backgroundColor: colors.violet, paddingHorizontal: 16 },
-  primaryButtonText: { color: colors.paper, fontSize: 10, fontWeight: '900' },
-  secondaryButton: { minHeight: 42, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.34)', paddingHorizontal: 16 },
-  secondaryButtonText: { color: colors.paper, fontSize: 10, fontWeight: '900' },
+  heroStatValue: { color: colors.paper, fontSize: 19, fontWeight: '700' },
+  heroStatLabel: { marginTop: 2, color: 'rgba(247,246,243,0.74)', fontSize: 12, fontWeight: '700', textTransform: 'uppercase' },
+  heroActions: { marginTop: 18, flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  primaryButton: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 11, backgroundColor: colors.violet, paddingHorizontal: 16 },
+  primaryButtonText: { color: colors.paper, fontSize: 12, fontWeight: '700' },
+  secondaryButton: { minHeight: 48, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.34)', paddingHorizontal: 16 },
+  secondaryButtonText: { color: colors.paper, fontSize: 12, fontWeight: '700' },
   doneButton: { opacity: 0.46 },
   iconAction: { width: 42, height: 42, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceStrong },
   stack: { gap: 0 },
   horizontalRail: { gap: 10, paddingRight: 14 },
-  showcase: { width: 210, height: 274, overflow: 'hidden', borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, backgroundColor: colors.black },
+  showcase: { width: 210, height: 274, overflow: 'hidden', borderRadius: 22, backgroundColor: colors.black },
   showcaseLabel: { position: 'absolute', left: 12, top: 12, flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 13, backgroundColor: 'rgba(23,19,19,0.62)', paddingHorizontal: 8, paddingVertical: 6 },
-  showcaseLabelText: { color: colors.paper, fontSize: 8, fontWeight: '900', textTransform: 'uppercase' },
+  showcaseLabelText: { color: colors.paper, fontSize: 12, fontWeight: '700', textTransform: 'uppercase' },
   showcasePlay: { position: 'absolute', right: 12, top: 12, width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.paper },
   showcaseBottom: { position: 'absolute', left: 14, right: 14, bottom: 14 },
-  showcaseCaption: { fontSize: 8, fontWeight: '900', textTransform: 'uppercase' },
-  showcaseTitle: { marginTop: 4, color: colors.paper, fontSize: 19, lineHeight: 22, fontWeight: '900' },
-  showcaseArtist: { marginTop: 3, color: 'rgba(255,250,242,0.54)', fontSize: 10, fontWeight: '800' },
+  showcaseCaption: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase' },
+  showcaseTitle: { marginTop: 4, color: colors.paper, fontSize: 19, lineHeight: 22, fontWeight: '700' },
+  showcaseArtist: { marginTop: 3, color: 'rgba(255,250,242,0.54)', fontSize: 12, fontWeight: '800' },
   pulseCard: { minHeight: 76, flexDirection: 'row', alignItems: 'center', gap: 9, borderBottomWidth: 1, borderBottomColor: colors.border, paddingVertical: 9 },
-  pulseRank: { width: 22, color: colors.textTertiary, fontSize: 10, fontWeight: '900' },
+  pulseRank: { width: 22, color: colors.textTertiary, fontSize: 12, fontWeight: '700' },
   pulseCover: { width: 58, height: 58, borderRadius: 8 },
   pulseCopy: { flex: 1, minWidth: 0, gap: 5 },
-  pulseTitle: { color: colors.text, fontSize: 12, fontWeight: '900' },
-  pulseArtist: { color: colors.textTertiary, fontSize: 8, fontWeight: '700' },
+  pulseTitle: { color: colors.text, fontSize: 12, fontWeight: '700' },
+  pulseArtist: { color: colors.textTertiary, fontSize: 12, fontWeight: '700' },
   pulseSide: { alignItems: 'flex-end', gap: 7 },
-  artistCard: { width: 228, overflow: 'hidden', borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, borderTopWidth: 2, borderTopColor: colors.violet, backgroundColor: colors.surface },
+  artistCard: { width: 228, overflow: 'hidden', borderRadius: 22, borderTopWidth: 2, borderTopColor: colors.violet, backgroundColor: colors.surface },
   artistTop: { height: 86 },
   artistAvatar: { width: 70, height: 70, marginTop: -38, marginLeft: 14, borderRadius: 35, borderWidth: 3, borderColor: colors.paper, backgroundColor: '#E8DCCA' },
   artistBody: { padding: 14 },
-  artistBooster: { color: colors.violet, fontSize: 7, fontWeight: '900', letterSpacing: 1.1 },
-  artistName: { marginTop: 6, color: colors.text, fontSize: 18, fontWeight: '900' },
-  artistHandle: { marginTop: 2, color: colors.textTertiary, fontSize: 9, fontWeight: '800' },
-  artistStats: { marginTop: 8, color: colors.textSecondary, fontSize: 9, fontWeight: '800' },
+  artistBooster: { color: colors.violet, fontSize: 12, fontWeight: '700', letterSpacing: 1.1 },
+  artistName: { marginTop: 6, color: colors.text, fontSize: 18, fontWeight: '700' },
+  artistHandle: { marginTop: 2, color: colors.textTertiary, fontSize: 12, fontWeight: '800' },
+  artistStats: { marginTop: 8, color: colors.textSecondary, fontSize: 12, fontWeight: '800' },
   artistActions: { marginTop: 12, flexDirection: 'row', gap: 7 },
-  artistOpen: { flex: 1, height: 38, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet },
-  artistOpenText: { color: colors.paper, fontSize: 10, fontWeight: '900' },
-  artistPlay: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet },
-  premiere: { width: 210, height: 245, overflow: 'hidden', borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, backgroundColor: colors.black },
-  premiereBadge: { position: 'absolute', left: 12, top: 12, color: colors.paper, fontSize: 8, fontWeight: '900', letterSpacing: 1, backgroundColor: colors.coral, borderRadius: 12, paddingHorizontal: 8, paddingVertical: 6 },
+  artistOpen: { flex: 1, minHeight: 44, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet },
+  artistOpenText: { color: colors.paper, fontSize: 12, fontWeight: '700' },
+  artistPlay: { width: 38, minHeight: 44, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet },
+  premiere: { width: 210, height: 245, overflow: 'hidden', borderRadius: 22, backgroundColor: colors.black },
+  premiereBadge: { position: 'absolute', left: 12, top: 12, color: colors.paper, fontSize: 12, fontWeight: '700', letterSpacing: 1, backgroundColor: colors.coral, borderRadius: 12, paddingHorizontal: 8, paddingVertical: 6 },
   premierePlay: { position: 'absolute', right: 12, top: 12, width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.paper },
   premiereBottom: { position: 'absolute', left: 14, right: 14, bottom: 14 },
-  premierePulse: { color: '#FFC6BC', fontSize: 7, fontWeight: '900', letterSpacing: 0.8 },
-  premiereTitle: { marginTop: 5, color: colors.paper, fontSize: 17, fontWeight: '900' },
-  premiereArtist: { marginTop: 3, color: 'rgba(255,250,242,0.5)', fontSize: 9, fontWeight: '800' },
+  premierePulse: { color: '#FFC6BC', fontSize: 12, fontWeight: '700', letterSpacing: 0.8 },
+  premiereTitle: { marginTop: 5, color: colors.paper, fontSize: 17, fontWeight: '700' },
+  premiereArtist: { marginTop: 3, color: 'rgba(255,250,242,0.5)', fontSize: 12, fontWeight: '800' },
   liveEvent: { gap: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, paddingVertical: 12 },
-  liveEventDescription: { color: colors.textSecondary, fontSize: 10, lineHeight: 15, fontWeight: '700', paddingHorizontal: 4 },
-  activeBoostText: { color: colors.violet, fontSize: 9, lineHeight: 14, fontWeight: '900', paddingHorizontal: 4 },
+  liveEventDescription: { color: colors.textSecondary, fontSize: 12, lineHeight: 19, fontWeight: '700', paddingHorizontal: 4 },
+  activeBoostText: { color: colors.violet, fontSize: 12, lineHeight: 19, fontWeight: '700', paddingHorizontal: 4 },
   liveEventActions: { flexDirection: 'row', gap: 8, paddingHorizontal: 4, paddingBottom: 2 },
-  battle: { overflow: 'hidden', borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, backgroundColor: colors.surface, padding: 14 },
+  battle: { overflow: 'hidden', borderRadius: 22, backgroundColor: colors.surface, padding: 14 },
   battleHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   battleHeaderCopy: { flex: 1 },
-  battleKicker: { color: colors.violet, fontSize: 8, fontWeight: '900', letterSpacing: 1.2 },
-  battleTitle: { marginTop: 5, color: colors.paper, fontSize: 20, fontWeight: '900' },
-  battleMeta: { marginTop: 3, color: 'rgba(247,246,243,0.58)', fontSize: 9, fontWeight: '800' },
+  battleKicker: { color: colors.violet, fontSize: 12, fontWeight: '700', letterSpacing: 1.2 },
+  battleTitle: { marginTop: 5, color: colors.paper, fontSize: 20, fontWeight: '700' },
+  battleMeta: { marginTop: 3, color: 'rgba(247,246,243,0.58)', fontSize: 12, fontWeight: '800' },
   battleFlash: { width: 43, height: 43, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet },
   battleGrid: { marginTop: 13, flexDirection: 'row', gap: 8 },
-  battleRewardButton: { minHeight: 42, marginTop: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 12, backgroundColor: colors.violet },
-  battleRewardButtonText: { color: colors.paper, fontSize: 10, fontWeight: '900' },
+  battleRewardButton: { minHeight: 48, marginTop: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 12, backgroundColor: colors.violet },
+  battleRewardButtonText: { color: colors.paper, fontSize: 12, fontWeight: '700' },
   battleTrack: { flex: 1, minWidth: 0, borderRadius: 12, backgroundColor: colors.surfaceStrong, padding: 8, gap: 5 },
   battleTrackSelected: { borderWidth: 1, borderColor: colors.violet, backgroundColor: 'rgba(124,92,255,0.1)' },
   battleCoverWrap: { aspectRatio: 1, overflow: 'hidden', borderRadius: 8 },
   battlePlay: { position: 'absolute', right: 7, bottom: 7, width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.paper },
-  battleTrackTitle: { color: colors.text, fontSize: 10, fontWeight: '900' },
-  battleArtist: { color: colors.textTertiary, fontSize: 8, fontWeight: '700' },
-  voteButton: { height: 32, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, borderRadius: 16, backgroundColor: colors.violet },
+  battleTrackTitle: { color: colors.text, fontSize: 12, fontWeight: '700' },
+  battleArtist: { color: colors.textTertiary, fontSize: 12, fontWeight: '700' },
+  voteButton: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, borderRadius: 16, backgroundColor: colors.violet },
   voteButtonSelected: { backgroundColor: colors.violet },
-  voteText: { color: colors.paper, fontSize: 8, fontWeight: '900' },
+  voteText: { color: colors.paper, fontSize: 12, fontWeight: '700' },
   winnerBackdrop: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(23,19,19,0.74)', padding: 15 },
   winnerCard: { width: '100%', maxWidth: 440, overflow: 'hidden', borderRadius: 20, padding: 18, elevation: 18 },
   winnerTrophy: { width: 54, height: 54, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFD667' },
-  winnerKicker: { marginTop: 16, color: '#FF9A90', fontSize: 8, fontWeight: '900', letterSpacing: 1.5 },
-  winnerTitle: { marginTop: 6, color: colors.paper, fontSize: 27, lineHeight: 30, fontWeight: '900' },
-  winnerText: { marginTop: 8, color: 'rgba(255,250,242,0.58)', fontSize: 10, lineHeight: 16, fontWeight: '700' },
-  winnerReward: { borderRadius: 14, backgroundColor: 'rgba(255,250,242,0.08)', padding: 12 },
-  winnerRewardKicker: { color: 'rgba(255,250,242,0.38)', fontSize: 7, fontWeight: '900', letterSpacing: 1.1 },
-  winnerRewardTitle: { marginTop: 5, color: colors.paper, fontSize: 13, fontWeight: '900' },
-  winnerRewardText: { marginTop: 4, color: 'rgba(255,250,242,0.48)', fontSize: 9, lineHeight: 14, fontWeight: '700' },
+  winnerKicker: { marginTop: 16, color: '#FF9A90', fontSize: 12, fontWeight: '700', letterSpacing: 1.5 },
+  winnerTitle: { marginTop: 6, color: colors.paper, fontSize: 27, lineHeight: 30, fontWeight: '700' },
+  winnerText: { marginTop: 8, color: 'rgba(255,250,242,0.58)', fontSize: 12, lineHeight: 19, fontWeight: '700' },
+  winnerReward: { borderRadius: 22, backgroundColor: 'rgba(255,250,242,0.08)', padding: 12 },
+  winnerRewardKicker: { color: 'rgba(255,250,242,0.74)', fontSize: 12, fontWeight: '700', letterSpacing: 1.1 },
+  winnerRewardTitle: { marginTop: 5, color: colors.paper, fontSize: 13, fontWeight: '700' },
+  winnerRewardText: { marginTop: 4, color: 'rgba(255,250,242,0.74)', fontSize: 12, lineHeight: 19, fontWeight: '700' },
   winnerActions: { marginTop: 13, flexDirection: 'row', gap: 8 },
   winnerClaim: { minHeight: 44, flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 12, backgroundColor: colors.paper },
-  winnerClaimText: { color: colors.black, fontSize: 10, fontWeight: '900' },
+  winnerClaimText: { color: colors.black, fontSize: 12, fontWeight: '700' },
   winnerLater: { minHeight: 44, justifyContent: 'center', borderRadius: 12, backgroundColor: 'rgba(255,250,242,0.1)', paddingHorizontal: 15 },
-  winnerLaterText: { color: colors.paper, fontSize: 10, fontWeight: '900' },
+  winnerLaterText: { color: colors.paper, fontSize: 12, fontWeight: '700' },
   radar: { overflow: 'hidden', borderTopWidth: 2, borderTopColor: colors.cyan, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.borderStrong, paddingVertical: 13 },
   radarRing: { position: 'absolute', left: 0, right: 0, top: 0, height: 2, backgroundColor: colors.cyan },
   radarRow: { minHeight: 66, flexDirection: 'row', alignItems: 'center', gap: 10, borderBottomWidth: 1, borderBottomColor: colors.border, paddingVertical: 8 },
   radarCover: { width: 50, height: 50, borderRadius: 8 },
   radarCopy: { flex: 1, minWidth: 0, gap: 5 },
-  radarTrack: { color: colors.text, fontSize: 11, fontWeight: '900' },
-  radarArtist: { color: colors.textTertiary, fontSize: 8, fontWeight: '700' },
+  radarTrack: { color: colors.text, fontSize: 12, fontWeight: '700' },
+  radarArtist: { color: colors.textTertiary, fontSize: 12, fontWeight: '700' },
   panel: { gap: 0, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong },
   awardRow: { minHeight: 62, flexDirection: 'row', alignItems: 'center', gap: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.border, paddingVertical: 9 },
-  awardIcon: { width: 38, height: 38, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(124,92,255,0.12)' },
+  awardIcon: { width: 38, minHeight: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(124,92,255,0.12)' },
   awardIconFirst: { backgroundColor: colors.violet },
   awardCopy: { flex: 1, minWidth: 0 },
-  awardTitle: { color: colors.text, fontSize: 10, fontWeight: '900' },
-  awardSubtitle: { marginTop: 3, color: colors.textTertiary, fontSize: 8, fontWeight: '700' },
+  awardTitle: { color: colors.text, fontSize: 12, fontWeight: '700' },
+  awardSubtitle: { marginTop: 3, color: colors.textTertiary, fontSize: 12, fontWeight: '700' },
   badgeRow: { minHeight: 70, flexDirection: 'row', alignItems: 'center', gap: 9, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.border, paddingVertical: 9, opacity: 0.68 },
   badgeRowUnlocked: { opacity: 1, backgroundColor: 'rgba(124,92,255,0.08)' },
-  badgeIcon: { width: 39, height: 39, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(23,19,19,0.07)' },
+  badgeIcon: { width: 39, height: 39, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(23,19,19,0.07)' },
   badgeIconUnlocked: { backgroundColor: colors.violet },
   badgeCopy: { flex: 1, minWidth: 0, gap: 4 },
-  badgeTitle: { color: colors.text, fontSize: 10, fontWeight: '900' },
-  badgeDescription: { color: colors.textTertiary, fontSize: 8, fontWeight: '700' },
-  badgeProgress: { color: colors.textTertiary, fontSize: 8, fontWeight: '900' },
-  creatorProgress: { overflow: 'hidden', borderRadius: 14, padding: 14 },
-  creatorKicker: { color: '#C8B8FF', fontSize: 8, fontWeight: '900', letterSpacing: 1.2 },
-  creatorTitle: { marginTop: 6, color: colors.paper, fontSize: 20, fontWeight: '900' },
+  badgeTitle: { color: colors.text, fontSize: 12, fontWeight: '700' },
+  badgeDescription: { color: colors.textTertiary, fontSize: 12, fontWeight: '700' },
+  badgeProgress: { color: colors.textTertiary, fontSize: 12, fontWeight: '700' },
+  creatorProgress: { overflow: 'hidden', borderRadius: 22, padding: 14 },
+  creatorKicker: { color: '#C8B8FF', fontSize: 12, fontWeight: '700', letterSpacing: 1.2 },
+  creatorTitle: { marginTop: 6, color: colors.paper, fontSize: 20, fontWeight: '700' },
   creatorBody: { marginTop: 15, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 10 },
   creatorAvatar: { width: 58, height: 58, borderRadius: 18, backgroundColor: '#E8DCCA' },
   creatorCopy: { flex: 1, minWidth: 0 },
-  creatorLevel: { color: colors.cyan, fontSize: 8, fontWeight: '900', letterSpacing: 1 },
-  creatorLevelName: { marginTop: 3, color: colors.paper, fontSize: 15, fontWeight: '900' },
-  creatorXp: { marginTop: 3, color: 'rgba(255,250,242,0.48)', fontSize: 8, fontWeight: '700' },
+  creatorLevel: { color: colors.cyan, fontSize: 12, fontWeight: '700', letterSpacing: 1 },
+  creatorLevelName: { marginTop: 3, color: colors.paper, fontSize: 15, fontWeight: '700' },
+  creatorXp: { marginTop: 3, color: 'rgba(255,250,242,0.74)', fontSize: 12, fontWeight: '700' },
   creatorFullBar: { width: '100%', height: 6, overflow: 'hidden', borderRadius: 3, backgroundColor: 'rgba(255,250,242,0.1)' },
   creatorBarFill: { height: '100%' },
-  creatorNext: { color: 'rgba(255,250,242,0.48)', fontSize: 8, fontWeight: '700' },
+  creatorNext: { color: 'rgba(255,250,242,0.74)', fontSize: 12, fontWeight: '700' },
   creatorEmpty: { marginTop: 15, gap: 12 },
-  creatorEmptyText: { color: 'rgba(255,250,242,0.6)', fontSize: 10, fontWeight: '700' },
+  creatorEmptyText: { color: 'rgba(255,250,242,0.6)', fontSize: 12, fontWeight: '700' },
   creatorButton: { alignSelf: 'flex-start', minHeight: 39, justifyContent: 'center', borderRadius: 12, backgroundColor: colors.paper, paddingHorizontal: 15 },
-  creatorButtonText: { color: colors.black, fontSize: 10, fontWeight: '900' },
+  creatorButtonText: { color: colors.black, fontSize: 12, fontWeight: '700' },
   sheetBackdrop: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(23,19,19,0.38)' },
-  eventDetailSheet: { alignSelf: 'center', width: '100%', maxWidth: 680, maxHeight: '88%', overflow: 'hidden', borderTopLeftRadius: 16, borderTopRightRadius: 16, backgroundColor: colors.surface },
+  eventDetailSheet: { alignSelf: 'center', width: '100%', maxWidth: 680, maxHeight: '90%', overflow: 'hidden', borderTopLeftRadius: 16, borderTopRightRadius: 16, backgroundColor: colors.surface },
   eventDetailHero: { minHeight: 238, justifyContent: 'space-between', overflow: 'hidden', padding: 16 },
   eventDetailTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  eventDetailStatus: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 14, backgroundColor: 'rgba(255,250,242,0.16)', paddingHorizontal: 9, paddingVertical: 7 },
+  eventDetailStatus: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 22, backgroundColor: 'rgba(255,250,242,0.16)', paddingHorizontal: 9, paddingVertical: 7 },
   eventDetailDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.coral },
-  eventDetailStatusText: { color: colors.paper, fontSize: 8, fontWeight: '900', letterSpacing: 1 },
+  eventDetailStatusText: { color: colors.paper, fontSize: 12, fontWeight: '700', letterSpacing: 1 },
   eventDetailClose: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,250,242,0.14)' },
   eventDetailHeroCopy: { gap: 7 },
-  eventDetailTitle: { color: colors.paper, fontSize: 28, lineHeight: 31, fontWeight: '900' },
-  eventDetailDescription: { color: 'rgba(255,250,242,0.68)', fontSize: 10, lineHeight: 15, fontWeight: '700' },
-  eventDetailMeta: { color: '#FFB2A7', fontSize: 9, fontWeight: '900' },
-  eventDetailList: { maxHeight: 355 },
+  eventDetailTitle: { color: colors.paper, fontSize: 28, lineHeight: 31, fontWeight: '700' },
+  eventDetailDescription: { color: 'rgba(255,250,242,0.68)', fontSize: 12, lineHeight: 19, fontWeight: '700' },
+  eventDetailMeta: { color: '#FFB2A7', fontSize: 12, fontWeight: '700' },
+  eventDetailList: { flexShrink: 1 },
   eventDetailListContent: { gap: 8, padding: 12 },
   eventParticipant: { minHeight: 76, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 11, backgroundColor: colors.surfaceStrong, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border, padding: 9 },
   eventParticipantSelected: { borderWidth: 1, borderColor: colors.violet, backgroundColor: 'rgba(124,92,255,0.1)' },
   eventParticipantCover: { width: 58, height: 58, overflow: 'hidden', borderRadius: 16 },
   eventParticipantPlay: { position: 'absolute', right: 5, bottom: 5, width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.paper },
   eventParticipantCopy: { flex: 1, minWidth: 0 },
-  eventParticipantTrack: { color: colors.text, fontSize: 11, fontWeight: '900' },
-  eventParticipantArtist: { marginTop: 4, color: colors.textTertiary, fontSize: 8, fontWeight: '700' },
+  eventParticipantTrack: { color: colors.text, fontSize: 12, fontWeight: '700' },
+  eventParticipantArtist: { marginTop: 4, color: colors.textTertiary, fontSize: 12, fontWeight: '700' },
   eventParticipantVote: { minHeight: 36, flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 18, backgroundColor: colors.violet, paddingHorizontal: 11 },
   eventParticipantVoteSelected: { backgroundColor: colors.violet },
   eventParticipantVoteDisabled: { opacity: 0.38 },
-  eventParticipantVoteText: { color: colors.paper, fontSize: 8, fontWeight: '900' },
+  eventParticipantVoteText: { color: colors.paper, fontSize: 12, fontWeight: '700' },
   eventDetailEmpty: { minHeight: 150, alignItems: 'center', justifyContent: 'center', gap: 10, borderRadius: 12, backgroundColor: colors.surfaceStrong, padding: 18 },
-  eventDetailEmptyText: { color: colors.textTertiary, fontSize: 10, fontWeight: '800' },
+  eventDetailEmptyText: { color: colors.textTertiary, fontSize: 12, fontWeight: '800' },
   eventDetailAction: { minHeight: 48, marginHorizontal: 12, marginTop: 4, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 12, backgroundColor: colors.violet },
-  eventDetailActionText: { color: colors.paper, fontSize: 10, fontWeight: '900' },
+  eventDetailActionText: { color: colors.paper, fontSize: 12, fontWeight: '700' },
   sheet: { alignSelf: 'center', width: '100%', maxWidth: 680, maxHeight: '78%', borderTopLeftRadius: 16, borderTopRightRadius: 16, backgroundColor: colors.surface, padding: 16 },
   sheetHandle: { alignSelf: 'center', width: 48, height: 5, borderRadius: 3, backgroundColor: colors.textTertiary },
-  sheetKicker: { marginTop: 14, color: colors.violet, fontSize: 8, fontWeight: '900', letterSpacing: 1.2 },
-  sheetTitle: { marginTop: 5, color: colors.text, fontSize: 21, lineHeight: 25, fontWeight: '900' },
-  sheetError: { marginTop: 12, color: colors.danger, fontSize: 10, fontWeight: '800' },
+  sheetKicker: { marginTop: 14, color: colors.violet, fontSize: 12, fontWeight: '700', letterSpacing: 1.2 },
+  sheetTitle: { marginTop: 5, color: colors.text, fontSize: 21, lineHeight: 25, fontWeight: '700' },
+  sheetError: { marginTop: 12, color: colors.danger, fontSize: 12, fontWeight: '800' },
   sheetLoading: { minHeight: 160, alignItems: 'center', justifyContent: 'center' },
   sheetEmpty: { minHeight: 180, alignItems: 'center', justifyContent: 'center', gap: 12 },
-  sheetEmptyText: { color: colors.textTertiary, fontSize: 10, fontWeight: '800' },
-  sheetList: { marginTop: 12 },
+  sheetEmptyText: { color: colors.textTertiary, fontSize: 12, fontWeight: '800' },
+  sheetList: { marginTop: 12, flexShrink: 1 },
   sheetTrack: { minHeight: 70, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 11, backgroundColor: colors.surfaceStrong, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border, padding: 9, marginBottom: 8 },
   sheetTrackSelected: { backgroundColor: 'rgba(124,92,255,0.1)', borderWidth: 1, borderColor: colors.violet },
   sheetCover: { width: 52, height: 52, borderRadius: 15 },
   sheetTrackCopy: { flex: 1, minWidth: 0 },
-  sheetTrackTitle: { color: colors.text, fontSize: 11, fontWeight: '900' },
-  sheetTrackDate: { marginTop: 3, color: colors.textTertiary, fontSize: 8, fontWeight: '700' },
+  sheetTrackTitle: { color: colors.text, fontSize: 12, fontWeight: '700' },
+  sheetTrackDate: { marginTop: 3, color: colors.textTertiary, fontSize: 12, fontWeight: '700' },
   sheetCheck: { width: 24, height: 24, borderRadius: 12, borderWidth: 1, borderColor: colors.borderStrong, alignItems: 'center', justifyContent: 'center' },
   sheetCheckSelected: { borderColor: colors.violet, backgroundColor: colors.violet },
   sheetSubmit: { marginTop: 10, minHeight: 45, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 11, backgroundColor: colors.violet },
   sheetSubmitDisabled: { opacity: 0.3 },
-  sheetSubmitText: { color: colors.paper, fontSize: 11, fontWeight: '900' },
+  sheetSubmitText: { color: colors.paper, fontSize: 12, fontWeight: '700' },
 });

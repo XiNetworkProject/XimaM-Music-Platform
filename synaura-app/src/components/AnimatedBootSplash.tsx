@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AccessibilityInfo, Animated, Easing, StyleSheet, Text, View } from 'react-native';
-import { EntryAtmosphere } from '@/components/entry/EntryAtmosphere';
+import { SoundRoom, mobile } from '@/components/mobile/SoundRoom';
 import { SynauraMark } from '@/components/brand/SynauraMark';
 import { useMobileSettings } from '@/settings/MobileSettingsProvider';
 import { entry } from '@/theme/entry';
@@ -29,10 +29,10 @@ export function AnimatedBootSplash() {
   }, [opacity, reveal, settings.reducedMotion]);
   if (!visible) return null;
   return <Animated.View style={[styles.overlay, { opacity }]} accessibilityViewIsModal>
-    <EntryAtmosphere><View style={styles.center}>
+    <SoundRoom><View style={styles.center}>
       <Animated.View style={{ opacity: reveal, transform: [{ scale: reveal.interpolate({ inputRange: [0, 1], outputRange: [.85, 1] }) }] }}><SynauraMark size={108} /></Animated.View>
       <Animated.View style={{ opacity: reveal }}><Text style={styles.name}>SYNAURA</Text><Text style={styles.caption}>LA MUSIQUE NOUS RELIE</Text></Animated.View>
-    </View></EntryAtmosphere>
+    </View></SoundRoom>
   </Animated.View>;
 }
-const styles = StyleSheet.create({ overlay: { ...StyleSheet.absoluteFillObject, zIndex: 10000, elevation: 10000, backgroundColor: entry.background }, center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 24 }, name: { fontFamily: 'Inter_800ExtraBold', fontSize: 27, letterSpacing: 4, color: entry.text, textAlign: 'center' }, caption: { marginTop: 12, color: entry.muted, fontSize: 9, letterSpacing: 2.2, textAlign: 'center' } });
+const styles = StyleSheet.create({ overlay: { ...StyleSheet.absoluteFillObject, zIndex: 10000, elevation: 10000, backgroundColor: mobile.bg }, center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 24 }, name: { fontFamily: 'Inter_600SemiBold', fontSize: 23, letterSpacing: 5, color: mobile.text, textAlign: 'center' }, caption: { marginTop: 12, color: mobile.muted, fontSize: 8, letterSpacing: 2.2, textAlign: 'center' } });

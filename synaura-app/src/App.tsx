@@ -16,8 +16,7 @@ import { AuthProvider, useAuth } from '@/auth/AuthProvider';
 import { entryIdentity, entryRoute, takeAuthDestination, type AuthDestination, type EntryRoute } from '@/auth/entryGate';
 import { PlayerProvider } from '@/player/PlayerProvider';
 import { LibraryProvider } from '@/library/LibraryProvider';
-import { MiniPlayer } from '@/components/MiniPlayer';
-import { FullPlayerModal } from '@/components/FullPlayerModal';
+import { NativePlayerChrome } from '@/components/NativePlayerChrome';
 import { Tabs, type RootTabsParamList } from '@/navigation/Tabs';
 import { LoginScreen } from '@/screens/LoginScreen';
 import { RegisterScreen } from '@/screens/RegisterScreen';
@@ -45,6 +44,7 @@ import { ClipComposerScreen } from '@/screens/ClipComposerScreen';
 import { AIStudioScreen } from '@/screens/AIStudioScreen';
 import { CreatePostScreen } from '@/screens/CreatePostScreen';
 import { SubscriptionsScreen } from '@/screens/SubscriptionsScreen';
+import { BoostersScreen } from '@/screens/BoostersScreen';
 import { CityScreen } from '@/screens/CityScreen';
 import { TrackDetailScreen } from '@/screens/TrackDetailScreen';
 import { SearchScreen } from '@/screens/SearchScreen';
@@ -65,6 +65,7 @@ import { ClipUploadProvider } from '@/clips/ClipUploadProvider';
 import { SynauraQueryProvider } from '@/query/SynauraQueryProvider';
 import { ConversationBubbleProvider } from '@/messaging/ConversationBubbleProvider';
 import { MessageOutboxProvider } from '@/messaging/MessageOutboxProvider';
+import { NativeCallProvider } from '@/calls/NativeCallProvider';
 
 export type RootStackParamList = RootTabsParamList & {
   Tabs: { screen?: string; params?: Record<string, unknown> } | undefined;
@@ -85,6 +86,18 @@ const linking = {
     screens: {
       Messages: 'messages',
       Conversation: 'messages/:conversationId',
+      TrackDetail: 'track/:trackId',
+      PostDetail: 'posts/:postId',
+      PublicProfile: 'profile/:username',
+      PlaylistDetail: 'playlists/:playlistId',
+      Community: 'community',
+      ClubDetail: 'community/:slug',
+      ChallengeDetail: 'challenges/:challengeId',
+      City: 'city',
+      Radar: 'radar',
+      DiscoverMood: 'discover/mood/:moodId',
+      Subscriptions: 'subscriptions',
+      Boosters: 'boosters',
     },
   },
 };
@@ -191,6 +204,7 @@ function RootStackNavigator() {
       <Stack.Screen name="ChallengeDetail" component={ChallengeDetailScreen} />
       <Stack.Screen name="Settings" component={SettingsScreen} />
       <Stack.Screen name="Subscriptions" component={SubscriptionsScreen} />
+      <Stack.Screen name="Boosters" component={BoostersScreen} />
       <Stack.Screen name="City" component={CityScreen} />
       <Stack.Screen name="Stats" component={StatsScreen} />
       <Stack.Screen name="CreateHub" component={CreateHubScreen} options={{ animation: settings.reducedMotion ? 'none' : 'slide_from_bottom' }} />
@@ -213,7 +227,7 @@ function SynauraRuntime() {
   const [playerOpen, setPlayerOpen] = React.useState(false);
   const [activeRoute, setActiveRoute] = React.useState('Swipe');
   const { resolvedTheme } = useMobileSettings();
-  const usesDarkSystemChrome = resolvedTheme === 'dark' || ['Swipe', 'Welcome', 'Onboarding', 'Login', 'Register', 'ForgotPassword', 'PhoneAuth'].includes(activeRoute);
+  const usesDarkSystemChrome = playerOpen || resolvedTheme === 'dark' || ['Swipe', 'Welcome', 'Onboarding', 'Login', 'Register', 'ForgotPassword', 'PhoneAuth'].includes(activeRoute);
   const navigationTheme = React.useMemo(() => ({
     ...DefaultTheme,
     dark: resolvedTheme === 'dark',
@@ -248,6 +262,7 @@ function SynauraRuntime() {
             <ClipUploadProvider>
               <LibraryProvider>
                 <PlayerProvider>
+                  <NativeCallProvider>
                   <NativeNotificationsProvider>
                   <NavigationContainer
                     ref={navigationRef}
@@ -266,12 +281,12 @@ function SynauraRuntime() {
                       backgroundColor={usesDarkSystemChrome ? '#0D0D0D' : '#F7F6F3'}
                     />
                     <RootStackNavigator />
-                    <MiniPlayer activeRoute={activeRoute} onOpen={() => setPlayerOpen(true)} />
-                    <FullPlayerModal visible={playerOpen} onClose={() => setPlayerOpen(false)} />
+                    <NativePlayerChrome activeRoute={activeRoute} open={playerOpen} onOpen={() => setPlayerOpen(true)} onClose={() => setPlayerOpen(false)} />
                     <NativeNotificationNudge activeRoute={activeRoute} />
                   </NavigationContainer>
                   <AnimatedBootSplash />
                   </NativeNotificationsProvider>
+                  </NativeCallProvider>
                 </PlayerProvider>
               </LibraryProvider>
             </ClipUploadProvider>

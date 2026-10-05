@@ -19,5 +19,5 @@ export async function POST(request: NextRequest) {
       inventoryId,
       String(body?.targetTrackId || '').trim()
     );
-  });
+  }, request);
 }

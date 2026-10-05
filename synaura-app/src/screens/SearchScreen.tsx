@@ -1,177 +1,160 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { getPopularTracks, searchEverything } from '@/api/client';
 import type { Creator, SearchResults, Track } from '@/api/types';
-import { SynauraBackground } from '@/components/SynauraBackground';
-import { TrackCover } from '@/components/TrackCover';
-import { AppHeader } from '@/components/ui/AppHeader';
-import { EmptyState } from '@/components/ui/EmptyState';
-import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton';
+import { CollectionEmpty, CollectionHeader, CollectionHeading, CollectionReveal, CollectionSurface, CollectionTabs, MusicRow, useCollectionPalette } from '@/components/mobile/CollectionUI';
+import { EntryPressable } from '@/components/entry/EntryPressable';
 import { TrackActionsSheet } from '@/components/ui/TrackActionsSheet';
-import { TrackListItem } from '@/components/ui/TrackListItem';
-import { useLibrary } from '@/library/LibraryProvider';
 import { usePlayer } from '@/player/PlayerProvider';
-import { colors, radius, spacing } from '@/theme/tokens';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { SynauraSearchField } from '@/components/search/SynauraSearchField';
+import { recentSearches, SEARCH_FILTERS, searchCount, uniqueSearchResults, type SearchFilter } from '@/components/search/searchModel';
 
 const RECENT_KEY = 'synaura.search.recent.v2';
 const EMPTY_RESULTS: SearchResults = { tracks: [], artists: [], playlists: [], posts: [] };
 
 export function SearchScreen() {
-  const responsive = useResponsiveLayout();
+  const layout = useResponsiveLayout();
+  const p = useCollectionPalette();
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const player = usePlayer();
-  const library = useLibrary();
   const [query, setQuery] = React.useState('');
+  const [filter, setFilter] = React.useState<SearchFilter>('all');
   const [results, setResults] = React.useState<SearchResults>(EMPTY_RESULTS);
+  const [resolvedQuery, setResolvedQuery] = React.useState('');
   const [popular, setPopular] = React.useState<Track[]>([]);
+  const [popularLoading, setPopularLoading] = React.useState(true);
   const [recent, setRecent] = React.useState<string[]>([]);
+  const recentTouched = React.useRef(false);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [retry, setRetry] = React.useState(0);
   const [selectedTrack, setSelectedTrack] = React.useState<Track | null>(null);
+  const scroll = React.useRef<ScrollView>(null);
+  const value = query.trim();
+  const searching = value.length >= 2;
+  const pending = searching && (loading || resolvedQuery !== value);
 
   React.useEffect(() => {
-    getPopularTracks().then((items) => setPopular(items.slice(0, 8))).catch(() => {});
-    AsyncStorage.getItem(RECENT_KEY).then((raw) => {
-      try { setRecent(raw ? JSON.parse(raw) : []); } catch { setRecent([]); }
+    let current = true;
+    getPopularTracks().then(items => { if (current) setPopular(items.slice(0, 8)); })
+      .catch(() => {}).finally(() => { if (current) setPopularLoading(false); });
+    AsyncStorage.getItem(RECENT_KEY).then(raw => {
+      if (!current || recentTouched.current) return;
+      try { setRecent(recentSearches(raw ? JSON.parse(raw) : [])); } catch { setRecent([]); }
     }).catch(() => {});
+    return () => { current = false; };
   }, []);
 
   React.useEffect(() => {
-    const initialQuery = String(route.params?.query || '').trim();
-    if (initialQuery) setQuery(initialQuery);
+    if (typeof route.params?.query === 'string') setQuery(route.params.query.trim());
   }, [route.params?.query]);
 
   React.useEffect(() => {
-    const value = query.trim();
-    if (value.length < 2) {
-      setResults(EMPTY_RESULTS);
-      setError(null);
-      return;
-    }
     let cancelled = false;
+    setResults(EMPTY_RESULTS); setError(null);
+    if (value.length < 2) { setLoading(false); setResolvedQuery(''); return; }
+    setLoading(true);
     const timer = setTimeout(async () => {
-      setLoading(true);
-      setError(null);
       try {
         const next = await searchEverything(value);
-        if (!cancelled) setResults(next);
+        if (!cancelled) { setResults(uniqueSearchResults(next)); setResolvedQuery(value); }
       } catch (e) {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Recherche impossible');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+        if (!cancelled) { setError(e instanceof Error ? e.message : 'Recherche impossible'); setResolvedQuery(value); }
+      } finally { if (!cancelled) setLoading(false); }
     }, 260);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [query]);
+  }, [value, retry]);
 
-  const submitRecent = (value = query.trim()) => {
-    if (value.length < 2) return;
-    const next = [value, ...recent.filter((item) => item.toLowerCase() !== value.toLowerCase())].slice(0, 8);
+  const remember = (term = value) => {
+    if (term.trim().length < 2) return;
+    recentTouched.current = true;
+    const next = recentSearches([term, ...recent]);
     setRecent(next);
-    AsyncStorage.setItem(RECENT_KEY, JSON.stringify(next)).catch(() => {});
+    void AsyncStorage.setItem(RECENT_KEY, JSON.stringify(next)).catch(() => {});
   };
+  const chooseQuery = (term: string) => { setQuery(term); setFilter('all'); Keyboard.dismiss(); };
+  const play = async (track: Track, source: Track[], index: number) => {
+    remember(searching ? value : track.title); Keyboard.dismiss();
+    if (player.current?._id === track._id) await player.togglePlayPause();
+    else await player.setQueueAndPlay(source, index);
+  };
+  const openTrack = (track: Track) => { remember(); Keyboard.dismiss(); navigation.navigate('TrackDetail', { trackId: track._id, track }); };
+  const count = searchCount(results, filter);
+  const show = (kind: SearchFilter) => filter === 'all' || filter === kind;
+  const rows = (tracks: Track[]) => tracks.map((track, index) => <MusicRow key={track._id} track={track}
+    playing={player.current?._id === track._id && player.isPlaying} onPlay={() => void play(track, tracks, index)}
+    onOpen={() => openTrack(track)} onMore={() => { Keyboard.dismiss(); setSelectedTrack(track); }} />);
 
-  const hasResults = results.tracks.length + results.artists.length + results.playlists.length + results.posts.length > 0;
-
-  return (
-    <SynauraBackground>
-      <ScrollView
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={[styles.content, responsive.contentFrame, { paddingBottom: responsive.miniPlayerClearance + 24 }]}
-        showsVerticalScrollIndicator={false}
-      >
-        <AppHeader title="Recherche" subtitle="Sons, artistes, playlists et communauté" onBack={() => navigation.goBack()} />
-        <View style={styles.searchStage}>
-          <Text style={styles.searchKicker}>TOUT SYNAURA</Text>
-          <SynauraSearchField
-            autoFocus
-            value={query}
-            onChangeText={setQuery}
-            onSubmit={() => submitRecent()}
-            onClear={() => setQuery('')}
-            loading={loading}
-            placeholder="Titre, artiste, playlist, club..."
-          />
+  return <CollectionSurface><KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={s.flex}>
+    <View style={[layout.pageContent, { paddingTop: layout.insets.top, paddingBottom: 8 }]}>
+      <CollectionHeader title="Rechercher" onBack={() => navigation.goBack()} />
+      <SynauraSearchField value={query} onChangeText={setQuery} onSubmit={() => { remember(); Keyboard.dismiss(); }}
+        onClear={() => chooseQuery('')} loading={pending} placeholder="Un son, un artiste…" />
+      {searching ? <CollectionTabs value={filter} options={SEARCH_FILTERS.map(option => ({ ...option, count: !pending ? searchCount(results, option.value) : undefined }))}
+        onChange={next => { setFilter(next); Keyboard.dismiss(); scroll.current?.scrollTo({ y: 0, animated: false }); }} /> : null}
+    </View>
+    <ScrollView ref={scroll} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" showsVerticalScrollIndicator={false}
+      contentContainerStyle={[layout.pageContent, { paddingTop: 16, paddingBottom: layout.miniPlayerClearance + 24 }]}>
+      {!searching ? <CollectionReveal>
+        {recent.length ? <View style={s.section}>
+          <CollectionHeading title="Récemment" action="Effacer" onPress={() => { recentTouched.current = true; setRecent([]); void AsyncStorage.removeItem(RECENT_KEY).catch(() => {}); }} />
+          <View style={s.chips}>{recent.map(term => <EntryPressable key={term} accessibilityRole="button" accessibilityLabel={'Rechercher ' + term} onPress={() => chooseQuery(term)} style={[s.chip, { backgroundColor: p.surface }]}>
+            <Ionicons name="time-outline" size={17} color={p.muted} /><Text numberOfLines={1} style={[s.chipText, { color: p.text }]}>{term}</Text><Ionicons name="arrow-up-outline" size={15} color={p.faint} style={{ transform: [{ rotate: '-45deg' }] }} />
+          </EntryPressable>)}</View>
+        </View> : null}
+        <View style={s.section}><CollectionHeading title="À découvrir" detail="Des sons à lancer, des univers à explorer." />
+          {popular.length ? rows(popular) : <CollectionEmpty loading={popularLoading} title={popularLoading ? 'Les sons arrivent…' : 'Qu’as-tu envie d’écouter ?'} text={popularLoading ? undefined : 'Entre un titre, un artiste ou le nom d’une playlist.'} />}
         </View>
-
-        {loading ? <LoadingSkeleton rows={4} /> : null}
-
-        {!loading && query.trim().length < 2 ? (
-          <>
-            {recent.length ? <Section title="Recherches récentes" action="Effacer" onAction={() => { setRecent([]); AsyncStorage.removeItem(RECENT_KEY).catch(() => {}); }}>
-              <View style={styles.chips}>{recent.map((item) => <Pressable key={item} onPress={() => setQuery(item)} style={styles.chip}><Ionicons name="time-outline" size={14} color={colors.textSecondary} /><Text style={styles.chipText}>{item}</Text></Pressable>)}</View>
-            </Section> : null}
-            <Section title="Tendances">
-              <View style={styles.list}>{popular.map((track) => <TrackListItem key={track._id} track={track} active={player.current?._id === track._id} favorite={library.isFavorite(track._id)} onPlay={() => { submitRecent(track.title); void player.playTrack(track); }} onToggleFavorite={() => library.toggleFavorite(track)} onMore={() => setSelectedTrack(track)} />)}</View>
-            </Section>
-          </>
-        ) : null}
-
-        {!loading && query.trim().length >= 2 && !hasResults ? <EmptyState icon="search-outline" title="Aucun résultat" text={error || `Rien trouvé pour « ${query.trim()} ». Essaie un artiste, un titre ou un style.`} /> : null}
-
-        {!loading && results.artists.length ? <Section title="Artistes">
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.artistRail}>
-            {results.artists.map((artist) => <ArtistCard key={artist.id} artist={artist} onPress={() => { submitRecent(); navigation.navigate('PublicProfile', { username: artist.handle.replace(/^@/, '') }); }} />)}
-          </ScrollView>
-        </Section> : null}
-
-        {!loading && results.tracks.length ? <Section title="Sons" action={`${results.tracks.length}`}>
-          <View style={styles.list}>{results.tracks.map((track) => <TrackListItem key={track._id} track={track} active={player.current?._id === track._id} favorite={library.isFavorite(track._id)} onPlay={() => { submitRecent(); void player.playTrack(track); }} onToggleFavorite={() => library.toggleFavorite(track)} onMore={() => setSelectedTrack(track)} />)}</View>
-        </Section> : null}
-
-        {!loading && results.playlists.length ? <Section title="Playlists">
-          <View style={styles.playlistGrid}>{results.playlists.map((playlist) => <Pressable key={playlist.id} onPress={() => navigation.navigate('PlaylistDetail', { playlistId: playlist.id })} style={[styles.playlist, { width: responsive.gridColumns === 3 ? '31.5%' : responsive.gridColumns === 2 ? '47%' : '100%' }]}><View style={styles.playlistCover}>{playlist.covers[0] ? <Image source={{ uri: playlist.covers[0] }} style={StyleSheet.absoluteFillObject} /> : <Ionicons name="albums-outline" size={24} color={colors.textTertiary} />}</View><Text numberOfLines={1} style={styles.playlistTitle}>{playlist.title}</Text><Text numberOfLines={1} style={styles.playlistMeta}>{playlist.curator}</Text></Pressable>)}</View>
-        </Section> : null}
-
-        {!loading && results.posts.length ? <Section title="Communauté">
-          <View style={styles.list}>{results.posts.map((post) => <Pressable key={post.id} onPress={() => navigation.navigate('PostDetail', { postId: post.id })} style={styles.post}><View style={styles.postAvatar}><Text style={styles.postAvatarText}>{post.author.slice(0, 1).toUpperCase()}</Text></View><View style={{ flex: 1, minWidth: 0 }}><Text style={styles.postAuthor}>{post.author}</Text><Text numberOfLines={2} style={styles.postText}>{post.text}</Text></View><Ionicons name="chevron-forward" size={16} color={colors.textTertiary} /></Pressable>)}</View>
-        </Section> : null}
-      </ScrollView>
-      <TrackActionsSheet track={selectedTrack} onClose={() => setSelectedTrack(null)} />
-    </SynauraBackground>
-  );
-}
-
-function Section({ title, action, onAction, children }: { title: string; action?: string; onAction?: () => void; children: React.ReactNode }) {
-  return <View style={styles.section}><View style={styles.sectionHeader}><Text style={styles.sectionTitle}>{title}</Text>{action ? <Pressable onPress={onAction}><Text style={styles.sectionAction}>{action}</Text></Pressable> : null}</View>{children}</View>;
+      </CollectionReveal> : pending ? <CollectionEmpty loading title="On cherche…" /> : error ?
+        <CollectionEmpty icon="cloud-offline-outline" title="La recherche est indisponible" text={error} action="Réessayer" onPress={() => setRetry(next => next + 1)} /> :
+        !count ? <CollectionEmpty icon="search-outline" title="Pas encore trouvé." text={'Aucun résultat' + (filter !== 'all' ? ' dans cette catégorie' : '') + ' pour « ' + value + ' ».'}
+          action={filter !== 'all' ? 'Voir toutes les catégories' : undefined} onPress={filter !== 'all' ? () => setFilter('all') : undefined} /> :
+        <View>
+          <Text accessibilityLiveRegion="polite" style={[s.meta, { color: p.muted, marginBottom: 18 }]}>{count} résultat{count > 1 ? 's' : ''} pour « {value} »</Text>
+          {show('artists') && results.artists.length ? <View style={s.section}><CollectionHeading title="Artistes" />
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled" contentContainerStyle={s.artistRail}>
+              {results.artists.map(artist => <ArtistCard key={artist.id} artist={artist} onPress={() => { remember(); Keyboard.dismiss(); navigation.navigate('PublicProfile', { username: artist.handle.replace(/^@/, '') }); }} />)}
+            </ScrollView>
+          </View> : null}
+          {show('tracks') && results.tracks.length ? <View style={s.section}><CollectionHeading title="Sons" />{rows(results.tracks)}</View> : null}
+          {show('playlists') && results.playlists.length ? <View style={s.section}><CollectionHeading title="Playlists" />
+            <View style={s.grid}>{results.playlists.map(playlist => <EntryPressable key={playlist.id} accessibilityRole="button" accessibilityLabel={'Ouvrir la playlist ' + playlist.title}
+              onPress={() => { remember(); Keyboard.dismiss(); navigation.navigate('PlaylistDetail', { playlistId: playlist.id }); }}
+              style={[s.playlist, { width: layout.gridColumns === 3 ? '31%' : layout.gridColumns === 2 ? '47%' : '100%' }]}>
+              <View style={[s.playlistArt, { backgroundColor: p.raised }]}>{playlist.covers[0] ? <Image source={{ uri: playlist.covers[0] }} style={StyleSheet.absoluteFillObject} /> : <Ionicons name="albums-outline" size={38} color={p.blue} />}</View>
+              <Text numberOfLines={2} style={[s.resultTitle, { color: p.text }]}>{playlist.title}</Text><Text numberOfLines={1} style={[s.meta, { color: p.muted }]}>{playlist.curator}</Text>
+            </EntryPressable>)}</View>
+          </View> : null}
+          {show('posts') && results.posts.length ? <View style={s.section}><CollectionHeading title="Dans la communauté" />
+            {results.posts.map(post => <EntryPressable key={post.id} accessibilityRole="button" accessibilityLabel={'Post de ' + post.author} onPress={() => { remember(); Keyboard.dismiss(); navigation.navigate('PostDetail', { postId: post.id }); }} style={[s.post, { backgroundColor: p.surface }]}>
+              <View style={s.postHead}><View style={[s.postAvatar, { backgroundColor: p.raised }]}>{post.avatar?.startsWith('http') ? <Image source={{ uri: post.avatar }} style={StyleSheet.absoluteFillObject} /> : <Ionicons name="person-outline" size={18} color={p.blue} />}</View><Text style={[s.resultTitle, { flex: 1, color: p.text }]}>{post.author}</Text><Ionicons name="arrow-forward" size={19} color={p.faint} /></View>
+              <Text numberOfLines={3} style={[s.postCopy, { color: p.muted }]}>{post.text}</Text>
+              {post.imageUrl ? <Image source={{ uri: post.imageUrl }} style={s.postImage} /> : null}
+            </EntryPressable>)}
+          </View> : null}
+        </View>}
+    </ScrollView>
+  </KeyboardAvoidingView><TrackActionsSheet track={selectedTrack} onClose={() => setSelectedTrack(null)} /></CollectionSurface>;
 }
 
 function ArtistCard({ artist, onPress }: { artist: Creator; onPress: () => void }) {
-  return <Pressable onPress={onPress} style={styles.artistCard}><View style={[styles.artistAvatar, { backgroundColor: artist.tint }]}>{artist.avatar?.startsWith('http') ? <Image source={{ uri: artist.avatar }} style={StyleSheet.absoluteFillObject} /> : <Text style={styles.artistInitial}>{artist.name.slice(0, 1)}</Text>}</View><Text numberOfLines={1} style={styles.artistName}>{artist.name}</Text><Text numberOfLines={1} style={styles.artistMeta}>{artist.tag}</Text></Pressable>;
+  const p = useCollectionPalette();
+  return <EntryPressable accessibilityRole="button" accessibilityLabel={'Profil de ' + artist.name} onPress={onPress} style={s.artist}>
+    <View style={[s.artistAvatar, { backgroundColor: p.raised }]}>{artist.avatar?.startsWith('http') ? <Image source={{ uri: artist.avatar }} style={StyleSheet.absoluteFillObject} /> : <Text style={{ color: p.blue, fontSize: 30 }}>{artist.name.slice(0, 1)}</Text>}</View>
+    <Text numberOfLines={1} style={[s.resultTitle, { color: p.text, textAlign: 'center' }]}>{artist.name}</Text><Text numberOfLines={1} style={[s.meta, { color: p.muted, textAlign: 'center' }]}>{artist.handle}</Text>
+  </EntryPressable>;
 }
 
-const styles = StyleSheet.create({
-  content: { paddingBottom: 170, gap: spacing.xl },
-  searchStage: { marginHorizontal: spacing.lg, gap: 8 },
-  searchKicker: { color: colors.cyan, fontSize: 9, fontWeight: '900', letterSpacing: 0 },
-  section: { gap: spacing.md },
-  sectionHeader: { minHeight: 35, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, marginHorizontal: spacing.lg },
-  sectionTitle: { color: colors.text, fontSize: 18, fontWeight: '900' },
-  sectionAction: { color: colors.accent, fontSize: 11, fontWeight: '900' },
-  list: { paddingHorizontal: spacing.lg },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, paddingHorizontal: spacing.lg },
-  chip: { minHeight: 38, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, paddingHorizontal: spacing.md },
-  chipText: { color: colors.textSecondary, fontSize: 11, fontWeight: '800' },
-  artistRail: { gap: spacing.md, paddingHorizontal: spacing.lg },
-  artistCard: { width: 96, alignItems: 'center', borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, paddingVertical: spacing.md },
-  artistAvatar: { width: 66, height: 66, overflow: 'hidden', borderRadius: 33, alignItems: 'center', justifyContent: 'center' },
-  artistInitial: { color: colors.white, fontSize: 24, fontWeight: '900' },
-  artistName: { width: 88, marginTop: spacing.sm, color: colors.text, fontSize: 11, fontWeight: '900', textAlign: 'center' },
-  artistMeta: { width: 88, marginTop: 2, color: colors.textTertiary, fontSize: 9, fontWeight: '700', textAlign: 'center' },
-  playlistGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md, paddingHorizontal: spacing.lg },
-  playlist: { width: '47%', borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, padding: spacing.sm },
-  playlistCover: { width: '100%', aspectRatio: 1, overflow: 'hidden', borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface },
-  playlistTitle: { marginTop: spacing.sm, color: colors.text, fontSize: 12, fontWeight: '900' },
-  playlistMeta: { marginTop: 2, color: colors.textTertiary, fontSize: 9, fontWeight: '700' },
-  post: { minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, padding: spacing.md, marginBottom: spacing.sm },
-  postAvatar: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet },
-  postAvatarText: { color: colors.white, fontWeight: '900' },
-  postAuthor: { color: colors.text, fontSize: 12, fontWeight: '900' },
-  postText: { marginTop: 3, color: colors.textSecondary, fontSize: 11, lineHeight: 16, fontWeight: '600' },
+const s = StyleSheet.create({
+  flex: { flex: 1 }, section: { marginBottom: 26 }, chips: { gap: 9, flexDirection: 'row', flexWrap: 'wrap' },
+  chip: { minHeight: 46, maxWidth: '100%', borderRadius: 24, paddingHorizontal: 14, paddingVertical: 10, flexDirection: 'row', alignItems: 'center', gap: 8 }, chipText: { fontSize: 14, flexShrink: 1 },
+  artistRail: { gap: 18, paddingBottom: 8 }, artist: { width: 110, alignItems: 'center', gap: 3 }, artistAvatar: { width: 96, height: 96, borderRadius: 48, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
+  resultTitle: { fontSize: 15, fontWeight: '700' }, meta: { fontSize: 12, lineHeight: 18, marginTop: 3 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 16 }, playlist: { gap: 7 }, playlistArt: { aspectRatio: 1, width: '100%', borderRadius: 22, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
+  post: { borderRadius: 22, padding: 18, gap: 12, marginBottom: 12 }, postHead: { flexDirection: 'row', alignItems: 'center', gap: 10 }, postAvatar: { width: 36, height: 36, borderRadius: 18, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' }, postCopy: { fontSize: 15, lineHeight: 23 }, postImage: { width: '100%', aspectRatio: 1.6, borderRadius: 14 },
 });

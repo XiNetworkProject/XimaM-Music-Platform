@@ -6,7 +6,7 @@ import ts from 'typescript';
 import { resolveLiveEntryLayout, shouldDismissSheet } from '../synaura-app/src/components/swipe/liveLayout.ts';
 const read = name => fs.readFileSync(new URL('../synaura-app/src/' + name, import.meta.url), 'utf8');
 
-test('Live entry reserves the sticky action, navigation and safe bottom on small phones and tablets', () => {
+test('Live entry keeps the navigation clearance and a reachable inline entry action', () => {
   for (const [width, height, top, bottom] of [[320,568,24,90],[390,844,44,94],[448,997,48,98],[800,1280,32,100],[740,360,24,83]]) {
     const metrics = resolveLiveEntryLayout(height,top,bottom,width-36);
     assert.ok(metrics.coverSize >= 130 && metrics.coverSize <= 310);
@@ -14,9 +14,10 @@ test('Live entry reserves the sticky action, navigation and safe bottom on small
     assert.ok(height-bottom-metrics.actionHeight > top, 'primary action remains in viewport');
   }
   const source = read('components/swipe/HomeFlowPrelude.tsx');
-  assert.match(source, /styles\.entryDock, \{ bottom: bottomPad/);
-  assert.ok(source.indexOf('styles.entryDock') > source.lastIndexOf('</ScrollView>'), 'entry action is outside the scroller');
-  assert.match(source, /paddingBottom: metrics.scrollBottom/);
+  assert.match(source, /paddingBottom: bottomPad \+ 28/);
+  assert.ok(source.indexOf('style={s.enter}') < source.lastIndexOf('</ScrollView>'), 'the entry action moves with the featured track, not over the discoveries');
+  assert.match(source, /props\.onOpenTrack\(featured\)/);
+  assert.doesNotMatch(source, /styles\.entryDock/);
 });
 
 test('sheet dismissal needs deliberate downward intent, not a tap or an upward drag', () => {
@@ -38,9 +39,14 @@ test('ambience controls use the persisted native preferences and respect reduced
   assert.match(read('components/entry/EntryPressable.tsx'), /if \(!motion\) return/);
 });
 
-test('entry renders the cover behind the interactive aura, not on top of it', () => {
+test('entry renders one cover-derived backdrop behind content; story motion is scoped', () => {
   const source = read('components/swipe/HomeFlowPrelude.tsx');
-  assert.ok(source.indexOf('<LiveAtmosphere') < source.indexOf('<EntryAtmosphere transparent'));
+  assert.ok(source.indexOf('<LiveAtmosphere') < source.indexOf('<ScrollView'));
+  assert.match(source, /<EntryMotionScope active=\{visible\}/);
+  assert.doesNotMatch(source, /<EntryAtmosphere/);
+  const room = read('components/mobile/SoundRoom.tsx');
+  assert.match(room, /useEntryMotion\(active\)/);
+  assert.match(room, /return \(\) => loop.stop\(\)/);
   assert.match(read('components/entry/EntryAtmosphere.tsx'), /if \(inherited !== undefined\) return/);
 });
 

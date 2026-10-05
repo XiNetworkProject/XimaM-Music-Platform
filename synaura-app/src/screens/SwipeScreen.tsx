@@ -18,6 +18,7 @@ import { Image as ExpoImage } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useIsFocused, useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useCallAudioLock } from '@/calls/useCallAudioLock';
 import {
   fetchRankingFeedChunk,
   getArtistFollowState,
@@ -179,6 +180,8 @@ export function SwipeScreen() {
   const [resumeGeneration, setResumeGeneration] = useState(0);
   const [appIsActive, setAppIsActive] = useState(AppState.currentState === 'active');
   const [playingClipId, setPlayingClipId] = useState<string | null>(null);
+  const callAudioLocked = useCallAudioLock();
+  useEffect(() => { if (callAudioLocked) setPlayingClipId(null); }, [callAudioLocked, playingClipId]);
   const [launchingCollectionId, setLaunchingCollectionId] = useState<string | null>(null);
 
   const [commentsOpen, setCommentsOpen] = useState(false);
@@ -1654,13 +1657,13 @@ export function SwipeScreen() {
 
       <LinearGradient colors={['rgba(23,19,19,0.88)', 'rgba(23,19,19,0.0)']} style={[styles.headerGradient, { height: insets.top + 96 }]} pointerEvents="none" />
 
-      <Animated.View style={[styles.header, headerStyle]} pointerEvents="box-none">
+      <Animated.View importantForAccessibility={homePreludeVisible ? 'no-hide-descendants' : 'auto'} style={[styles.header, headerStyle]} pointerEvents="box-none">
         <View style={[styles.headerInner, responsive.contentFrame]}>
-          <MotionPressable accessibilityLabel="Ouvrir l'accueil Synaura" onPress={() => setHomePreludeVisible(true)} style={{ width: 40, height: 44, alignItems: 'center', justifyContent: 'center' }} scaleTo={0.94}><Ionicons name="radio-outline" size={23} color="#CDC4EB" /></MotionPressable>
+          <MotionPressable accessibilityLabel="Ouvrir l'accueil Synaura" onPress={() => setHomePreludeVisible(true)} style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }} scaleTo={0.94}><Ionicons name="arrow-back" size={22} color="#C6D7ED" /></MotionPressable>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ alignItems: 'center', gap: 18, paddingHorizontal: 4 }} style={{ flex: 1 }}>
             {(['reco', 'trending', 'clips', 'boost'] as FeedMode[]).map(mode => <Pressable key={mode} accessibilityRole="tab" accessibilityState={{ selected: mode === feedMode }} onPress={() => switchFeedMode(mode)} style={{ minHeight: 44, justifyContent: 'center', paddingHorizontal: 2 }}>
-              <Text style={{ color: mode === feedMode ? '#F5F4FF' : '#A3A5B8', fontSize: 12, fontWeight: '700' }}>{FEED_MODE_META[mode].label}</Text>
-              {mode === feedMode ? <View style={{ position: 'absolute', bottom: 1, width: 18, height: 2, borderRadius: 1, alignSelf: 'center', backgroundColor: '#DDD0FF' }} /> : null}
+              <Text style={{ color: mode === feedMode ? '#F5F7FC' : '#A8B3C5', fontSize: 12, fontWeight: mode === feedMode ? '600' : '400' }}>{FEED_MODE_META[mode].label}</Text>
+              {mode === feedMode ? <View style={{ position: 'absolute', bottom: 1, width: 18, height: 2, borderRadius: 1, alignSelf: 'center', backgroundColor: '#93CAFF' }} /> : null}
             </Pressable>)}
           </ScrollView>
           <MotionPressable accessibilityLabel="Régler l’ambiance Live et rechercher" onPress={() => setAmbienceOpen(true)} style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center' }} scaleTo={0.9}><Ionicons name="options-outline" size={22} color="#D8D7E6" /></MotionPressable>
@@ -1684,6 +1687,7 @@ export function SwipeScreen() {
         </View>
       ) : (
         <FlatList
+          importantForAccessibility={homePreludeVisible ? 'no-hide-descendants' : 'auto'}
           key={`flow-${feedMode}-${resumeGeneration}`}
           ref={listRef}
           data={feedItems}

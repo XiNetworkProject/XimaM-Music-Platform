@@ -6,13 +6,11 @@ import { RouteProp, useFocusEffect, useNavigation, useRoute } from '@react-navig
 import { createDirectConversation, followUser, getMessagingRelationship, getProfileMusicClips, getPublicProfile, getUserPostsPage, getUserVariations, sendMessageRequest, type MessagingRelationship, type MobileProfile } from '@/api/client';
 import type { HomePost, MusicClip, UserVariation } from '@/api/types';
 import type { RootTabsParamList } from '@/navigation/Tabs';
-import { SynauraBackground } from '@/components/SynauraBackground';
+import { CollectionSurface, CollectionHeader, CollectionTabs, CollectionIconButton, CollectionEmpty } from '@/components/mobile/CollectionUI';
 import { CreatorLevelCard } from '@/components/events/SynauraEvents';
 import { usePlayer } from '@/player/PlayerProvider';
 import { MobileBadge } from '@/components/mobile/MobileBadge';
-import { AppHeader } from '@/components/ui/AppHeader';
 import { PostAttachedTrackCard } from '@/components/social/PostAttachedTrackCard';
-import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { ProfileIdentityHero } from '@/components/profile/ProfileIdentityHero';
 import { ProfileClipGrid } from '@/components/profile/ProfileClipGrid';
@@ -303,31 +301,31 @@ export function PublicProfileScreen() {
 
   if (loading) {
     return (
-      <SynauraBackground variant="warm">
+      <CollectionSurface>
         <View style={styles.center}><ActivityIndicator color={colors.violet} /></View>
-      </SynauraBackground>
+      </CollectionSurface>
     );
   }
 
   if (!profile) {
     return (
-      <SynauraBackground variant="warm">
+      <CollectionSurface>
         <View style={styles.center}><Text style={styles.title}>Profil introuvable</Text></View>
-      </SynauraBackground>
+      </CollectionSurface>
     );
   }
 
   return (
-    <SynauraBackground variant="warm">
+    <CollectionSurface>
       <ScrollView
         contentContainerStyle={[
           styles.content,
           responsive.pageContent,
-          { paddingTop: 0, paddingBottom: responsive.miniPlayerClearance },
+          { paddingTop: responsive.insets.top + 8, paddingBottom: responsive.miniPlayerClearance },
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <AppHeader flush title="Profil artiste" subtitle={`@${profile.username}`} onBack={() => navigation.goBack()} action={{ icon: 'share-outline', label: 'Partager', onPress: () => void share() }} />
+        <CollectionHeader title="Artiste" onBack={() => navigation.goBack()} />
 
         <ProfileIdentityHero
           profile={profile}
@@ -352,7 +350,7 @@ export function PublicProfileScreen() {
           }}
         />
 
-        <SegmentedControl value={tab} compact options={(['sons', 'clips', 'posts', 'playlists', 'variations'] as Tab[]).map((item) => ({ value: item, label: TAB_LABELS[item] }))} onChange={setTab} />
+        <CollectionTabs value={tab} options={(['sons', 'clips', 'posts', 'playlists', 'variations'] as Tab[]).map((item) => ({ value: item, label: TAB_LABELS[item] }))} onChange={setTab} />
 
         {tab === 'sons' ? (
           <ProfileMusicCatalog
@@ -371,7 +369,7 @@ export function PublicProfileScreen() {
         {tab === 'sons' && (clipsLoading || Boolean(clipsError) || clips.length > 0) ? (
           <View style={styles.card}>
             <View style={styles.sectionHead}>
-              <Text style={styles.sectionTitle}>Clips recents</Text>
+              <Text style={styles.sectionTitle}>Clips récents</Text>
               {clips.length ? <Pressable onPress={() => setTab('clips')}><Text style={styles.sectionLink}>Tout voir ({clips.length})</Text></Pressable> : null}
             </View>
             {clipsLoading ? (
@@ -520,17 +518,17 @@ export function PublicProfileScreen() {
           </Pressable>
         </Pressable>
       </Modal>
-    </SynauraBackground>
+    </CollectionSurface>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { paddingHorizontal: 18, paddingBottom: 130, gap: 14 },
+  content: { paddingHorizontal: 18, paddingBottom: 130, gap: 24 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   title: { color: colors.text, fontSize: 24, fontWeight: '900' },
   badgePanel: { gap: 8, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, borderRadius: 10, backgroundColor: colors.surface, padding: 13 },
   badgePanelTitle: { color: colors.text, fontSize: 17, fontWeight: '900' },
-  card: { gap: 8, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, borderRadius: 10, backgroundColor: colors.surface, padding: 12 },
+  card: { gap: 12, borderRadius: 22, backgroundColor: colors.surface, padding: 18 },
   trackRow: { flexDirection: 'row', alignItems: 'center', gap: 10, borderBottomWidth: 1, borderBottomColor: colors.border, paddingVertical: 9 },
   trackCover: { width: 52, height: 52, borderRadius: 8 },
   trackTitle: { color: colors.text, fontSize: 13, fontWeight: '900' },

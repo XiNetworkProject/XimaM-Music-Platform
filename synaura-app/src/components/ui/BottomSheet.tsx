@@ -6,6 +6,7 @@ import { MotionPressable } from '@/components/motion/Motion';
 import { useMobileSettings } from '@/settings/MobileSettingsProvider';
 import { colors, radius, shadows, spacing } from '@/theme/tokens';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
+import { useSurfaceColors } from '@/components/mobile/useSurfaceColors';
 
 export function BottomSheet({
   visible,
@@ -25,6 +26,8 @@ export function BottomSheet({
   maxHeight?: `${number}%` | number;
 }) {
   const insets = useSafeAreaInsets();
+  const colors = useSurfaceColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const layout = useResponsiveLayout();
   const { settings } = useMobileSettings();
   const progress = useRef(new Animated.Value(0)).current;
@@ -45,7 +48,6 @@ export function BottomSheet({
     onPanResponderRelease: (_, gesture) => {
       if (gesture.dy > 90 || gesture.vy > 1.1) {
         onClose();
-        return;
       }
       Animated.spring(dragY, { toValue: 0, speed: 24, bounciness: 2, useNativeDriver: true }).start();
     },
@@ -94,14 +96,14 @@ export function BottomSheet({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof useSurfaceColors>) => StyleSheet.create({
   backdrop: { flex: 1, justifyContent: 'flex-end' },
   dim: { backgroundColor: colors.black },
   sheet: {
     alignSelf: 'center',
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,
-    borderTopWidth: 1,
+    borderTopWidth: 0,
     borderColor: colors.border,
     backgroundColor: colors.elevatedSurface,
     ...shadows.floating,
@@ -113,5 +115,5 @@ const styles = StyleSheet.create({
   copy: { flex: 1, minWidth: 0 },
   title: { color: colors.text, fontSize: 21, lineHeight: 25, fontWeight: '900' },
   subtitle: { marginTop: 4, color: colors.textSecondary, fontSize: 12, lineHeight: 17, fontWeight: '500' },
-  close: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong },
+  close: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted },
 });

@@ -60,7 +60,7 @@ import {
 } from '@/api/client';
 import { useAuth } from '@/auth/AuthProvider';
 import { MessagingAvatar } from '@/components/messaging/MessagingAvatar';
-import { MotionPressable } from '@/components/motion/Motion';
+import { EntryPressable as MotionPressable } from '@/components/entry/EntryPressable';
 import { usePlayer } from '@/player/PlayerProvider';
 import { openInternalLink } from '@/navigation/internalLinks';
 import { messagingKeys } from '@/messaging/useMessagingUnread';
@@ -87,8 +87,12 @@ import {
   subscribeToConversationRealtime,
   type MessagingRealtimeState,
 } from '@/messaging/realtime';
-import { colors, radius, spacing } from '@/theme/tokens';
+import { radius, spacing } from '@/theme/tokens';
+import { useMessagingColors } from '@/components/messaging/useMessagingColors';
+import { EntryMotionScope, useEntryMotion } from '@/components/entry/EntryAtmosphere';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
+import { useNativeCalls } from '@/calls/NativeCallProvider';
+import { useCallAudioLock } from '@/calls/useCallAudioLock';
 
 const REACTIONS: Array<{ value: MessagingReactionName; label: string; icon: keyof typeof Ionicons.glyphMap }> = [
   { value: 'heart', label: 'J’aime', icon: 'heart-outline' },
@@ -242,11 +246,14 @@ function optimisticMessage(
 }
 
 export function ConversationScreen() {
+  const colors = useMessagingColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const conversationId = String(route.params?.conversationId || '');
   const auth = useAuth();
   const player = usePlayer();
+  const calls = useNativeCalls();
   const layout = useResponsiveLayout();
   const queryClient = useQueryClient();
   const listRef = useRef<FlashListRef<MessagingMessage>>(null);
@@ -491,7 +498,7 @@ export function ConversationScreen() {
   }, [contactsQuery.data, conversation?.participants, memberSearch]);
   const conversationTitle = preferences?.nickname || other?.name || conversation?.name || conversation?.participants.map((item) => item.name).join(', ') || 'Discussion';
   const conversationSubtitle = liveSignal?.active && liveSignal.type === 'typing'
-    ? 'Ecrit...'
+    ? 'Écrit…'
     : liveSignal?.active && liveSignal.type === 'recording'
       ? 'Enregistre un vocal...'
       : room
@@ -499,11 +506,11 @@ export function ConversationScreen() {
         : realtimeState === 'error'
           ? 'Reconnexion...'
           : other
-            ? (recentlyActive(other) || (liveSignal?.active && liveSignal.type === 'presence') ? 'Actif recemment' : `@${other.username}`)
+            ? (recentlyActive(other) || (liveSignal?.active && liveSignal.type === 'presence') ? 'Actif récemment' : `@${other.username}`)
             : 'Groupe Synaura';
 
   const voiceRecorder = useVoiceMessageRecorder({
-    disabled: sending || uploading || !canMessage,
+    disabled: sending || uploading || !canMessage || calls.engaged,
     onBeforeRecord: () => player.pause().catch(() => {}),
     onError: setErrorMessage,
   });
@@ -1212,8 +1219,9 @@ export function ConversationScreen() {
               message={message}
               own={own}
               accentColor={accentColor}
-              playing={playingAudioId === message.id}
+              playing={!calls.engaged && playingAudioId === message.id}
               onPlayAudio={() => {
+                if (calls.engaged) { setErrorMessage('Termine l’appel pour écouter un vocal.'); return; }
                 if (playingAudioId !== message.id) void player.pause().catch(() => {});
                 setPlayingAudioId((current) => current === message.id ? null : message.id);
               }}
@@ -1228,7 +1236,7 @@ export function ConversationScreen() {
           {groupedReactions.length ? <View style={[styles.reactionSummary, own && styles.reactionSummaryOwn]}>{groupedReactions.map((group) => { const selected = group.users.some((entry) => entry.userId === ownId); return <Pressable key={group.value} onPress={() => void chooseReaction(group.value, message)} delayLongPress={300} onLongPress={() => void openReactionDetails(message)} style={[styles.reactionChip, selected && styles.reactionChipSelected]}><Ionicons name={group.icon} size={12} color={selected ? colors.violet : colors.textSecondary} /><Text style={[styles.reactionCount, selected && styles.reactionCountSelected]}>{group.users.length}</Text></Pressable>; })}</View> : null}
           <View style={[styles.timeRow, own && styles.timeRowOwn]}>
             {message.pinned ? <Ionicons name="pin" size={10} color={accentColor} /> : null}
-            <Text style={styles.time}>{clock(message.createdAt)}{message.editedAt ? ' · modifie' : ''}</Text>
+            <Text style={styles.time}>{clock(message.createdAt)}{message.editedAt ? ' · modifié' : ''}</Text>
             {message.localState === 'sending' ? <ActivityIndicator size={9} color={colors.textTertiary} /> : null}
             {message.localState === 'failed' ? <Pressable onPress={() => void retryMessage(message)} style={styles.retryStatus}><Ionicons name="alert-circle" size={13} color={colors.coral} /><Text style={styles.retryStatusText}>Renvoyer</Text></Pressable> : null}
             {own && !message.localState && message.id === lastOwnMessageId ? <Ionicons name={message.seenBy.some((id) => id !== ownId) ? 'checkmark-done' : 'checkmark'} size={13} color={message.seenBy.some((id) => id !== ownId) ? colors.cyan : colors.textTertiary} /> : null}
@@ -1241,9 +1249,10 @@ export function ConversationScreen() {
   };
 
   return (
-    <KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={0}>
+    <EntryMotionScope><KeyboardAvoidingView style={styles.screen} behavior={Platform.OS === 'ios' ? 'padding' : 'height'} keyboardVerticalOffset={0}>
       <ConversationBackdrop preferences={preferences} fallbackImage={conversation.avatarUrl || other?.avatar || null} />
-      <ConversationHeader navigation={navigation} user={other || null} title={conversationTitle} subtitle={conversationSubtitle} onMenu={() => setMenuOpen(true)} layout={layout} accentColor={accentColor} />
+      <ConversationHeader navigation={navigation} user={other || null} title={conversationTitle} subtitle={conversationSubtitle} onMenu={() => setMenuOpen(true)} layout={layout} accentColor={accentColor}
+        onCall={calls.enabled && canMessage ? () => { setPlayingAudioId(null); setVoicePreviewPlaying(false); if (voiceRecorder.phase === 'recording') { setErrorMessage('Termine ton vocal avant d’appeler.'); return; } calls.start(conversationId); } : undefined} />
       {conversation.type === 'group' && conversation.rooms?.length ? (
         <View style={styles.roomBar}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.roomBarContent, { paddingHorizontal: layout.gutter }]}>
@@ -1255,7 +1264,7 @@ export function ConversationScreen() {
           </ScrollView>
         </View>
       ) : null}
-      {pinnedMessages.length ? <Pressable onPress={() => listRef.current?.scrollToItem({ item: pinnedMessages[pinnedMessages.length - 1], animated: true, viewPosition: 0.35 })} style={[styles.pinnedBar, layout.contentFrame, { marginHorizontal: layout.gutter }]}><View style={[styles.pinnedIcon, { backgroundColor: `${accentColor}20` }]}><Ionicons name="pin" size={14} color={accentColor} /></View><View style={styles.pinnedCopy}><Text style={styles.pinnedLabel}>{pinnedMessages.length > 1 ? `${pinnedMessages.length} messages epingles` : 'Message epingle'}</Text><Text numberOfLines={1} style={styles.pinnedText}>{messagePreview(pinnedMessages[pinnedMessages.length - 1])}</Text></View><Ionicons name="chevron-forward" size={15} color={colors.textTertiary} /></Pressable> : null}
+      {pinnedMessages.length ? <Pressable onPress={() => listRef.current?.scrollToItem({ item: pinnedMessages[pinnedMessages.length - 1], animated: true, viewPosition: 0.35 })} style={[styles.pinnedBar, layout.contentFrame, { marginHorizontal: layout.gutter }]}><View style={[styles.pinnedIcon, { backgroundColor: `${accentColor}20` }]}><Ionicons name="pin" size={14} color={accentColor} /></View><View style={styles.pinnedCopy}><Text style={styles.pinnedLabel}>{pinnedMessages.length > 1 ? `${pinnedMessages.length} messages épinglés` : 'Message épinglé'}</Text><Text numberOfLines={1} style={styles.pinnedText}>{messagePreview(pinnedMessages[pinnedMessages.length - 1])}</Text></View><Ionicons name="chevron-forward" size={15} color={colors.textTertiary} /></Pressable> : null}
       {errorMessage ? <Pressable onPress={() => setErrorMessage('')} style={[styles.errorBanner, layout.contentFrame, { marginHorizontal: layout.gutter }]}><Ionicons name="alert-circle-outline" size={17} color={colors.coral} /><Text style={styles.errorText}>{errorMessage}</Text><Ionicons name="close" size={16} color={colors.textTertiary} /></Pressable> : null}
       <FlashList
         ref={listRef}
@@ -1263,6 +1272,7 @@ export function ConversationScreen() {
         keyExtractor={(message) => message.id}
         renderItem={renderMessage}
         contentContainerStyle={[styles.messages, layout.contentFrame, { paddingHorizontal: layout.gutter }, !messages.length && styles.messagesEmpty]}
+        keyboardDismissMode="on-drag"
         keyboardShouldPersistTaps="handled"
         onContentSizeChange={() => {
           if (initialScrollPendingRef.current || !initializedRef.current) {
@@ -1299,7 +1309,7 @@ export function ConversationScreen() {
                   <View style={styles.voicePreviewCopy}><View style={styles.voiceBars}>{compactWaveform(voiceRecorder.draft.waveform, 28).map((sample, index) => <View key={index} style={[styles.voiceBar, { height: 4 + sample * 20, backgroundColor: accentColor }]} />)}</View><Text style={styles.voicePreviewDuration}>{recordingClock(voiceRecorder.durationMs)}</Text></View>
                   <MotionPressable accessibilityLabel="Réenregistrer" onPress={() => { setVoicePreviewPlaying(false); void voiceRecorder.discardDraft().then(() => voiceRecorder.begin()); }} style={styles.voiceUtilityButton}><Ionicons name="refresh" size={18} color={colors.textSecondary} /></MotionPressable>
                   <MotionPressable accessibilityLabel="Envoyer le vocal" disabled={uploading} onPress={() => void sendVoiceDraft()} style={[styles.sendButton, { backgroundColor: accentColor }, uploading && styles.sendButtonDisabled]}>{uploading ? <ActivityIndicator size="small" color={colors.paper} /> : <Ionicons name="arrow-up" size={20} color={colors.paper} />}</MotionPressable>
-                  <Video source={{ uri: voiceRecorder.draft.uri }} paused={!voicePreviewPlaying} onEnd={() => setVoicePreviewPlaying(false)} onError={() => { setVoicePreviewPlaying(false); setErrorMessage('Aperçu audio indisponible.'); }} style={styles.hiddenAudio} />
+                  <Video source={{ uri: voiceRecorder.draft.uri }} paused={!voicePreviewPlaying || calls.engaged} onEnd={() => setVoicePreviewPlaying(false)} onError={() => { setVoicePreviewPlaying(false); setErrorMessage('Aperçu audio indisponible.'); }} style={styles.hiddenAudio} />
                 </View>
               ) : (
                 <View style={styles.composerRow}>
@@ -1313,7 +1323,7 @@ export function ConversationScreen() {
                   ) : (
                     <>
                       <MotionPressable accessibilityLabel="Ajouter une pièce jointe" disabled={uploading} onPress={() => setAttachmentOpen(true)} style={[styles.attachButton, uploading && styles.disabled]}>{uploading ? <ActivityIndicator size="small" color={accentColor} /> : <Ionicons name="add" size={22} color={colors.textSecondary} />}</MotionPressable>
-                      <View style={styles.inputShell}><TextInput ref={inputRef} value={draft} onChangeText={(value) => setDraft(value.slice(0, 2_000))} placeholder={room?.type === 'voice_notes' ? 'Ajoute un contexte au vocal…' : 'Écrire un message…'} placeholderTextColor={colors.textTertiary} multiline maxLength={2_000} style={styles.input} maxFontSizeMultiplier={1.2} /></View>
+                      <View style={styles.inputShell}><TextInput accessibilityLabel="Message" ref={inputRef} value={draft} onChangeText={(value) => setDraft(value.slice(0, 2_000))} placeholder={room?.type === 'voice_notes' ? 'Ajoute un contexte au vocal…' : 'Écrire un message…'} placeholderTextColor={colors.textTertiary} multiline maxLength={2_000} style={styles.input} maxFontSizeMultiplier={1.2} /></View>
                     </>
                   )}
                   {draft.trim() && voiceRecorder.phase === 'idle' ? (
@@ -1321,7 +1331,7 @@ export function ConversationScreen() {
                   ) : voiceRecorder.locked ? (
                     <MotionPressable accessibilityLabel="Arrêter l’enregistrement" onPress={() => void voiceRecorder.stop()} style={[styles.sendButton, { backgroundColor: colors.coral }]}><Ionicons name="stop" size={18} color={colors.paper} /></MotionPressable>
                   ) : (
-                    <View accessibilityLabel="Maintenir pour enregistrer" accessible key="voice-hold" {...voiceRecorder.panHandlers} style={[styles.sendButton, { backgroundColor: voiceRecorder.phase === 'recording' ? (voiceRecorder.cancelArmed ? colors.coral : accentColor) : colors.text }]}><Ionicons name={voiceRecorder.phase === 'recording' ? 'mic' : 'mic-outline'} size={20} color={colors.paper} /></View>
+                    <View accessibilityLabel="Maintenir pour enregistrer" accessible key="voice-hold" {...voiceRecorder.panHandlers} style={[styles.sendButton, { backgroundColor: voiceRecorder.phase === 'recording' ? (voiceRecorder.cancelArmed ? colors.coral : accentColor) : colors.text }]}><Ionicons name={voiceRecorder.phase === 'recording' ? 'mic' : 'mic-outline'} size={20} color={voiceRecorder.phase === 'recording' ? colors.paper : colors.background} /></View>
                   )}
                 </View>
               )}
@@ -1372,7 +1382,7 @@ export function ConversationScreen() {
       <Modal transparent visible={Boolean(editingMessage)} animationType="fade" onRequestClose={() => setEditingMessage(null)}>
         <Pressable style={styles.modalBackdrop} onPress={() => setEditingMessage(null)}>
           <Pressable style={styles.editCard} onPress={() => {}}>
-            <View style={styles.editHeader}><View><Text style={styles.confirmTitle}>Modifier le message</Text><Text style={styles.editHint}>Le message portera la mention modifie.</Text></View><MotionPressable accessibilityLabel="Fermer" onPress={() => setEditingMessage(null)} style={styles.headerButton}><Ionicons name="close" size={19} color={colors.text} /></MotionPressable></View>
+            <View style={styles.editHeader}><View><Text style={styles.confirmTitle}>Modifier le message</Text><Text style={styles.editHint}>Le message portera la mention modifié.</Text></View><MotionPressable accessibilityLabel="Fermer" onPress={() => setEditingMessage(null)} style={styles.headerButton}><Ionicons name="close" size={19} color={colors.text} /></MotionPressable></View>
             <View style={styles.editInputShell}><TextInput autoFocus multiline maxLength={2_000} value={editContent} onChangeText={setEditContent} style={styles.editInput} selectionColor={accentColor} /></View>
             <View style={styles.confirmActions}><MotionPressable style={styles.secondaryButton} onPress={() => setEditingMessage(null)}><Text style={styles.secondaryButtonText}>Annuler</Text></MotionPressable><MotionPressable disabled={!editContent.trim()} style={[styles.dangerButton, { backgroundColor: accentColor }, !editContent.trim() && styles.disabled]} onPress={() => void saveEditedMessage()}><Text style={styles.dangerButtonText}>Enregistrer</Text></MotionPressable></View>
           </Pressable>
@@ -1499,11 +1509,13 @@ export function ConversationScreen() {
       <Modal transparent={false} visible={Boolean(imagePreview)} animationType="fade" onRequestClose={() => setImagePreview(null)}>
         <View style={styles.imagePreview}><Image source={imagePreview ? { uri: imagePreview } : undefined} contentFit="contain" style={StyleSheet.absoluteFill} /><Pressable accessibilityLabel="Fermer" onPress={() => setImagePreview(null)} style={[styles.previewClose, { top: layout.insets.top + spacing.sm }]}><Ionicons name="close" size={22} color={colors.paper} /></Pressable></View>
       </Modal>
-    </KeyboardAvoidingView>
+    </KeyboardAvoidingView></EntryMotionScope>
   );
 }
 
 function ConversationBackdrop({ preferences, fallbackImage }: { preferences?: MessagingConversationPreferences; fallbackImage?: string | null }) {
+  const colors = useMessagingColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const background = preferences?.backgroundKey || 'quiet';
   const accent = preferences?.accentColor || '#7357C6';
   const image = preferences?.wallpaperUrl || fallbackImage;
@@ -1511,18 +1523,31 @@ function ConversationBackdrop({ preferences, fallbackImage }: { preferences?: Me
   return <View pointerEvents="none" style={StyleSheet.absoluteFill}>
     {background === 'cover' && image ? <Image source={{ uri: image }} contentFit="cover" blurRadius={34} style={[StyleSheet.absoluteFill, styles.backdropImage]} /> : null}
     <LinearGradient
-      colors={background === 'midnight' ? ['rgba(5,5,5,0.98)', `${accent}28`, 'rgba(5,5,5,0.99)'] : background === 'cover' ? ['rgba(13,13,13,0.52)', `${accent}35`, 'rgba(13,13,13,0.96)'] : [`${accent}3D`, 'rgba(74,158,170,0.16)', 'rgba(13,13,13,0.96)']}
+      colors={background === 'midnight' ? [colors.background, `${accent}18`, colors.background] : background === 'cover' ? [`${colors.background}CC`, `${accent}25`, `${colors.background}F5`] : [`${accent}22`, `${colors.background}B8`, colors.background]}
       locations={[0, 0.48, 1]}
       style={StyleSheet.absoluteFill}
     />
   </View>;
 }
 
-function ConversationHeader({ navigation, user, title, subtitle, onMenu, layout, accentColor = colors.violet }: { navigation: any; user: MessagingUser | null; title: string; subtitle: string; onMenu: () => void; layout: ReturnType<typeof useResponsiveLayout>; accentColor?: string }) {
-  return <View style={[styles.header, { paddingTop: layout.insets.top + 6 }]}><View style={[styles.headerFrame, layout.contentFrame, { paddingHorizontal: layout.gutter }]}><MotionPressable accessibilityLabel="Retour" onPress={() => navigation.goBack()} style={styles.headerButton}><Ionicons name="chevron-back" size={21} color={colors.text} /></MotionPressable>{user ? <Pressable onPress={() => navigation.navigate('PublicProfile', { username: user.username })}><MessagingAvatar user={user} size={40} active={recentlyActive(user)} /></Pressable> : <View style={[styles.groupAvatar, { backgroundColor: `${accentColor}28` }]}><Ionicons name="people" size={19} color={accentColor} /></View>}<Pressable disabled={!user} onPress={() => user && navigation.navigate('PublicProfile', { username: user.username })} style={styles.headerCopy}><Text numberOfLines={1} style={styles.headerTitle}>{title}</Text><Text numberOfLines={1} style={styles.headerSubtitle}>{subtitle}</Text></Pressable><MotionPressable accessibilityLabel="Options de la discussion" onPress={onMenu} style={styles.headerButton}><Ionicons name="ellipsis-horizontal" size={20} color={colors.text} /></MotionPressable></View></View>;
+function ConversationHeader({ navigation, user, title, subtitle, onMenu, onCall, layout, accentColor = '#7357C6' }: { navigation: any; user: MessagingUser | null; title: string; subtitle: string; onMenu: () => void; onCall?: () => void; layout: ReturnType<typeof useResponsiveLayout>; accentColor?: string }) {
+  const colors = useMessagingColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  return <View style={[styles.header, { paddingTop: layout.insets.top + 4 }]}>
+    <View style={[styles.headerFrame, layout.pageContent]}>
+      <MotionPressable accessibilityRole="button" accessibilityLabel="Retour" onPress={() => navigation.goBack()} style={styles.headerButton}><Ionicons name="arrow-back" size={23} color={colors.text} /></MotionPressable>
+      {user ? <Pressable accessibilityRole="button" accessibilityLabel={`Profil de ${user.name}`} onPress={() => navigation.navigate('PublicProfile', { username: user.username })}><MessagingAvatar user={user} size={42} active={recentlyActive(user)} /></Pressable> : <View style={[styles.groupAvatar, { backgroundColor: `${accentColor}28` }]}><Ionicons name="people" size={21} color={accentColor} /></View>}
+      <Pressable accessibilityRole="button" accessibilityLabel={`Profil de ${title}`} disabled={!user} onPress={() => user && navigation.navigate('PublicProfile', { username: user.username })} style={styles.headerCopy}><Text numberOfLines={1} style={styles.headerTitle}>{title}</Text><Text numberOfLines={1} style={styles.headerSubtitle}>{subtitle}</Text></Pressable>
+      {onCall ? <MotionPressable accessibilityRole="button" accessibilityLabel="Appeler la discussion" onPress={onCall} style={styles.headerButton}><Ionicons name="call-outline" size={22} color={colors.text} /></MotionPressable> : null}
+      <MotionPressable accessibilityRole="button" accessibilityLabel="Options de la discussion" onPress={onMenu} style={styles.headerButton}><Ionicons name="ellipsis-horizontal" size={23} color={colors.text} /></MotionPressable>
+    </View>
+  </View>;
 }
 
 function NativeMessageBubble({ message, own, accentColor, playing, onPlayAudio, onAudioEnd, onImage, onShared }: { message: MessagingMessage; own: boolean; accentColor: string; playing: boolean; onPlayAudio: () => void; onAudioEnd: () => void; onImage: () => void; onShared: () => void }) {
+  const callAudioLocked = useCallAudioLock();
+  const colors = useMessagingColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const audioRef = useRef<any>(null);
   const initialDuration = Math.max(0, Number(message.attachments.find((item) => item.type === 'audio')?.durationMs || 0) / 1_000 || Number(message.metadata?.duration || 0));
   const [audioPosition, setAudioPosition] = useState({ current: 0, duration: initialDuration });
@@ -1545,6 +1570,7 @@ function NativeMessageBubble({ message, own, accentColor, playing, onPlayAudio, 
   };
   if (message.deleted) return <View style={[styles.bubble, own ? styles.bubbleOwn : styles.bubbleOther, ownAccent]}><Text style={[styles.deletedText, own && styles.bubbleTextOwn]}>Message supprimé</Text></View>;
   if (message.type === 'image') return <Pressable onPress={onImage} style={[styles.mediaBubble, own ? styles.bubbleOwn : styles.bubbleOther, ownAccent]}><Image source={{ uri: mediaUrl }} contentFit="cover" transition={120} style={styles.messageImage} /></Pressable>;
+  if (message.type === 'video' && callAudioLocked) return <Text style={styles.emptyText}>Vidéo en pause pendant l’appel</Text>;
   if (message.type === 'video') return <View style={[styles.mediaBubble, own ? styles.bubbleOwn : styles.bubbleOther, ownAccent]}><Video source={{ uri: mediaUrl }} controls paused resizeMode="contain" style={styles.messageVideo} /></View>;
   if (message.type === 'audio') {
     const progress = audioPosition.duration > 0 ? Math.min(1, audioPosition.current / audioPosition.duration) : 0;
@@ -1576,15 +1602,17 @@ function MessageActionOverlay({ visible, message, ownId, anchor, accentColor, vi
   onDelete: () => void;
   onRetry: () => void;
 }) {
+  const colors = useMessagingColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   if (!message) return null;
   const own = message.sender.id === ownId;
   const local = message.id.startsWith('local:');
   const actions = [
     ...(message.localState === 'failed' ? [{ key: 'retry', label: 'Renvoyer', icon: 'refresh' as const, action: onRetry }] : []),
-    ...(!message.deleted ? [{ key: 'reply', label: 'Repondre', icon: 'return-up-back-outline' as const, action: onReply }] : []),
+    ...(!message.deleted ? [{ key: 'reply', label: 'Répondre', icon: 'return-up-back-outline' as const, action: onReply }] : []),
     ...(message.type === 'text' && message.content ? [{ key: 'copy', label: 'Copier', icon: 'copy-outline' as const, action: onCopy }] : []),
     ...(own && message.type === 'text' && !message.deleted && !local ? [{ key: 'edit', label: 'Modifier', icon: 'create-outline' as const, action: onEdit }] : []),
-    ...(!message.deleted && !local ? [{ key: 'pin', label: message.pinned ? 'Desepingler' : 'Epingler', icon: message.pinned ? 'pin-outline' as const : 'pin' as const, action: onPin }] : []),
+    ...(!message.deleted && !local ? [{ key: 'pin', label: message.pinned ? 'Désépingler' : 'Épingler', icon: message.pinned ? 'pin-outline' as const : 'pin' as const, action: onPin }] : []),
     ...(!message.deleted ? [{ key: 'hide', label: local ? 'Annuler' : 'Masquer', icon: local ? 'close-circle-outline' as const : 'eye-off-outline' as const, action: onHide }] : []),
     ...(own && !message.deleted && !local ? [{ key: 'delete', label: 'Supprimer', icon: 'trash-outline' as const, action: onDelete, danger: true }] : []),
   ];
@@ -1607,14 +1635,20 @@ function MessageActionOverlay({ visible, message, ownId, anchor, accentColor, vi
 }
 
 function SheetRow({ icon, label, onPress, danger = false }: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void; danger?: boolean }) {
+  const colors = useMessagingColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return <MotionPressable onPress={onPress} style={styles.sheetRow}><Ionicons name={icon} size={19} color={danger ? colors.coral : colors.textSecondary} /><Text style={[styles.sheetRowText, danger && styles.sheetDangerText]}>{label}</Text><Ionicons name="chevron-forward" size={16} color={colors.textTertiary} /></MotionPressable>;
 }
 
 function AttachmentOption({ icon, label, tint, onPress }: { icon: keyof typeof Ionicons.glyphMap; label: string; tint: string; onPress: () => void }) {
+  const colors = useMessagingColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return <MotionPressable accessibilityLabel={label} onPress={onPress} style={styles.attachmentOption}><View style={[styles.attachmentIcon, { backgroundColor: `${tint}20` }]}><Ionicons name={icon} size={23} color={tint} /></View><Text style={styles.attachmentLabel}>{label}</Text></MotionPressable>;
 }
 
 function SwipeToReply({ children, onReply, accentColor }: { children: React.ReactNode; onReply: () => void; accentColor: string }) {
+  const colors = useMessagingColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const translateX = useRef(new Animated.Value(0)).current;
   const responder = useMemo(() => PanResponder.create({
     onMoveShouldSetPanResponder: (_, gesture) => gesture.dx > 10 && Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.4,
@@ -1631,11 +1665,18 @@ function SwipeToReply({ children, onReply, accentColor }: { children: React.Reac
 }
 
 function ReactionBurst({ accentColor, reaction }: { accentColor: string; reaction: MessagingReactionName }) {
+  const colors = useMessagingColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const motion = useEntryMotion();
   const progress = useRef(new Animated.Value(0)).current;
   const icon = REACTIONS.find((entry) => entry.value === reaction)?.icon || 'heart';
   useEffect(() => {
-    Animated.timing(progress, { toValue: 1, duration: 560, useNativeDriver: true }).start();
-  }, [progress]);
+    if (!motion) return;
+    const animation = Animated.timing(progress, { toValue: 1, duration: 560, useNativeDriver: true, isInteraction: false });
+    animation.start();
+    return () => animation.stop();
+  }, [motion, progress]);
+  if (!motion) return null;
   return <Animated.View pointerEvents="none" style={[styles.reactionBurst, {
     opacity: progress.interpolate({ inputRange: [0, 0.18, 0.78, 1], outputRange: [0, 1, 1, 0] }),
     transform: [
@@ -1645,23 +1686,23 @@ function ReactionBurst({ accentColor, reaction }: { accentColor: string; reactio
   }]}><Ionicons name={icon} size={30} color={accentColor} /></Animated.View>;
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof useMessagingColors>) => StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   backdropQuiet: { backgroundColor: colors.background },
   backdropImage: { opacity: 0.42, transform: [{ scale: 1.12 }] },
   loader: { flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
-  header: { zIndex: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border, backgroundColor: colors.background },
-  headerFrame: { width: '100%', height: 62, flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  headerButton: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceStrong, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong },
+  header: { zIndex: 10, backgroundColor: colors.background },
+  headerFrame: { width: '100%', minHeight: 72, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  headerButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   groupAvatar: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   headerCopy: { flex: 1, minWidth: 0 },
-  headerTitle: { color: colors.text, fontSize: 14, lineHeight: 18, fontWeight: '900' },
-  headerSubtitle: { marginTop: 2, color: colors.textTertiary, fontSize: 10, lineHeight: 14, fontWeight: '700' },
-  roomBar: { minHeight: 48, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border, backgroundColor: colors.background },
+  headerTitle: { color: colors.text, fontSize: 17, lineHeight: 23, fontWeight: '700' },
+  headerSubtitle: { marginTop: 2, color: colors.textSecondary, fontSize: 12, lineHeight: 18 },
+  roomBar: { minHeight: 54, backgroundColor: colors.background },
   roomBarContent: { alignItems: 'center', gap: 7, paddingVertical: 7 },
-  roomChip: { height: 33, borderRadius: 17, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, backgroundColor: colors.surface, paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', gap: 6 },
-  roomChipText: { color: colors.textSecondary, fontSize: 10, fontWeight: '900' },
-  roomAdd: { width: 33, height: 33, borderRadius: 17, alignItems: 'center', justifyContent: 'center', borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, backgroundColor: colors.surfaceStrong },
+  roomChip: { minHeight: 44, borderRadius: 22, backgroundColor: colors.surface, paddingHorizontal: 15, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  roomChipText: { color: colors.textSecondary, fontSize: 13, fontWeight: '700' },
+  roomAdd: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceStrong },
   pinnedBar: { minHeight: 47, marginTop: 8, borderRadius: radius.sm, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, backgroundColor: colors.surface, paddingHorizontal: 9, flexDirection: 'row', alignItems: 'center', gap: 9 },
   pinnedIcon: { width: 31, height: 31, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   pinnedCopy: { flex: 1, minWidth: 0 },
@@ -1674,53 +1715,53 @@ const styles = StyleSheet.create({
   olderButton: { minHeight: 38, alignSelf: 'center', marginBottom: spacing.lg, borderRadius: radius.pill, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, paddingHorizontal: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface },
   olderButtonText: { color: colors.textSecondary, fontSize: 10, fontWeight: '900' },
   dayDivider: { minHeight: 34, marginVertical: 8, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  dayDividerLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: colors.borderStrong },
-  dayDividerText: { color: colors.textTertiary, fontSize: 9, fontWeight: '900', textTransform: 'capitalize' },
+  dayDividerLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: colors.border },
+  dayDividerText: { color: colors.textTertiary, fontSize: 11, fontWeight: '600', textTransform: 'capitalize' },
   swipeShell: { position: 'relative', width: '100%' },
   swipeReplyIcon: { position: 'absolute', left: 8, top: '50%', width: 34, height: 34, marginTop: -17, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
   messageRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 6, marginBottom: 4 },
   messageRowOwn: { justifyContent: 'flex-end' },
   messageGroupStart: { marginTop: spacing.sm },
   avatarSlot: { width: 28, minHeight: 1 },
-  messageColumn: { maxWidth: '80%', alignItems: 'flex-start' },
+  messageColumn: { maxWidth: '84%', minWidth: 0, alignItems: 'flex-start' },
   messageColumnOwn: { alignItems: 'flex-end' },
-  senderName: { marginBottom: 4, marginLeft: 3, color: colors.textTertiary, fontSize: 9, fontWeight: '800' },
+  senderName: { marginBottom: 5, marginLeft: 4, color: colors.textSecondary, fontSize: 12, fontWeight: '600' },
   replySnippet: { maxWidth: 250, marginBottom: 3, borderLeftWidth: 3, borderLeftColor: colors.violet, borderRadius: 8, backgroundColor: colors.surfaceMuted, paddingHorizontal: 9, paddingVertical: 6 },
-  replySnippetOwn: { borderLeftColor: colors.paper, backgroundColor: 'rgba(255,255,255,0.14)' },
-  replySnippetAuthor: { color: colors.violet, fontSize: 9, fontWeight: '900' },
-  replySnippetText: { marginTop: 1, color: colors.textSecondary, fontSize: 10, fontWeight: '600' },
-  replySnippetTextOwn: { color: colors.paper },
-  bubble: { maxWidth: '100%', minHeight: 36, borderRadius: 15, paddingHorizontal: 12, paddingVertical: 9 },
+  replySnippetOwn: { borderLeftColor: colors.violet, backgroundColor: colors.surfaceStrong },
+  replySnippetAuthor: { color: colors.violet, fontSize: 12, fontWeight: '700' },
+  replySnippetText: { marginTop: 2, color: colors.textSecondary, fontSize: 12, lineHeight: 18 },
+  replySnippetTextOwn: { color: colors.text },
+  bubble: { maxWidth: '100%', minHeight: 42, borderRadius: 20, paddingHorizontal: 15, paddingVertical: 11 },
   bubbleOwn: { backgroundColor: colors.violet, borderBottomRightRadius: 4 },
-  bubbleOther: { backgroundColor: colors.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, borderBottomLeftRadius: 4 },
-  bubbleText: { color: colors.text, fontSize: 14, lineHeight: 20, fontWeight: '600' },
+  bubbleOther: { backgroundColor: colors.surface, borderBottomLeftRadius: 5 },
+  bubbleText: { color: colors.text, fontSize: 16, lineHeight: 24 },
   bubbleTextOwn: { color: colors.paper },
   deletedText: { color: colors.textTertiary, fontSize: 12, lineHeight: 18, fontStyle: 'italic', fontWeight: '600' },
-  mediaBubble: { overflow: 'hidden', borderRadius: 15, padding: 3 },
+  mediaBubble: { overflow: 'hidden', borderRadius: 20, padding: 4 },
   messageImage: { width: 238, maxWidth: '100%', height: 260, borderRadius: 12, backgroundColor: colors.surfaceMuted },
   messageVideo: { width: 238, maxWidth: '100%', height: 260, borderRadius: 12, backgroundColor: colors.black },
-  audioBubble: { minWidth: 220, minHeight: 58, borderRadius: 15, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 9 },
-  audioPlay: { width: 37, height: 37, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.text },
+  audioBubble: { width: 254, maxWidth: '100%', minHeight: 78, borderRadius: 20, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  audioPlay: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.text },
   audioPlayOwn: { backgroundColor: colors.paper },
   audioCopy: { flex: 1, minWidth: 0 },
-  audioTitleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
-  audioTitle: { color: colors.text, fontSize: 11, fontWeight: '900' },
-  audioDuration: { color: colors.textSecondary, fontSize: 8, fontVariant: ['tabular-nums'], fontWeight: '800' },
+  audioTitleRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6 },
+  audioTitle: { color: colors.text, fontSize: 12, fontWeight: '700' },
+  audioDuration: { color: colors.textSecondary, fontSize: 11, fontVariant: ['tabular-nums'] },
   audioProgress: { height: 3, marginTop: 7, overflow: 'hidden', borderRadius: 2, backgroundColor: colors.surfaceMuted },
   audioProgressOwn: { backgroundColor: 'rgba(255,255,255,0.22)' },
   audioProgressValue: { height: '100%', borderRadius: 2, backgroundColor: colors.cyan },
-  audioTimeline: { minHeight: 25, marginTop: 3, justifyContent: 'center', borderRadius: 8 },
+  audioTimeline: { minHeight: 36, justifyContent: 'center', borderRadius: 8 },
   audioWaveform: { height: 24, flexDirection: 'row', alignItems: 'center', gap: 1.5, overflow: 'hidden' },
   audioWaveBar: { flex: 1, minWidth: 1.5, maxWidth: 3, borderRadius: 2 },
   hiddenAudio: { position: 'absolute', width: 1, height: 1, opacity: 0 },
-  sharedBubble: { minWidth: 248, maxWidth: 310, minHeight: 68, borderRadius: 15, padding: 7, flexDirection: 'row', alignItems: 'center', gap: 9 },
-  sharedCover: { width: 54, height: 54, borderRadius: radius.sm, backgroundColor: colors.surfaceMuted },
+  sharedBubble: { width: 274, maxWidth: '100%', minHeight: 86, borderRadius: 20, padding: 10, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  sharedCover: { width: 54, height: 62, borderRadius: 12, backgroundColor: colors.surfaceMuted },
   sharedCoverFallback: { width: 54, height: 54, borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.12)' },
   sharedCopy: { flex: 1, minWidth: 0 },
-  sharedTitle: { color: colors.text, fontSize: 11, fontWeight: '900' },
-  sharedSubtitle: { marginTop: 3, color: colors.textSecondary, fontSize: 9, fontWeight: '700' },
+  sharedTitle: { color: colors.text, fontSize: 14, lineHeight: 20, fontWeight: '700' },
+  sharedSubtitle: { marginTop: 3, color: colors.textSecondary, fontSize: 12, lineHeight: 18 },
   sharedSubtitleOwn: { color: 'rgba(255,255,255,0.68)' },
-  sharedPlay: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.text },
+  sharedPlay: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.text },
   sharedPlayOwn: { backgroundColor: colors.paper },
   reactionSummary: { marginTop: 3, flexDirection: 'row', flexWrap: 'wrap', gap: 3 },
   reactionSummaryOwn: { justifyContent: 'flex-end' },
@@ -1729,40 +1770,40 @@ const styles = StyleSheet.create({
   reactionCount: { color: colors.textSecondary, fontSize: 9, fontWeight: '900' },
   reactionCountSelected: { color: colors.violet },
   reactionBurst: { position: 'absolute', alignSelf: 'center', top: '18%', zIndex: 12 },
-  timeRow: { minHeight: 14, marginTop: 2, paddingHorizontal: 3, flexDirection: 'row', alignItems: 'center', gap: 3 },
+  timeRow: { minHeight: 20, marginTop: 3, paddingHorizontal: 5, flexDirection: 'row', alignItems: 'center', gap: 5 },
   timeRowOwn: { justifyContent: 'flex-end' },
-  time: { color: colors.textTertiary, fontSize: 8, fontWeight: '700' },
+  time: { color: colors.textTertiary, fontSize: 10 },
   retryStatus: { minHeight: 22, flexDirection: 'row', alignItems: 'center', gap: 3, paddingHorizontal: 4 },
   retryStatusText: { color: colors.coral, fontSize: 8, fontWeight: '900' },
-  composerWrap: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border, backgroundColor: colors.background, paddingTop: 9 },
+  composerWrap: { backgroundColor: colors.background, paddingTop: 10 },
   composerFrame: { width: '100%' },
   replyComposer: { minHeight: 49, marginBottom: 7, borderRadius: radius.sm, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, backgroundColor: colors.surface, paddingRight: 5, flexDirection: 'row', alignItems: 'center', overflow: 'hidden' },
   replyComposerMark: { alignSelf: 'stretch', width: 3 },
   replyComposerCopy: { flex: 1, minWidth: 0, paddingHorizontal: 10 },
-  replyComposerAuthor: { fontSize: 10, fontWeight: '900' },
-  replyComposerText: { marginTop: 2, color: colors.textSecondary, fontSize: 10, fontWeight: '600' },
-  replyComposerClose: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
-  composerRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 7 },
-  attachButton: { width: 43, height: 43, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong },
-  inputShell: { flex: 1, minHeight: 43, maxHeight: 118, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, backgroundColor: colors.surface, justifyContent: 'center', paddingHorizontal: 11 },
-  input: { minHeight: 41, maxHeight: 112, paddingTop: 10, paddingBottom: 9, color: colors.text, fontSize: 13, lineHeight: 18, fontWeight: '600' },
-  sendButton: { width: 43, height: 43, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.text },
+  replyComposerAuthor: { fontSize: 12, fontWeight: '700' },
+  replyComposerText: { marginTop: 2, color: colors.textSecondary, fontSize: 12, lineHeight: 18 },
+  replyComposerClose: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  composerRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8 },
+  attachButton: { width: 46, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface },
+  inputShell: { flex: 1, minHeight: 48, maxHeight: 150, borderRadius: 24, backgroundColor: colors.surface, justifyContent: 'center', paddingHorizontal: 16 },
+  input: { minHeight: 46, maxHeight: 144, paddingTop: 12, paddingBottom: 12, color: colors.text, fontSize: 15, lineHeight: 22 },
+  sendButton: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.text },
   sendButtonDisabled: { opacity: 0.28 },
   voiceRecordingPanel: { flex: 1, minHeight: 43, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, backgroundColor: colors.surface, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 9 },
   voiceRecordingCancel: { borderColor: colors.coral, backgroundColor: colors.coralSoft },
   recordingDot: { width: 9, height: 9, borderRadius: 5 },
   voiceRecordingCopy: { flex: 1, minWidth: 0 },
   voiceRecordingTime: { color: colors.text, fontSize: 12, fontVariant: ['tabular-nums'], fontWeight: '900' },
-  voiceRecordingHint: { marginTop: 2, color: colors.textTertiary, fontSize: 8, fontWeight: '700' },
+  voiceRecordingHint: { marginTop: 2, color: colors.textSecondary, fontSize: 11, lineHeight: 16 },
   voiceLiveBars: { width: 44, height: 22, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 1, overflow: 'hidden' },
   voiceLiveBar: { width: 2, minHeight: 3, borderRadius: 1 },
   voicePreviewRow: { minHeight: 54, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, backgroundColor: colors.surface, padding: 6, flexDirection: 'row', alignItems: 'center', gap: 6 },
-  voiceUtilityButton: { width: 35, height: 35, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceStrong },
+  voiceUtilityButton: { width: 40, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   voicePreviewPlay: { width: 39, height: 39, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
   voicePreviewCopy: { flex: 1, minWidth: 0 },
   voiceBars: { height: 24, flexDirection: 'row', alignItems: 'center', gap: 2, overflow: 'hidden' },
   voiceBar: { width: 2, minHeight: 3, borderRadius: 1 },
-  voicePreviewDuration: { marginTop: 2, color: colors.textTertiary, fontSize: 8, fontVariant: ['tabular-nums'], fontWeight: '800' },
+  voicePreviewDuration: { marginTop: 2, color: colors.textSecondary, fontSize: 11, fontVariant: ['tabular-nums'] },
   disabled: { opacity: 0.4 },
   uploadStatus: { minHeight: 19, paddingTop: 7, flexDirection: 'row', alignItems: 'center', gap: 8 },
   uploadTrack: { flex: 1, height: 3, overflow: 'hidden', borderRadius: 2, backgroundColor: colors.surfaceMuted },
@@ -1791,7 +1832,7 @@ const styles = StyleSheet.create({
   actionSheet: { width: '100%', maxWidth: 680, alignSelf: 'center', borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, borderBottomWidth: 0, borderColor: colors.borderStrong, paddingHorizontal: spacing.md, paddingTop: spacing.sm, backgroundColor: colors.elevatedSurface },
   customizeSheet: { width: '100%', maxWidth: 680, maxHeight: '88%', alignSelf: 'center', borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, borderBottomWidth: 0, borderColor: colors.borderStrong, paddingHorizontal: spacing.lg, paddingTop: spacing.sm, backgroundColor: colors.elevatedSurface },
   sheetHandle: { width: 38, height: 4, borderRadius: 2, alignSelf: 'center', marginBottom: spacing.md, backgroundColor: colors.textTertiary },
-  sheetTitle: { marginBottom: spacing.md, color: colors.text, fontSize: 14, fontWeight: '900' },
+  sheetTitle: { color: colors.text, fontSize: 21, fontWeight: '700', marginBottom: 18 },
   reactionSectionLabel: { marginTop: spacing.sm, marginBottom: 8, color: colors.textTertiary, fontSize: 9, fontWeight: '900', textTransform: 'uppercase' },
   customizeHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: spacing.md },
   customizeSubtitle: { marginTop: -6, color: colors.textTertiary, fontSize: 9, lineHeight: 14, fontWeight: '700' },
@@ -1861,9 +1902,9 @@ const styles = StyleSheet.create({
   roomEditorDelete: { minHeight: 43, marginTop: spacing.md, borderRadius: radius.sm, backgroundColor: colors.coralSoft, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
   roomEditorDeleteText: { color: colors.coral, fontSize: 10, fontWeight: '900' },
   attachmentGrid: { flexDirection: 'row', gap: 8 },
-  attachmentOption: { flex: 1, minWidth: 0, minHeight: 78, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', gap: 7, backgroundColor: colors.surfaceStrong, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
+  attachmentOption: { flex: 1, minWidth: 0, minHeight: 96, borderRadius: 22, alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: colors.surfaceStrong },
   attachmentIcon: { width: 39, height: 39, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  attachmentLabel: { color: colors.text, fontSize: 9, fontWeight: '900' },
+  attachmentLabel: { color: colors.text, fontSize: 13, fontWeight: '700' },
   reactionPicker: { flexDirection: 'row', justifyContent: 'space-between', gap: 5 },
   reactionButton: { flex: 1, minWidth: 0, height: 62, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', gap: 5, backgroundColor: colors.surfaceStrong },
   reactionButtonSelected: { borderWidth: 1, borderColor: colors.violet, backgroundColor: colors.violetSoft },
@@ -1872,7 +1913,7 @@ const styles = StyleSheet.create({
   sheetDangerRow: { minHeight: 50, marginTop: spacing.md, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border, flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   sheetDangerText: { color: colors.coral },
   sheetRow: { minHeight: 52, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border, paddingHorizontal: 5, flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  sheetRowText: { flex: 1, color: colors.text, fontSize: 13, fontWeight: '800' },
+  sheetRowText: { flex: 1, color: colors.text, fontSize: 15, fontWeight: '600' },
   modalBackdrop: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing.lg, backgroundColor: 'rgba(0,0,0,0.64)' },
   confirmCard: { width: '100%', maxWidth: 420, borderRadius: radius.lg, padding: spacing.lg, backgroundColor: colors.elevatedSurface, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong },
   editCard: { width: '100%', maxWidth: 520, borderRadius: radius.lg, padding: spacing.lg, backgroundColor: colors.elevatedSurface, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong },

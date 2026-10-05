@@ -19,7 +19,7 @@ import * as Clipboard from 'expo-clipboard';
 import * as DocumentPicker from 'expo-document-picker';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
-import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   getAIGenerationStatus,
@@ -52,8 +52,10 @@ import {
   type CreditPackId,
 } from '@/api/client';
 import { useAuth } from '@/auth/AuthProvider';
-import { SynauraBackground } from '@/components/SynauraBackground';
-import { MobileAccountButton } from '@/components/account/MobileAccountMenu';
+import { CollectionSurface, CollectionIconButton, CollectionTabs, useCollectionPalette } from '@/components/mobile/CollectionUI';
+import { EntryPressable } from '@/components/entry/EntryPressable';
+import { useEntryMotion } from '@/components/entry/EntryAtmosphere';
+import { STUDIO_MODELS, studioAvailableModels, studioGenerationModel, studioModelLabel } from '@/constants/studioModels';
 import { MobileAnimatedLogo } from '@/components/mobile/MobileAnimatedLogo';
 import { MobileWaveform } from '@/components/mobile/MobileWaveform';
 import { CreateArrivalBanner } from '@/components/create/CreateArrivalBanner';
@@ -77,7 +79,7 @@ import { ShareSheet } from '@/components/swipe/ShareSheet';
 
 type StudioTab = 'create' | 'library';
 type StudioMode = 'simple' | 'custom' | 'remix';
-const MODELS = ['V5_5', 'V5', 'V4_5PLUS', 'V4_5'];
+const MODELS: readonly string[] = STUDIO_MODELS;
 const DURATIONS = [60, 120, 180];
 const PREF_KEY = 'synaura.ai-studio.preferences';
 const ACTIVE_TASK_KEY = 'synaura.ai-studio.active-task';
@@ -127,7 +129,7 @@ function aiTrackToPlayer(track: AIStatusTrack | NonNullable<AIStudioGeneration['
 }
 
 function formatModelLabel(value: string) {
-  return value.replace('V4_5PLUS', 'V4.5+').replaceAll('_', '.');
+  return studioModelLabel(value);
 }
 
 export function AIStudioScreen() {
@@ -135,6 +137,8 @@ export function AIStudioScreen() {
   const route = useRoute<any>();
   const insets = useSafeAreaInsets();
   const responsive = useResponsiveLayout();
+  const palette = useCollectionPalette();
+  const motion = useEntryMotion();
   const keyboardHeight = useKeyboardHeight();
   const auth = useAuth();
   const player = usePlayer();
@@ -142,7 +146,7 @@ export function AIStudioScreen() {
   const [mode, setMode] = useState<StudioMode>('simple');
   const [remixType, setRemixType] = useState<RemixType>(DEFAULT_REMIX_TYPE);
   const [remixPromptVisibility, setRemixPromptVisibility] = useState<RemixPromptVisibility>(DEFAULT_REMIX_PROMPT_VISIBILITY);
-  const [model, setModel] = useState('V4_5');
+  const [model, setModel] = useState('V6_MINI');
   const [duration, setDuration] = useState(120);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -218,10 +222,6 @@ export function AIStudioScreen() {
     });
     return () => { mounted = false; };
   }, [auth.user?.id]);
-
-  useFocusEffect(useCallback(() => {
-    if (auth.user?.username) setTab('create');
-  }, [auth.user?.username]));
 
   useEffect(() => {
     if (!challengeId) return;
@@ -348,7 +348,7 @@ export function AIStudioScreen() {
           if (DURATIONS.includes(prefs.duration)) setDuration(prefs.duration);
         } catch {}
       }
-      if (rawTask) {
+      if (rawTask && auth.user) {
         try {
           const active = JSON.parse(rawTask);
           if (active?.taskId) {
@@ -368,7 +368,7 @@ export function AIStudioScreen() {
   }, [auth, duration, instrumental, mode, model]);
 
   useEffect(() => {
-    if (!liveTaskId || liveStatus === 'SUCCESS' || liveStatus === 'ERROR') return;
+    if (!auth.user || !liveTaskId || liveStatus === 'SUCCESS' || liveStatus === 'ERROR') return;
     let mounted = true;
     const poll = async () => {
       try {
@@ -391,9 +391,10 @@ export function AIStudioScreen() {
       mounted = false;
       clearInterval(interval);
     };
-  }, [liveStatus, liveTaskId, loadStudio]);
+  }, [auth.user, liveStatus, liveTaskId, loadStudio]);
 
   const repairMedia = useCallback(async (silent = false) => {
+    if (!auth.requireAuth()) return;
     if (repairingMedia) return;
     setRepairingMedia(true);
     if (!silent) setRepairMessage('');
@@ -408,7 +409,7 @@ export function AIStudioScreen() {
     } finally {
       setRepairingMedia(false);
     }
-  }, [repairingMedia]);
+  }, [auth, repairingMedia]);
 
   useEffect(() => {
     if (loading || repairingMedia || !library.some((generation) => generation.tracks?.some((track) => !track.image_url))) return;
@@ -454,6 +455,8 @@ export function AIStudioScreen() {
   };
 
   const createLyrics = async () => {
+    if (lyricsLoading) return;
+    if (!auth.requireAuth()) { closeComposer(); navigation.navigate('Login'); return; }
     const prompt = [title, description, style].filter(Boolean).join('. ').trim();
     if (!prompt) {
       setError('Ajoute une idée ou un style avant de générer les paroles.');
@@ -473,8 +476,10 @@ export function AIStudioScreen() {
   };
 
   const generate = async () => {
+    if (generating) return;
     if (!auth.requireAuth()) {
-      navigation.getParent()?.navigate('Login', {
+      closeComposer();
+      navigation.navigate('Login', {
         message: 'Connecte-toi pour créer avec le Studio IA.',
         ...(remixReturnTo ? { returnTo: remixReturnTo } : null),
       });
@@ -515,7 +520,7 @@ export function AIStudioScreen() {
       const payload = {
         customMode: mode !== 'simple',
         instrumental,
-        model,
+        model: studioGenerationModel(model, quota?.availableModels),
         title: title.trim() || undefined,
         style: [style.trim(), tagPrompt, remixCreativePrompt].filter(Boolean).join(', ') || undefined,
         prompt,
@@ -569,6 +574,7 @@ export function AIStudioScreen() {
       }
       await AsyncStorage.setItem(ACTIVE_TASK_KEY, JSON.stringify({ taskId: result.taskId, status: 'pending', title: title || description, model: result.model, startedAt: Date.now() }));
       if (result.credits?.balance != null) setCredits(Number(result.credits.balance));
+      setTab('library');
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (generationError) {
       setError(getSunoErrorMessage(generationError));
@@ -585,9 +591,10 @@ export function AIStudioScreen() {
   };
 
   const currentTitle = mode === 'remix' ? 'Remixe un son existant.' : mode === 'custom' ? 'Dirige chaque détail.' : 'Décris. Synaura compose.';
-  const availableModels = useMemo(() => quota?.availableModels?.length ? quota.availableModels : ['V4_5'], [quota?.availableModels]);
+  const availableModels = useMemo(() => studioAvailableModels(quota?.availableModels), [quota?.availableModels]);
+  useEffect(() => { setModel(current => studioGenerationModel(current, availableModels)); }, [availableModels]);
   const modelOptions = useMemo<Array<SelectionSheetOption<string>>>(() => {
-    const ordered = Array.from(new Set([model, ...MODELS, ...availableModels]));
+    const ordered = MODELS;
     return ordered.map((item) => {
       const unlocked = availableModels.includes(item);
       return {
@@ -598,7 +605,7 @@ export function AIStudioScreen() {
         disabled: !unlocked,
       };
     });
-  }, [availableModels, model]);
+  }, [availableModels]);
   const generationReady = Boolean(
     (mode === 'simple' ? description.trim() : (style.trim() || selectedTags.length))
     && (mode !== 'remix' || synauraRemixSource || remixAsset || remixSource?.audio_url || remixSource?.stream_audio_url),
@@ -735,7 +742,7 @@ export function AIStudioScreen() {
     setDescription(track.prompt || generation.prompt || '');
     setStyle(track.style || String(generation.metadata?.style || ''));
     setLyrics(track.lyrics || '');
-    if (MODELS.includes(track.model_name || '')) setModel(String(track.model_name));
+    setModel(studioGenerationModel(track.model_name || model, availableModels));
     setTab('create');
     setInspector(null);
     requestAnimationFrame(() => composerScrollRef.current?.scrollTo({ y: 0, animated: false }));
@@ -753,60 +760,16 @@ export function AIStudioScreen() {
     requestAnimationFrame(() => composerScrollRef.current?.scrollTo({ y: 0, animated: false }));
   };
 
-  if (!auth.user) {
-    return (
-      <View style={styles.root}>
-        <SynauraBackground variant="warm">
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={[
-            styles.authGate,
-            responsive.pageContent,
-            { paddingTop: insets.top + 18, paddingBottom: insets.bottom + 92 },
-          ]}
-        >
-          <View style={styles.authTop}>
-            <View>
-              <Text style={styles.authKicker}>Studio Synaura</Text>
-              <Text style={styles.authPageTitle}>Crée sans casser ton élan.</Text>
-            </View>
-            <View style={styles.authIcon}><Ionicons name="sparkles" size={24} color={colors.paper} /></View>
-          </View>
-          <View style={styles.authPreview}>
-            <View style={styles.authPreviewOrb}><Ionicons name="musical-notes" size={28} color={colors.paper} /></View>
-            <Text style={styles.authPreviewTitle}>Une idée devient un morceau.</Text>
-            <Text style={styles.authPreviewText}>Prompt, vibe, voix et durée dans un parcours simple pensé pour mobile.</Text>
-            <View style={styles.authFeatures}>
-              <AuthFeature icon="flash-outline" text="Générations et presets" />
-              <AuthFeature icon="library-outline" text="Bibliothèque synchronisée" />
-              <AuthFeature icon="cloud-upload-outline" text="Publication directe" />
-            </View>
-          </View>
-          <View>
-            <Text style={styles.authTitle}>Retrouve ton Studio</Text>
-            <Text style={styles.authText}>Connecte-toi pour accéder à tes crédits, tes créations et ton historique.</Text>
-            <Pressable
-              onPress={() => navigation.getParent()?.navigate('Login', remixReturnTo ? { returnTo: remixReturnTo } : undefined)}
-              style={styles.authButton}
-            >
-              <Text style={styles.authButtonText}>Se connecter</Text>
-            </Pressable>
-          </View>
-        </ScrollView>
-        </SynauraBackground>
-      </View>
-    );
-  }
 
   const studioView = (viewTab: StudioTab, drawer = false) => (
-    <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <SynauraBackground variant="warm">
+    <KeyboardAvoidingView key={`${viewTab}-${palette.bg}`} style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <CollectionSurface protectStatusBar={!drawer}>
       <ScrollView
         ref={viewTab === 'create' ? composerScrollRef : scrollRef}
         showsVerticalScrollIndicator={false}
         contentInsetAdjustmentBehavior="never"
         automaticallyAdjustKeyboardInsets
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => loadStudio(true)} tintColor={colors.violet} />}
+        refreshControl={auth.user ? <RefreshControl refreshing={refreshing} onRefresh={() => loadStudio(true)} tintColor={colors.violet} /> : undefined}
         contentContainerStyle={[
           styles.content,
           responsive.pageContent,
@@ -827,20 +790,19 @@ export function AIStudioScreen() {
           if (contentOffset.y + layoutMeasurement.height >= contentSize.height - 360) revealMoreLibraryTracks();
         } : undefined}
       >
-        <View style={styles.top}>
-          <Pressable accessibilityLabel={viewTab === 'create' ? 'Fermer la création' : 'Retour'} onPress={viewTab === 'create' ? closeComposer : () => navigation.goBack()} style={styles.iconButton}>
-            <Ionicons name={viewTab === 'create' ? 'close' : 'chevron-back'} size={22} color={colors.text} />
-          </Pressable>
-          <Pressable onPress={() => setShowCredits(true)} style={styles.creditPill}><Ionicons name="sparkles" size={14} color={colors.coral} /><Text style={styles.creditText}>{credits} crédits</Text><Ionicons name="add-circle" size={16} color={colors.text} /></Pressable>
-          <MobileAccountButton compact />
+        <View style={styles.newHeader}>
+          <CollectionIconButton icon={viewTab === 'create' ? 'close' : 'arrow-back'} label={viewTab === 'create' ? 'Fermer la création' : 'Retour'} onPress={viewTab === 'create' ? closeComposer : () => navigation.goBack()} />
+          <Text style={[styles.kicker, { flex: 1, color: palette.muted }]}>STUDIO SYNAURA</Text>
+          <EntryPressable accessibilityLabel={auth.user ? 'Mes crédits' : 'Se connecter'} onPress={() => { if (auth.user) setShowCredits(true); else { closeComposer(); navigation.navigate('Login'); } }} style={[styles.newCredit, { backgroundColor: palette.raised }]}>
+            <Ionicons name={auth.user ? 'sparkles-outline' : 'person-outline'} size={15} color={palette.blue} />
+            <Text style={{ color: palette.text, fontSize: 13, fontWeight: '700' }}>{auth.user ? creditsKnown ? `${credits} crédits` : '…' : 'Connexion'}</Text>
+          </EntryPressable>
         </View>
         <View style={styles.studioHeading}>
           <View style={styles.studioHeadingCopy}>
-            <Text style={styles.kicker}>Studio Synaura</Text>
-            <Text style={[styles.title, viewTab === 'library' && styles.titleCompact]}>{viewTab === 'create' ? 'Créer un morceau' : 'Ma bibliothèque'}</Text>
-            <Text style={styles.subtitle}>{viewTab === 'create' ? currentTitle : `${libraryTracks.length} projet${libraryTracks.length > 1 ? 's' : ''} dans ton espace créatif`}</Text>
+            <Text style={[styles.title, { color: palette.text, fontSize: responsive.isNarrow ? 30 : 36, lineHeight: responsive.isNarrow ? 35 : 41 }]}>{viewTab === 'create' ? 'Quel son as-tu\nen tête ?' : 'Tes créations.'}</Text>
+            <Text style={[styles.subtitle, { color: palette.muted }]}>{viewTab === 'create' ? currentTitle : 'Tes idées prennent vie ici.'}</Text>
           </View>
-          {quota ? <View style={styles.quotaBadge}><Text style={styles.quotaValue}>{quota.remaining}</Text><Text style={styles.quotaLabel}>restants</Text></View> : null}
         </View>
 
         {viewTab === 'create' && (challengeId || synauraRemixSource) ? (
@@ -852,69 +814,62 @@ export function AIStudioScreen() {
 
         {viewTab === 'library' ? (
           <>
-            <MotionPressable onPress={openComposer} style={styles.createCallout} scaleTo={0.985}>
-              <View style={styles.createCalloutIcon}><Ionicons name="add" size={25} color={colors.paper} /></View>
+            <EntryPressable onPress={openComposer} style={[styles.newCreate, { backgroundColor: palette.raised }]}>
+              <Ionicons name="add-circle" size={38} color={palette.blue} />
               <View style={styles.createCalloutCopy}>
-                <Text style={styles.createCalloutTitle}>Nouvelle création</Text>
-                <Text style={styles.createCalloutText}>Composer, remixer ou partir d’une inspiration</Text>
+                <Text style={[styles.createCalloutTitle, { color: palette.text }]}>Nouvelle création</Text>
+                <Text style={[styles.createCalloutText, { color: palette.muted }]}>Une idée, deux versions à explorer.</Text>
               </View>
-              <Ionicons name="arrow-forward" size={19} color={colors.paper} />
-            </MotionPressable>
-            <View style={styles.librarySummary}>
-              <View style={styles.summaryStat}><Text style={styles.summaryValue}>{libraryTracks.length}</Text><Text style={styles.summaryLabel}>Pistes</Text></View>
-              <View style={styles.summaryDivider} />
-              <View style={styles.summaryStat}><Text style={styles.summaryValue}>{pendingGenerations.length}</Text><Text style={styles.summaryLabel}>En cours</Text></View>
-              <View style={styles.summaryDivider} />
-              <View style={styles.summaryStat}><Text style={styles.summaryValue}>{credits}</Text><Text style={styles.summaryLabel}>Crédits</Text></View>
-            </View>
+              <Ionicons name="arrow-forward" size={19} color={palette.blue} />
+            </EntryPressable>
           </>
         ) : null}
 
-        {liveTaskId ? <StatusOrb status={liveStatus} /> : null}
+        {auth.user && liveTaskId ? <StatusOrb status={liveStatus} /> : null}
 
         {error ? <Pressable onPress={() => loadStudio(true)} style={styles.error}><Ionicons name="refresh" size={17} color={colors.danger} /><Text style={styles.errorText}>{error}</Text></Pressable> : null}
         {loading ? <ActivityIndicator color={colors.violet} style={{ marginTop: 30 }} /> : null}
 
         {viewTab === 'create' ? (
           <>
-            <View style={styles.composerToolbar}>
-              <SegmentedControl
+            <View style={[styles.composerToolbar, (responsive.isNarrow || responsive.hasLargeText) && { flexDirection: 'column', alignItems: 'stretch' }]}>
+              <View style={{ flexGrow: 1, flexBasis: responsive.isNarrow || responsive.hasLargeText ? 'auto' : 205 }}><CollectionTabs
                 value={mode}
-                compact
-                style={styles.modeControl}
                 options={[
                   { value: 'simple', label: 'Simple' },
-                  { value: 'custom', label: 'Avancé' },
+                  { value: 'custom', label: 'Perso' },
                   { value: 'remix', label: 'Remix' },
                 ]}
                 onChange={(nextMode) => {
                   setMode(nextMode);
                   if (nextMode === 'remix') setIdeaOpen(true);
                 }}
-              />
-              <MotionPressable onPress={() => setModelSheetOpen(true)} style={styles.modelButton} scaleTo={0.94}>
-                <Text style={styles.modelButtonText}>{formatModelLabel(model)}</Text>
-                <Ionicons name="chevron-down" size={14} color={colors.text} />
+              /></View>
+              <MotionPressable accessibilityRole="button" accessibilityLabel="Choisir le modèle" onPress={() => setModelSheetOpen(true)} style={[styles.modelButton, { backgroundColor: palette.raised }]} scaleTo={0.94}>
+                <Text style={[styles.modelButtonText, { color: palette.text }]}>{formatModelLabel(model)}</Text>
+                <Ionicons name="chevron-down" size={14} color={palette.text} />
               </MotionPressable>
             </View>
 
             {mode === 'simple' ? (
-              <View style={styles.simpleComposer}>
-                <View style={styles.simpleComposerHead}>
-                  <View style={styles.simpleComposerIcon}><Ionicons name="sparkles" size={17} color={colors.paper} /></View>
-                  <Text style={styles.simpleComposerTitle}>Décris la musique que tu imagines</Text>
-                </View>
+              <View style={[styles.simpleComposer, { backgroundColor: palette.surface }]}>
+                <Text style={[styles.simpleComposerTitle, { color: palette.muted }]}>TON IDÉE</Text>
                 <TextInput
+                  accessibilityLabel="Décris ton morceau"
                   value={description}
                   onChangeText={setDescription}
                   placeholder="Une ambiance, une histoire, une énergie, des instruments…"
-                  placeholderTextColor={colors.textTertiary}
+                  placeholderTextColor={palette.faint}
                   multiline
                   maxLength={800}
                   textAlignVertical="top"
-                  style={styles.simplePromptInput}
+                  style={[styles.simplePromptInput, { color: palette.text }]}
                 />
-                <Text style={styles.simplePromptCount}>{description.length}/800</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <EntryPressable onPress={() => setInspirationSheetOpen(true)} style={{ minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 7 }}><Ionicons name="sparkles-outline" size={16} color={palette.blue} /><Text style={{ color: palette.blue, fontWeight: '700', fontSize: 13 }}>Une inspiration</Text></EntryPressable>
+                  <Text style={[styles.simplePromptCount, { color: palette.muted }]}>{description.length}/800</Text>
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}><Text style={{ color: palette.text, fontWeight: '600' }}>Sans voix</Text><Switch accessibilityLabel="Instrumental, sans voix" value={instrumental} onValueChange={setInstrumental} trackColor={{ true: palette.blue }} /></View>
               </View>
             ) : (
               <>
@@ -1053,7 +1008,7 @@ export function AIStudioScreen() {
               <View style={styles.modelNotice}>
                 <Ionicons name="information-circle-outline" size={17} color={colors.violet} />
                 <Text style={styles.modelNoticeText}>{modelNotice}</Text>
-                {quota?.plan_type !== 'pro' ? <Pressable onPress={() => { closeComposer(); navigation.navigate('Subscriptions'); }}><Text style={styles.modelNoticeLink}>Voir Pro</Text></Pressable> : null}
+                {quota?.plan_type === 'free' ? <Pressable onPress={() => { closeComposer(); navigation.navigate('Subscriptions'); }}><Text style={styles.modelNoticeLink}>Les offres</Text></Pressable> : null}
               </View>
             ) : null}
 
@@ -1090,7 +1045,7 @@ export function AIStudioScreen() {
                 <Ionicons name="swap-vertical" size={15} color={colors.text} />
                 <Text numberOfLines={1} style={styles.libraryControlText}>{activeSortLabel}</Text>
               </Pressable>
-              <Pressable accessibilityLabel="Réparer les pochettes" disabled={repairingMedia} onPress={() => void repairMedia()} style={styles.libraryControlIcon}>
+              <Pressable accessibilityLabel="Réparer les pochettes" disabled={repairingMedia || !auth.user} onPress={() => void repairMedia()} style={styles.libraryControlIcon}>
                 {repairingMedia ? <ActivityIndicator size="small" color={colors.violet} /> : <Ionicons name="images-outline" size={17} color={colors.violet} />}
               </Pressable>
             </View>
@@ -1129,7 +1084,7 @@ export function AIStudioScreen() {
                   </Pressable>
                 ) : null}
               </>
-            ) : <View style={styles.empty}><Ionicons name="sparkles-outline" size={28} color={colors.violet} /><Text style={styles.emptyTitle}>Aucun projet ici.</Text><Text style={styles.emptyText}>Change le filtre ou lance une génération pour remplir cet espace.</Text></View>}
+            ) : <View style={styles.empty}><Ionicons name="musical-notes-outline" size={32} color={palette.blue} /><Text style={styles.emptyTitle}>{auth.user ? 'Place à ta prochaine idée.' : 'Ta musique, au même endroit.'}</Text><Text style={styles.emptyText}>{auth.user ? 'Crée un morceau ou ajuste tes filtres.' : 'Connecte-toi pour retrouver tes créations.'}</Text></View>}
           </View>
         )}
       </ScrollView>
@@ -1146,18 +1101,19 @@ export function AIStudioScreen() {
           ]}
         >
           <MotionPressable
+            accessibilityRole="button"
             accessibilityLabel={mode === 'remix' ? 'Créer une variation' : 'Générer deux versions'}
-            disabled={generating}
+            disabled={generating || Boolean(auth.user && (loading || !creditsKnown))}
             onPress={generate}
-            style={[styles.generateButton, !generationReady && styles.generateButtonWaiting]}
+            style={[styles.generateButton, { backgroundColor: palette.blue }, generating && styles.generateButtonWaiting]}
             scaleTo={0.985}
           >
-            {generating ? <ActivityIndicator color={colors.paper} /> : <Ionicons name={mode === 'remix' ? 'repeat' : 'sparkles'} size={19} color={colors.paper} />}
+            {generating ? <ActivityIndicator color={palette.bg} /> : <Ionicons name={mode === 'remix' ? 'repeat' : 'sparkles'} size={20} color={palette.bg} />}
             <View style={styles.generateCopy}>
-              <Text style={styles.generateText}>{generating ? 'Lancement...' : mode === 'remix' ? 'Créer une variation' : 'Générer 2 versions'}</Text>
-              <Text style={styles.generateHint}>{generationReady ? `${formatModelLabel(model)} · prêt à créer` : 'Complète les sections nécessaires'}</Text>
+              <Text style={[styles.generateText, { color: palette.bg }]}>{!auth.user ? 'Se connecter pour créer' : generating ? 'Lancement…' : mode === 'remix' ? 'Créer une variation' : 'Créer mon morceau'}</Text>
+              <Text style={[styles.generateHint, { color: palette.bg }]}>{formatModelLabel(model)} · 2 versions</Text>
             </View>
-            <Text style={styles.generateCost}>{GENERATION_COST} crédits</Text>
+            {auth.user ? <Text style={[styles.generateCost, { color: palette.bg }]}>{GENERATION_COST} crédits</Text> : null}
           </MotionPressable>
         </View>
       ) : null}
@@ -1222,7 +1178,7 @@ export function AIStudioScreen() {
       <ShareSheet visible={Boolean(shareTrackTarget)} track={shareTrackTarget} onClose={() => setShareTrackTarget(null)} />
       <CreditShopModal visible={showCredits} balance={credits} onClose={() => setShowCredits(false)} onComplete={() => loadStudio(true)} />
       </> : null}
-      </SynauraBackground>
+      </CollectionSurface>
     </KeyboardAvoidingView>
   );
 
@@ -1233,16 +1189,16 @@ export function AIStudioScreen() {
         <Modal
           visible
           transparent
-          animationType="slide"
+          animationType={motion ? 'slide' : 'none'}
           presentationStyle="overFullScreen"
           statusBarTranslucent
           onRequestClose={closeComposer}
         >
           <View style={styles.drawerLayer}>
             <Pressable accessibilityLabel="Fermer la création" onPress={closeComposer} style={[styles.drawerPeek, { height: Math.max(insets.top + 10, 30) }]} />
-            <View style={styles.drawerPanel}>
-              <Pressable accessibilityLabel="Fermer la création" onPress={closeComposer} style={styles.drawerHandleButton}>
-                <View style={styles.drawerHandle} />
+            <View style={[styles.drawerPanel, { backgroundColor: palette.bg }]}>
+              <Pressable accessibilityLabel="Fermer la création" onPress={closeComposer} style={[styles.drawerHandleButton, { backgroundColor: palette.bg }]}>
+                <View style={[styles.drawerHandle, { backgroundColor: palette.faint }]} />
               </Pressable>
               <View style={styles.drawerContent}>{studioView('create', true)}</View>
             </View>
@@ -1597,10 +1553,13 @@ function CreditShopModal({ visible, balance, onClose, onComplete }: { visible: b
 }
 
 const styles = StyleSheet.create({
+  newHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 9 },
+  newCredit: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44, paddingHorizontal: 14, borderRadius: 24 },
+  newCreate: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 18, borderRadius: 24, marginVertical: 10 },
   root: { flex: 1, backgroundColor: colors.background },
   drawerLayer: { flex: 1, backgroundColor: 'rgba(0,0,0,0.66)' },
   drawerPeek: { width: '100%' },
-  drawerPanel: { flex: 1, overflow: 'hidden', borderTopLeftRadius: 22, borderTopRightRadius: 22, backgroundColor: colors.background, borderTopWidth: 1, borderColor: colors.borderStrong },
+  drawerPanel: { flex: 1, overflow: 'hidden', borderTopLeftRadius: 28, borderTopRightRadius: 28, backgroundColor: colors.background },
   drawerHandleButton: { height: 28, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background },
   drawerHandle: { width: 48, height: 4, borderRadius: 2, backgroundColor: colors.textTertiary },
   drawerContent: { flex: 1 },
@@ -1618,16 +1577,16 @@ const styles = StyleSheet.create({
   title: { color: colors.text, fontSize: 26, lineHeight: 30, fontWeight: '900' },
   titleCompact: { fontSize: 24, lineHeight: 28 },
   subtitle: { color: colors.textSecondary, fontSize: 12, lineHeight: 18, fontWeight: '700' },
-  composerToolbar: { minHeight: 46, flexDirection: 'row', alignItems: 'center', gap: 8 },
+  composerToolbar: { minHeight: 46, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
   modeControl: { flex: 1 },
-  modelButton: { height: 42, minWidth: 82, borderRadius: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 11, backgroundColor: colors.surfaceStrong, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, borderBottomWidth: 2, borderBottomColor: colors.cyan },
+  modelButton: { minHeight: 44, borderRadius: 24, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 14, backgroundColor: colors.surfaceMuted },
   modelButtonText: { color: colors.text, fontSize: 11, fontWeight: '900' },
-  simpleComposer: { minHeight: 300, overflow: 'hidden', borderRadius: 20, padding: 18, backgroundColor: colors.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(115,87,198,0.36)', borderTopWidth: 3, borderTopColor: colors.violet },
+  simpleComposer: { overflow: 'hidden', borderRadius: 24, padding: 20, gap: 8, backgroundColor: colors.surface },
   simpleComposerHead: { flexDirection: 'row', alignItems: 'center', gap: 9 },
   simpleComposerIcon: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet },
-  simpleComposerTitle: { flex: 1, color: colors.paper, fontSize: 14, fontWeight: '900' },
-  simplePromptInput: { minHeight: 206, paddingTop: 18, paddingHorizontal: 2, color: colors.paper, fontSize: 17, lineHeight: 25, fontWeight: '700' },
-  simplePromptCount: { alignSelf: 'flex-end', color: 'rgba(247,246,243,0.42)', fontSize: 9, fontWeight: '800' },
+  simpleComposerTitle: { color: colors.textSecondary, fontSize: 10, letterSpacing: 2, fontWeight: '800' },
+  simplePromptInput: { minHeight: 150, padding: 0, paddingVertical: 12, color: colors.text, fontSize: 20, lineHeight: 29, fontWeight: '600' },
+  simplePromptCount: { color: colors.textTertiary, fontSize: 11, fontWeight: '600' },
   createCallout: { minHeight: 78, flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 14, paddingHorizontal: 12, backgroundColor: colors.surfaceStrong, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, borderLeftWidth: 3, borderLeftColor: colors.coral },
   createCalloutIcon: { width: 46, height: 46, borderRadius: 13, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet },
   createCalloutCopy: { flex: 1, minWidth: 0 },
@@ -1698,12 +1657,12 @@ const styles = StyleSheet.create({
   settingRow: { minHeight: 54, borderRadius: 0, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 2, backgroundColor: 'transparent', borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong },
   settingValue: { marginTop: 4, color: colors.text, fontSize: 13, fontWeight: '900' },
   generateDock: { position: 'absolute', zIndex: 28 },
-  generateButton: { minHeight: 60, borderRadius: 14, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, backgroundColor: colors.violet, borderBottomWidth: 3, borderBottomColor: colors.cyan },
-  generateButtonWaiting: { backgroundColor: '#4D4851' },
+  generateButton: { minHeight: 64, borderRadius: 24, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingVertical: 12 },
+  generateButtonWaiting: { opacity: .6 },
   generateCopy: { flex: 1, minWidth: 0 },
-  generateText: { color: colors.paper, fontSize: 13, fontWeight: '900' },
+  generateText: { color: colors.paper, fontSize: 16, fontWeight: '800' },
   generateHint: { marginTop: 3, color: 'rgba(255,255,255,0.55)', fontSize: 8, fontWeight: '800' },
-  generateCost: { color: 'rgba(255,250,242,0.68)', fontSize: 9, fontWeight: '900' },
+  generateCost: { fontSize: 11, fontWeight: '700' },
   lockedSource: { borderRadius: 14, backgroundColor: colors.surface, borderLeftWidth: 3, borderColor: colors.violet, padding: 12, gap: 12 },
   lockedSourceTop: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   lockedSourceCover: { width: 58, height: 58, borderRadius: 14, backgroundColor: 'rgba(17,17,17,0.08)' },
@@ -1734,7 +1693,7 @@ const styles = StyleSheet.create({
   timelineLine: { position: 'absolute', left: 8, top: 21, width: 2, height: 12, backgroundColor: 'rgba(23,19,19,0.08)' },
   timelineLineDone: { backgroundColor: 'rgba(199,184,255,0.55)' },
   libraryList: { gap: 10 },
-  searchShell: { height: 48, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 12, backgroundColor: colors.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong },
+  searchShell: { minHeight: 54, borderRadius: 18, flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 16, backgroundColor: colors.surface },
   searchInput: { flex: 1, minWidth: 0, height: 46, paddingHorizontal: 0, color: colors.text, fontSize: 12, fontWeight: '800' },
   libraryControls: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   libraryControl: { flex: 1, minWidth: 0, height: 44, borderRadius: 9, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: 9, backgroundColor: colors.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong },
@@ -1751,7 +1710,7 @@ const styles = StyleSheet.create({
   libraryCount: { color: colors.textTertiary, fontSize: 10, fontWeight: '900' },
   libraryFolderLabel: { maxWidth: '50%', color: colors.violet, fontSize: 9, fontWeight: '900' },
   libraryGroup: { gap: 8, marginTop: 4 },
-  libraryGroupTitle: { color: colors.text, fontSize: 13, fontWeight: '900' },
+  libraryGroupTitle: { color: colors.textSecondary, fontSize: 12, fontWeight: '700', marginTop: 15, marginBottom: 6 },
   libraryGroupRows: { gap: 7 },
   libraryMoreButton: { minHeight: 48, marginTop: 6, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, backgroundColor: colors.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong },
   libraryMoreText: { color: colors.violet, fontSize: 10, fontWeight: '900' },
@@ -1762,14 +1721,14 @@ const styles = StyleSheet.create({
   generationTitle: { color: colors.text, fontSize: 12, fontWeight: '900' },
   generationMeta: { marginTop: 4, color: colors.textTertiary, fontSize: 9, fontWeight: '700' },
   generationStatus: { color: colors.violet, fontSize: 8, fontWeight: '900' },
-  trackRow: { minHeight: 72, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 9, backgroundColor: colors.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
-  trackCover: { width: 52, height: 52, borderRadius: 8, overflow: 'hidden', backgroundColor: colors.surfaceMuted },
+  trackRow: { minHeight: 84, borderRadius: 18, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, paddingHorizontal: 5 },
+  trackCover: { flex: 0, width: 62, height: 62, borderRadius: 15, overflow: 'hidden', backgroundColor: colors.surfaceMuted },
   trackTitle: { color: colors.text, fontSize: 13, fontWeight: '900' },
   trackText: { marginTop: 4, color: colors.textTertiary, fontSize: 10, fontWeight: '700' },
   trackPlay: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet },
   trackPlayActive: { backgroundColor: colors.cyan },
   trackPlayDisabled: { opacity: 0.38 },
-  trackMore: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted },
+  trackMore: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   error: { overflow: 'hidden', borderRadius: 17, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 9, backgroundColor: 'rgba(217,45,32,0.09)', borderWidth: 1, borderColor: 'rgba(217,45,32,0.16)' },
   errorText: { flex: 1, color: colors.danger, fontSize: 11, lineHeight: 16, fontWeight: '800' },
   empty: { alignItems: 'center', borderRadius: 14, padding: 28, backgroundColor: colors.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong },

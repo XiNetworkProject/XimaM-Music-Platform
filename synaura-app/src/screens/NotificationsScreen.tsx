@@ -16,15 +16,15 @@ import * as Haptics from 'expo-haptics';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import { deleteNotification, getNotifications, markAllNotificationsRead, markNotificationRead } from '@/api/client';
 import type { SynauraNotification } from '@/api/types';
-import { SynauraBackground } from '@/components/SynauraBackground';
+import { CollectionEmpty, CollectionHeader, CollectionIconButton, CollectionSurface, CollectionTabs } from '@/components/mobile/CollectionUI';
+import { useSurfaceColors } from '@/components/mobile/useSurfaceColors';
+import { useEntryMotion } from '@/components/entry/EntryAtmosphere';
+import { createNotificationRequestGate } from '@/notifications/requestGate';
 import { openInternalLink } from '@/navigation/internalLinks';
 import { usePlayer } from '@/player/PlayerProvider';
-import { AppHeader } from '@/components/ui/AppHeader';
-import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { useNativeNotifications } from '@/notifications/NativeNotificationsProvider';
 import { useAuth } from '@/auth/AuthProvider';
-import { colors } from '@/theme/tokens';
 
 const NOTIFICATIONS_REFRESH_MS = 60_000;
 
@@ -38,7 +38,7 @@ const tabs = [
 
 type NotificationSection = { title: string; data: SynauraNotification[] };
 
-function notificationVisual(item: SynauraNotification) {
+function notificationVisual(item: SynauraNotification, colors: ReturnType<typeof useSurfaceColors>) {
   if (item.type.includes('like')) return { icon: 'heart' as const, color: colors.coral, background: 'rgba(217,109,99,0.13)', action: 'Voir le son' };
   if (item.type.includes('comment') || item.type.includes('message')) return { icon: 'chatbubble-ellipses' as const, color: colors.violet, background: 'rgba(115,87,198,0.12)', action: 'Répondre' };
   if (item.type.includes('follower')) return { icon: 'person-add' as const, color: colors.cyan, background: 'rgba(74,158,170,0.13)', action: 'Voir le profil' };
@@ -78,6 +78,9 @@ function groupNotifications(items: SynauraNotification[]): NotificationSection[]
 }
 
 export function NotificationsScreen() {
+  const colors = useSurfaceColors();
+  const styles = React.useMemo(() => createStyles(colors), [colors]);
+  const requestGate = React.useRef(createNotificationRequestGate());
   const responsive = useResponsiveLayout();
   const navigation = useNavigation<any>();
   const player = usePlayer();
@@ -106,14 +109,18 @@ export function NotificationsScreen() {
   }, [cacheKey]);
 
   const load = React.useCallback(async (mode: 'initial' | 'refresh' | 'background' = 'initial') => {
+    const isCurrent = requestGate.current.begin();
+    if (!auth.user || !auth.token) { setItems([]); setUnread(0); setLoading(false); setRefreshing(false); return; }
     if (mode === 'refresh') setRefreshing(true);
     else if (mode === 'initial') setLoading(true);
     setError(null);
     let hasCachedData = false;
+    if (mode === 'initial') setItems([]);
 
     if (mode === 'initial' && cacheKey) {
       try {
         const cachedRaw = await AsyncStorage.getItem(cacheKey);
+        if (!isCurrent()) return;
         const cached = cachedRaw ? JSON.parse(cachedRaw) : null;
         if (Array.isArray(cached?.notifications)) {
           setItems(cached.notifications);
@@ -127,26 +134,28 @@ export function NotificationsScreen() {
     }
 
     try {
+      if (!isCurrent()) return;
       const data = await getNotifications(category);
+      if (!isCurrent()) return;
       setItems(data.notifications);
       setUnread(data.unread);
       void nativeNotifications.refreshUnread(data.unread);
       persistCache(data.notifications, data.unread);
     } catch (nextError) {
+      if (!isCurrent()) return;
       setError(hasCachedData
         ? 'Actualisation interrompue. Ton activité récente reste disponible.'
         : nextError instanceof Error ? nextError.message : 'Impossible de charger ton activité.');
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (isCurrent()) { setLoading(false); setRefreshing(false); }
     }
-  }, [cacheKey, category, nativeNotifications.refreshUnread, persistCache]);
+  }, [auth.user?.id, auth.token, cacheKey, category, nativeNotifications.refreshUnread, persistCache]);
 
   useFocusEffect(React.useCallback(() => {
     void load();
-    const interval = setInterval(() => void load('background'), NOTIFICATIONS_REFRESH_MS);
-    return () => clearInterval(interval);
-  }, [load]));
+    const interval = auth.user && auth.token ? setInterval(() => void load('background'), NOTIFICATIONS_REFRESH_MS) : null;
+    return () => { if (interval) clearInterval(interval); requestGate.current.invalidate(); };
+  }, [load, auth.user?.id, auth.token]));
 
   const openNotification = async (item: SynauraNotification) => {
     if (!item.isRead) {
@@ -165,6 +174,10 @@ export function NotificationsScreen() {
 
   const markAll = async () => {
     if (!unread) return;
+    const isCurrent = requestGate.current.begin();
+    setLoading(false);
+    setRefreshing(false);
+    const previousUnread = unread;
     const previousItems = items;
     const nextItems = items.map((item) => ({ ...item, isRead: true }));
     setItems(nextItems);
@@ -174,13 +187,18 @@ export function NotificationsScreen() {
       await markAllNotificationsRead();
       await nativeNotifications.refreshUnread(0);
     } catch {
+      if (!isCurrent()) return;
       setItems(previousItems);
-      setUnread(previousItems.filter((item) => !item.isRead).length);
+      setUnread(previousUnread);
+      persistCache(previousItems, previousUnread);
       setError("Impossible de marquer toute l'activité comme lue.");
     }
   };
 
   const remove = async (item: SynauraNotification) => {
+    const isCurrent = requestGate.current.begin();
+    setLoading(false);
+    setRefreshing(false);
     const previousItems = items;
     const previousUnread = unread;
     const nextItems = items.filter((next) => next.id !== item.id);
@@ -192,28 +210,29 @@ export function NotificationsScreen() {
       await deleteNotification(item.id);
       await nativeNotifications.refreshUnread(nextUnread);
     } catch {
+      if (!isCurrent()) return;
       setItems(previousItems);
       setUnread(previousUnread);
+      persistCache(previousItems, previousUnread);
       setError('Suppression impossible pour le moment.');
     }
   };
 
   const connectionIssue = error || (nativeNotifications.syncError ? 'La mise à jour automatique est momentanément indisponible.' : null);
 
-  return (
-    <SynauraBackground variant="warm">
-      <View style={[styles.screen, responsive.pageContent]}>
-        <AppHeader
-          flush
-          compact
-          eyebrow="Synaura"
-          title="Activité"
-          subtitle={unread ? `${unread} nouvelle${unread > 1 ? 's' : ''} activité${unread > 1 ? 's' : ''}` : 'Tu es à jour'}
-          onBack={() => navigation.goBack()}
-          action={unread ? { icon: 'checkmark-done', label: 'Tout marquer comme lu', onPress: () => void markAll() } : undefined}
-        />
-        <SegmentedControl value={category} options={tabs.map((tab) => ({ value: tab.id, label: tab.label }))} onChange={setCategory} compact />
+  if (!auth.loading && !auth.user) return <CollectionSurface>
+    <View style={[responsive.pageContent, { paddingTop: responsive.insets.top }]}><CollectionHeader title="Activité" onBack={() => navigation.goBack()} /></View>
+    <View style={[responsive.pageContent, styles.guest]}><CollectionEmpty icon="notifications-outline" title="Ne manque rien." text="Tes réactions, tes nouveaux abonnés et les sorties des artistes que tu suis, réunis ici." action="Se connecter" onPress={() => navigation.navigate('Login', { returnTo: { screen: 'Notifications' } })} /></View>
+  </CollectionSurface>;
 
+  return (
+    <CollectionSurface>
+      <View style={[styles.screen, responsive.pageContent, { paddingTop: responsive.insets.top }]}>
+        <CollectionHeader title="Activité" eyebrow={unread ? `${unread} À LIRE` : 'AUTOUR DE TOI'} onBack={() => navigation.goBack()} actions={<>
+          {unread > 0 ? <CollectionIconButton icon="checkmark-done-outline" label="Tout marquer comme lu" onPress={() => void markAll()} /> : null}
+          <CollectionIconButton icon="options-outline" label="Préférences de notifications" onPress={() => navigation.navigate('Settings', { section: 'notifications' })} />
+        </>} />
+        <View><CollectionTabs value={category} options={tabs.map(tab => ({ value: tab.id, label: tab.label }))} onChange={setCategory} /></View>
         {connectionIssue ? (
           <Pressable onPress={() => void load('refresh')} style={styles.connectionBanner}>
             <Ionicons name="cloud-offline-outline" size={17} color={colors.coral} />
@@ -231,21 +250,13 @@ export function NotificationsScreen() {
           contentContainerStyle={[styles.list, { paddingBottom: Math.max(responsive.insets.bottom + 24, 36) }]}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load('refresh')} tintColor={colors.violet} colors={[colors.violet]} />}
           renderSectionHeader={({ section }) => <Text style={styles.sectionTitle}>{section.title}</Text>}
-          ListEmptyComponent={!loading ? (
-            <View style={styles.empty}>
-              <View style={styles.emptyIcon}><Ionicons name="radio-outline" size={27} color={colors.violet} /></View>
-              <Text style={styles.emptyTitle}>Tout est calme</Text>
-              <Text style={styles.emptyText}>Les réactions à tes sons, les commentaires et les nouvelles sorties apparaîtront ici.</Text>
-            </View>
-          ) : null}
-          renderItem={({ item, index, section }) => {
-            const visual = notificationVisual(item);
+          ListEmptyComponent={!loading ? <CollectionEmpty icon={error ? 'cloud-offline-outline' : 'notifications-outline'} title={error ? 'Activité indisponible' : 'Tout est calme'} text={error ? 'Réessaie pour retrouver tes notifications.' : category === 'all' ? 'Tes prochaines nouvelles apparaîtront ici.' : 'Aucune notification dans cette catégorie.'} action={error ? 'Réessayer' : undefined} onPress={error ? () => void load('refresh') : undefined} /> : null}
+          renderItem={({ item }) => {
+            const visual = notificationVisual(item, colors);
             return (
               <NotificationRow
                 item={item}
                 visual={visual}
-                first={index === 0}
-                last={index === section.data.length - 1}
                 onOpen={() => void openNotification(item)}
                 onRemove={() => void remove(item)}
               />
@@ -253,92 +264,89 @@ export function NotificationsScreen() {
           }}
         />
       </View>
-    </SynauraBackground>
+    </CollectionSurface>
   );
 }
 
 function NotificationRow({
   item,
   visual,
-  first,
-  last,
   onOpen,
   onRemove,
 }: {
   item: SynauraNotification;
   visual: ReturnType<typeof notificationVisual>;
-  first: boolean;
-  last: boolean;
   onOpen: () => void;
   onRemove: () => void;
 }) {
+  const colors = useSurfaceColors();
+  const styles = React.useMemo(() => createStyles(colors), [colors]);
+  const motion = useEntryMotion();
   const translateX = React.useRef(new Animated.Value(0)).current;
+  const revealed = React.useRef(false);
+  const [deleteVisible, setDeleteVisible] = React.useState(false);
+  const settle = React.useCallback((open: boolean) => {
+    revealed.current = open;
+    setDeleteVisible(open);
+    translateX.stopAnimation();
+    if (!motion) { translateX.setValue(open ? -88 : 0); return; }
+    Animated.spring(translateX, { toValue: open ? -88 : 0, speed: 30, bounciness: 2, useNativeDriver: true, isInteraction: false }).start();
+  }, [motion, translateX]);
+  React.useEffect(() => () => translateX.stopAnimation(), [translateX]);
+  const remove = () => { settle(false); onRemove(); };
   const responder = React.useMemo(() => PanResponder.create({
-    onMoveShouldSetPanResponder: (_, gesture) => gesture.dx < -8 && Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.25,
-    onPanResponderMove: (_, gesture) => translateX.setValue(Math.max(-132, Math.min(0, gesture.dx))),
-    onPanResponderRelease: (_, gesture) => {
-      if (gesture.dx < -105 || gesture.vx < -1.2) {
-        void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
-        Animated.timing(translateX, { toValue: -420, duration: 180, useNativeDriver: true }).start(onRemove);
-      } else {
-        Animated.spring(translateX, { toValue: 0, speed: 28, bounciness: 4, useNativeDriver: true }).start();
-      }
-    },
-    onPanResponderTerminate: () => Animated.spring(translateX, { toValue: 0, speed: 28, bounciness: 4, useNativeDriver: true }).start(),
-  }), [onRemove, translateX]);
+    onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dx) > 12 && Math.abs(gesture.dx) > Math.abs(gesture.dy) * 1.5,
+    onPanResponderMove: (_, gesture) => translateX.setValue(Math.max(-88, Math.min(0, (revealed.current ? -88 : 0) + gesture.dx))),
+    onPanResponderRelease: (_, gesture) => { const open = (revealed.current ? -88 : 0) + gesture.dx < -40; settle(open); if (open) void Haptics.selectionAsync().catch(() => {}); },
+    onPanResponderTerminate: () => settle(false),
+  }), [settle, translateX]);
 
-  return (
-    <View style={[styles.rowShell, first && styles.rowShellFirst, last && styles.rowShellLast]}>
-      <View style={styles.deleteBehind}><Ionicons name="trash-outline" size={19} color={colors.paper} /><Text style={styles.deleteText}>Supprimer</Text></View>
-      <Animated.View {...responder.panHandlers} style={{ transform: [{ translateX }] }}>
-        <Pressable
-          accessibilityActions={[{ name: 'delete', label: 'Supprimer' }]}
-          onAccessibilityAction={(event) => { if (event.nativeEvent.actionName === 'delete') onRemove(); }}
-          onPress={onOpen}
-          style={[styles.row, !item.isRead && styles.rowUnread, !last && styles.rowDivider]}
-        >
-          {!item.isRead ? <View style={styles.unreadRail} /> : null}
-          <View style={[styles.visual, { backgroundColor: visual.background }]}>
-            <Ionicons name={visual.icon} size={20} color={visual.color} />
-          </View>
-          <View style={styles.rowCopy}>
-            <View style={styles.rowTitleLine}>
-              <Text numberOfLines={1} style={styles.rowTitle}>{item.title}</Text>
-              <Text style={styles.time}>{relativeDate(item.createdAt)}</Text>
-            </View>
-            <Text numberOfLines={3} style={styles.message}>{item.message}</Text>
-            {item.actionUrl ? <Text style={styles.actionText}>{visual.action}</Text> : null}
-          </View>
-          {item.actionUrl ? <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} /> : null}
-        </Pressable>
-      </Animated.View>
-    </View>
-  );
+  return <View style={styles.rowShell}>
+    <Pressable accessible={deleteVisible} importantForAccessibility={deleteVisible ? 'yes' : 'no-hide-descendants'} accessibilityRole="button" accessibilityLabel={`Supprimer la notification : ${item.title}`} onPress={remove} style={styles.deleteBehind}><Ionicons name="trash-outline" size={22} color={colors.paper} /><Text style={styles.deleteText}>Supprimer</Text></Pressable>
+    <Animated.View {...responder.panHandlers} style={{ transform: [{ translateX }] }}>
+      <Pressable accessibilityRole="button" accessibilityLabel={`${item.isRead ? '' : 'Non lue. '}${item.title}. ${item.message}`}
+        accessibilityActions={[{ name: 'delete', label: 'Supprimer' }]}
+        onAccessibilityAction={event => { if (event.nativeEvent.actionName === 'delete') remove(); }}
+        onPress={() => revealed.current ? settle(false) : onOpen()}
+        style={[styles.row, !item.isRead && styles.rowUnread]}>
+        <View style={[styles.visual, { backgroundColor: visual.background }]}><Ionicons name={visual.icon} size={22} color={visual.color} /></View>
+        <View style={styles.rowCopy}>
+          <Text numberOfLines={2} style={styles.rowTitle}>{item.title}</Text>
+          <Text numberOfLines={3} style={styles.message}>{item.message}</Text>
+          <View style={styles.metadata}><Text style={styles.time}>{relativeDate(item.createdAt)}</Text>{!item.isRead ? <View style={styles.unreadDot} /> : null}{item.actionUrl ? <Text style={styles.actionText}>{visual.action}</Text> : null}</View>
+        </View>
+        {item.actionUrl ? <Ionicons name="chevron-forward" size={16} color={colors.textTertiary} /> : null}
+      </Pressable>
+    </Animated.View>
+  </View>;
 }
 
-const styles = StyleSheet.create({
-  screen: { flex: 1, paddingHorizontal: 18 },
-  list: { paddingTop: 8, gap: 0 },
+const createStyles = (colors: ReturnType<typeof useSurfaceColors>) => StyleSheet.create({
+  unreadDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.cyan },
+  metadata: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginTop: 10 },
+  guest: { flex: 1, justifyContent: 'center' },
+  screen: { flex: 1 },
+  list: { paddingTop: 8, flexGrow: 1 },
   loader: { marginTop: 42 },
-  sectionTitle: { marginTop: 24, marginBottom: 8, color: colors.textSecondary, fontSize: 11, lineHeight: 14, fontWeight: '900', textTransform: 'uppercase' },
-  connectionBanner: { minHeight: 46, marginTop: 10, flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: 9, borderWidth: 1, borderColor: 'rgba(217,109,99,0.2)', backgroundColor: 'rgba(217,109,99,0.07)', paddingHorizontal: 11 },
-  connectionText: { flex: 1, color: colors.textSecondary, fontSize: 10, lineHeight: 14, fontWeight: '700' },
-  rowShell: { overflow: 'hidden', borderRadius: 0, backgroundColor: colors.coral },
+  sectionTitle: { marginTop: 22, marginBottom: 12, color: colors.textSecondary, fontSize: 13, fontWeight: '700' },
+  connectionBanner: { minHeight: 54, marginTop: 10, flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 18, backgroundColor: colors.surfaceStrong, padding: 14 },
+  connectionText: { flex: 1, color: colors.textSecondary, fontSize: 13, lineHeight: 20 },
+  rowShell: { overflow: 'hidden', borderRadius: 22, marginBottom: 10, backgroundColor: colors.destructive },
   rowShellFirst: { borderTopLeftRadius: 14, borderTopRightRadius: 14 },
   rowShellLast: { borderBottomLeftRadius: 14, borderBottomRightRadius: 14 },
-  deleteBehind: { ...StyleSheet.absoluteFillObject, alignItems: 'flex-end', justifyContent: 'center', gap: 3, paddingRight: 18 },
-  deleteText: { color: colors.paper, fontSize: 9, fontWeight: '900' },
-  row: { minHeight: 88, flexDirection: 'row', alignItems: 'center', gap: 11, backgroundColor: colors.surface, paddingHorizontal: 12, paddingVertical: 12 },
-  rowUnread: { backgroundColor: colors.violetSoft },
+  deleteBehind: { position: 'absolute', right: 0, top: 0, bottom: 0, width: 88, alignItems: 'center', justifyContent: 'center', gap: 7 },
+  deleteText: { color: colors.paper, fontSize: 11, fontWeight: '700' },
+  row: { minHeight: 106, flexDirection: 'row', alignItems: 'flex-start', gap: 12, backgroundColor: colors.background, paddingHorizontal: 14, paddingVertical: 16 },
+  rowUnread: { backgroundColor: colors.surface },
   rowDivider: { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
   unreadRail: { position: 'absolute', left: 0, top: 13, bottom: 13, width: 3, borderRadius: 2, backgroundColor: colors.violet },
-  visual: { width: 43, height: 43, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  visual: { width: 46, height: 46, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   rowCopy: { flex: 1, minWidth: 0 },
   rowTitleLine: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  rowTitle: { flex: 1, color: colors.text, fontSize: 14, lineHeight: 18, fontWeight: '900' },
-  time: { color: colors.textTertiary, fontSize: 9, fontWeight: '800' },
-  message: { marginTop: 3, color: colors.textSecondary, fontSize: 12, lineHeight: 17, fontWeight: '600' },
-  actionText: { marginTop: 7, color: colors.cyan, fontSize: 9, lineHeight: 11, fontWeight: '900', textTransform: 'uppercase' },
+  rowTitle: { color: colors.text, fontSize: 15, lineHeight: 22, fontWeight: '700' },
+  time: { color: colors.textTertiary, fontSize: 11, lineHeight: 18 },
+  message: { marginTop: 5, color: colors.textSecondary, fontSize: 13, lineHeight: 20 },
+  actionText: { color: colors.cyan, fontSize: 12, lineHeight: 18, fontWeight: '700', marginLeft: 'auto' },
   empty: { marginTop: 74, alignItems: 'center', paddingHorizontal: 28 },
   emptyIcon: { width: 60, height: 60, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(115,87,198,0.1)' },
   emptyTitle: { marginTop: 15, color: colors.text, fontSize: 19, lineHeight: 24, fontWeight: '900' },

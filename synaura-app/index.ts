@@ -1,5 +1,6 @@
 import 'react-native-gesture-handler';
 import 'react-native-url-polyfill/auto';
+import { registerGlobals } from '@livekit/react-native';
 import TrackPlayer from 'react-native-track-player';
 import { AppRegistry, Text, TextInput } from 'react-native';
 import { registerRootComponent } from 'expo';
@@ -18,6 +19,7 @@ for (const component of [Text, TextInput]) {
   };
 }
 
+registerGlobals();
 TrackPlayer.registerPlaybackService(() => playbackService);
 AppRegistry.registerComponent('SynauraBubble', () => BubbleConversationRoot);
 registerRootComponent(App);

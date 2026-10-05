@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { NativeModules, PanResponder, PermissionsAndroid, Platform } from 'react-native';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Haptics from 'expo-haptics';
+import { acquireMicrophone } from '@/calls/microphoneLease';
+import { isCallAudioLocked } from '@/calls/callAudioLock';
 
 type NativeRecorderResult = { uri: string; durationMs: number };
 type NativeMessagingModule = {
@@ -56,6 +58,7 @@ export function useVoiceMessageRecorder(options: {
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startPromiseRef = useRef<Promise<boolean> | null>(null);
   const stopRef = useRef<() => Promise<void>>(async () => {});
+  const releaseMicrophone = useRef<(() => void) | null>(null);
 
   useEffect(() => { phaseRef.current = phase; }, [phase]);
 
@@ -72,6 +75,7 @@ export function useVoiceMessageRecorder(options: {
   const reset = useCallback(async () => {
     stopTimer();
     if (phaseRef.current === 'recording') await nativeMessaging?.cancelVoiceRecording().catch(() => {});
+    releaseMicrophone.current?.(); releaseMicrophone.current = null;
     await removeDraftFile();
     setDraft(null);
     setWaveform([]);
@@ -87,7 +91,7 @@ export function useVoiceMessageRecorder(options: {
   }, [removeDraftFile, stopTimer]);
 
   const begin = useCallback(async () => {
-    if (options.disabled || phaseRef.current !== 'idle') return false;
+    if (options.disabled || phaseRef.current !== 'idle' || isCallAudioLocked()) return false;
     if (Platform.OS !== 'android' || !nativeMessaging) {
       options.onError('L’enregistrement intégré est indisponible sur cet appareil.');
       return false;
@@ -102,6 +106,8 @@ export function useVoiceMessageRecorder(options: {
       options.onError('Autorise le microphone pour enregistrer un vocal.');
       return false;
     }
+    releaseMicrophone.current = acquireMicrophone();
+    if (!releaseMicrophone.current) { options.onError('Le micro est déjà utilisé par un appel ou un enregistrement.'); return false; }
     try {
       await options.onBeforeRecord?.();
       await nativeMessaging.startVoiceRecording();
@@ -137,6 +143,7 @@ export function useVoiceMessageRecorder(options: {
       return true;
     } catch (error) {
       options.onError(error instanceof Error ? error.message : 'Impossible de démarrer le microphone.');
+      releaseMicrophone.current?.(); releaseMicrophone.current = null;
       return false;
     }
   }, [options]);
@@ -144,6 +151,7 @@ export function useVoiceMessageRecorder(options: {
   const cancel = useCallback(async () => {
     stopTimer();
     await nativeMessaging?.cancelVoiceRecording().catch(() => {});
+    releaseMicrophone.current?.(); releaseMicrophone.current = null;
     setDurationMs(0);
     setWaveform([]);
     waveformRef.current = [];
@@ -194,6 +202,8 @@ export function useVoiceMessageRecorder(options: {
       waveformRef.current = [];
       fullWaveformRef.current = [];
       options.onError(error instanceof Error ? error.message : 'Le vocal n’a pas pu être préparé.');
+    } finally {
+      releaseMicrophone.current?.(); releaseMicrophone.current = null;
     }
   }, [options, removeDraftFile, stopTimer]);
 
@@ -256,7 +266,8 @@ export function useVoiceMessageRecorder(options: {
 
   useEffect(() => () => {
     stopTimer();
-    if (phaseRef.current === 'recording') void nativeMessaging?.cancelVoiceRecording().catch(() => {});
+    if (phaseRef.current === 'recording') void nativeMessaging?.cancelVoiceRecording().catch(() => {}).finally(() => { releaseMicrophone.current?.(); releaseMicrophone.current = null; });
+    else { releaseMicrophone.current?.(); releaseMicrophone.current = null; }
   }, [stopTimer]);
 
   return {

@@ -66,7 +66,7 @@ module.exports = function withSynauraNativeMessaging(config) {
     fs.mkdirSync(destination, { recursive: true });
     const staleService = path.join(destination, 'SynauraBubbleService.kt');
     if (fs.existsSync(staleService)) fs.unlinkSync(staleService);
-    for (const file of ['SynauraMessagingModule.kt', 'SynauraMessagingPackage.kt', 'SynauraBubbleManager.kt', 'SynauraBubbleActivity.kt']) {
+    for (const file of ['SynauraMessagingModule.kt', 'SynauraMessagingPackage.kt', 'SynauraBubbleManager.kt', 'SynauraBubbleActivity.kt', 'SynauraCallAudioModule.kt', 'SynauraVoiceService.kt']) {
       fs.copyFileSync(path.join(source, file), path.join(destination, file));
     }
     return androidConfig;

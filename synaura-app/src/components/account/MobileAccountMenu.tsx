@@ -12,6 +12,7 @@ const items = [
   { route: 'Settings', label: 'Modifier mon profil', icon: 'create-outline' },
   { route: 'Settings', label: 'Paramètres', icon: 'settings-outline' },
   { route: 'Subscriptions', label: 'Abonnement', icon: 'sparkles-outline' },
+  { route: 'Boosters', label: 'Mes boosters', icon: 'flash-outline' },
   { route: 'Upload', label: 'Mes uploads', icon: 'cloud-upload-outline' },
   { route: 'Library', label: 'Bibliothèque', icon: 'library-outline' },
 ] as const;

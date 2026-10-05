@@ -108,14 +108,16 @@ const responsiveScreens = [
 
 for (const screen of responsiveScreens) {
   const source = read(`src/screens/${screen}.tsx`);
-  if (!source.includes('useResponsiveLayout')) failures.push(`${screen} n'utilise pas la couche responsive.`);
+  const delegatesToCurated = ['RadarScreen', 'DiscoverMoodScreen'].includes(screen) &&
+    source.includes('<CuratedCollection') && read('src/components/mobile/CuratedCollection.tsx').includes('useResponsiveLayout');
+  if (!source.includes('useResponsiveLayout') && !delegatesToCurated) failures.push(`${screen} n'utilise pas la couche responsive.`);
   if (/(?:width|minWidth):\s*(?:[3-9]\d{2}|\d{4,})(?:\s|,)/.test(source)) {
     failures.push(`${screen} contient une largeur fixe superieure a 300 px.`);
   }
 }
 
 const librarySource = read('src/screens/LibraryScreen.tsx');
-if (!librarySource.includes('<TrackList')) failures.push('LibraryScreen doit rester base sur TrackList responsive.');
+if (!librarySource.includes('<FlatList<LibraryItem>') || !librarySource.includes('layout.pageContent') || !librarySource.includes('layout.miniPlayerClearance')) failures.push('La bibliotheque doit conserver une liste virtualisee, bornee et degagee du lecteur.');
 const authSource = read('src/components/auth/AuthUI.tsx');
 if (!authSource.includes('layout.pageContent')) failures.push("Les ecrans d'authentification ne sont pas bornes par le viewport.");
 const indexSource = read('index.ts');
@@ -123,13 +125,15 @@ if (!indexSource.includes('maxFontSizeMultiplier: 1.35')) failures.push('La limi
 const segmentedSource = read('src/components/ui/SegmentedControl.tsx');
 if (!segmentedSource.includes('<ScrollView') || !segmentedSource.includes('scrollable')) failures.push('Les controles segmentes ne defilent plus sur ecran etroit.');
 const welcomeSource = read('src/screens/WelcomeScreen.tsx');
-if (!welcomeSource.includes('splitLayout') || !welcomeSource.includes('SynauraIntroStage')) failures.push("La bienvenue n'a plus de composition paysage dediee.");
+if (!welcomeSource.includes('splitLayout') || !welcomeSource.includes('SoundRoom') || !welcomeSource.includes("flexDirection: 'row', alignItems: 'center', gap: 28")) failures.push("La bienvenue n'a plus de composition paysage dediee.");
 const onboardingSource = read('src/screens/OnboardingScreen.tsx');
 if (!onboardingSource.includes('layout.gridColumns')) failures.push("L'onboarding n'adapte plus ses colonnes au viewport.");
 const studioSource = read('src/screens/AIStudioScreen.tsx');
 if (!studioSource.includes('presentationStyle="overFullScreen"') || !studioSource.includes('drawerPanel') || !studioSource.includes("setTab('library')")) failures.push('Le compositeur Studio doit rester un tiroir fermable au-dessus de la bibliotheque.');
 const profileHeroSource = read('src/components/profile/ProfileIdentityHero.tsx');
-if (!profileHeroSource.includes('compactStats') || !profileHeroSource.includes('responsive.isNarrow')) failures.push("Le hero profil n'a plus ses variantes compactes.");
+if (!profileHeroSource.includes('layout.hasLargeText') || !profileHeroSource.includes('layout.isNarrow') || !profileHeroSource.includes("flexWrap: 'wrap'")) failures.push("Le hero profil doit adapter titres et statistiques aux petits ecrans et grandes polices.");
+const collectionSource = read('src/components/mobile/CollectionUI.tsx');
+if (!collectionSource.includes('<ScrollView horizontal') || !collectionSource.includes('minHeight: 44') || !collectionSource.includes('width: 44')) failures.push('Les nouvelles categories et actions doivent rester accessibles sur petit ecran.');
 
 if (failures.length) {
   console.error(failures.map((failure) => `- ${failure}`).join('\n'));

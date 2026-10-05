@@ -82,8 +82,8 @@ export function LoginScreen() {
       <AuthCard>
         <AuthTitle
           eyebrow="Connexion"
-          title="De retour dans ton univers."
-          text="Tes sons et tes rencontres t’attendent."
+          title="Retrouve ton univers."
+          text="Tes sons. Tes artistes. Tes rencontres."
         />
 
         {success ? <AuthAlert kind="success" text={success} /> : null}

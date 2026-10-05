@@ -1,3 +1,4 @@
+import { playMusicOutsideCall } from '@/calls/playMusicOutsideCall';
 import TrackPlayer, { Event } from 'react-native-track-player';
 
 export async function playbackService() {
@@ -23,7 +24,7 @@ export async function playbackService() {
         const delay = [0, 350, 900, 1800, 3600, 6500][retryCount] || 6500;
         await new Promise((resolve) => setTimeout(resolve, delay));
         await TrackPlayer.retry();
-        await TrackPlayer.play();
+        await playMusicOutsideCall();
         return;
       }
 
@@ -34,7 +35,7 @@ export async function playbackService() {
       if (typeof activeIndex === 'number' && activeIndex >= 0 && activeIndex < queue.length - 1) {
         resetRecovery();
         await TrackPlayer.skipToNext();
-        await TrackPlayer.play();
+        await playMusicOutsideCall();
       }
     } catch {
       // A later native playback-error event can retry again.
@@ -44,7 +45,7 @@ export async function playbackService() {
   };
 
   TrackPlayer.addEventListener(Event.RemotePlay, () => {
-    void TrackPlayer.play();
+    void playMusicOutsideCall();
   });
 
   TrackPlayer.addEventListener(Event.RemotePause, () => {
@@ -53,12 +54,12 @@ export async function playbackService() {
 
   TrackPlayer.addEventListener(Event.RemoteNext, () => {
     resetRecovery();
-    void TrackPlayer.skipToNext().then(() => TrackPlayer.play()).catch(() => {});
+    void TrackPlayer.skipToNext().then(() => playMusicOutsideCall()).catch(() => {});
   });
 
   TrackPlayer.addEventListener(Event.RemotePrevious, () => {
     resetRecovery();
-    void TrackPlayer.skipToPrevious().then(() => TrackPlayer.play()).catch(() => {});
+    void TrackPlayer.skipToPrevious().then(() => playMusicOutsideCall()).catch(() => {});
   });
 
   TrackPlayer.addEventListener(Event.RemoteStop, () => {

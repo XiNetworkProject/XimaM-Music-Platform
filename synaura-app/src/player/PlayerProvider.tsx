@@ -1,3 +1,4 @@
+import { playMusicOutsideCall } from '@/calls/playMusicOutsideCall';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState, DeviceEventEmitter } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -262,7 +263,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         }
         await TrackPlayer.setRepeatMode(saved.repeatMode === 'one' ? RepeatMode.Track : saved.repeatMode === 'all' ? RepeatMode.Queue : RepeatMode.Off);
         if (matchingNativeIndex < 0) {
-          if (saved.wasPlaying) await TrackPlayer.play().catch(() => {});
+          if (saved.wasPlaying) await playMusicOutsideCall().catch(() => {});
           else await TrackPlayer.pause().catch(() => {});
         }
       } catch (error) {
@@ -462,7 +463,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       const target = playable[index];
       await TrackPlayer.setQueue([toNativeTrack(target)]);
       if (activationEpoch !== activationEpochRef.current) return;
-      await TrackPlayer.play();
+      await playMusicOutsideCall();
       lastActivationRef.current = { trackId: target._id, at: Date.now() };
 
       // The selected song starts before the rest of a potentially large
@@ -538,7 +539,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         // ExoPlayer can transiently pause when queue entries surrounding the
         // active track are removed. Restore the state captured before the
         // rebuild so opening Flow/Clips never stops the current sound.
-        if (shouldResumePlayback) await TrackPlayer.play().catch(() => {});
+        if (shouldResumePlayback) await playMusicOutsideCall().catch(() => {});
         return;
       }
     }
@@ -547,7 +548,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     if (index > 0) await TrackPlayer.skip(index);
     if (previousId && previousId === playable[index]._id) {
       if (previousPosition > 0) await TrackPlayer.seekTo(previousPosition).catch(() => {});
-      if (shouldResumePlayback) await TrackPlayer.play().catch(() => {});
+      if (shouldResumePlayback) await playMusicOutsideCall().catch(() => {});
     }
   }), [runPlayerCommand]);
 
@@ -628,7 +629,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       const nativeIndex = nativeQueue.findIndex((item) => String(item.id) === track._id);
       if (currentRef.current?._id === track._id && nativeIndex >= 0) {
         lastActivationRef.current = { trackId: track._id, at: Date.now() };
-        await TrackPlayer.play();
+        await playMusicOutsideCall();
         return;
       }
 
@@ -650,7 +651,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
         lastActivationRef.current = { trackId: track._id, at: Date.now() };
         await TrackPlayer.skip(nativeIndex);
         if (activationEpoch !== activationEpochRef.current) return;
-        await TrackPlayer.play();
+        await playMusicOutsideCall();
         lastActivationRef.current = { trackId: track._id, at: Date.now() };
         return;
       }
@@ -667,7 +668,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       lastActivationRef.current = { trackId: track._id, at: Date.now() };
       await TrackPlayer.load(toNativeTrack(track));
       if (activationEpoch !== activationEpochRef.current) return;
-      await TrackPlayer.play();
+      await playMusicOutsideCall();
       lastActivationRef.current = { trackId: track._id, at: Date.now() };
       if (activationEpoch !== activationEpochRef.current) return;
 
@@ -717,7 +718,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       const nativeIndex = targetId ? nativeQueue.findIndex((item) => String(item.id) === targetId) : -1;
       await TrackPlayer.skip(nativeIndex >= 0 ? nativeIndex : index);
       if (activationEpoch !== activationEpochRef.current) return;
-      await TrackPlayer.play();
+      await playMusicOutsideCall();
       lastActivationRef.current = { trackId: targetId || '', at: Date.now() };
       });
     });
@@ -783,11 +784,11 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
       const recentlyActivated = lastActivationRef.current.trackId === currentRef.current._id
         && Date.now() - lastActivationRef.current.at < 550;
       if (currentState === State.Loading || currentState === State.Buffering || recentlyActivated) {
-        await TrackPlayer.play();
+        await playMusicOutsideCall();
         return;
       }
       if (currentState === State.Playing) await TrackPlayer.pause();
-      else await TrackPlayer.play();
+      else await playMusicOutsideCall();
     });
   }, [runPlayerCommand]);
 
@@ -795,7 +796,7 @@ export function PlayerProvider({ children }: { children: React.ReactNode }) {
     const activationEpoch = ++activationEpochRef.current;
     return runPlayerCommand(async () => {
       if (!currentRef.current || activationEpoch !== activationEpochRef.current) return;
-      await TrackPlayer.play();
+      await playMusicOutsideCall();
     });
   }, [runPlayerCommand]);
 

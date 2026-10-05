@@ -1,270 +1,105 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, FlatList, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { getCommunityClubs, getCommunityFaq, getUserPreferences } from '@/api/client';
-import type { CommunityClubAggregate, CommunityFaq } from '@/api/types';
-import { SynauraBackground } from '@/components/SynauraBackground';
-import { MotionPressable, Reveal } from '@/components/motion/Motion';
-import { MobileAccountButton } from '@/components/account/MobileAccountMenu';
+import { getCommunityClubs, getCommunityFaq, getCommunityPosts, getUserPreferences, likeCommunityPost } from '@/api/client';
+import type { CommunityClubAggregate, CommunityFaq, CommunityPost } from '@/api/types';
 import { useAuth } from '@/auth/AuthProvider';
-import { COMMUNITY_CLUBS, getClubByCategory, type ClubConfig } from '@/community/clubs';
-import { colors } from '@/theme/tokens';
-import { ScreenIntro } from '@/components/ui/ScreenIntro';
-import { BottomSheet } from '@/components/ui/BottomSheet';
+import { usePlayer } from '@/player/PlayerProvider';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
-import { NotificationBellButton } from '@/components/notifications/NotificationBellButton';
+import { COMMUNITY_CLUBS, getClubByCategory } from '@/community/clubs';
+import { CollectionEmpty, CollectionHeader, CollectionHeading, CollectionIconButton, CollectionReveal, CollectionSurface, useCollectionPalette } from '@/components/mobile/CollectionUI';
+import { EntryPressable } from '@/components/entry/EntryPressable';
+import { BottomSheet } from '@/components/ui/BottomSheet';
+import { CommunityDiscussionModal, CommunityPostCard } from './ClubDetailScreen';
 
-// Intentions creatives (onboarding "Personnaliser mes gouts") qui mettent un Club
-// en avant. Ne masque jamais les autres Clubs, se contente de les prioriser.
-const INTENTION_TO_CLUB_SLUG: Record<string, string> = {
-  remix: 'remix',
-  collab: 'collab',
-  create_ai: 'ai',
-};
-
-function relativeDate(value: string) {
-  const diff = Math.max(0, Date.now() - new Date(value).getTime());
-  const hours = Math.floor(diff / 3_600_000);
-  if (hours < 1) return "à l'instant";
-  if (hours < 24) return `${hours} h`;
-  return `${Math.floor(hours / 24)} j`;
-}
-
+const INTENTIONS: Record<string, string> = { remix: 'remix', collab: 'collab', create_ai: 'ai' };
 export function CommunityScreen() {
-  const navigation = useNavigation<any>();
-  const route = useRoute<any>();
-  const insets = useSafeAreaInsets();
-  const responsive = useResponsiveLayout();
-  const auth = useAuth();
-  const [aggregates, setAggregates] = useState<Record<string, CommunityClubAggregate>>({});
-  const [loading, setLoading] = useState(true);
-  const [faqOpen, setFaqOpen] = useState(false);
-  const [faqs, setFaqs] = useState<CommunityFaq[]>([]);
-  const [highlightedSlugs, setHighlightedSlugs] = useState<string[]>([]);
-
-  useEffect(() => {
-    if (!auth.requireAuth()) return;
-    let mounted = true;
-    getUserPreferences()
-      .then((preferences) => {
-        if (!mounted) return;
-        const intentions: string[] = Array.isArray((preferences as any)?.onboarding?.creatorIntentions)
-          ? (preferences as any).onboarding.creatorIntentions
-          : [];
-        setHighlightedSlugs(intentions.map((id) => INTENTION_TO_CLUB_SLUG[id]).filter((slug): slug is string => Boolean(slug)));
-      })
-      .catch(() => {});
-    return () => {
-      mounted = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const orderedClubs = useMemo(() => {
-    if (!highlightedSlugs.length) return COMMUNITY_CLUBS;
-    return [...COMMUNITY_CLUBS].sort((a, b) => {
-      const aFav = highlightedSlugs.includes(a.slug) ? 0 : 1;
-      const bFav = highlightedSlugs.includes(b.slug) ? 0 : 1;
-      return aFav - bFav;
-    });
-  }, [highlightedSlugs]);
-
-  // Anciennes entrées (ShareSheet, CreateHub, HomeV2) ouvraient directement le
-  // composer sur "Community" avec {compose, category, track} : on les redirige vers
-  // le Club correspondant, composer ouvert, plutôt que de casser ces points d'entrée.
-  useEffect(() => {
-    if (!route.params?.compose) return;
+  const navigation = useNavigation<any>(); const route = useRoute<any>();
+  const auth = useAuth(); const player = usePlayer(); const layout = useResponsiveLayout(); const p = useCollectionPalette();
+  const [clubs, setClubs] = useState<CommunityClubAggregate[]>([]);
+  const [posts, setPosts] = useState<CommunityPost[]>([]); const [selected, setSelected] = useState<CommunityPost | null>(null);
+  const [highlighted, setHighlighted] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true); const [refreshing, setRefreshing] = useState(false); const [more, setMore] = useState(false);
+  const [error, setError] = useState(''); const [hasMore, setHasMore] = useState(false);
+  const [faqOpen, setFaqOpen] = useState(false); const [faqs, setFaqs] = useState<CommunityFaq[] | null>(null); const [faqError, setFaqError] = useState(''); const [openFaq, setOpenFaq] = useState('');
+  const generation = useRef(0); const page = useRef(1); const paging = useRef(false); const pendingLikes = useRef(new Set<string>());
+  useEffect(() => { if (!auth.token) { setHighlighted([]); return; } let live = true;
+    getUserPreferences().then(preferences => { const intentions = (preferences as any)?.onboarding?.creatorIntentions; if (live) setHighlighted((Array.isArray(intentions) ? intentions : []).map((key: string) => INTENTIONS[key]).filter(Boolean)); }).catch(() => {});
+    return () => { live = false; };
+  }, [auth.token]);
+  const orderedClubs = useMemo(() => [...COMMUNITY_CLUBS].sort((a, b) => Number(highlighted.includes(b.slug)) - Number(highlighted.includes(a.slug))), [highlighted]);
+  const load = useCallback(async (refresh = false) => {
+    const epoch = ++generation.current; paging.current = false; setMore(false); setError('');
+    if (refresh) setRefreshing(true); else setLoading(true);
+    const [feed, aggregates] = await Promise.allSettled([getCommunityPosts('all', 1, 15), getCommunityClubs()]);
+    if (epoch !== generation.current) return;
+    if (feed.status === 'fulfilled') { setPosts(feed.value.posts); setHasMore(feed.value.hasMore); page.current = 1; }
+    else setError('Les discussions ne sont pas disponibles. Réessaie dans un instant.');
+    if (aggregates.status === 'fulfilled') setClubs(aggregates.value);
+    setLoading(false); setRefreshing(false);
+  }, [auth.token]);
+  useEffect(() => { void load(); return () => { generation.current++; }; }, [load]);
+  const loadMore = async () => {
+    if (loading || refreshing || paging.current || !hasMore || error) return;
+    const epoch = generation.current; const next = page.current + 1; paging.current = true; setMore(true);
+    try { const result = await getCommunityPosts('all', next, 15); if (epoch !== generation.current) return;
+      setPosts(previous => [...previous, ...result.posts.filter(post => !previous.some(item => item.id === post.id))]); page.current = next; setHasMore(result.hasMore);
+    } catch { if (epoch === generation.current) setError('La suite des discussions n’a pas pu charger.'); }
+    finally { if (epoch === generation.current) { paging.current = false; setMore(false); } }
+  };
+  useEffect(() => { if (!route.params?.compose) return;
     const club = getClubByCategory(route.params.category) || COMMUNITY_CLUBS[0];
     navigation.navigate('ClubDetail', { slug: club.slug, compose: true, track: route.params.track });
     navigation.setParams({ compose: undefined, category: undefined, track: undefined });
   }, [navigation, route.params]);
-
-  useEffect(() => {
-    let mounted = true;
-    getCommunityClubs()
-      .then((clubs) => {
-        if (!mounted) return;
-        const map: Record<string, CommunityClubAggregate> = {};
-        clubs.forEach((club) => {
-          map[club.slug] = club;
-        });
-        setAggregates(map);
-      })
-      .catch(() => {})
-      .finally(() => mounted && setLoading(false));
-    return () => {
-      mounted = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!faqOpen || faqs.length) return;
-    void getCommunityFaq(20).then(setFaqs).catch(() => setFaqs([]));
-  }, [faqOpen, faqs.length]);
-
-  const openClub = useCallback((club: ClubConfig) => {
-    navigation.navigate('ClubDetail', { slug: club.slug });
-  }, [navigation]);
-
-  return (
-    <SynauraBackground variant="warm">
-      <ScrollView
-        contentContainerStyle={[
-          styles.content,
-          responsive.pageContent,
-          { paddingTop: insets.top + 18, paddingBottom: Math.max(insets.bottom + 150, responsive.miniPlayerClearance) },
-        ]}
-        showsVerticalScrollIndicator={false}
-      >
-        <ScreenIntro
-          eyebrow="Espace musical"
-          title="Clubs"
-          description="Trouve des personnes, des idées et des sons à faire évoluer ensemble."
-          trailing={(
-            <View style={styles.headerActions}>
-              <NotificationBellButton />
-              <MotionPressable accessibilityLabel="FAQ communauté" onPress={() => setFaqOpen(true)} style={styles.circleButton} scaleTo={0.9}>
-                <Ionicons name="help-circle-outline" size={21} color={colors.text} />
-              </MotionPressable>
-              <MobileAccountButton compact />
-            </View>
-          )}
-        />
-
-        {loading ? (
-          <View style={styles.loadingState}>
-            <ActivityIndicator color={colors.accent} />
-            <Text style={styles.loadingText}>Chargement des Clubs...</Text>
-          </View>
-        ) : (
-          <View style={styles.clubGrid}>
-            {orderedClubs.map((club, index) => (
-              <Reveal key={club.slug} delay={index * 55} distance={10}>
-                <ClubCard
-                  club={club}
-                  aggregate={aggregates[club.slug]}
-                  onPress={() => openClub(club)}
-                  highlighted={highlightedSlugs.includes(club.slug)}
-                />
-              </Reveal>
-            ))}
-          </View>
-        )}
-      </ScrollView>
-
-      <FaqModal visible={faqOpen} faqs={faqs} onClose={() => setFaqOpen(false)} />
-    </SynauraBackground>
-  );
+  useEffect(() => { if (!faqOpen || faqs) return; let live = true; setFaqError('');
+    getCommunityFaq(20).then(items => { if (live) setFaqs(items); }).catch(() => { if (live) setFaqError('Impossible de charger les réponses.'); });
+    return () => { live = false; };
+  }, [faqOpen, faqs]);
+  const updatePost = (id: string, transform: (post: CommunityPost) => CommunityPost) => { setPosts(items => items.map(item => item.id === id ? transform(item) : item)); setSelected(item => item?.id === id ? transform(item) : item); };
+  const like = async (post: CommunityPost) => {
+    if (!auth.requireAuth()) { navigation.navigate('Login'); return; }
+    if (pendingLikes.current.has(post.id)) return;
+    pendingLikes.current.add(post.id); const epoch = generation.current; const next = !post.isLiked;
+    updatePost(post.id, item => ({ ...item, isLiked: next, likesCount: Math.max(0, item.likesCount + (next ? 1 : -1)) }));
+    try { await likeCommunityPost(post.id, next); }
+    catch { if (epoch === generation.current) { updatePost(post.id, item => ({ ...item, isLiked: post.isLiked, likesCount: post.likesCount })); setError('Le like n’a pas pu être enregistré.'); } }
+    finally { pendingLikes.current.delete(post.id); }
+  };
+  const header = <>
+    <CollectionHeader title="Communauté" eyebrow="LA MUSIQUE, ENSEMBLE" onBack={() => navigation.goBack()} actions={<CollectionIconButton icon="help-circle-outline" label="Aide communauté" onPress={() => setFaqOpen(true)} />} />
+    <CollectionReveal><View style={s.hero}>
+      <LinearGradient colors={['#253D55', '#242744', '#171F32']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+      <View pointerEvents="none" style={s.orbit} /><View pointerEvents="none" style={[s.orbit, s.orbitInner]} />
+      <Text style={s.heroKicker}>DES RENCONTRES. DES MORCEAUX.</Text><Text style={s.heroTitle}>Fais du son.{'\n'}Pas tout seul.</Text>
+      <Text style={s.heroBody}>Un avis, une voix, une idée.{'\n'}Trouve la personne qui manque.</Text>
+      <EntryPressable accessibilityRole="button" onPress={() => navigation.navigate('ClubDetail', { slug: 'collab', compose: true })} style={s.heroAction}><Ionicons name="add" size={21} color="#142139" /><Text style={s.heroActionText}>Lancer une discussion</Text></EntryPressable>
+    </View></CollectionReveal>
+    <View style={s.shortcuts}><Shortcut icon="planet-outline" title="City" detail="Événements & votes" onPress={() => navigation.navigate('City')} /><Shortcut icon="chatbubbles-outline" title="Tes échanges" detail="Messages & amis" onPress={() => navigation.navigate('Messages')} /></View>
+    <CollectionHeading title="Trouve ton cercle" detail="Les clubs sont ouverts à tous." />
+    <View style={s.clubs}>{orderedClubs.map(club => { const aggregate = clubs.find(item => item.slug === club.slug); return <EntryPressable key={club.slug} accessibilityRole="button" accessibilityLabel={club.name + '. ' + club.promise} onPress={() => navigation.navigate('ClubDetail', { slug: club.slug })} style={[s.club, { backgroundColor: p.surface }]}>
+      <View style={s.clubTop}><Ionicons name={club.icon as any} color={p.blue} size={25} /><Ionicons name="arrow-forward" color={p.muted} size={16} /></View>
+      <Text style={[s.clubName, { color: p.text }]}>{club.name}</Text><Text style={[s.clubDescription, { color: p.muted }]}>{club.promise}</Text>
+      <Text style={[s.clubMeta, { color: p.blue }]}>{highlighted.includes(club.slug) ? 'Pour tes projets' : aggregate ? aggregate.postsCount + ' discussion' + (aggregate.postsCount === 1 ? '' : 's') : 'Explorer'}</Text>
+    </EntryPressable>; })}</View>
+    <CollectionHeading title="Ça se discute" detail="Les dernières conversations, tous sujets confondus." />
+    {error ? <CollectionEmpty icon="cloud-offline-outline" title="Un instant…" text={error} action="Réessayer" onPress={() => void load(true)} /> : null}
+  </>;
+  return <CollectionSurface><FlatList data={posts} keyExtractor={post => post.id} renderItem={({ item }) => <CommunityPostCard post={item} accent={p.blue} playing={player.current?._id === item.track?._id && player.isPlaying} onLike={() => void like(item)} onOpen={() => setSelected(item)} onProfile={() => item.author.username && navigation.navigate('PublicProfile', { username: item.author.username })} onPlay={() => { if (item.track) void (player.current?._id === item.track._id ? player.togglePlayPause() : player.playTrack(item.track)); }} />}
+    contentContainerStyle={[layout.pageContent, { paddingTop: layout.insets.top + 4, paddingBottom: layout.miniPlayerClearance }]}
+    ListHeaderComponent={header} ListEmptyComponent={<CollectionEmpty loading={loading} icon="chatbubbles-outline" title={loading ? 'Les discussions arrivent…' : error ? 'Connexion indisponible' : 'À vous la parole'} text={loading || error ? undefined : 'Choisis un club et partage ta première idée.'} />}
+    ListFooterComponent={more ? <ActivityIndicator style={{ padding: 24 }} color={p.blue} /> : null} ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+    onEndReached={() => void loadMore()} onEndReachedThreshold={.3} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={p.blue} />} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled" />
+    <CommunityDiscussionModal post={selected} accent={p.blue} onClose={() => setSelected(null)} onPlay={track => void (player.current?._id === track._id ? player.togglePlayPause() : player.playTrack(track))} onReply={id => updatePost(id, item => ({ ...item, repliesCount: item.repliesCount + 1 }))} />
+    <BottomSheet visible={faqOpen} onClose={() => setFaqOpen(false)} title="Besoin d’un repère ?" maxHeight="84%"><ScrollView contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 24, gap: 10 }}>{faqs?.map(faq => <EntryPressable key={faq.id} accessibilityRole="button" accessibilityState={{ expanded: openFaq === faq.id }} onPress={() => setOpenFaq(value => value === faq.id ? '' : faq.id)} style={[s.faq, { backgroundColor: p.surface }]}><Text style={[s.faqTitle, { color: p.text }]}>{faq.question}</Text>{openFaq === faq.id ? <Text style={[s.faqAnswer, { color: p.muted }]}>{faq.answer}</Text> : null}</EntryPressable>)}{!faqs ? <CollectionEmpty loading={!faqError} title={faqError || 'Chargement…'} /> : faqs.length === 0 ? <CollectionEmpty title="Pas encore de réponses publiées" /> : null}</ScrollView></BottomSheet>
+  </CollectionSurface>;
 }
-
-function ClubCard({
-  club,
-  aggregate,
-  onPress,
-  highlighted,
-}: {
-  club: ClubConfig;
-  aggregate?: CommunityClubAggregate;
-  onPress: () => void;
-  highlighted?: boolean;
-}) {
-  const postsCount = aggregate?.postsCount || 0;
-  const latestPost = aggregate?.latestPost;
-
-  return (
-    <MotionPressable onPress={onPress} style={[styles.clubCard, highlighted && styles.clubCardHighlighted]} scaleTo={0.97}>
-      {highlighted ? (
-        <View style={styles.clubBadge}>
-          <Text style={styles.clubBadgeText}>Pour toi</Text>
-        </View>
-      ) : null}
-      <View style={[styles.clubAccent, { backgroundColor: club.accent }]} />
-      <View style={[styles.clubIcon, { backgroundColor: club.accent }]}>
-        <Ionicons name={club.icon as any} size={20} color="#FFFAF2" />
-      </View>
-      <Text style={styles.clubName}>{club.name}</Text>
-      <Text style={styles.clubPromise}>{club.promise}</Text>
-
-      <View style={styles.clubLatest}>
-        {latestPost ? (
-          <>
-            <Text numberOfLines={1} style={styles.clubLatestTitle}>{latestPost.title}</Text>
-            <Text numberOfLines={1} style={styles.clubLatestMeta}>{latestPost.author.name} · {relativeDate(latestPost.createdAt)}</Text>
-          </>
-        ) : (
-          <Text style={styles.clubLatestEmpty}>Aucun post pour l'instant. Sois le premier.</Text>
-        )}
-      </View>
-
-      <View style={styles.clubFooter}>
-        <Text style={styles.clubCount}>{postsCount > 0 ? `${postsCount} post${postsCount > 1 ? 's' : ''}` : 'Nouveau'}</Text>
-        <View style={[styles.enterButton, { backgroundColor: club.accent }]}>
-          <Text style={styles.enterButtonText}>Entrer</Text>
-          <Ionicons name="arrow-forward" size={13} color="#FFFAF2" />
-        </View>
-      </View>
-    </MotionPressable>
-  );
-}
-
-function FaqModal({ visible, faqs, onClose }: { visible: boolean; faqs: CommunityFaq[]; onClose: () => void }) {
-  const [openId, setOpenId] = useState('');
-  return (
-    <BottomSheet visible={visible} onClose={onClose} title="FAQ communauté" subtitle="Les réponses aux questions fréquentes." maxHeight="84%">
-        <ScrollView contentContainerStyle={styles.modalContent} showsVerticalScrollIndicator={false}>
-          {faqs.map((faq) => (
-            <MotionPressable key={faq.id} onPress={() => setOpenId((current) => current === faq.id ? '' : faq.id)} style={styles.faqItem} scaleTo={0.99}>
-              <View style={styles.faqQuestionRow}>
-                <Text style={styles.faqQuestion}>{faq.question}</Text>
-                <Ionicons name={openId === faq.id ? 'chevron-up' : 'chevron-down'} size={18} color={colors.text} />
-              </View>
-              {openId === faq.id ? <Text style={styles.faqAnswer}>{faq.answer}</Text> : null}
-            </MotionPressable>
-          ))}
-          {!faqs.length ? <Text style={styles.faqEmpty}>La FAQ est vide pour le moment.</Text> : null}
-        </ScrollView>
-    </BottomSheet>
-  );
-}
-
-const styles = StyleSheet.create({
-  content: { paddingHorizontal: 18, gap: 20 },
-  headerActions: { flexDirection: 'row', gap: 7 },
-  circleButton: { width: 40, height: 40, borderRadius: 12, backgroundColor: colors.surfaceMuted, alignItems: 'center', justifyContent: 'center' },
-  loadingState: { minHeight: 240, alignItems: 'center', justifyContent: 'center', gap: 10 },
-  loadingText: { color: colors.textSecondary, fontSize: 12, fontWeight: '700' },
-  clubGrid: { gap: 10 },
-  clubCard: { position: 'relative', overflow: 'hidden', minHeight: 188, borderRadius: 20, backgroundColor: colors.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, paddingVertical: 18, paddingHorizontal: 14 },
-  clubCardHighlighted: { borderColor: colors.violet, borderWidth: 1.5 },
-  clubBadge: { position: 'absolute', right: 14, top: 14, zIndex: 1, borderRadius: 999, backgroundColor: colors.violet, paddingHorizontal: 9, paddingVertical: 4 },
-  clubBadgeText: { color: '#FFFFFF', fontSize: 9, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.4 },
-  clubAccent: { position: 'absolute', left: 0, top: 0, bottom: 0, width: 4 },
-  clubIcon: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  clubName: { marginTop: 12, color: colors.text, fontSize: 20, fontWeight: '900' },
-  clubPromise: { marginTop: 4, color: colors.textSecondary, fontSize: 12, lineHeight: 17, fontWeight: '700', maxWidth: '92%' },
-  clubLatest: { marginTop: 12, borderRadius: 12, backgroundColor: colors.surfaceStrong, borderLeftWidth: 3, borderLeftColor: colors.borderStrong, padding: 10 },
-  clubLatestTitle: { color: colors.text, fontSize: 12, fontWeight: '900' },
-  clubLatestMeta: { marginTop: 2, color: colors.textTertiary, fontSize: 10, fontWeight: '700' },
-  clubLatestEmpty: { color: colors.textTertiary, fontSize: 11, fontWeight: '700' },
-  clubFooter: { marginTop: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  clubCount: { color: colors.textTertiary, fontSize: 10, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.6 },
-  enterButton: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 9 },
-  enterButtonText: { color: '#FFFAF2', fontSize: 12, fontWeight: '900' },
-  modalContent: { paddingHorizontal: 18, paddingBottom: 12, gap: 10 },
-  faqItem: { paddingVertical: 14, borderRadius: 0, backgroundColor: 'transparent', borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong },
-  faqQuestionRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  faqQuestion: { flex: 1, color: colors.text, fontSize: 14, fontWeight: '900' },
-  faqAnswer: { color: colors.textSecondary, fontSize: 12, lineHeight: 19, fontWeight: '600', marginTop: 12 },
-  faqEmpty: { color: colors.textSecondary, fontSize: 12, lineHeight: 18, fontWeight: '700', textAlign: 'center' },
+function Shortcut({ icon, title, detail, onPress }: { icon: keyof typeof Ionicons.glyphMap; title: string; detail: string; onPress: () => void }) { const p = useCollectionPalette(); return <EntryPressable accessibilityRole="button" onPress={onPress} style={[s.shortcut, { backgroundColor: p.surface }]}><Ionicons name={icon} size={24} color={p.blue} /><Text style={[s.shortcutTitle, { color: p.text }]}>{title}</Text><Text style={[s.shortcutDetail, { color: p.muted }]}>{detail}</Text></EntryPressable>; }
+const s = StyleSheet.create({
+  hero: { borderRadius: 29, overflow: 'hidden', padding: 25, marginVertical: 15 }, heroKicker: { color: '#B7D8EE', fontSize: 10, fontWeight: '700', letterSpacing: 1.4 }, heroTitle: { color: '#F5F8FF', fontSize: 37, lineHeight: 41, fontWeight: '800', marginTop: 23, letterSpacing: 0 }, heroBody: { color: '#BFCDE2', fontSize: 14, lineHeight: 22, marginTop: 14 }, heroAction: { backgroundColor: '#D2E6FA', borderRadius: 25, padding: 13, flexDirection: 'row', gap: 7, alignItems: 'center', alignSelf: 'flex-start', marginTop: 24 }, heroActionText: { color: '#142139', fontSize: 13, fontWeight: '700', flexShrink: 1 }, orbit: { position: 'absolute', right: -125, top: -110, width: '90%', aspectRatio: 1, borderRadius: 160, borderWidth: 1, borderColor: 'rgba(181,208,245,.2)' }, orbitInner: { right: -85, top: -70, width: '65%', aspectRatio: 1, borderRadius: 120, backgroundColor: 'rgba(142,164,227,.06)' },
+  shortcuts: { flexDirection: 'row', gap: 10, marginBottom: 29 }, shortcut: { flex: 1, borderRadius: 22, padding: 17, gap: 7 }, shortcutTitle: { fontSize: 16, fontWeight: '700' }, shortcutDetail: { fontSize: 12, lineHeight: 18 },
+  clubs: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 30 }, club: { width: '48%', flexGrow: 1, padding: 17, borderRadius: 23, gap: 9 }, clubTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 7 }, clubName: { fontSize: 18, fontWeight: '700' }, clubDescription: { fontSize: 13, lineHeight: 19 }, clubMeta: { fontSize: 11, fontWeight: '600', marginTop: 4 }, faq: { padding: 17, borderRadius: 20, gap: 12 }, faqTitle: { fontSize: 15, lineHeight: 22, fontWeight: '700' }, faqAnswer: { fontSize: 14, lineHeight: 23 },
 });
-
 export default CommunityScreen;

@@ -3,7 +3,7 @@
     "name": "Synaura",
     "slug": "synaura",
     "scheme": "synaura",
-    "version": "0.26.1",
+    "version": "0.27.0",
     "newArchEnabled": true,
     "icon": "./src/assets/entry/launcher.png",
     "orientation": "default",
@@ -12,7 +12,7 @@
       "**/*"
     ],
     "ios": {
-      "bundleIdentifier": "com.synaura.music",
+      "bundleIdentifier": "fr.synaura.app",
       "supportsTablet": true,
       "infoPlist": {
         "UIBackgroundModes": [
@@ -23,7 +23,7 @@
     "android": {
       "package": "com.synaura.music",
       "googleServicesFile": "./google-services.json",
-      "versionCode": 84,
+      "versionCode": 85,
       "newArchEnabled": true,
       "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
@@ -59,6 +59,8 @@
         }
       ],
       "expo-secure-store",
+      ["@livekit/react-native-expo-plugin", { "android": { "audioType": "communication", "enableScreenShareService": false } }],
+      ["@config-plugins/react-native-webrtc", { "microphonePermission": "Autorise le microphone pour parler dans un appel Synaura.", "cameraPermission": false }],
       [
         "expo-local-authentication",
         {
@@ -67,6 +69,7 @@
       ],
       "./plugins/with-synaura-theme-colors",
       "./plugins/with-synaura-native-messaging",
+      "./plugins/with-synaura-call-sounds",
       "expo-web-browser"
     ],
     "androidStatusBar": {

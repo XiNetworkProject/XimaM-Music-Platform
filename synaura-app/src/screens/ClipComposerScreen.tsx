@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   ActivityIndicator,
+  AppState,
   Alert,
   FlatList,
   Image,
@@ -16,8 +17,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
-import Video from 'react-native-video';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import Video, { type VideoRef } from 'react-native-video';
+import { useIsFocused, useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   getMusicChallenge,
@@ -26,7 +27,11 @@ import {
   type UploadAsset,
 } from '@/api/client';
 import type { MusicClipSource, Track } from '@/api/types';
-import { SynauraBackground } from '@/components/SynauraBackground';
+import { CollectionSurface, CollectionEmpty } from '@/components/mobile/CollectionUI';
+import { useSurfaceColors } from '@/components/mobile/useSurfaceColors';
+import { useCallAudioLock } from '@/calls/useCallAudioLock';
+import { useNativeCalls } from '@/calls/NativeCallProvider';
+import { CLIP_MIN_SECONDS as MIN_SECONDS, CLIP_MAX_SECONDS as MAX_SECONDS, CLIP_MAX_BYTES as MAX_BYTES, clipDurationValid, pickerDurationSeconds } from '@/clips/clipPolicy';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { MotionPressable } from '@/components/motion/Motion';
 import { useAuth } from '@/auth/AuthProvider';
@@ -36,9 +41,6 @@ import { colors } from '@/theme/tokens';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { navigatePrimaryTab } from '@/navigation/navigatePrimaryTab';
 
-const MIN_SECONDS = 15;
-const MAX_SECONDS = 60;
-const MAX_BYTES = 95 * 1024 * 1024;
 
 function mmss(seconds = 0) {
   const safe = Math.max(0, Math.round(seconds || 0));
@@ -67,6 +69,7 @@ function sourceToTrack(source: MusicClipSource): Track {
 }
 
 function OffsetSlider({ value, max, onChange }: { value: number; max: number; onChange: (next: number) => void }) {
+  const colors = useSurfaceColors(); const styles = React.useMemo(() => createStyles(colors), [colors]);
   const [width, setWidth] = React.useState(1);
   const progress = max > 0 ? Math.max(0, Math.min(1, value / max)) : 0;
   const update = React.useCallback((event: GestureResponderEvent) => {
@@ -79,6 +82,9 @@ function OffsetSlider({ value, max, onChange }: { value: number; max: number; on
     <View
       accessibilityRole="adjustable"
       accessibilityLabel="Début de l'extrait"
+      accessibilityValue={{ min: 0, max, now: value, text: mmss(value) }}
+      accessibilityActions={[{ name: 'increment', label: 'Avancer d’une seconde' }, { name: 'decrement', label: 'Reculer d’une seconde' }]}
+      onAccessibilityAction={event => onChange(Math.max(0, Math.min(max, value + (event.nativeEvent.actionName === 'increment' ? 1 : -1))))}
       onLayout={(event) => setWidth(Math.max(1, event.nativeEvent.layout.width))}
       onStartShouldSetResponder={() => true}
       onMoveShouldSetResponder={() => true}
@@ -94,6 +100,8 @@ function OffsetSlider({ value, max, onChange }: { value: number; max: number; on
 }
 
 export function ClipComposerScreen() {
+  const colors = useSurfaceColors(); const styles = React.useMemo(() => createStyles(colors), [colors]);
+  const focused = useIsFocused(); const audioLock = useCallAudioLock(); const calls = useNativeCalls(); const callLocked = audioLock || calls.engaged;
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const insets = useSafeAreaInsets();
@@ -111,6 +119,13 @@ export function ClipComposerScreen() {
   const [challengeTitle, setChallengeTitle] = React.useState<string | null>(null);
   const [asset, setAsset] = React.useState<UploadAsset | null>(null);
   const [duration, setDuration] = React.useState(0);
+  const [videoAspect, setVideoAspect] = React.useState(9 / 16);
+  const [previewPlaying, setPreviewPlaying] = React.useState(false);
+  const [videoError, setVideoError] = React.useState('');
+  const videoRef = React.useRef<VideoRef>(null); const soundRef = React.useRef<VideoRef>(null);
+  const previewEpoch = React.useRef(0);
+  React.useEffect(() => { if (!focused || callLocked) { previewEpoch.current++; setPreviewPlaying(false); } }, [focused, callLocked]);
+  React.useEffect(() => { const subscription = AppState.addEventListener('change', state => { if (state !== 'active') { previewEpoch.current++; setPreviewPlaying(false); } }); return () => subscription.remove(); }, []);
   const [sources, setSources] = React.useState<MusicClipSource[]>([]);
   const [selectedSource, setSelectedSource] = React.useState<MusicClipSource | null>(null);
   const [sourceSheetOpen, setSourceSheetOpen] = React.useState(false);
@@ -129,6 +144,7 @@ export function ClipComposerScreen() {
   React.useEffect(() => {
     if (!editTask || editPrefilledRef.current) return;
     editPrefilledRef.current = true;
+    previewEpoch.current++; setPreviewPlaying(false); setVideoError('');
     setAsset({ ...editTask.asset, uri: editTask.localUri || editTask.asset.uri });
     setDuration(editTask.duration);
     setSelectedSource(editTask.source);
@@ -175,6 +191,7 @@ export function ClipComposerScreen() {
 
   React.useEffect(() => {
     void loadSources('', 'all');
+    return () => { sourceRequestRef.current++; };
   }, [loadSources]);
 
   React.useEffect(() => {
@@ -198,17 +215,23 @@ export function ClipComposerScreen() {
       .sort((a, b) => Number(b.artist?._id === auth.user?.id) - Number(a.artist?._id === auth.user?.id));
   }, [auth.user?.id, sourceQuery, sourceScope, sources]);
   const maxOffset = Math.max(0, Math.round((selectedSource?.duration || 0) - Math.max(MIN_SECONDS, duration || MIN_SECONDS)));
-  const ready = Boolean(asset && selectedSource && duration >= MIN_SECONDS && duration <= MAX_SECONDS);
+  React.useEffect(() => { setOffset(value => Math.min(value, maxOffset)); }, [maxOffset]);
+  const ready = Boolean(asset && selectedSource && clipDurationValid(duration) && !videoError);
   const currentStep = !asset ? 1 : !selectedSource ? 2 : 3;
   const wideLayout = responsive.isTablet || responsive.isPhoneLandscape;
-  const previewHeight = Math.max(
-    responsive.isVeryShort ? 220 : 270,
-    Math.min(responsive.isShort ? 340 : 440, responsive.usableHeight * (wideLayout ? 0.68 : 0.48)),
-  );
-  const previewWidth = Math.min(
-    wideLayout ? responsive.availableContentWidth * 0.43 : responsive.availableContentWidth,
-    previewHeight * 0.75,
-  );
+  const previewMaxHeight = Math.max(220, Math.min(440, responsive.usableHeight * .52));
+  const previewWidth = Math.min(wideLayout ? responsive.availableContentWidth * .43 : responsive.availableContentWidth, previewMaxHeight * videoAspect);
+  const previewHeight = previewWidth / videoAspect;
+
+  const togglePreview = async () => {
+    if (previewPlaying) { previewEpoch.current++; setPreviewPlaying(false); return; }
+    if (!asset || callLocked) return;
+    const epoch = ++previewEpoch.current;
+    await player.pause();
+    if (epoch !== previewEpoch.current || !focused) return;
+    videoRef.current?.seek(0); soundRef.current?.seek(offset);
+    setPreviewPlaying(true);
+  };
 
   const pickVideo = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -224,27 +247,29 @@ export function ClipComposerScreen() {
     });
     if (result.canceled || !result.assets?.[0]) return;
     const picked = result.assets[0];
-    const rawDuration = Number(picked.duration || 0);
-    const seconds = rawDuration / (rawDuration > 1000 ? 1000 : 1);
+    const seconds = pickerDurationSeconds(picked.duration);
     const bytes = Number((picked as any).fileSize || 0);
     if (seconds && (seconds < MIN_SECONDS || seconds > MAX_SECONDS)) {
-      Alert.alert('Durée non compatible', 'Choisis une vidéo entre 15 et 60 secondes.');
+      Alert.alert('Durée non compatible', 'Choisis une vidéo de 15 secondes à 4 minutes.');
       return;
     }
     if (bytes > MAX_BYTES) {
-      Alert.alert('Vidéo trop lourde', 'La vidéo dépasse 95 Mo. Choisis une version plus légère.');
+      Alert.alert('Vidéo trop lourde', 'La vidéo dépasse 250 Mo. Choisis une version plus légère.');
       return;
     }
+    previewEpoch.current++; setPreviewPlaying(false); setVideoError('');
+    if (picked.width > 0 && picked.height > 0) setVideoAspect(picked.width / picked.height);
     setAsset({
       uri: picked.uri,
       name: (picked as any).fileName || `clip_${Date.now()}.mp4`,
       type: picked.mimeType || 'video/mp4',
       size: bytes || undefined,
     });
-    setDuration(Math.round(seconds || MIN_SECONDS));
+    setDuration(seconds);
   };
 
   const previewSource = async (source: MusicClipSource) => {
+    previewEpoch.current++; setPreviewPlaying(false);
     if (player.current?._id === source._id) {
       await player.togglePlayPause();
       return;
@@ -253,7 +278,9 @@ export function ClipComposerScreen() {
   };
 
   const chooseSource = (source: MusicClipSource) => {
+    previewEpoch.current++; setPreviewPlaying(false);
     setSelectedSource(source);
+    setVideoError('');
     setOffset(0);
     setSourceSheetOpen(false);
     void recordClipFunnelEvent(source._id, 'clip_use_sound_started');
@@ -265,6 +292,8 @@ export function ClipComposerScreen() {
       Alert.alert('Clip incomplet', !asset ? 'Choisis d’abord une vidéo.' : 'Choisis le son associé au Clip.');
       return;
     }
+    if (!auth.user) { navigation.navigate('Login'); return; }
+    previewEpoch.current++; setPreviewPlaying(false);
     publishingRef.current = true;
     try {
       const input = {
@@ -288,12 +317,13 @@ export function ClipComposerScreen() {
 
   const primaryLabel = !asset ? 'Ajouter la vidéo' : !selectedSource ? 'Choisir le son' : editTask ? 'Enregistrer et réessayer' : 'Publier le Clip';
 
+  if (!auth.user) return <CollectionSurface><View style={{ flex: 1, justifyContent: 'center', padding: 24 }}><CollectionEmpty icon="videocam-outline" title="Ton prochain clip" text="Choisis ta vidéo, associe un son, puis laisse l’envoi continuer pendant que tu explores." action="Se connecter" onPress={() => navigation.navigate('Login')} /><Pressable accessibilityRole="button" onPress={() => navigation.goBack()} style={styles.retry}><Text style={styles.retryText}>Retour</Text></Pressable></View></CollectionSurface>;
   return (
     <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <SynauraBackground variant="dark">
+      <CollectionSurface>
         <View style={[styles.header, responsive.contentFrame, { paddingTop: insets.top + 8, paddingHorizontal: responsive.gutter }]}>
           <Pressable accessibilityLabel="Fermer" onPress={() => navigation.goBack()} style={styles.headerButton}>
-            <Ionicons name="close" size={22} color={colors.paper} />
+            <Ionicons name="close" size={22} color={colors.text} />
           </Pressable>
           <View style={styles.headerTitleWrap}>
             <Text style={styles.headerTitle}>{editTask ? 'Modifier le Clip' : 'Créer un Clip'}</Text>
@@ -308,7 +338,7 @@ export function ClipComposerScreen() {
           contentContainerStyle={[
             styles.content,
             responsive.pageContent,
-            { paddingBottom: Math.max(insets.bottom + 112, 126) },
+            { paddingBottom: 24 },
           ]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
@@ -320,12 +350,18 @@ export function ClipComposerScreen() {
             </View>
           ) : null}
 
+          {videoError ? <Text accessibilityRole="alert" style={{ color: colors.danger, paddingVertical: 8 }}>{videoError}</Text> : null}
+          {asset && duration > 0 && !clipDurationValid(duration) ? <Text accessibilityRole="alert" style={{ color: colors.danger }}>La vidéo doit durer entre 15 secondes et 4 minutes.</Text> : null}
           <View style={[styles.workspace, wideLayout && styles.workspaceWide]}>
             <View style={[styles.previewFrame, { width: previewWidth, height: previewHeight }]}>
               {asset ? (
                 <>
-                  <Video source={{ uri: asset.uri }} paused muted repeat resizeMode="cover" style={StyleSheet.absoluteFill} />
-                  <View style={styles.previewShade} />
+                  <Video ref={videoRef} source={{ uri: asset.uri }} paused={!previewPlaying || !focused || callLocked} muted disableFocus resizeMode="contain" style={StyleSheet.absoluteFill}
+                    onLoad={event => { setDuration(Number(event.duration) || 0); if (event.naturalSize.width > 0 && event.naturalSize.height > 0) setVideoAspect(event.naturalSize.width / event.naturalSize.height); }}
+                    onEnd={() => setPreviewPlaying(false)} onError={() => { setVideoError('Cette vidéo ne peut pas être lue. Choisis un autre fichier.'); setPreviewPlaying(false); }} />
+                  {selectedSource?.audioUrl ? <Video ref={soundRef} key={selectedSource._id} source={{ uri: selectedSource.audioUrl }} paused={!previewPlaying || !focused || callLocked} muted={false} playInBackground={false} playWhenInactive={false} style={{ width: 1, height: 1, opacity: 0, position: 'absolute' }} onLoad={() => soundRef.current?.seek(offset)} onEnd={() => setPreviewPlaying(false)} onError={() => { setPreviewPlaying(false); setVideoError('Le son est indisponible. Choisis un autre son.'); }} /> : null}
+                  <Pressable accessibilityRole="button" accessibilityLabel={previewPlaying ? 'Arrêter la prévisualisation' : selectedSource ? 'Prévisualiser le clip avec le son choisi' : 'Prévisualiser la vidéo sans son'} onPress={() => void togglePreview()} style={styles.previewPlay}><Ionicons name={previewPlaying ? 'pause' : 'play'} size={28} color="#FFFFFF" /></Pressable>
+                  <View pointerEvents="none" style={styles.previewShade} />
                   <Pressable accessibilityLabel="Changer la vidéo" onPress={() => void pickVideo()} style={styles.changeVideoButton}>
                     <Ionicons name="camera-reverse-outline" size={20} color={colors.paper} />
                   </Pressable>
@@ -339,7 +375,7 @@ export function ClipComposerScreen() {
                 <Pressable onPress={() => void pickVideo()} style={styles.previewEmpty}>
                   <View style={styles.addVideoIcon}><Ionicons name="add" size={30} color={colors.paper} /></View>
                   <Text style={styles.previewEmptyTitle}>Ajouter une vidéo</Text>
-                  <Text style={styles.previewEmptyText}>15 à 60 secondes · 95 Mo maximum</Text>
+                  <Text style={styles.previewEmptyText}>15 s à 4 min · 250 Mo maximum</Text>
                 </Pressable>
               )}
             </View>
@@ -367,7 +403,7 @@ export function ClipComposerScreen() {
                     <Text style={styles.rowLabel}>DÉBUT DE L'EXTRAIT</Text>
                     <Text style={styles.offsetValue}>{mmss(offset)} – {mmss(offset + duration)}</Text>
                   </View>
-                  <OffsetSlider value={offset} max={maxOffset} onChange={setOffset} />
+                  <OffsetSlider value={offset} max={maxOffset} onChange={value => { setPreviewPlaying(false); setOffset(value); soundRef.current?.seek(value); }} />
                 </View>
               ) : null}
 
@@ -381,8 +417,9 @@ export function ClipComposerScreen() {
                   onChangeText={setCaption}
                   maxLength={280}
                   multiline
-                  placeholder="Écris quelque chose sur ce Clip…"
-                  placeholderTextColor="rgba(247,246,243,0.34)"
+                  accessibilityLabel="Légende du clip"
+                  placeholder="Écris quelque chose sur ce clip…"
+                  placeholderTextColor={colors.textTertiary}
                   style={[styles.input, styles.captionInput]}
                 />
                 <View style={styles.tagInputRow}>
@@ -390,8 +427,10 @@ export function ClipComposerScreen() {
                   <TextInput
                     value={tagText}
                     onChangeText={setTagText}
+                    accessibilityLabel="Tags du clip"
+                    maxLength={160}
                     placeholder="Ajouter des tags"
-                    placeholderTextColor="rgba(247,246,243,0.34)"
+                    placeholderTextColor={colors.textTertiary}
                     style={styles.tagInput}
                     autoCapitalize="none"
                   />
@@ -403,12 +442,15 @@ export function ClipComposerScreen() {
 
         <View style={[styles.publishDock, { paddingBottom: Math.max(insets.bottom, 10), paddingLeft: responsive.pagePaddingLeft, paddingRight: responsive.pagePaddingRight }]}>
           <MotionPressable
+            accessibilityRole="button"
+            disabled={Boolean(asset && selectedSource && !ready)}
             onPress={() => {
               if (!asset) void pickVideo();
               else if (!selectedSource) setSourceSheetOpen(true);
               else publish();
             }}
             style={[styles.publishButton, ready && styles.publishButtonReady]}
+            accessibilityHint="L’envoi continuera dans l’app après fermeture de cet écran."
             scaleTo={0.985}
           >
             <Ionicons name={!asset ? 'videocam-outline' : !selectedSource ? 'musical-notes-outline' : 'arrow-up'} size={20} color={colors.paper} />
@@ -490,73 +532,74 @@ export function ClipComposerScreen() {
             )}
           </View>
         </BottomSheet>
-      </SynauraBackground>
+      </CollectionSurface>
     </KeyboardAvoidingView>
   );
 }
 
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.black },
+const createStyles = (colors: ReturnType<typeof useSurfaceColors>) => StyleSheet.create({
+  root: { flex: 1, backgroundColor: colors.background },
   header: { width: '100%', minHeight: 62, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingBottom: 8, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: 'rgba(247,246,243,0.12)' },
-  headerButton: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(247,246,243,0.08)', borderWidth: 1, borderColor: 'rgba(247,246,243,0.10)' },
+  headerButton: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(247,246,243,0.08)', borderColor: 'rgba(247,246,243,0.10)' },
   headerTitleWrap: { flex: 1, maxWidth: 220, alignItems: 'center', gap: 7 },
-  headerTitle: { color: colors.paper, fontSize: 16, fontWeight: '900' },
+  headerTitle: { color: colors.text, fontSize: 16, fontWeight: '900' },
   progressRail: { width: '100%', flexDirection: 'row', gap: 5 },
   progressSegment: { flex: 1, height: 3, borderRadius: 2, backgroundColor: 'rgba(247,246,243,0.14)' },
   progressSegmentActive: { backgroundColor: colors.violet },
-  stepText: { width: 42, color: 'rgba(247,246,243,0.48)', fontSize: 11, fontWeight: '900', textAlign: 'center' },
+  stepText: { width: 42, color: colors.textSecondary, fontSize: 12, fontWeight: '900', textAlign: 'center' },
   content: { gap: 12, paddingTop: 4 },
-  challengeChip: { maxWidth: '100%', alignSelf: 'center', minHeight: 34, flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 17, paddingHorizontal: 12, backgroundColor: 'rgba(242,200,107,0.10)', borderWidth: 1, borderColor: 'rgba(242,200,107,0.18)' },
-  challengeText: { maxWidth: 260, color: '#F2D58D', fontSize: 10, fontWeight: '900' },
+  challengeChip: { maxWidth: '100%', alignSelf: 'center', minHeight: 34, flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 17, paddingHorizontal: 12, backgroundColor: 'rgba(242,200,107,0.10)', borderColor: 'rgba(242,200,107,0.18)' },
+  challengeText: { maxWidth: 260, color: '#F2D58D', fontSize: 12, fontWeight: '900' },
   workspace: { width: '100%', alignItems: 'center', gap: 14 },
   workspaceWide: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'center', gap: 16 },
-  previewFrame: { overflow: 'hidden', borderRadius: 20, backgroundColor: '#191817', borderWidth: 1, borderColor: 'rgba(247,246,243,0.16)' },
+  previewFrame: { overflow: 'hidden', borderRadius: 20, backgroundColor: '#191817', borderColor: 'rgba(247,246,243,0.16)' },
+  previewPlay: { position: 'absolute', alignSelf: 'center', top: '42%', width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', zIndex: 2, backgroundColor: 'rgba(0,0,0,.48)' },
   previewShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(17,17,17,0.15)' },
-  changeVideoButton: { position: 'absolute', right: 12, top: 12, width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(17,17,17,0.74)', borderWidth: 1, borderColor: 'rgba(247,246,243,0.16)' },
+  changeVideoButton: { position: 'absolute', right: 12, top: 12, width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(17,17,17,0.74)', borderColor: 'rgba(247,246,243,0.16)' },
   previewMeta: { position: 'absolute', left: 14, right: 14, bottom: 14 },
   previewReady: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 7 },
   readyDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.cyan },
-  previewReadyText: { color: 'rgba(247,246,243,0.78)', fontSize: 9, fontWeight: '900' },
+  previewReadyText: { color: 'rgba(247,246,243,0.78)', fontSize: 12, fontWeight: '900' },
   previewName: { color: colors.paper, fontSize: 15, fontWeight: '900' },
-  previewDetail: { marginTop: 4, color: 'rgba(247,246,243,0.60)', fontSize: 10, fontWeight: '800' },
+  previewDetail: { marginTop: 4, color: 'rgba(247,246,243,0.60)', fontSize: 12, fontWeight: '800' },
   previewEmpty: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24 },
   addVideoIcon: { width: 62, height: 62, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet },
   previewEmptyTitle: { marginTop: 18, color: colors.paper, fontSize: 20, fontWeight: '900' },
-  previewEmptyText: { marginTop: 7, color: 'rgba(247,246,243,0.48)', textAlign: 'center', fontSize: 11, lineHeight: 17, fontWeight: '700' },
-  editorPanel: { width: '100%', overflow: 'hidden', borderRadius: 14, backgroundColor: 'rgba(31,29,28,0.96)', borderTopWidth: 3, borderTopColor: colors.cyan },
-  editorPanelWide: { flex: 1, minWidth: 260 },
+  previewEmptyText: { marginTop: 7, color: colors.textSecondary, textAlign: 'center', fontSize: 12, lineHeight: 17, fontWeight: '700' },
+  editorPanel: { width: '100%', overflow: 'hidden', borderRadius: 24, backgroundColor: colors.surface, borderTopWidth: 3, borderTopColor: colors.cyan },
+  editorPanelWide: { flex: 1, minWidth: 0 },
   editorRow: { minHeight: 78, flexDirection: 'row', alignItems: 'center', gap: 11, paddingHorizontal: 13, paddingVertical: 11 },
   rowIcon: { width: 48, height: 48, borderRadius: 10, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   rowIconViolet: { backgroundColor: 'rgba(115,87,198,0.16)' },
   rowCover: { width: '100%', height: '100%' },
   rowCopy: { flex: 1, minWidth: 0 },
-  rowLabel: { color: 'rgba(247,246,243,0.42)', fontSize: 9, fontWeight: '900' },
-  rowTitle: { marginTop: 5, color: colors.paper, fontSize: 13, fontWeight: '900' },
-  rowSubtitle: { marginTop: 3, color: 'rgba(247,246,243,0.48)', fontSize: 10, fontWeight: '700' },
-  inlinePlay: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet },
+  rowLabel: { color: colors.textSecondary, fontSize: 12, fontWeight: '900' },
+  rowTitle: { marginTop: 5, color: colors.text, fontSize: 13, fontWeight: '900' },
+  rowSubtitle: { marginTop: 3, color: colors.textSecondary, fontSize: 12, fontWeight: '700' },
+  inlinePlay: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet },
   offsetSection: { paddingHorizontal: 14, paddingTop: 13, paddingBottom: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(247,246,243,0.10)' },
   offsetHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
-  offsetValue: { color: colors.paper, fontSize: 11, fontWeight: '900', fontVariant: ['tabular-nums'] },
-  offsetSlider: { height: 28, justifyContent: 'center', marginTop: 6 },
+  offsetValue: { color: colors.text, fontSize: 12, fontWeight: '900', fontVariant: ['tabular-nums'] },
+  offsetSlider: { height: 44, justifyContent: 'center', marginTop: 6 },
   offsetTrack: { position: 'absolute', left: 0, right: 0, height: 4, borderRadius: 2, backgroundColor: 'rgba(247,246,243,0.14)' },
   offsetFill: { position: 'absolute', left: 0, height: 4, borderRadius: 2, backgroundColor: colors.cyan },
   offsetKnob: { position: 'absolute', width: 16, height: 16, marginLeft: -8, borderRadius: 8, backgroundColor: colors.paper, borderWidth: 3, borderColor: colors.cyan },
   detailsSection: { gap: 9, padding: 14, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(247,246,243,0.10)' },
   inputHeading: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  captionCount: { color: 'rgba(247,246,243,0.32)', fontSize: 9, fontWeight: '800' },
-  input: { color: colors.paper, backgroundColor: '#272523', borderBottomWidth: 1, borderColor: 'rgba(247,246,243,0.18)', fontSize: 13, fontWeight: '700' },
+  captionCount: { color: colors.textSecondary, fontSize: 12, fontWeight: '800' },
+  input: { color: colors.text, backgroundColor: colors.surfaceMuted, borderBottomWidth: 1, borderColor: 'rgba(247,246,243,0.18)', fontSize: 13, fontWeight: '700' },
   captionInput: { minHeight: 92, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 11, textAlignVertical: 'top' },
-  tagInputRow: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: 12, paddingHorizontal: 12, backgroundColor: '#272523', borderWidth: 1, borderColor: 'rgba(247,246,243,0.12)' },
-  tagInput: { flex: 1, minWidth: 0, color: colors.paper, fontSize: 12, fontWeight: '700' },
-  publishDock: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingTop: 10, backgroundColor: 'rgba(17,17,17,0.97)', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(247,246,243,0.10)' },
-  publishButton: { minHeight: 56, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, borderRadius: 14, backgroundColor: '#363331', borderBottomWidth: 3, borderColor: 'rgba(247,246,243,0.16)' },
+  tagInputRow: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: 12, paddingHorizontal: 12, backgroundColor: colors.surfaceMuted, borderColor: 'rgba(247,246,243,0.12)' },
+  tagInput: { flex: 1, minWidth: 0, color: colors.text, fontSize: 12, fontWeight: '700' },
+  publishDock: { paddingTop: 10, backgroundColor: colors.background, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(247,246,243,0.10)' },
+  publishButton: { minHeight: 56, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, borderRadius: 28, backgroundColor: colors.violet, borderColor: 'rgba(247,246,243,0.16)' },
   publishButtonReady: { backgroundColor: colors.violet, borderColor: colors.cyan },
   publishText: { color: colors.paper, fontSize: 14, fontWeight: '900' },
-  sheetBody: { minHeight: 360, maxHeight: 650, paddingHorizontal: 14, paddingTop: 10 },
+  sheetBody: { minHeight: 180, maxHeight: 650, paddingHorizontal: 14, paddingTop: 10 },
   scopeTabs: { minHeight: 46, flexDirection: 'row', gap: 0, borderRadius: 0, padding: 0, backgroundColor: 'transparent', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.borderStrong },
   scopeTab: { flex: 1, minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 0 },
   scopeTabActive: { backgroundColor: colors.black },
-  scopeTabText: { color: colors.textSecondary, fontSize: 11, fontWeight: '900' },
+  scopeTabText: { color: colors.textSecondary, fontSize: 12, fontWeight: '900' },
   scopeTabTextActive: { color: colors.paper },
   searchShell: { minHeight: 50, flexDirection: 'row', alignItems: 'center', gap: 9, marginTop: 10, borderRadius: 0, paddingHorizontal: 2, backgroundColor: 'transparent', borderBottomWidth: 1, borderColor: colors.borderStrong },
   searchInput: { flex: 1, minWidth: 0, color: colors.text, fontSize: 13, fontWeight: '700' },
@@ -568,17 +611,17 @@ const styles = StyleSheet.create({
   sourceCopy: { flex: 1, minWidth: 0 },
   sourceTitleLine: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   sourceTitle: { flexShrink: 1, color: colors.text, fontSize: 13, fontWeight: '900' },
-  ownBadge: { color: colors.violet, fontSize: 8, fontWeight: '900' },
-  sourceArtist: { marginTop: 5, color: colors.textTertiary, fontSize: 10, fontWeight: '700' },
+  ownBadge: { color: colors.violet, fontSize: 12, fontWeight: '900' },
+  sourceArtist: { marginTop: 5, color: colors.textTertiary, fontSize: 12, fontWeight: '700' },
   sheetPlay: { width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted },
-  selectCircle: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.borderStrong },
+  selectCircle: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', borderColor: colors.borderStrong },
   selectCircleActive: { backgroundColor: colors.violet, borderColor: colors.violet },
   retry: { minHeight: 72, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
-  retryText: { color: colors.violet, fontSize: 11, fontWeight: '900' },
+  retryText: { color: colors.violet, fontSize: 12, fontWeight: '900' },
   noResults: { alignItems: 'center', paddingHorizontal: 22, paddingVertical: 48 },
   noResultsIcon: { width: 48, height: 48, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted },
   noResultsTitle: { marginTop: 12, color: colors.text, fontSize: 14, fontWeight: '900' },
-  noResultsText: { maxWidth: 280, marginTop: 6, color: colors.textTertiary, textAlign: 'center', fontSize: 11, lineHeight: 17, fontWeight: '700' },
+  noResultsText: { maxWidth: 280, marginTop: 6, color: colors.textTertiary, textAlign: 'center', fontSize: 12, lineHeight: 17, fontWeight: '700' },
 });
 
 export default ClipComposerScreen;

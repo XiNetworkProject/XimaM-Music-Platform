@@ -4,6 +4,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import type { CityEvent, CityPulseTrack, CityVoteSession, SynauraCityData } from '@/api/types';
 import { colors, spacing } from '@/theme/tokens';
+import { useSurfaceColors } from '@/components/mobile/useSurfaceColors';
+import { useEntryMotion } from '@/components/entry/EntryAtmosphere';
+import { countdownLabel } from '@/utils/serverDate';
 import { TrackCover } from '@/components/TrackCover';
 
 type Tone = 'violet' | 'coral' | 'cyan' | 'ink';
@@ -27,18 +30,21 @@ export function EventTicker({
   tone?: Tone;
   text?: string;
 }) {
+  const colors = useSurfaceColors(); const styles = useMemo(() => createStyles(colors), [colors]);
+  const animate = useEntryMotion();
   const progress = useRef(new Animated.Value(0)).current;
   const content = text || makeTicker(city);
   const palette = tones[tone];
 
   useEffect(() => {
+    if (!animate) { progress.stopAnimation(); progress.setValue(0); return; }
     const animation = Animated.loop(Animated.sequence([
-      Animated.timing(progress, { toValue: 1, duration: 2200, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
+      Animated.timing(progress, { toValue: 1, duration: 2200, easing: Easing.inOut(Easing.ease), useNativeDriver: true, isInteraction: false }),
       Animated.timing(progress, { toValue: 0, duration: 2200, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
     ]));
     animation.start();
     return () => animation.stop();
-  }, [progress]);
+  }, [progress, animate]);
 
   return (
     <Pressable disabled={!onPress} onPress={onPress} style={styles.ticker}>
@@ -63,14 +69,6 @@ export function EventTicker({
   );
 }
 
-function countdownLabel(target?: string) {
-  const delta = Math.max(0, new Date(target || 0).getTime() - Date.now());
-  const hours = Math.floor(delta / 3_600_000);
-  const minutes = Math.floor((delta % 3_600_000) / 60_000);
-  const seconds = Math.floor((delta % 60_000) / 1_000);
-  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-}
-
 export function VoteCountdownBanner({
   current,
   next,
@@ -82,10 +80,14 @@ export function VoteCountdownBanner({
   onOpen: () => void;
   onNotify?: () => void;
 }) {
+  const colors = useSurfaceColors(); const styles = useMemo(() => createStyles(colors), [colors]);
+  const animate = useEntryMotion();
   const session = current || next;
   const [remaining, setRemaining] = useState(() => countdownLabel(current?.endsAt || next?.startsAt));
 
   useEffect(() => {
+    setRemaining(countdownLabel(current?.endsAt || next?.startsAt));
+    if (!session) return;
     const timer = setInterval(() => setRemaining(countdownLabel(current?.endsAt || next?.startsAt)), 1000);
     return () => clearInterval(timer);
   }, [current?.endsAt, next?.startsAt]);
@@ -111,23 +113,26 @@ export function VoteCountdownBanner({
       </View>
       <View style={styles.countdownActions}>
         <Pressable onPress={onOpen} style={styles.countdownPrimary}><Ionicons name={current ? 'flash' : 'headset'} size={15} color={colors.white} /><Text style={styles.countdownPrimaryText}>{current ? 'Ouvrir le vote' : 'Voir les participants'}</Text></Pressable>
-        {!current && onNotify ? <Pressable onPress={onNotify} style={styles.countdownNotify}><Ionicons name="notifications-outline" size={16} color={colors.paper} /></Pressable> : null}
+        {!current && onNotify ? <Pressable accessibilityRole="button" accessibilityLabel="Recevoir un rappel" onPress={onNotify} style={styles.countdownNotify}><Ionicons name="notifications-outline" size={16} color={colors.paper} /></Pressable> : null}
       </View>
     </View>
   );
 }
 
 export function BattleDuel({ event, compact = false }: { event: CityEvent; compact?: boolean }) {
+  const colors = useSurfaceColors(); const styles = useMemo(() => createStyles(colors), [colors]);
+  const animate = useEntryMotion();
   const pulse = useRef(new Animated.Value(0)).current;
   const tracks = (event.tracks || []).slice(0, 2);
   useEffect(() => {
+    if (!animate) { pulse.stopAnimation(); pulse.setValue(0); return; }
     const animation = Animated.loop(Animated.sequence([
       Animated.timing(pulse, { toValue: 1, duration: 900, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
       Animated.timing(pulse, { toValue: 0, duration: 900, easing: Easing.inOut(Easing.ease), useNativeDriver: true }),
     ]));
     animation.start();
     return () => animation.stop();
-  }, [pulse]);
+  }, [pulse, animate]);
   if (tracks.length < 2) return null;
   return (
     <View style={[styles.duel, compact && styles.duelCompact]}>
@@ -175,6 +180,8 @@ export function SectionHeader({
   action?: string;
   onAction?: () => void;
 }) {
+  const colors = useSurfaceColors(); const styles = useMemo(() => createStyles(colors), [colors]);
+  const animate = useEntryMotion();
   return (
     <View style={styles.sectionHeader}>
       <View style={styles.sectionCopy}>
@@ -193,6 +200,8 @@ export function SectionHeader({
 }
 
 export function PulseBadge({ track, compact = false }: { track: Pick<CityPulseTrack, 'pulse' | 'pulseState'>; compact?: boolean }) {
+  const colors = useSurfaceColors(); const styles = useMemo(() => createStyles(colors), [colors]);
+  const animate = useEntryMotion();
   const tone = track.pulse >= 85 ? colors.coral : track.pulse >= 65 ? colors.violet : '#008D96';
   return (
     <View style={[styles.pulseBadge, compact && styles.pulseBadgeCompact, { backgroundColor: `${tone}18` }]}>
@@ -203,6 +212,8 @@ export function PulseBadge({ track, compact = false }: { track: Pick<CityPulseTr
 }
 
 export function PulseBar({ value, height = 6 }: { value: number; height?: number }) {
+  const colors = useSurfaceColors(); const styles = useMemo(() => createStyles(colors), [colors]);
+  const animate = useEntryMotion();
   return (
     <View style={[styles.pulseBar, { height, borderRadius: height / 2 }]}>
       <LinearGradient
@@ -224,6 +235,8 @@ export function EventCard({
   onOpen: () => void;
   compact?: boolean;
 }) {
+  const colors = useSurfaceColors(); const styles = useMemo(() => createStyles(colors), [colors]);
+  const animate = useEntryMotion();
   const tone = event.kind === 'battle' ? 'violet' : event.kind === 'challenge' ? 'coral' : event.kind === 'friday_drop' ? 'cyan' : 'ink';
   const palette = tones[tone];
   return (
@@ -259,6 +272,8 @@ export function EventsRail({
   onOpen: () => void;
   title?: string;
 }) {
+  const colors = useSurfaceColors(); const styles = useMemo(() => createStyles(colors), [colors]);
+  const animate = useEntryMotion();
   if (!city?.events?.length) return null;
   return (
     <View style={styles.railSection}>
@@ -279,6 +294,8 @@ export function EventChoice({
   selectedId: string | null;
   onSelect: (eventId: string | null) => void;
 }) {
+  const colors = useSurfaceColors(); const styles = useMemo(() => createStyles(colors), [colors]);
+  const animate = useEntryMotion();
   const eligible = useMemo(() => events.filter((event) => event.kind !== 'battle' && !event.isEnded).slice(0, 4), [events]);
   if (!eligible.length) return null;
   return (
@@ -315,6 +332,8 @@ export function CreatorLevelCard({
   events?: number;
   onOpen?: () => void;
 }) {
+  const colors = useSurfaceColors(); const styles = useMemo(() => createStyles(colors), [colors]);
+  const animate = useEntryMotion();
   const xp = Math.max(0, tracks * 120 + Math.round(plays / 5) + likes * 4 + events * 180);
   const levels = [
     { name: 'Nouveau créateur', min: 0, next: 500 },
@@ -349,63 +368,63 @@ function makeTicker(city?: SynauraCityData | null) {
   return `Synaura Pulse est en live · ${hot} son${hot > 1 ? 's' : ''} en feu · ${battles} battle${battles > 1 ? 's' : ''} ouverte${battles > 1 ? 's' : ''} · ${city.spotlightArtists.length} nouveaux talents`;
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof useSurfaceColors>) => StyleSheet.create({
   ticker: { minHeight: 58, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', gap: 10, borderTopWidth: 2, borderTopColor: colors.coral, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.borderStrong, paddingVertical: 9 },
   tickerSignal: { display: 'none' },
   tickerIcon: { width: 37, height: 37, borderRadius: 19, alignItems: 'center', justifyContent: 'center' },
-  tickerText: { flex: 1, fontSize: 11, lineHeight: 16, fontWeight: '900' },
-  countdown: { minHeight: 220, overflow: 'hidden', justifyContent: 'flex-end', gap: 8, borderRadius: 20, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, padding: 14 },
+  tickerText: { flex: 1, fontSize: 12, lineHeight: 19, fontWeight: '700' },
+  countdown: { minHeight: 220, overflow: 'hidden', justifyContent: 'flex-end', gap: 8, borderRadius: 20, padding: 14 },
   countdownTop: { flexDirection: 'row', alignItems: 'center', gap: 9 },
   countdownLogo: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet },
   countdownCopy: { flex: 1, minWidth: 0 },
-  countdownKicker: { color: '#FFB2A7', fontSize: 8, fontWeight: '900', letterSpacing: 1.2 },
-  countdownTitle: { marginTop: 3, color: colors.paper, fontSize: 15, fontWeight: '900' },
+  countdownKicker: { color: '#FFB2A7', fontSize: 12, fontWeight: '700', letterSpacing: 1.2 },
+  countdownTitle: { marginTop: 3, color: colors.paper, fontSize: 15, fontWeight: '700' },
   countdownLive: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 13, backgroundColor: 'rgba(255,250,242,0.13)', paddingHorizontal: 8, paddingVertical: 6 },
   countdownLiveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.coral },
-  countdownLiveText: { color: colors.paper, fontSize: 7, fontWeight: '900', letterSpacing: 0.8 },
+  countdownLiveText: { color: colors.paper, fontSize: 12, fontWeight: '700', letterSpacing: 0.8 },
   countdownCovers: { flexDirection: 'row', alignItems: 'center' },
   countdownCover: { width: 43, height: 43, borderRadius: 8, borderWidth: 2, borderColor: colors.paper },
   countdownCoverOverlap: { marginLeft: -12 },
-  countdownTime: { color: colors.paper, fontSize: 29, fontWeight: '900', fontVariant: ['tabular-nums'] },
-  countdownText: { maxWidth: 310, color: 'rgba(255,250,242,0.68)', fontSize: 11, lineHeight: 16, fontWeight: '800' },
+  countdownTime: { color: colors.paper, fontSize: 29, fontWeight: '700', fontVariant: ['tabular-nums'] },
+  countdownText: { maxWidth: 310, color: 'rgba(255,250,242,0.68)', fontSize: 12, lineHeight: 19, fontWeight: '800' },
   countdownParticipants: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  countdownParticipantsText: { flex: 1, color: 'rgba(255,250,242,0.66)', fontSize: 9, fontWeight: '900' },
+  countdownParticipantsText: { flex: 1, color: 'rgba(255,250,242,0.66)', fontSize: 12, fontWeight: '700' },
   countdownActions: { marginTop: 2, flexDirection: 'row', gap: 8 },
   countdownPrimary: { minHeight: 42, flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 11, backgroundColor: colors.violet, paddingHorizontal: 13 },
-  countdownPrimaryText: { color: colors.white, fontSize: 10, fontWeight: '900' },
+  countdownPrimaryText: { color: colors.white, fontSize: 12, fontWeight: '700' },
   countdownNotify: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,250,242,0.12)' },
   duel: { minHeight: 180, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 8 },
   duelCompact: { minHeight: 105, gap: 5, paddingVertical: 2 },
-  duelCard: { width: '42%', aspectRatio: 0.88, overflow: 'hidden', borderRadius: 14, borderWidth: 2, borderColor: 'rgba(255,255,255,0.26)', backgroundColor: colors.surfaceStrong },
+  duelCard: { width: '42%', aspectRatio: 0.88, overflow: 'hidden', borderRadius: 23, borderWidth: 2, borderColor: 'rgba(255,255,255,0.26)', backgroundColor: colors.surfaceStrong },
   duelCardCompact: { maxWidth: 105, borderRadius: 12 },
   duelCover: { width: '100%', height: '100%' },
   duelLabel: { position: 'absolute', left: 5, right: 5, bottom: 5, borderRadius: 12, backgroundColor: 'rgba(23,19,19,0.82)', paddingHorizontal: 7, paddingVertical: 6 },
-  duelTitle: { color: colors.paper, fontSize: 8, fontWeight: '900' },
-  duelWinner: { position: 'absolute', right: 7, top: 7, width: 28, height: 28, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFD667' },
+  duelTitle: { color: colors.paper, fontSize: 12, fontWeight: '700' },
+  duelWinner: { position: 'absolute', right: 7, top: 7, width: 28, height: 28, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFD667' },
   duelVs: { position: 'absolute', left: '50%', zIndex: 2, width: 48, height: 48, marginLeft: -24, borderRadius: 24, borderWidth: 3, borderColor: colors.text, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet, elevation: 8 },
-  duelVsText: { marginTop: -2, color: colors.paper, fontSize: 7, fontWeight: '900' },
+  duelVsText: { marginTop: -2, color: colors.paper, fontSize: 12, fontWeight: '700' },
   sectionHeader: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 10, marginBottom: spacing.md },
   sectionCopy: { flex: 1, minWidth: 0 },
-  sectionEyebrow: { color: colors.violet, fontSize: 8, fontWeight: '900', letterSpacing: 1.3 },
-  sectionTitle: { marginTop: 3, color: colors.text, fontSize: 21, fontWeight: '900' },
-  sectionSubtitle: { marginTop: 3, color: colors.textTertiary, fontSize: 10, lineHeight: 14, fontWeight: '700' },
-  sectionAction: { minHeight: 34, flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 17, backgroundColor: colors.surfaceMuted, paddingHorizontal: 11 },
-  sectionActionText: { color: colors.text, fontSize: 9, fontWeight: '900' },
-  pulseBadge: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 14, paddingHorizontal: 8, paddingVertical: 6 },
+  sectionEyebrow: { color: colors.violet, fontSize: 12, fontWeight: '700', letterSpacing: 1.3 },
+  sectionTitle: { marginTop: 3, color: colors.text, fontSize: 21, fontWeight: '700' },
+  sectionSubtitle: { marginTop: 3, color: colors.textTertiary, fontSize: 12, lineHeight: 19, fontWeight: '700' },
+  sectionAction: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 17, backgroundColor: colors.surfaceMuted, paddingHorizontal: 11 },
+  sectionActionText: { color: colors.text, fontSize: 12, fontWeight: '700' },
+  pulseBadge: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 23, paddingHorizontal: 8, paddingVertical: 6 },
   pulseBadgeCompact: { borderRadius: 11, paddingHorizontal: 6, paddingVertical: 4 },
-  pulseBadgeText: { fontSize: 9, fontWeight: '900' },
+  pulseBadgeText: { fontSize: 12, fontWeight: '700' },
   pulseBadgeTextCompact: { fontSize: 8 },
   pulseBar: { overflow: 'hidden', backgroundColor: colors.surfaceMuted },
   pulseBarFill: { height: '100%' },
-  eventCard: { minHeight: 120, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 14, borderWidth: 1, borderColor: colors.border, padding: 12 },
+  eventCard: { minHeight: 120, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 23, padding: 12 },
   eventCardCompact: { minHeight: 116 },
   eventIcon: { width: 42, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
   eventCopy: { flex: 1, minWidth: 0 },
   eventKickerRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  eventKicker: { opacity: 0.58, fontSize: 8, fontWeight: '900', letterSpacing: 1.2, textTransform: 'uppercase' },
+  eventKicker: { opacity: 0.58, fontSize: 12, fontWeight: '700', letterSpacing: 1.2, textTransform: 'uppercase' },
   liveDot: { width: 6, height: 6, borderRadius: 3 },
-  eventTitle: { marginTop: 5, fontSize: 15, lineHeight: 18, fontWeight: '900' },
-  eventMeta: { marginTop: 5, opacity: 0.48, fontSize: 9, fontWeight: '800' },
+  eventTitle: { marginTop: 5, fontSize: 15, lineHeight: 18, fontWeight: '700' },
+  eventMeta: { marginTop: 5, opacity: 0.48, fontSize: 12, fontWeight: '800' },
   eventArrow: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   railSection: { marginTop: spacing.xl },
   rail: { gap: 10, paddingRight: spacing.md },
@@ -416,14 +435,14 @@ const styles = StyleSheet.create({
   choiceRadio: { width: 22, height: 22, borderRadius: 11, borderWidth: 1, borderColor: colors.borderStrong, alignItems: 'center', justifyContent: 'center' },
   choiceRadioActive: { borderColor: colors.violet, backgroundColor: colors.violet },
   choiceCopy: { flex: 1, minWidth: 0 },
-  choiceTitle: { color: colors.text, fontSize: 11, fontWeight: '900' },
-  choiceMeta: { marginTop: 3, color: colors.textTertiary, fontSize: 9, fontWeight: '700' },
-  creatorLevel: { minHeight: 98, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 14, padding: 12 },
+  choiceTitle: { color: colors.text, fontSize: 12, fontWeight: '700' },
+  choiceMeta: { marginTop: 3, color: colors.textTertiary, fontSize: 12, fontWeight: '700' },
+  creatorLevel: { minHeight: 98, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 23, padding: 12 },
   creatorLevelIcon: { width: 43, height: 43, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,250,242,0.1)' },
   creatorLevelCopy: { flex: 1, minWidth: 0, gap: 4 },
-  creatorLevelKicker: { color: '#C8B8FF', fontSize: 7, fontWeight: '900', letterSpacing: 1 },
-  creatorLevelTitle: { color: colors.paper, fontSize: 16, fontWeight: '900' },
-  creatorLevelMeta: { color: 'rgba(255,250,242,0.46)', fontSize: 8, fontWeight: '700' },
+  creatorLevelKicker: { color: '#C8B8FF', fontSize: 12, fontWeight: '700', letterSpacing: 1 },
+  creatorLevelTitle: { color: colors.paper, fontSize: 16, fontWeight: '700' },
+  creatorLevelMeta: { color: 'rgba(255,250,242,0.46)', fontSize: 12, fontWeight: '700' },
   creatorLevelBar: { height: 5, overflow: 'hidden', borderRadius: 3, backgroundColor: 'rgba(255,250,242,0.1)' },
   creatorLevelBarFill: { height: '100%' },
 });

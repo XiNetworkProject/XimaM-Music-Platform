@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -31,14 +33,13 @@ import {
 } from '@/api/client';
 import { useAuth } from '@/auth/AuthProvider';
 import { TrackCover } from '@/components/TrackCover';
-import { EventChoice, EventTicker } from '@/components/events/SynauraEvents';
-import { SynauraBackground } from '@/components/SynauraBackground';
+import { EventChoice } from '@/components/events/SynauraEvents';
+import { CollectionSurface, CollectionHeader, CollectionIconButton, CollectionReveal, useCollectionPalette } from '@/components/mobile/CollectionUI';
+import { EntryPressable } from '@/components/entry/EntryPressable';
 import { CreateArrivalBanner } from '@/components/create/CreateArrivalBanner';
 import { usePlayer } from '@/player/PlayerProvider';
 import { RemixPermissionsSection, DEFAULT_REMIX_PERMISSIONS, type RemixPermissionsValue } from '@/components/upload/RemixPermissionsSection';
 import type { SynauraCityData, Track } from '@/api/types';
-import { AppHeader } from '@/components/ui/AppHeader';
-import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { MotionPressable, Reveal } from '@/components/motion/Motion';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { colors } from '@/theme/tokens';
@@ -129,6 +130,7 @@ function assetFromImage(asset: ImagePicker.ImagePickerAsset): UploadAsset {
 export function UploadScreen() {
   const insets = useSafeAreaInsets();
   const responsive = useResponsiveLayout();
+  const palette = useCollectionPalette();
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const challengeId: string = route.params?.challengeId || '';
@@ -325,6 +327,7 @@ export function UploadScreen() {
   };
 
   const publish = async () => {
+    if (!auth.requireAuth()) { navigation.navigate('Login'); return; }
     if (!canPublish) {
       setError('Verifie les fichiers, la cover et le titre avant de publier.');
       return;
@@ -485,96 +488,47 @@ export function UploadScreen() {
     }
   };
 
-  if (!auth.user) {
-    return (
-      <View style={styles.root}>
-        <SynauraBackground variant="warm" />
-        <View style={[styles.authGate, responsive.pageContent, { paddingTop: insets.top + 24 }]}>
-          <View style={styles.authIcon}><Ionicons name="cloud-upload-outline" size={34} color="#FFFAF2" /></View>
-          <Text style={styles.authTitle}>Connecte-toi pour publier</Text>
-          <Text style={styles.authText}>L’upload est reserve aux artistes connectes a Synaura.</Text>
-        </View>
-      </View>
-    );
-  }
-
   return (
-    <View style={styles.root}>
-      <SynauraBackground variant="warm" />
+    <CollectionSurface><KeyboardAvoidingView key={palette.bg} style={[styles.root, { backgroundColor: palette.bg }]} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <ScrollView
-        contentContainerStyle={[
-          styles.content,
-          responsive.pageContent,
-          { paddingTop: 0, paddingBottom: Math.max(insets.bottom + 106, responsive.bottomDockClearance + 24) },
-        ]}
+        contentContainerStyle={[styles.content, responsive.pageContent, { paddingTop: insets.top + 8, paddingBottom: 24 }]}
         keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets
         showsVerticalScrollIndicator={false}
       >
-        <AppHeader flush eyebrow="Sortie artiste" title="Publier" subtitle="Ton son, son identité, puis sa diffusion." onBack={() => navigation.goBack()} action={{ icon: 'library-outline', label: 'Bibliothèque', onPress: () => navigatePrimaryTab(navigation, 'Library') }} />
-
-        <CreateArrivalBanner context={challengeId ? 'challenge' : 'upload'} title={challengeId ? challengeTitle : null} />
-
-        <View style={styles.hero}>
-          <View style={styles.heroPills}>
-            <Pill label="Upload Synaura" active />
-            <Pill label={releaseLabel} />
-            <Pill label={`${selectedCount} piste${selectedCount > 1 ? 's' : ''}`} />
-          </View>
-          <Text style={styles.heroTitle}>Une sortie, trois décisions.</Text>
-          <View style={styles.heroActions}>
-            <MotionPressable onPress={() => navigatePrimaryTab(navigation, 'Library')} style={styles.lightButton} scaleTo={0.96}>
-              <Ionicons name="library-outline" size={16} color="#171313" />
-              <Text style={styles.lightButtonText}>Bibliothèque</Text>
-            </MotionPressable>
-            <MotionPressable onPress={resetUpload} style={styles.ghostButton} scaleTo={0.96}>
-              <Ionicons name="refresh" size={15} color="rgba(255,250,242,0.78)" />
-              <Text style={styles.ghostButtonText}>Réinitialiser</Text>
-            </MotionPressable>
-          </View>
-        </View>
-
-        <View style={styles.contextGrid}>
-          <ContextBox label="Format" value={releaseLabel} />
-          <ContextBox label="Limite" value={uploadLimitLabel} />
-          <ContextBox label="Sortie" value={scheduledLabel} />
-        </View>
-
-        <EventTicker city={city} onPress={() => navigation.navigate('City')} tone="coral" text="Challenge en cours · publie ton son dans un Event Synaura pour gagner en visibilité" />
+        <CollectionHeader eyebrow="FAIS ENTENDRE TON SON" title="Ta prochaine sortie." onBack={() => { if (!uploading) navigation.goBack(); }} actions={<CollectionIconButton label="Bibliothèque" icon="library-outline" onPress={() => { if (!uploading) navigatePrimaryTab(navigation, 'Library'); }} />} />
+        {challengeId ? <CreateArrivalBanner context="challenge" title={challengeTitle} /> : null}
 
         <View style={styles.stepNav}>
           {[1, 2, 3].map((item) => {
             const enabled = item === 1 || (item === 2 && step1Valid) || (item === 3 && step1Valid && step2Valid);
             const done = item === 1 ? step1Valid : item === 2 ? step2Valid : step === 3;
             return (
-              <MotionPressable key={item} disabled={!enabled} onPress={() => setStep(item as Step)} style={[styles.stepButton, step === item && styles.stepButtonActive, !enabled && styles.stepButtonDisabled]} scaleTo={0.97}>
-                <Text style={[styles.stepNumber, step === item && styles.stepNumberActive]}>{done ? 'OK' : item}</Text>
-                <Text style={[styles.stepLabel, step === item && styles.stepLabelActive]}>{item === 1 ? 'Fichier audio' : item === 2 ? 'Cover & infos' : 'Diffusion & droits'}</Text>
-              </MotionPressable>
+              <EntryPressable key={item} accessibilityRole="button" accessibilityState={{ selected: step === item, disabled: !enabled || uploading }} disabled={!enabled || uploading} onPress={() => setStep(item as Step)} style={[styles.stepButton, { backgroundColor: step === item ? palette.raised : 'transparent' }]}>
+                <Text style={[styles.stepNumber, { color: step === item ? palette.blue : palette.muted }]}>{done && item < step ? '✓' : `0${item}`}</Text>
+                <Text style={[styles.stepLabel, { color: palette.text }]}>{item === 1 ? 'Audio' : item === 2 ? 'Identité' : 'Diffusion'}</Text>
+              </EntryPressable>
             );
           })}
-        </View>
-        <View style={styles.progressOuter}>
-          <View style={[styles.progressInner, { width: `${progressPercent}%` }]} />
         </View>
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
         {success ? <Text style={styles.success}>{success}</Text> : null}
 
-        <View style={styles.studioPanel}>
+        <View pointerEvents={uploading || success ? 'none' : 'auto'} style={styles.studioPanel}>
           <View style={styles.panelHeader}>
             <View>
               <Text style={styles.panelKicker}>Étape {step}/3</Text>
               <Text style={styles.panelTitle}>{step === 1 ? 'Fichier audio' : step === 2 ? 'Pochette et informations' : 'Diffusion et droits de création'}</Text>
             </View>
-            <SegmentedControl value={releaseType} dark compact options={RELEASES.map((item) => ({ value: item.key, label: item.title }))} onChange={selectRelease} />
           </View>
 
-          <Reveal key={step} distance={8} duration={320}>
+          <CollectionReveal key={step}>
           {step === 1 ? (
             <View style={styles.panelBody}>
-              <View style={styles.releaseGrid}>
+              <View style={[styles.releaseGrid, responsive.hasLargeText && { flexDirection: 'column' }]}>
                 {RELEASES.map((item) => (
-                  <Pressable key={item.key} onPress={() => selectRelease(item.key)} style={[styles.releaseCard, releaseType === item.key && styles.releaseCardActive]}>
+                  <Pressable key={item.key} accessibilityRole="radio" accessibilityState={{ selected: releaseType === item.key }} onPress={() => selectRelease(item.key)} style={[styles.releaseCard, releaseType === item.key && styles.releaseCardActive]}>
                     <Ionicons name={item.icon} size={24} color={releaseType === item.key ? '#171313' : 'rgba(255,250,242,0.72)'} />
                     <Text style={[styles.releaseTitle, releaseType === item.key && styles.releaseTitleActive]}>{item.title}</Text>
                     <Text style={[styles.releaseSub, releaseType === item.key && styles.releaseSubActive]}>{item.subtitle}</Text>
@@ -582,7 +536,7 @@ export function UploadScreen() {
                 ))}
               </View>
 
-              <Pressable onPress={pickAudio} style={styles.dropZone}>
+              <Pressable accessibilityRole="button" accessibilityLabel="Choisir les fichiers audio" onPress={pickAudio} style={styles.dropZone}>
                 <Ionicons name="cloud-upload-outline" size={34} color="rgba(255,250,242,0.66)" />
                 <Text style={styles.dropZoneTitle}>{releaseType === 'single' ? (audio ? audio.name : 'Ajoute ton morceau principal') : 'Ajouter les pistes'}</Text>
                 <Text style={styles.dropZoneText}>
@@ -629,7 +583,7 @@ export function UploadScreen() {
                   <Field dark label={releaseType === 'single' ? 'Titre' : releaseType === 'ep' ? "Nom de l'EP" : "Nom de l'album"} value={title} onChangeText={setTitle} placeholder="Titre de ta sortie" />
                   <View style={styles.artistField}>
                     <Text style={styles.darkLabel}>Artiste</Text>
-                    <Text style={styles.artistValue}>{auth.user.name || auth.user.username || 'Synaura Artist'}</Text>
+                    <Text style={styles.artistValue}>{auth.user?.name || auth.user?.username || 'Ton compte Synaura'}</Text>
                   </View>
                 </View>
               </View>
@@ -727,34 +681,20 @@ export function UploadScreen() {
               ) : null}
             </View>
           ) : null}
-          </Reveal>
+          </CollectionReveal>
 
-          {stepHint ? <Text style={styles.stepHint}>{stepHint}</Text> : null}
-          <View style={styles.footerBar}>
-            <View style={styles.footerLeft}>
-              {step > 1 ? <MotionPressable onPress={() => setStep((current) => Math.max(1, current - 1) as Step)} style={styles.backButton} scaleTo={0.96}><Text style={styles.backText}>Retour</Text></MotionPressable> : null}
-              <MotionPressable onPress={resetUpload} style={styles.cancelButton} scaleTo={0.96}><Text style={styles.cancelText}>Annuler</Text></MotionPressable>
-            </View>
-            {step < 3 ? (
-              <MotionPressable onPress={goNext} style={[styles.nextButton, ((step === 1 && !step1Valid) || (step === 2 && !step2Valid)) && styles.nextButtonDisabled]} scaleTo={0.97}>
-                <Text style={styles.nextText}>Suivant</Text>
-              </MotionPressable>
-            ) : (
-              <MotionPressable disabled={!canPublish} onPress={() => void publish()} style={[styles.nextButton, !canPublish && styles.nextButtonDisabled]} scaleTo={0.97}>
-                {uploading ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.nextText}>Publier {releaseType === 'single' ? 'le morceau' : releaseType === 'ep' ? "l'EP" : "l'album"}</Text>}
-              </MotionPressable>
-            )}
-          </View>
-        </View>
-
-        <View style={styles.checkPanel}>
-          <Text style={styles.checkKicker}>À vérifier</Text>
-          <CheckRow label="Audio" done={step1Valid} />
-          <CheckRow label="Pochette + titre" done={step2Valid} />
-          <CheckRow label="Publication" done={step === 3} />
         </View>
       </ScrollView>
-    </View>
+      <View style={[styles.publishDock, responsive.pageContent, { backgroundColor: palette.bg, paddingBottom: Math.max(insets.bottom, 12) }]}>
+        {stepHint ? <Text accessibilityLiveRegion="polite" style={{ color: palette.muted, fontSize: 12, lineHeight: 18 }}>{stepHint}</Text> : null}
+        {success ? <EntryPressable onPress={() => navigatePrimaryTab(navigation, 'Library')} style={[styles.publishNext, { backgroundColor: palette.blue }]}><Text style={{ color: palette.bg, fontWeight: '800' }}>Ouvrir ma bibliothèque</Text></EntryPressable> : <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          {step > 1 ? <CollectionIconButton label="Étape précédente" icon="arrow-back" onPress={() => { if (!uploading) setStep(current => Math.max(1, current - 1) as Step); }} /> : null}
+          <EntryPressable accessibilityRole="button" disabled={uploading || (step === 3 && !canPublish)} onPress={step < 3 ? goNext : () => void publish()} style={[styles.publishNext, { backgroundColor: palette.blue }]}>
+            {uploading ? <><ActivityIndicator color={palette.bg} /><Text style={{ color: palette.bg, fontWeight: '800' }}>Publication en cours…</Text></> : <><Text style={{ color: palette.bg, fontSize: 15, fontWeight: '800' }}>{step < 3 ? 'Continuer' : auth.user ? 'Publier' : 'Se connecter pour publier'}</Text><Ionicons name={step < 3 ? 'arrow-forward' : 'cloud-upload-outline'} size={20} color={palette.bg} /></>}
+          </EntryPressable>
+        </View>}
+      </View>
+    </KeyboardAvoidingView></CollectionSurface>
   );
 }
 
@@ -869,6 +809,8 @@ function CheckRow({ label, done }: { label: string; done: boolean }) {
 }
 
 const styles = StyleSheet.create({
+  publishDock: { paddingTop: 12, gap: 10 },
+  publishNext: { flex: 1, minHeight: 56, borderRadius: 22, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12 },
   root: { flex: 1, backgroundColor: colors.background },
   content: { paddingHorizontal: 18, gap: 13 },
   hero: { borderRadius: 20, backgroundColor: '#151316', padding: 16, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(217,109,99,0.34)', borderLeftWidth: 4, borderLeftColor: '#D96D63' },
@@ -896,8 +838,8 @@ const styles = StyleSheet.create({
   contextBox: { flex: 1, minWidth: 96, borderRadius: 9, paddingVertical: 10, paddingHorizontal: 10, backgroundColor: colors.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong },
   contextLabel: { color: colors.textTertiary, fontSize: 9, fontWeight: '900', letterSpacing: 1.1, textTransform: 'uppercase' },
   contextValue: { marginTop: 5, color: colors.text, fontSize: 13, fontWeight: '900' },
-  stepNav: { flexDirection: 'row', gap: 4, borderRadius: 10, padding: 4, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, backgroundColor: colors.surface },
-  stepButton: { flex: 1, minHeight: 56, borderRadius: 7, paddingHorizontal: 7, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' },
+  stepNav: { flexDirection: 'row', gap: 5, borderRadius: 22, padding: 4 },
+  stepButton: { flex: 1, minHeight: 66, borderRadius: 18, paddingHorizontal: 7, alignItems: 'center', justifyContent: 'center', gap: 4 },
   stepButtonActive: { backgroundColor: colors.violet },
   stepButtonDisabled: { opacity: 0.42 },
   stepNumber: { color: colors.textTertiary, fontSize: 10, fontWeight: '900' },
@@ -906,8 +848,8 @@ const styles = StyleSheet.create({
   stepLabelActive: { color: '#FFFAF2' },
   progressOuter: { height: 4, borderRadius: 999, backgroundColor: colors.surfaceMuted, overflow: 'hidden' },
   progressInner: { height: 4, borderRadius: 999, backgroundColor: colors.cyan },
-  studioPanel: { overflow: 'hidden', borderRadius: 20, backgroundColor: '#151316', borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, borderTopWidth: 3, borderTopColor: '#7357C6' },
-  panelHeader: { padding: 14, borderBottomWidth: 1, borderBottomColor: 'rgba(255,250,242,0.08)', backgroundColor: '#1D1717', gap: 12 },
+  studioPanel: { overflow: 'hidden', borderRadius: 26, backgroundColor: '#111722' },
+  panelHeader: { padding: 20, gap: 8 },
   panelKicker: { color: 'rgba(255,250,242,0.64)', fontSize: 10, fontWeight: '900', letterSpacing: 1.4, textTransform: 'uppercase' },
   panelTitle: { marginTop: 2, color: '#FFFFFF', fontSize: 21, fontWeight: '900' },
   segment: { flexDirection: 'row', backgroundColor: 'rgba(255,255,255,0.06)', padding: 3, borderRadius: 10 },
@@ -916,14 +858,14 @@ const styles = StyleSheet.create({
   segmentText: { color: 'rgba(255,250,242,0.68)', fontSize: 11, fontWeight: '900', textTransform: 'capitalize' },
   segmentTextActive: { color: '#171313' },
   panelBody: { padding: 14, gap: 14 },
-  releaseGrid: { gap: 0 },
-  releaseCard: { minHeight: 78, borderRadius: 0, padding: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.14)', backgroundColor: 'transparent' },
-  releaseCardActive: { backgroundColor: '#FFFAF2', borderColor: '#FFFAF2' },
-  releaseTitle: { marginTop: 7, color: '#FFFAF2', fontSize: 15, fontWeight: '900' },
-  releaseTitleActive: { color: '#171313' },
-  releaseSub: { marginTop: 2, color: 'rgba(255,250,242,0.64)', fontSize: 11, fontWeight: '700' },
-  releaseSubActive: { color: 'rgba(23,19,19,0.5)' },
-  dropZone: { minHeight: 156, borderRadius: 14, borderWidth: 1, borderStyle: 'dashed', borderColor: 'rgba(255,255,255,0.25)', backgroundColor: 'rgba(255,255,255,0.035)', alignItems: 'center', justifyContent: 'center', padding: 18 },
+  releaseGrid: { flexDirection: 'row', gap: 8 },
+  releaseCard: { flex: 1, minWidth: 0, minHeight: 116, borderRadius: 18, padding: 12, backgroundColor: '#192230' },
+  releaseCardActive: { backgroundColor: '#B9DFFF' },
+  releaseTitle: { marginTop: 10, color: '#F5F7FC', fontSize: 15, fontWeight: '800' },
+  releaseTitleActive: { color: '#132A41' },
+  releaseSub: { marginTop: 3, color: '#A8B3C5', fontSize: 10, lineHeight: 15, fontWeight: '500' },
+  releaseSubActive: { color: '#304F6C' },
+  dropZone: { minHeight: 180, borderRadius: 22, backgroundColor: '#192230', alignItems: 'center', justifyContent: 'center', padding: 18 },
   dropZoneTitle: { marginTop: 10, color: '#FFFAF2', textAlign: 'center', fontSize: 16, fontWeight: '900' },
   dropZoneText: { marginTop: 5, color: 'rgba(255,250,242,0.64)', textAlign: 'center', fontSize: 11, fontWeight: '700' },
   trackList: { gap: 9 },
@@ -979,7 +921,7 @@ const styles = StyleSheet.create({
   switchTitleDark: { color: 'rgba(255,250,242,0.78)', fontSize: 13, fontWeight: '900' },
   switchSubDark: { marginTop: 2, color: 'rgba(255,250,242,0.60)', fontSize: 10, fontWeight: '700' },
   previewBox: { flexDirection: 'row', gap: 12, borderRadius: 14, borderLeftWidth: 3, borderColor: '#D96D63', backgroundColor: 'rgba(255,255,255,0.04)', padding: 12 },
-  previewCover: { width: 88, height: 88, borderRadius: 10, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.08)' },
+  previewCover: { flex: 0, width: 88, height: 88, borderRadius: 18, overflow: 'hidden', backgroundColor: '#192230' },
   previewTitle: { color: '#FFFAF2', fontSize: 18, lineHeight: 22, fontWeight: '900' },
   previewMeta: { marginTop: 5, color: 'rgba(255,250,242,0.68)', fontSize: 11, fontWeight: '800' },
   previewDesc: { marginTop: 8, color: 'rgba(255,250,242,0.60)', fontSize: 11, lineHeight: 16, fontWeight: '700' },

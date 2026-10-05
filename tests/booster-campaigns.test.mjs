@@ -110,7 +110,7 @@ function activeRoute({authenticated=true, failure=null, empty=false}={}) {
     chain.then=(resolve,reject)=>Promise.resolve(result).then(resolve,reject);
     return chain;
   }};
-  const route=compile(read('app/api/boosters/my-active/route.ts'),{'next/server':{NextResponse:{json:(body,options)=>({body,status:options?.status||200})}},'next-auth':{getServerSession:async()=>authenticated?{user:{id:'owner'}}:null},'@/lib/authOptions':{authOptions:{}},'@/lib/database':{dbAdmin:db}});
+  const route=compile(read('app/api/boosters/my-active/route.ts'),{'next/server':{NextResponse:{json:(body,options)=>({body,status:options?.status||200})}},'@/lib/getApiSession':{getApiSession:async()=>authenticated?{user:{id:'owner'}}:null},'@/lib/database':{dbAdmin:db}});
   return {queries, get:()=>route.GET({})};
 }
 test('active family endpoint remains authenticated, owner-scoped and read-only',async()=>{

@@ -22,11 +22,17 @@ import { TrackActionsSheet } from '@/components/ui/TrackActionsSheet';
 import { TrackListItem } from '@/components/ui/TrackListItem';
 import { useLibrary } from '@/library/LibraryProvider';
 import { usePlayer, usePlayerProgress } from '@/player/PlayerProvider';
-import { colors, radius, spacing } from '@/theme/tokens';
+import { radius, spacing } from '@/theme/tokens';
+import { CollectionSurface, CollectionHeader, CollectionIconButton, CollectionTabs, MusicRow } from '@/components/mobile/CollectionUI';
+import { useSurfaceColors } from '@/components/mobile/useSurfaceColors';
+import { TrackDetailHero } from '@/components/mobile/TrackDetailHero';
+import { LyricsSheet } from '@/components/swipe/LyricsSheet';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { navigatePrimaryTab } from '@/navigation/navigatePrimaryTab';
 
 export function TrackDetailScreen() {
+  const colors = useSurfaceColors();
+  const styles = React.useMemo(() => createStyles(colors), [colors]);
   const responsive = useResponsiveLayout();
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
@@ -48,9 +54,15 @@ export function TrackDetailScreen() {
   const [shareOpen, setShareOpen] = React.useState(false);
   const [actionsOpen, setActionsOpen] = React.useState(false);
   const [remixOpen, setRemixOpen] = React.useState(false);
+  const [lyricsOpen, setLyricsOpen] = React.useState(false);
+  const [section, setSection] = React.useState<'music' | 'community'>('music');
+  const [moreTrack, setMoreTrack] = React.useState<Track | null>(null);
+  const requestVersion = React.useRef(0);
+  const likeBusy = React.useRef(false);
 
   const load = React.useCallback(async () => {
     if (!trackId) return;
+    const version = ++requestVersion.current;
     setLoading(true);
     setError(null);
     try {
@@ -60,42 +72,52 @@ export function TrackDetailScreen() {
         getTrackLikeStatus(trackId).catch(() => null),
         getCommentsCount([trackId]).catch(() => ({} as Record<string, number>)),
       ]);
+      if (version !== requestVersion.current) return;
       if (!next && !initial) throw new Error('Morceau introuvable');
       setTrack(mergeTrackDetail(next, initial));
       setSimilar(related.tracks.filter((item) => item._id !== trackId).slice(0, 8));
-      void getTrackPosts(trackId, 12).then(setTrackPosts).catch(() => setTrackPosts([]));
+      void getTrackPosts(trackId, 12).then(posts => { if (version === requestVersion.current) setTrackPosts(posts); }).catch(() => { if (version === requestVersion.current) setTrackPosts([]); });
       if (likeState) {
         setLiked(likeState.liked);
         setLikes(likeState.likesCount);
       }
       setComments(commentCounts[trackId] ?? next?.commentsCount ?? initial?.commentsCount ?? 0);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Impossible de charger ce morceau');
+      if (version === requestVersion.current) setError(e instanceof Error ? e.message : 'Impossible de charger ce morceau');
     } finally {
-      setLoading(false);
+      if (version === requestVersion.current) setLoading(false);
     }
   }, [initial, trackId]);
 
-  React.useEffect(() => { void load(); }, [load]);
+  React.useEffect(() => {
+    setTrack(initial?._id === trackId ? initial : null); setTrackPosts([]); setSimilar([]);
+    setLiked(Boolean(initial?.isLiked)); setLikes(initial?.likesCount || 0);
+    setCommentsOpen(false); setShareOpen(false); setActionsOpen(false); setRemixOpen(false); setLyricsOpen(false); setMoreTrack(null); setSection('music');
+    void load();
+    return () => { requestVersion.current++; };
+  }, [load, trackId]);
 
   const toggleLike = async () => {
-    if (!track) return;
-    const nextLiked = !liked;
-    setLiked(nextLiked);
-    setLikes((value) => Math.max(0, value + (nextLiked ? 1 : -1)));
-    const result = await setTrackLike(track._id, nextLiked).catch(() => null);
-    if (result) {
-      setLiked(result.liked);
-      setLikes(result.likesCount);
-    }
+    if (!track || likeBusy.current) return;
+    likeBusy.current = true;
+    const version = requestVersion.current; const previousCount = likes; const previousLiked = liked;
+    setLiked(!liked); setLikes(Math.max(0, likes + (liked ? -1 : 1)));
+    try {
+      const result = await setTrackLike(track._id, !liked);
+      if (version !== requestVersion.current) return;
+      if (!result) throw new Error('not saved');
+      setLiked(result.liked); setLikes(result.likesCount);
+    } catch {
+      if (version === requestVersion.current) { setLiked(previousLiked); setLikes(previousCount); setError('Réaction non enregistrée. Vérifie ta connexion et ton compte.'); }
+    } finally { likeBusy.current = false; }
   };
 
-  if (loading && !track) {
-    return <SynauraBackground><AppHeader title="Morceau" onBack={() => navigation.goBack()} /><LoadingSkeleton rows={5} style={styles.loading} /></SynauraBackground>;
+  if ((loading && !track) || (track && track._id !== trackId)) {
+    return <CollectionSurface><AppHeader title="Morceau" onBack={() => navigation.goBack()} /><LoadingSkeleton rows={5} style={styles.loading} /></CollectionSurface>;
   }
 
   if (!track) {
-    return <SynauraBackground><AppHeader title="Morceau" onBack={() => navigation.goBack()} /><View style={styles.loading}><EmptyState icon="alert-circle-outline" title="Morceau introuvable" text={error || 'Ce contenu n’est plus disponible.'} actionLabel="Réessayer" onAction={() => void load()} /></View></SynauraBackground>;
+    return <CollectionSurface><AppHeader title="Morceau" onBack={() => navigation.goBack()} /><View style={styles.loading}><EmptyState icon="alert-circle-outline" title="Morceau introuvable" text={error || 'Ce contenu n’est plus disponible.'} actionLabel="Réessayer" onAction={() => void load()} /></View></CollectionSurface>;
   }
 
   const active = player.current?._id === track._id && player.isPlaying;
@@ -130,26 +152,13 @@ export function TrackDetailScreen() {
   };
 
   return (
-    <SynauraBackground>
+    <CollectionSurface>
+      <View style={[responsive.pageContent, { paddingTop: responsive.insets.top }]}><CollectionHeader title="Morceau" onBack={() => navigation.goBack()} actions={<CollectionIconButton icon="ellipsis-horizontal" label="Options du morceau" onPress={() => setActionsOpen(true)} />} /></View>
       <ScrollView
         contentContainerStyle={[styles.content, responsive.contentFrame, { paddingBottom: responsive.miniPlayerClearance + 24 }]}
         showsVerticalScrollIndicator={false}
       >
-        <AppHeader title="Morceau" subtitle={artist} onBack={() => navigation.goBack()} action={{ icon: 'ellipsis-horizontal', label: 'Plus', onPress: () => setActionsOpen(true) }} />
-        <View style={styles.hero}>
-          {track.coverUrl ? <Image source={{ uri: track.coverUrl }} blurRadius={35} style={StyleSheet.absoluteFillObject} /> : null}
-          <LinearGradient colors={['rgba(17,17,17,0.16)', 'rgba(17,17,17,0.82)']} style={StyleSheet.absoluteFillObject} />
-          <TrackCover track={track} active={active} autoPlayVideo={active} style={styles.cover} />
-          <View style={styles.heroCopy}>
-            <Text numberOfLines={2} style={styles.title}>{track.title}</Text>
-            <Pressable onPress={() => track.artist?.username && navigation.navigate('PublicProfile', { username: track.artist.username })}>
-              <Text style={styles.artist}>{artist}</Text>
-            </Pressable>
-          </View>
-          <Pressable accessibilityLabel={active ? 'Pause' : 'Lecture'} onPress={() => active ? void player.togglePlayPause() : void player.playTrack(track)} style={styles.play}>
-            <Ionicons name={active ? 'pause' : 'play'} size={27} color={colors.black} />
-          </Pressable>
-        </View>
+        <View style={{ marginHorizontal: responsive.gutter }}><TrackDetailHero track={track} playing={active} onPlay={() => { if (isCurrentTrack) void player.togglePlayPause(); else void player.playTrack(track); }} onArtist={() => track.artist?.username && navigation.navigate('PublicProfile', { username: track.artist.username })} /></View>
 
         <View style={styles.actions}>
           <Action icon={liked ? 'heart' : 'heart-outline'} label={`${likes}`} active={liked} onPress={() => void toggleLike()} />
@@ -166,6 +175,8 @@ export function TrackDetailScreen() {
           <Stat value={comments} label="commentaires" />
         </SoftCard>
 
+        <CollectionTabs value={section} options={[{ value: 'music', label: 'Le morceau' }, { value: 'community', label: 'Autour du son', count: trackPosts.length }]} onChange={setSection} />
+        {section === 'music' ? <>
         {!isRadio ? (
           <View style={styles.waveformSection}>
             <MomentWaveform
@@ -181,7 +192,7 @@ export function TrackDetailScreen() {
           </View>
         ) : null}
 
-        {track.lyrics ? <SoftCard><Text style={styles.sectionTitle}>Paroles</Text><Text numberOfLines={8} style={styles.description}>{track.lyrics}</Text></SoftCard> : null}
+        {track.lyrics ? <Pressable accessibilityRole="button" accessibilityLabel="Ouvrir toutes les paroles" onPress={() => setLyricsOpen(true)} style={styles.lyricsCard}><Text style={styles.sectionTitleInline}>Paroles</Text><Text numberOfLines={5} style={styles.description}>{track.lyrics}</Text><Text style={styles.lyricsLink}>Lire toutes les paroles →</Text></Pressable> : null}
         {track.remixAttribution ? (
           <SoftCard>
             <Text style={styles.sectionTitle}>Inspiré de {track.remixAttribution.title}</Text>
@@ -220,7 +231,7 @@ export function TrackDetailScreen() {
         ) : null}
         {track.genre?.length ? <View><Text style={styles.sectionTitle}>Ambiance</Text><View style={styles.chips}>{track.genre.slice(0, 5).map((genre) => <Text key={genre} style={styles.chip}>{genre}</Text>)}</View></View> : null}
 
-        <View>
+        </> : <View>
           <View style={styles.postsHeader}>
             <View style={{ flex: 1, minWidth: 0 }}>
               <Text style={styles.sectionTitleNoMargin}>Posts autour de ce son</Text>
@@ -250,19 +261,20 @@ export function TrackDetailScreen() {
               </SoftCard>
             )}
           </View>
-        </View>
+        </View>}
 
         <View>
           <Text style={styles.sectionTitle}>À écouter ensuite</Text>
           <View style={styles.similar}>
-            {similar.map((item) => <TrackListItem key={item._id} track={item} active={player.current?._id === item._id} favorite={library.isFavorite(item._id)} onPlay={() => void player.playTrack(item)} onToggleFavorite={() => library.toggleFavorite(item)} onMore={() => navigation.navigate('TrackDetail', { trackId: item._id, track: item })} />)}
+            {similar.map((item) => <MusicRow key={item._id} track={item} playing={player.current?._id === item._id && player.isPlaying} onPlay={() => { if (player.current?._id === item._id) void player.togglePlayPause(); else void player.playTrack(item); }} onOpen={() => navigation.navigate('TrackDetail', { trackId: item._id, track: item })} onMore={() => setMoreTrack(item)} />)}
           </View>
         </View>
         {error ? <Text style={styles.error}>{error}</Text> : null}
       </ScrollView>
       <CommentsSheet visible={commentsOpen} track={track} commentCount={comments} onClose={() => setCommentsOpen(false)} onCountChange={(_id, next) => setComments(next)} />
       <ShareSheet visible={shareOpen} track={track} onClose={() => setShareOpen(false)} />
-      <TrackActionsSheet track={actionsOpen ? track : null} onClose={() => setActionsOpen(false)} />
+      <TrackActionsSheet track={actionsOpen ? track : moreTrack} onClose={() => { setActionsOpen(false); setMoreTrack(null); }} />
+      <LyricsSheet visible={lyricsOpen} track={track} onClose={() => setLyricsOpen(false)} />
       {remixOpen ? (
         <View style={styles.remixOverlay}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setRemixOpen(false)} />
@@ -290,7 +302,7 @@ export function TrackDetailScreen() {
           </View>
         </View>
       ) : null}
-    </SynauraBackground>
+    </CollectionSurface>
   );
 }
 
@@ -309,10 +321,12 @@ function mergeTrackDetail(next: Track | null, initial?: Track) {
 }
 
 function Action({ icon, label, active, onPress }: { icon: React.ComponentProps<typeof Ionicons>['name']; label: string; active?: boolean; onPress: () => void }) {
-  return <Pressable onPress={onPress} style={styles.action}><View style={[styles.actionIcon, active && styles.actionIconActive]}><Ionicons name={icon} size={20} color={active ? colors.white : colors.text} /></View><Text style={styles.actionLabel}>{label}</Text></Pressable>;
+  const colors = useSurfaceColors(); const styles = React.useMemo(() => createStyles(colors), [colors]);
+  return <Pressable accessibilityRole="button" accessibilityLabel={(icon.includes("heart") ? "J’aime · " : icon.includes("chatbubble") ? "Commentaires · " : "") + label} onPress={onPress} style={styles.action}><View style={[styles.actionIcon, active && styles.actionIconActive]}><Ionicons name={icon} size={20} color={active ? colors.white : colors.text} /></View><Text style={styles.actionLabel}>{label}</Text></Pressable>;
 }
 
 function Stat({ value, label }: { value: number; label: string }) {
+  const colors = useSurfaceColors(); const styles = React.useMemo(() => createStyles(colors), [colors]);
   return <View style={styles.stat}><Text style={styles.statValue}>{value}</Text><Text style={styles.statLabel}>{label}</Text></View>;
 }
 
@@ -331,6 +345,7 @@ function TrackPostCard({
   onOpenProfile: () => void;
   onPlay: (track: Track) => void;
 }) {
+  const colors = useSurfaceColors(); const styles = React.useMemo(() => createStyles(colors), [colors]);
   const [liked, setLiked] = React.useState(post.isLiked);
   const [likes, setLikes] = React.useState(post.likesCount);
   const [shareOpen, setShareOpen] = React.useState(false);
@@ -362,6 +377,7 @@ function TrackPostCard({
       <Pressable onPress={onOpen}>
         <Text numberOfLines={4} style={styles.trackPostText}>{post.text}</Text>
       </Pressable>
+      {post.imageUrl ? <Image source={{ uri: post.imageUrl }} style={styles.postImage} /> : null}
       {post.track ? (
         <PostAttachedTrackCard
           track={post.track}
@@ -390,8 +406,11 @@ function TrackPostCard({
   );
 }
 
-const styles = StyleSheet.create({
-  content: { paddingBottom: 170, gap: spacing.lg },
+function createStyles(colors: ReturnType<typeof useSurfaceColors>) { return StyleSheet.create({
+  content: { paddingBottom: 170, gap: 24 },
+  lyricsCard: { marginHorizontal: spacing.lg, borderRadius: 24, padding: 22, gap: 14, backgroundColor: colors.surface },
+  lyricsLink: { color: colors.cyan, fontSize: 14, fontWeight: '700' },
+  postImage: { width: '100%', aspectRatio: 1.5, borderRadius: 20, marginTop: 12 },
   loading: { paddingHorizontal: spacing.lg },
   hero: { minHeight: 410, marginHorizontal: spacing.lg, overflow: 'hidden', borderRadius: radius.xl, justifyContent: 'flex-end', padding: spacing.lg, backgroundColor: colors.black, borderWidth: 1, borderColor: colors.borderStrong },
   cover: { width: 190, height: 190, maxWidth: '58%', aspectRatio: 1, alignSelf: 'center', marginBottom: spacing.xl, borderRadius: radius.sm },
@@ -401,13 +420,13 @@ const styles = StyleSheet.create({
   play: { position: 'absolute', right: spacing.lg, bottom: spacing.lg, width: 54, height: 54, borderRadius: 27, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.white },
   actions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: spacing.md, paddingHorizontal: spacing.lg },
   action: { width: 54, alignItems: 'center', gap: spacing.xs },
-  actionIcon: { width: 46, height: 46, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
-  actionIconActive: { backgroundColor: colors.black },
-  actionLabel: { color: colors.textSecondary, fontSize: 9, lineHeight: 12, fontWeight: '800', textAlign: 'center' },
-  stats: { marginHorizontal: spacing.lg, flexDirection: 'row', borderTopWidth: 1, borderBottomWidth: 1, borderColor: colors.borderStrong },
+  actionIcon: { width: 46, height: 46, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: 'transparent' },
+  actionIconActive: { backgroundColor: colors.violet },
+  actionLabel: { color: colors.textSecondary, fontSize: 12, lineHeight: 16, fontWeight: '600', textAlign: 'center' },
+  stats: { marginHorizontal: spacing.lg, flexDirection: 'row', borderWidth: 0, backgroundColor: colors.surface, borderRadius: 22 },
   stat: { flex: 1, alignItems: 'flex-start', padding: spacing.md },
   statValue: { color: colors.text, fontSize: 19, fontWeight: '900' },
-  statLabel: { marginTop: 2, color: colors.textTertiary, fontSize: 9, fontWeight: '800' },
+  statLabel: { marginTop: 2, color: colors.textTertiary, fontSize: 12, fontWeight: '500' },
   waveformSection: { marginHorizontal: spacing.lg },
   sectionTitle: { marginHorizontal: spacing.lg, marginBottom: spacing.sm, color: colors.text, fontSize: 17, fontWeight: '900' },
   sectionTitleNoMargin: { color: colors.text, fontSize: 17, fontWeight: '900' },
@@ -453,4 +472,4 @@ const styles = StyleSheet.create({
   remixPrimaryText: { color: colors.black, fontSize: 14, fontWeight: '900' },
   remixSecondary: { height: 48, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted, borderWidth: 1, borderColor: colors.border },
   remixSecondaryText: { color: colors.textSecondary, fontSize: 13, fontWeight: '900' },
-});
+}); }

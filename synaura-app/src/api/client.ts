@@ -1,4 +1,6 @@
 import Constants from 'expo-constants';
+import type { BoosterData, BoosterTarget, ReceivedBooster, SpinStatus } from '@/boosters/boosterModel';
+import { readSpinOutcome } from '@/boosters/boosterModel';
 import * as FileSystem from 'expo-file-system/legacy';
 import { toPublicMediaUrl } from '@/media/mediaUrls';
 import { getRecommendationSeenIds, getRecommendationSessionId, rememberRecommendationImpressions } from '@/feed/recommendationSession';
@@ -86,6 +88,20 @@ export type MobileAppReleaseResponse = {
 export function setAuthTokenProvider(provider: () => string | null) {
   authTokenProvider = provider;
 }
+
+export async function getNativeBoosters() { return request<BoosterData>('/api/boosters'); }
+export async function getNativeBoosterTargets() { return (await request<{ tracks: BoosterTarget[] }>('/api/boosters/targets')).tracks; }
+export async function getNativeBoosterActivity() { return request<{ boosts: Array<{ id: string; track_id?: string; multiplier: number; expires_at: string; booster_key?: string }>; artistBoosts: Array<{ id: string; multiplier: number; expires_at: string; booster_key?: string }> }>('/api/boosters/my-active'); }
+export async function getNativeBoosterHistory(cursor = '') { return request<{ items: Array<{ id: string; opened_at: string; booster_key: string; rarity: string; source: string }>; nextCursor: string | null }>('/api/boosters/history?limit=30' + (cursor ? '&cursor=' + encodeURIComponent(cursor) : '')); }
+export async function getNativeSpinStatus() { return request<SpinStatus>('/api/daily-spin'); }
+export async function openNativeBooster(packKey?: string) {
+  const result = await request<{ received: ReceivedBooster | ReceivedBooster[]; cooldownMs?: number }>(packKey ? '/api/boosters/claim-pack' : '/api/boosters/open', { method: 'POST', ...(packKey ? { body: JSON.stringify({ packKey }) } : {}) });
+  const received = Array.isArray(result?.received) ? result.received : result?.received ? [result.received] : [];
+  if (!received.length || received.some(item => !item.inventory_id || !item.booster?.id)) throw new Error('Récompense non confirmée. Actualise ton inventaire avant de recommencer.');
+  return { ...result, received };
+}
+export async function activateNativeBooster(inventoryId: string, targetTrackId = '') { return request<{ ok: boolean; credits?: { amount: number } }>('/api/boosters/use', { method: 'POST', body: JSON.stringify({ inventoryId, targetTrackId }) }); }
+export async function spinNativeWheel() { return readSpinOutcome(await request('/api/daily-spin', { method: 'POST' })); }
 
 export function setAuthRefreshHandler(handler: (() => Promise<boolean>) | null) {
   authRefreshHandler = handler;
@@ -366,6 +382,15 @@ function collectTracks(payload: FeedResponse): Track[] {
 
 const API_REQUEST_TIMEOUT_MS = 15000;
 
+export function getVoiceCalls() {
+  return request<{ enabled: boolean; calls: import('@/calls/callModel').VoiceCall[] }>('/api/messages/calls');
+}
+export function voiceCallAction(action: 'start' | 'join' | 'leave' | 'decline' | 'heartbeat', device: string, values: { callId?: string; conversationId?: string } = {}) {
+  return request<{ call: import('@/calls/callModel').VoiceCall; url?: string; token?: string }>('/api/messages/calls', {
+    method: 'POST', body: JSON.stringify({ action, device, ...values }),
+  });
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const isForm = typeof FormData !== 'undefined' && init?.body instanceof FormData;
   const controller = new AbortController();
@@ -444,6 +469,9 @@ export async function getCreatorStatsDashboard(
   ]);
 
   if (!overview) throw new Error('Impossible de charger tes statistiques pour le moment.');
+  if (!tracksPayload || !trackSeries || !posts || !audience || !heatmapPayload || (trackId !== 'all' && !trackDetail) || (compareTrackId && !compareSeries)) {
+    throw new Error('Certaines statistiques n’ont pas pu être chargées. Réessaie pour afficher des chiffres complets.');
+  }
   return {
     overview,
     tracks: Array.isArray(tracksPayload?.tracks) ? tracksPayload.tracks : [],
@@ -2239,7 +2267,7 @@ export async function uploadToLocalMediaMobile(
   if (result.status < 200 || result.status >= 300 || !json?.secure_url) {
     const message = String(json?.error || json?.message || `Envoi impossible (${result.status})`);
     if (/too large|file size|maximum|entity too large|413/i.test(message)) {
-      throw new Error('Cette vidéo dépasse 95 Mo. Choisis une version plus légère.');
+      throw new Error(kind === 'clip-video' ? 'Cette vidéo dépasse 250 Mo. Choisis une version plus légère.' : 'Ce fichier dépasse la taille autorisée pour ce média.');
     }
     throw new Error(message);
   }
@@ -2660,7 +2688,6 @@ export async function getSubscriptionPlans(): Promise<SubscriptionPlan[]> {
   return (Array.isArray(json?.plans) ? json.plans : []).map((raw: any) => {
     const id = ['starter', 'pro'].includes(String(raw?.id)) ? String(raw.id) as 'starter' | 'pro' : 'free';
     const monthly = Number(raw?.priceMonthly ?? raw?.price ?? 0) || 0;
-    const yearlyFallback = id === 'starter' ? 47.88 : id === 'pro' ? 143.88 : 0;
     return {
       ...raw,
       id,
@@ -2669,7 +2696,7 @@ export async function getSubscriptionPlans(): Promise<SubscriptionPlan[]> {
       description: String(raw?.description || ''),
       price: monthly,
       priceMonthly: monthly,
-      priceYearly: Number(raw?.priceYearly ?? yearlyFallback) || 0,
+      priceYearly: Number(raw?.priceYearly ?? (id === 'free' ? 0 : Number.NaN)),
       currency: String(raw?.currency || 'EUR'),
       interval: String(raw?.interval || 'mois'),
       features: Array.isArray(raw?.features) ? raw.features.map(String) : [],

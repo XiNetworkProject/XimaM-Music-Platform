@@ -1,4 +1,5 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
+import { getApiSession } from '@/lib/getApiSession';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/authOptions';
 import { withDatabaseTransaction, type DatabaseExecutor } from '@/lib/postgres';
@@ -6,10 +7,11 @@ import { BoosterError } from './service';
 
 /** Commit only a successful operation; any error rolls back every reward write. */
 export async function boosterMutation(
-  operation: (db: DatabaseExecutor, userId: string) => Promise<unknown>
+  operation: (db: DatabaseExecutor, userId: string) => Promise<unknown>,
+  request?: NextRequest
 ) {
   try {
-    const session = await getServerSession(authOptions);
+    const session = request ? await getApiSession(request) : await getServerSession(authOptions);
     if (!session?.user?.id)
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     const userId = session.user.id;

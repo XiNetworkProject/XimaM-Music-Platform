@@ -1,43 +1,22 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  FlatList,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-  type GestureResponderEvent,
-} from 'react-native';
+import { Alert, FlatList, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import {
-  getDiscoverOverview,
-  getUserPreferences,
-} from '@/api/client';
+import { getDiscoverOverview, getUserPreferences } from '@/api/client';
 import type { Track } from '@/api/types';
 import { UniversalSearchModal } from '@/components/HomeOverlays';
-import { MobileAccountButton } from '@/components/account/MobileAccountMenu';
-import { RadarMobileSection } from '@/components/radar/RadarMobileSection';
-import { SynauraBackground } from '@/components/SynauraBackground';
-import { TrackCover } from '@/components/TrackCover';
+import { getTrackCoverImage } from '@/components/TrackCover';
+import { EntryPressable } from '@/components/entry/EntryPressable';
+import { SynauraImage } from '@/components/ui/SynauraImage';
+import { CollectionReveal, CollectionSurface, CollectionHeader, CollectionIconButton, CollectionTabs, CollectionHeading, CollectionEmpty, MusicTile, useCollectionPalette, musicArtist } from '@/components/mobile/CollectionUI';
 import { usePlayer } from '@/player/PlayerProvider';
 import { useAuth } from '@/auth/AuthProvider';
-import { DISCOVER_MOODS, matchesMoodKeywords, type MoodConfig } from '@/discover/moods';
+import { DISCOVER_MOODS, matchesMoodKeywords } from '@/discover/moods';
 import { COMMUNITY_CLUBS } from '@/community/clubs';
-import { MotionPressable, Reveal } from '@/components/motion/Motion';
-import { ScreenIntro } from '@/components/ui/ScreenIntro';
-import { SectionHeader } from '@/components/ui/SectionHeader';
-import { colors, radius, shadows } from '@/theme/tokens';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { readDiscoverVisualCache, writeDiscoverVisualCache } from '@/discover/discoverCache';
-import { NotificationBellButton } from '@/components/notifications/NotificationBellButton';
-import { MessageInboxButton } from '@/components/messaging/MessageInboxButton';
-import { CityHomeBanner } from '@/components/city/CityHomeBanner';
-import { SynauraSearchField } from '@/components/search/SynauraSearchField';
-import { SynauraImage } from '@/components/ui/SynauraImage';
 
 const INTENTION_TO_CLUB_SLUG: Record<string, string> = {
   remix: 'remix',
@@ -90,7 +69,7 @@ function artistName(track: Track) {
 }
 
 function trackImage(track: Track) {
-  return track.coverUrl || track.coverVideoPosterUrl || track.musicVideoPosterUrl || null;
+  return getTrackCoverImage(track);
 }
 
 function compact(value: number) {
@@ -101,6 +80,9 @@ function compact(value: number) {
 
 export function DiscoverV2Screen() {
   const navigation = useNavigation<any>();
+  const p = useCollectionPalette();
+  const [section, setSection] = useState<'all' | 'music' | 'artists' | 'collections' | 'community'>('all');
+  const scroll = useRef<ScrollView>(null);
   const insets = useSafeAreaInsets();
   const responsive = useResponsiveLayout();
   const player = usePlayer();
@@ -292,524 +274,82 @@ export function DiscoverV2Screen() {
 
   const openTrack = (track: Track) => navigation.navigate('TrackDetail', { trackId: track._id, track });
 
-  return (
-    <View style={styles.root}>
-      <SynauraBackground variant="warm" />
-      <ScrollView
-        showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(false)} tintColor={colors.violet} colors={[colors.violet]} />}
-        contentContainerStyle={[
-          styles.content,
-          responsive.pageContent,
-          { paddingTop: insets.top + 14, paddingBottom: responsive.miniPlayerClearance + 16 },
-        ]}
-      >
-        <ScreenIntro
-          eyebrow="Explorer"
-          title="Découvrir"
-          description="Les signaux qui montent, les nouvelles voix et tous les univers de Synaura."
-          trailing={(
-            <View style={styles.headerActions}>
-              <MessageInboxButton compact />
-              <NotificationBellButton />
-              <MobileAccountButton compact />
-            </View>
-          )}
-        />
-
-        <SynauraSearchField
-          onPress={() => setSearchOpen(true)}
-          placeholder="Rechercher sur Synaura"
-          scope="Sons, artistes, playlists et clubs"
-        />
-
-        {leadTrack ? (
-          <DiscoverLeadCard
-            track={leadTrack}
-            label={leadLabel}
-            totalTracks={totalTracks}
-            playing={player.current?._id === leadTrack._id && player.isPlaying}
-            tablet={responsive.isTablet}
-            onPlay={() => void playFrom(leadQueue, leadTrack)}
-            onOpen={() => openTrack(leadTrack)}
-          />
-        ) : loading ? <DiscoverLeadSkeleton tablet={responsive.isTablet} /> : null}
-
-        <View>
-          <SectionHeader title="Explorer par ambiance" subtitle="Chaque carte est illustrée par des pochettes qui correspondent réellement à son univers." />
-          <View style={styles.moodGrid}>
-            {orderedMoods.map((mood, index) => (
-              <Reveal
-                key={mood.id}
-                delay={Math.min(index * 38, 190)}
-                distance={7}
-                scaleFrom={0.988}
-                style={{ width: responsive.isTablet ? '23.7%' : '48.4%' }}
-              >
-                <MoodImageCard
-                  mood={mood}
-                  covers={moodCovers.get(mood.id) || []}
-                  highlighted={favoriteMoodIds.includes(mood.id)}
-                  onPress={() => navigation.navigate('DiscoverMood', { moodId: mood.id })}
-                />
-              </Reveal>
-            ))}
-          </View>
-        </View>
-
-        <RadarMobileSection tracks={radar} loading={radarLoading} compact onViewAll={() => navigation.navigate('Radar')} />
-
-        <DiscoverTrackRail
-          title="Tout juste publiés"
-          subtitle="Les dernières sorties publiques, dans leur ordre réel de publication."
-          tracks={newestRailTracks}
-          loading={loading}
-          tablet={responsive.isTablet}
-          currentTrackId={player.current?._id}
-          isPlaying={player.isPlaying}
-          onOpen={openTrack}
-          onPlay={(track) => void playFrom(newestRailTracks, track)}
-        />
-
-        <DiscoverTrackRail
-          title="Pépites à découvrir"
-          subtitle="Des morceaux publics encore peu écoutés, remontés hors des classements habituels."
-          tracks={hiddenRailTracks}
-          tablet={responsive.isTablet}
-          currentTrackId={player.current?._id}
-          isPlaying={player.isPlaying}
-          onOpen={openTrack}
-          onPlay={(track) => void playFrom(hiddenRailTracks, track)}
-        />
-
-        {featuredCollection ? (
-          <View>
-            <SectionHeader title="Sélection Synaura" subtitle="Une collection éditoriale pour prolonger l'écoute." />
-            <CollectionFeatureCard
-              collection={featuredCollection}
-              tablet={responsive.isTablet}
-              onPress={() => navigation.navigate('PlaylistDetail', { playlistId: featuredCollection.slug || featuredCollection.playlistId })}
-            />
-          </View>
-        ) : null}
-
-        {collectionRail.length ? (
-          <View>
-            <SectionHeader title="Collections éditoriales" subtitle="Des sélections publiées autour d'une histoire musicale." />
-            <FlatList
-              horizontal
-              data={collectionRail}
-              keyExtractor={(collection) => String(collection.id || collection.playlistId)}
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.collectionRail}
-              initialNumToRender={4}
-              maxToRenderPerBatch={4}
-              windowSize={5}
-              removeClippedSubviews
-              renderItem={({ item: collection }) => (
-                <CollectionTile
-                  collection={collection}
-                  tablet={responsive.isTablet}
-                  onPress={() => navigation.navigate('PlaylistDetail', { playlistId: collection.slug || collection.playlistId })}
-                />
-              )}
-            />
-          </View>
-        ) : null}
-
-        <DiscoverTrackRail
-          title="Plébiscités sur Synaura"
-          subtitle="Les morceaux qui cumulent le plus d'amour et d'écoutes sur la plateforme."
-          tracks={popularRailTracks}
-          tablet={responsive.isTablet}
-          currentTrackId={player.current?._id}
-          isPlaying={player.isPlaying}
-          onOpen={openTrack}
-          onPlay={(track) => void playFrom(popularRailTracks, track)}
-        />
-
-        {artistPairings.length ? (
-          <View>
-            <SectionHeader title="Artistes à découvrir" subtitle="Chaque profil est présenté avec un morceau réel pour entrer directement dans son univers." />
-            <FlatList
-              horizontal
-              data={artistPairings}
-              keyExtractor={(artist) => artist.id}
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.artistRail}
-              initialNumToRender={4}
-              maxToRenderPerBatch={4}
-              windowSize={5}
-              removeClippedSubviews
-              renderItem={({ item: artist }) => (
-                <ArtistDiscoverCard
-                  artist={artist}
-                  tablet={responsive.isTablet}
-                  playing={player.current?._id === artist.track._id && player.isPlaying}
-                  onPlay={() => void playFrom([artist.track], artist.track)}
-                  onOpen={() => navigation.navigate('PublicProfile', { username: artist.username })}
-                />
-              )}
-            />
-          </View>
-        ) : null}
-
-        <View style={styles.clubsSection}>
-          <SectionHeader title="Créer avec d'autres" subtitle="Des espaces centrés sur une façon de faire de la musique." actionLabel="Tous les Clubs" onAction={() => navigation.navigate('Community')} />
-          <View style={styles.clubsGrid}>
-            {orderedClubs.map((club) => {
-              const highlighted = highlightedClubSlugs.includes(club.slug);
-              return (
-                <Pressable
-                  key={club.slug}
-                  onPress={() => navigation.navigate('ClubDetail', { slug: club.slug })}
-                  style={[
-                    styles.clubChip,
-                    { width: responsive.isTablet ? '23.7%' : '48.4%' },
-                    highlighted && styles.clubChipHighlighted,
-                  ]}
-                >
-                  <View style={[styles.clubDot, { backgroundColor: club.accent }]} />
-                  <Text numberOfLines={1} style={styles.clubChipText}>{club.name}</Text>
-                  <Ionicons name="arrow-forward" size={12} color={colors.textTertiary} />
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
-
-        <View>
-          <SectionHeader title="Événements Synaura" subtitle="Les rendez-vous, défis et scènes ouverts en ce moment." />
-          <CityHomeBanner onOpen={() => navigation.navigate('City')} />
-        </View>
-
-        {loadError && !trackPool.length ? (
-          <View style={styles.errorState}>
-            <Ionicons name="cloud-offline-outline" size={23} color={colors.coral} />
-            <Text style={styles.errorTitle}>Discover n'a pas pu se charger.</Text>
-            <Pressable onPress={() => void load(true)} style={styles.retryButton}><Text style={styles.retryText}>Réessayer</Text></Pressable>
-          </View>
-        ) : null}
-      </ScrollView>
-      <UniversalSearchModal visible={searchOpen} onClose={() => setSearchOpen(false)} />
-    </View>
-  );
-}
-
-function DiscoverLeadCard({ track, label, totalTracks, playing, tablet, onPlay, onOpen }: {
-  track: Track;
-  label: string;
-  totalTracks: number;
-  playing: boolean;
-  tablet: boolean;
-  onPlay: () => void;
-  onOpen: () => void;
-}) {
-  const image = trackImage(track);
-  return (
-    <MotionPressable onPress={onOpen} style={[styles.leadCard, tablet && styles.leadCardTablet]} scaleTo={0.99}>
-      {image ? <SynauraImage source={{ uri: image }} style={StyleSheet.absoluteFillObject} /> : <LinearGradient colors={['#111111', '#7357C6']} style={StyleSheet.absoluteFillObject} />}
-      <LinearGradient colors={['rgba(17,17,17,0.05)', 'rgba(17,17,17,0.9)']} locations={[0.12, 0.9]} style={StyleSheet.absoluteFillObject} />
-      <View style={styles.leadTop}>
-        <View style={styles.leadBadge}><Ionicons name="sparkles-outline" size={12} color="#FFFFFF" /><Text style={styles.leadBadgeText}>{label}</Text></View>
-        {totalTracks > 0 ? <Text style={styles.leadTotal}>{compact(totalTracks)} sons publics</Text> : null}
+  const launch = (queue: Track[], track: Track) => { void playFrom(queue, track).catch(() => Alert.alert('Lecture indisponible', 'Réessaie dans un instant.')); };
+  const isMusic = section === 'all' || section === 'music';
+  const show = (key: typeof section) => section === 'all' || section === key;
+  const tileWidth = responsive.isTablet ? 196 : responsive.isNarrow ? 142 : 162;
+  const rail = (title: string, tracks: Track[], detail?: string, onPress?: () => void) => tracks.length ? <View>
+    <CollectionHeading title={title} detail={detail} onPress={onPress} />
+    <FlatList horizontal data={tracks} keyExtractor={track => track._id} showsHorizontalScrollIndicator={false} initialNumToRender={3} maxToRenderPerBatch={4} windowSize={3} contentContainerStyle={{ gap: 14 }}
+      renderItem={({ item }) => <MusicTile track={item} width={tileWidth} playing={player.current?._id === item._id && player.isPlaying} onOpen={() => openTrack(item)} onPlay={() => launch(tracks, item)} />} />
+  </View> : null;
+  return <CollectionSurface>
+    <ScrollView ref={scroll} showsVerticalScrollIndicator={false} contentContainerStyle={[responsive.pageContent, { paddingTop: insets.top + 8, paddingBottom: responsive.miniPlayerClearance + 20, gap: 26 }]}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(false)} tintColor={p.blue} colors={[p.blue]} />}>
+      <View style={{ gap: 12 }}>
+        <CollectionHeader title="Explorer" eyebrow="CHANGE DE FRÉQUENCE" actions={<CollectionIconButton icon="notifications-outline" label="Notifications" onPress={() => navigation.navigate('Notifications')} />} />
+        <EntryPressable accessibilityRole="search" accessibilityLabel="Rechercher des sons, artistes et playlists" onPress={() => setSearchOpen(true)} style={[styles.search, { backgroundColor: p.surface }]}>
+          <Ionicons name="search-outline" size={21} color={p.blue} /><Text style={{ color: p.muted, fontSize: 15, flex: 1 }}>Un son, un artiste, une envie…</Text><Ionicons name="arrow-up-outline" size={18} color={p.muted} style={{ transform: [{ rotate: '45deg' }] }} />
+        </EntryPressable>
+        <CollectionTabs value={section} onChange={value => { setSection(value); scroll.current?.scrollTo({ y: 0, animated: false }); }} options={[{ value: 'all', label: 'Pour explorer' }, { value: 'music', label: 'Musique' }, { value: 'artists', label: 'Artistes' }, { value: 'collections', label: 'Playlists' }, { value: 'community', label: 'Communauté' }]} />
       </View>
-      <View style={styles.leadBody}>
-        <Text numberOfLines={2} style={styles.leadTitle}>{track.title}</Text>
-        <Text numberOfLines={1} style={styles.leadArtist}>{artistName(track)}</Text>
-        <View style={styles.leadMetaRow}>
-          <View style={styles.leadMeta}><Ionicons name="headset-outline" size={13} color="rgba(255,255,255,0.72)" /><Text style={styles.leadMetaText}>{compact(track.plays || 0)} écoutes</Text></View>
-          {track.genre?.[0] ? <Text numberOfLines={1} style={styles.leadGenre}>{track.genre[0]}</Text> : null}
+      {isMusic && leadTrack ? <CollectionReveal style={[styles.hero, { height: responsive.isTablet ? 420 : 338, backgroundColor: p.surface }]}>
+        <SynauraImage source={getTrackCoverImage(leadTrack)} style={StyleSheet.absoluteFillObject} />
+        <LinearGradient pointerEvents="none" colors={['rgba(6,10,20,.08)', 'rgba(6,10,20,.18)', 'rgba(6,10,20,.94)']} locations={[0, .35, 1]} style={StyleSheet.absoluteFillObject} />
+        <View style={styles.heroTop}><View style={styles.heroBadge}><View style={styles.signal} /><Text style={styles.badgeText}>{leadLabel}</Text></View><CollectionIconButtonOnArt onPress={() => openTrack(leadTrack)} label="Détails du morceau" icon="arrow-up-outline" /></View>
+        <View style={styles.heroBottom}>
+          <Text style={styles.heroKicker}>LAISSE-TOI SURPRENDRE</Text>
+          <EntryPressable accessibilityRole="button" onPress={() => openTrack(leadTrack)}><Text numberOfLines={2} style={styles.heroTitle}>{leadTrack.title}</Text><Text numberOfLines={1} style={styles.heroArtist}>{musicArtist(leadTrack)}</Text></EntryPressable>
+          <EntryPressable accessibilityRole="button" accessibilityLabel={player.current?._id === leadTrack._id && player.isPlaying ? 'Mettre en pause' : 'Écouter ' + leadTrack.title} onPress={() => launch(leadQueue, leadTrack)} style={styles.heroPlay}><Ionicons name={player.current?._id === leadTrack._id && player.isPlaying ? 'pause' : 'play'} size={17} color="#111A29" /><Text style={styles.playLabel}>{player.current?._id === leadTrack._id && player.isPlaying ? 'En écoute' : 'Écouter'}</Text></EntryPressable>
         </View>
-        <Pressable onPress={(event) => { event.stopPropagation(); onPlay(); }} style={styles.leadPlay}>
-          <Ionicons name={playing ? 'pause' : 'play'} size={18} color={colors.black} />
-          <Text style={styles.leadPlayText}>{playing ? 'Pause' : 'Écouter'}</Text>
-        </Pressable>
-      </View>
-    </MotionPressable>
-  );
+      </CollectionReveal> : isMusic && loading ? <CollectionEmpty loading title="À la recherche de ton prochain son…" /> : null}
+      {loadError ? <CollectionEmpty icon="cloud-offline-outline" title="Connexion interrompue" text="Tu peux réessayer sans perdre ce qui est déjà affiché." action="Réessayer" onPress={() => void load(false)} /> : null}
+      {isMusic ? rail('Tout juste sortis', newestRailTracks, 'De nouveaux sons à rencontrer') : null}
+      {isMusic ? <View><CollectionHeading title="Ton humeur, ton univers" /><FlatList horizontal data={orderedMoods} keyExtractor={mood => mood.id} showsHorizontalScrollIndicator={false} initialNumToRender={3} windowSize={3} contentContainerStyle={{ gap: 12 }}
+        renderItem={({ item: mood }) => <EntryPressable accessibilityRole="button" accessibilityLabel={mood.label} onPress={() => navigation.navigate('DiscoverMood', { moodId: mood.id })} style={[styles.mood, { width: tileWidth }]}>
+          <LinearGradient colors={mood.gradient} style={StyleSheet.absoluteFillObject} />
+          {moodCovers.get(mood.id)?.[0] ? <SynauraImage source={moodCovers.get(mood.id)![0]} lowPriority style={[StyleSheet.absoluteFillObject, { opacity: .4 }]} /> : null}
+          <LinearGradient colors={['rgba(0,0,0,.1)', 'rgba(0,0,0,.75)']} style={StyleSheet.absoluteFillObject} />
+          <Ionicons name={mood.icon as any} size={23} color="#FFF" />
+          <Text style={styles.moodLabel}>{mood.label}</Text>
+        </EntryPressable>} /></View> : null}
+      {isMusic ? rail('Hors des radars', hiddenRailTracks, 'Petites audiences. Grandes découvertes.') : null}
+      {isMusic ? rail('Radar Synaura', radar, 'Les signaux qui montent', () => navigation.navigate('Radar')) : null}
+      {show('artists') ? <View><CollectionHeading title="Derrière la musique" detail="Entre dans leurs univers" />
+        {artistPairings.length ? <FlatList horizontal data={artistPairings} keyExtractor={artist => artist.id} showsHorizontalScrollIndicator={false} initialNumToRender={4} windowSize={3} contentContainerStyle={{ gap: 16 }} renderItem={({ item: artist }) => <EntryPressable accessibilityRole="button" accessibilityLabel={'Profil de ' + artist.name} onPress={() => navigation.navigate('PublicProfile', { username: artist.username })} style={{ width: 118, alignItems: 'center' }}>
+          <View style={[styles.avatar, { backgroundColor: p.raised }]}>{artist.avatar ? <SynauraImage source={artist.avatar} style={StyleSheet.absoluteFillObject} /> : <Text style={{ color: p.blue, fontSize: 38 }}>{artist.name.charAt(0)}</Text>}</View>
+          <Text numberOfLines={1} style={[styles.artistName, { color: p.text }]}>{artist.name}</Text><Text numberOfLines={1} style={{ color: p.muted, fontSize: 11 }}>@{artist.username}</Text>
+        </EntryPressable>} /> : <CollectionEmpty loading={loading} title={loading ? 'Chargement…' : 'Aucun artiste disponible'} />}
+      </View> : null}
+      {show('collections') ? <View><CollectionHeading title="Un son en appelle un autre" detail="Les sélections Synaura" />
+        {collections.length ? <FlatList horizontal data={featuredCollection ? [featuredCollection, ...collectionRail] : collections} keyExtractor={collection => String(collection.id || collection.playlistId)} showsHorizontalScrollIndicator={false} initialNumToRender={2} windowSize={3} contentContainerStyle={{ gap: 14 }}
+          renderItem={({ item: collection }) => <EntryPressable accessibilityRole="button" onPress={() => navigation.navigate('PlaylistDetail', { playlistId: collection.slug || collection.playlistId })} style={[styles.collection, { width: responsive.isNarrow ? 242 : 280, backgroundColor: p.surface }]}>
+            <View style={{ height: 164, overflow: 'hidden', backgroundColor: p.raised }}>{collection.bannerUrl || collection.coverUrl ? <SynauraImage source={collection.bannerUrl || collection.coverUrl} style={StyleSheet.absoluteFillObject} /> : <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><Ionicons name="albums-outline" size={42} color={p.blue} /></View>}</View>
+            <View style={{ padding: 17 }}><Text numberOfLines={2} style={[styles.collectionTitle, { color: p.text }]}>{collection.title}</Text><Text style={{ marginTop: 7, color: p.muted, fontSize: 12 }}>{collection.trackCount != null ? collection.trackCount + ' titres' : collection.subtitle || 'Explorer la sélection'}  ↗</Text></View>
+          </EntryPressable>} /> : <CollectionEmpty loading={loading} title={loading ? 'Chargement…' : 'Les prochaines sélections arrivent ici.'} />}
+      </View> : null}
+      {isMusic ? rail('Vous les aimez', popularRailTracks) : null}
+      {show('community') ? <View><CollectionHeading title="La musique, ensemble" action="Communauté" onPress={() => navigation.navigate('Community')} />
+        <View style={{ gap: 10 }}>{orderedClubs.map(club => <EntryPressable key={club.slug} accessibilityRole="button" onPress={() => navigation.navigate('ClubDetail', { slug: club.slug })} style={[styles.club, { backgroundColor: p.surface }]}>
+          <View style={[styles.clubIcon, { backgroundColor: p.raised }]}><Ionicons name={club.icon as any} size={23} color={p.blue} /></View><View style={{ flex: 1 }}><Text style={[styles.collectionTitle, { color: p.text }]}>{club.name}</Text><Text style={{ color: p.muted, fontSize: 12, lineHeight: 18, marginTop: 4 }}>{club.promise}</Text></View><Ionicons name="arrow-forward" size={18} color={p.muted} />
+        </EntryPressable>)}</View>
+        <EntryPressable accessibilityRole="button" onPress={() => navigation.navigate('City')} style={[styles.club, { marginTop: 14, backgroundColor: p.raised }]}><Ionicons name="planet-outline" size={25} color={p.violet} /><View style={{ flex: 1 }}><Text style={[styles.collectionTitle, { color: p.text }]}>Entrer dans la City</Text><Text style={{ color: p.muted, marginTop: 3, fontSize: 12 }}>Défis, artistes et rencontres</Text></View><Ionicons name="arrow-forward" size={18} color={p.blue} /></EntryPressable>
+      </View> : null}
+      {totalTracks > 0 && section === 'all' ? <Text style={{ color: p.faint, textAlign: 'center', fontSize: 11 }}>{compact(totalTracks)} morceaux à explorer — et le tien, peut-être.</Text> : null}
+    </ScrollView>
+    <UniversalSearchModal visible={searchOpen} onClose={() => setSearchOpen(false)} />
+  </CollectionSurface>;
 }
-
-function DiscoverLeadSkeleton({ tablet }: { tablet: boolean }) {
-  return (
-    <View style={[styles.leadCard, styles.leadSkeleton, tablet && styles.leadCardTablet]}>
-      <View style={styles.skeletonBadge} />
-      <View style={styles.skeletonCopy}>
-        <View style={styles.skeletonTitle} />
-        <View style={styles.skeletonLine} />
-        <View style={styles.skeletonButton} />
-      </View>
-    </View>
-  );
+function CollectionIconButtonOnArt({ onPress, label, icon }: { onPress: () => void; label: string; icon: React.ComponentProps<typeof Ionicons>['name'] }) {
+  return <EntryPressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={styles.artIcon}><Ionicons name={icon} size={22} color="#FFF" style={{ transform: [{ rotate: '45deg' }] }} /></EntryPressable>;
 }
-
-function MoodImageCard({ mood, covers, highlighted, onPress }: { mood: MoodConfig; covers: string[]; highlighted: boolean; onPress: () => void }) {
-  return (
-    <MotionPressable onPress={onPress} style={[styles.moodCard, highlighted && styles.moodCardHighlighted]} scaleTo={0.97}>
-      <LinearGradient colors={mood.gradient} style={StyleSheet.absoluteFillObject} />
-      {covers.length ? <CoverMosaic covers={covers} /> : null}
-      <LinearGradient colors={['rgba(17,17,17,0.05)', 'rgba(17,17,17,0.84)']} style={StyleSheet.absoluteFillObject} />
-      {highlighted ? <Text style={styles.moodFavorite}>Pour toi</Text> : null}
-      <View style={styles.moodBody}>
-        <Text numberOfLines={2} style={styles.moodLabel}>{mood.label}</Text>
-        <Text numberOfLines={2} style={styles.moodPromise}>{mood.promise}</Text>
-        <View style={styles.moodAction}><Text style={styles.moodActionText}>Explorer</Text><Ionicons name="arrow-forward" size={12} color="#FFFFFF" /></View>
-      </View>
-    </MotionPressable>
-  );
-}
-
-function CoverMosaic({ covers }: { covers: string[] }) {
-  const count = Math.min(4, covers.length);
-  return (
-    <View style={styles.mosaic}>
-      {covers.slice(0, count).map((cover, index) => (
-        <SynauraImage
-          key={`${cover}-${index}`}
-          source={{ uri: cover }}
-          lowPriority
-          style={[
-            styles.mosaicImage,
-            count === 1 && styles.mosaicImageSingle,
-            count === 2 && styles.mosaicImagePair,
-          ]}
-        />
-      ))}
-    </View>
-  );
-}
-
-function DiscoverTrackRail({ title, subtitle, tracks, loading = false, tablet, currentTrackId, isPlaying, onPlay, onOpen }: {
-  title: string;
-  subtitle: string;
-  tracks: Track[];
-  loading?: boolean;
-  tablet: boolean;
-  currentTrackId?: string | null;
-  isPlaying: boolean;
-  onPlay: (track: Track) => void;
-  onOpen: (track: Track) => void;
-}) {
-  if (!tracks.length && !loading) return null;
-  return (
-    <View>
-      <SectionHeader title={title} subtitle={subtitle} />
-      {tracks.length ? (
-        <FlatList
-          horizontal
-          data={tracks.slice(0, 20)}
-          keyExtractor={(track) => track._id}
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.trackRail}
-          initialNumToRender={4}
-          maxToRenderPerBatch={4}
-          windowSize={5}
-          removeClippedSubviews
-          renderItem={({ item: track }) => (
-            <DiscoverTrackCard
-              track={track}
-              tablet={tablet}
-              playing={currentTrackId === track._id && isPlaying}
-              onPlay={() => onPlay(track)}
-              onOpen={() => onOpen(track)}
-            />
-          )}
-        />
-      ) : <LoadingTrackRail tablet={tablet} />}
-    </View>
-  );
-}
-
-function DiscoverTrackCard({ track, tablet, playing, onPlay, onOpen }: { track: Track; tablet: boolean; playing: boolean; onPlay: () => void; onOpen: () => void }) {
-  const handlePlay = (event: GestureResponderEvent) => {
-    event.stopPropagation();
-    onPlay();
-  };
-  return (
-    <MotionPressable onPress={onOpen} style={[styles.trackCard, tablet && styles.trackCardTablet]} scaleTo={0.975}>
-      <View style={styles.trackCoverWrap}>
-        <TrackCover track={track} active={playing} autoPlayVideo={playing} style={styles.trackCover} />
-        <LinearGradient colors={['transparent', 'rgba(17,17,17,0.5)']} style={StyleSheet.absoluteFillObject} />
-        <Pressable accessibilityLabel={playing ? 'Mettre en pause' : 'Lire'} onPress={handlePlay} style={styles.trackPlay}>
-          <Ionicons name={playing ? 'pause' : 'play'} size={16} color={colors.black} />
-        </Pressable>
-      </View>
-      <View style={styles.trackBody}>
-        <Text numberOfLines={1} style={styles.trackTitle}>{track.title}</Text>
-        <Text numberOfLines={1} style={styles.trackArtist}>{artistName(track)}</Text>
-        <View style={styles.trackStats}>
-          <View style={styles.trackStat}><Ionicons name="headset-outline" size={11} color={colors.textTertiary} /><Text style={styles.trackStatText}>{compact(track.plays || 0)}</Text></View>
-          <View style={styles.trackStat}><Ionicons name="heart-outline" size={11} color={colors.textTertiary} /><Text style={styles.trackStatText}>{compact(track.likesCount || 0)}</Text></View>
-        </View>
-      </View>
-    </MotionPressable>
-  );
-}
-
-function LoadingTrackRail({ tablet }: { tablet: boolean }) {
-  return (
-    <View style={styles.loadingRail}>
-      {[0, 1, 2].map((index) => <View key={index} style={[styles.loadingTrack, tablet && styles.trackCardTablet]} />)}
-    </View>
-  );
-}
-
-function CollectionFeatureCard({ collection, tablet, onPress }: { collection: EditorialCollection; tablet: boolean; onPress: () => void }) {
-  const banner = collection.bannerUrl || collection.coverUrl || null;
-  const configuredColors = (collection.themeColors || []).filter(Boolean).slice(0, 3);
-  const gradient = configuredColors.length >= 2 ? configuredColors : ['#7357C6', '#4A9EAA', '#D96D63'];
-  return (
-    <MotionPressable onPress={onPress} style={[styles.collectionFeature, tablet && styles.collectionFeatureTablet]} scaleTo={0.99}>
-      <LinearGradient colors={gradient as [string, string, ...string[]]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFillObject} />
-      {banner ? <SynauraImage source={{ uri: banner }} lowPriority style={StyleSheet.absoluteFillObject} /> : null}
-      <LinearGradient colors={['rgba(17,17,17,0.1)', 'rgba(17,17,17,0.88)']} style={StyleSheet.absoluteFillObject} />
-      <View style={styles.collectionFeatureBody}>
-        <Text style={styles.collectionBadge}>{collection.badge || 'Collection Synaura'}</Text>
-        <Text numberOfLines={2} style={styles.collectionTitle}>{collection.title}</Text>
-        {collection.subtitle || collection.description ? <Text numberOfLines={2} style={styles.collectionText}>{collection.subtitle || collection.description}</Text> : null}
-        <View style={styles.collectionFooter}>
-          {Number(collection.trackCount || 0) > 0 ? <Text style={styles.collectionCount}>{collection.trackCount} sons</Text> : <View />}
-          <View style={styles.collectionOpen}><Text style={styles.collectionOpenText}>Explorer</Text><Ionicons name="arrow-forward" size={13} color={colors.black} /></View>
-        </View>
-      </View>
-    </MotionPressable>
-  );
-}
-
-function CollectionTile({ collection, tablet, onPress }: { collection: EditorialCollection; tablet: boolean; onPress: () => void }) {
-  const image = collection.coverUrl || collection.bannerUrl;
-  return (
-    <MotionPressable onPress={onPress} style={[styles.collectionTile, tablet && styles.collectionTileTablet]} scaleTo={0.97}>
-      <View style={styles.collectionTileImage}>
-        {image ? <SynauraImage source={{ uri: image }} lowPriority style={StyleSheet.absoluteFillObject} /> : <LinearGradient colors={['#7357C6', '#4A9EAA']} style={StyleSheet.absoluteFillObject} />}
-      </View>
-      <Text numberOfLines={2} style={styles.collectionTileTitle}>{collection.title}</Text>
-      {Number(collection.trackCount || 0) > 0 ? <Text style={styles.collectionTileMeta}>{collection.trackCount} sons</Text> : null}
-    </MotionPressable>
-  );
-}
-
-function ArtistDiscoverCard({ artist, tablet, playing, onPlay, onOpen }: { artist: ArtistPairing; tablet: boolean; playing: boolean; onPlay: () => void; onOpen: () => void }) {
-  return (
-    <View style={[styles.artistCard, tablet && styles.artistCardTablet]}>
-      <Pressable onPress={onOpen} style={styles.artistIdentity}>
-        <View style={styles.artistAvatar}>
-          {artist.avatar ? <SynauraImage source={{ uri: artist.avatar }} lowPriority style={StyleSheet.absoluteFillObject} /> : <LinearGradient colors={['#7357C6', '#D96D63']} style={StyleSheet.absoluteFillObject} />}
-          {!artist.avatar ? <Text style={styles.artistInitial}>{artist.name.slice(0, 1).toUpperCase()}</Text> : null}
-        </View>
-        <View style={styles.artistCopy}>
-          <Text numberOfLines={1} style={styles.artistName}>{artist.name}</Text>
-          <Text numberOfLines={1} style={styles.artistHandle}>@{artist.username}</Text>
-        </View>
-      </Pressable>
-      <Pressable onPress={onPlay} style={styles.artistTrack}>
-        <TrackCover track={artist.track} active={playing} style={styles.artistTrackCover} />
-        <View style={styles.artistTrackCopy}>
-          <Text numberOfLines={1} style={styles.artistTrackTitle}>{artist.track.title}</Text>
-          {artist.track.genre?.[0] ? <Text numberOfLines={1} style={styles.artistTrackGenre}>{artist.track.genre[0]}</Text> : null}
-        </View>
-        <View style={styles.artistPlay}><Ionicons name={playing ? 'pause' : 'play'} size={13} color="#FFFFFF" /></View>
-      </Pressable>
-      <Pressable onPress={onOpen} style={styles.artistOpen}><Text style={styles.artistOpenText}>Voir le profil</Text><Ionicons name="arrow-forward" size={13} color={colors.text} /></Pressable>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.background },
-  content: { paddingHorizontal: 18, paddingBottom: 160, gap: 26 },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 7 },
-  leadCard: { height: 252, overflow: 'hidden', borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.18)', backgroundColor: colors.black, ...shadows.floating },
-  leadCardTablet: { height: 300 },
-  leadTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 9, padding: 14 },
-  leadBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: radius.sm, paddingHorizontal: 9, paddingVertical: 6, backgroundColor: 'rgba(17,17,17,0.5)' },
-  leadBadgeText: { color: '#FFFFFF', fontSize: 9, fontWeight: '900', textTransform: 'uppercase' },
-  leadTotal: { flexShrink: 1, color: 'rgba(255,255,255,0.72)', fontSize: 9, fontWeight: '800' },
-  leadBody: { position: 'absolute', left: 15, right: 15, bottom: 15 },
-  leadTitle: { maxWidth: 620, color: '#FFFFFF', fontSize: 27, lineHeight: 31, fontWeight: '900' },
-  leadArtist: { marginTop: 4, color: 'rgba(255,255,255,0.78)', fontSize: 13, fontWeight: '800' },
-  leadMetaRow: { marginTop: 9, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  leadMeta: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  leadMetaText: { color: 'rgba(255,255,255,0.72)', fontSize: 10, fontWeight: '800' },
-  leadGenre: { maxWidth: 170, overflow: 'hidden', borderRadius: radius.sm, paddingHorizontal: 8, paddingVertical: 4, color: '#FFFFFF', backgroundColor: 'rgba(255,255,255,0.14)', fontSize: 9, fontWeight: '900' },
-  leadPlay: { alignSelf: 'flex-start', marginTop: 13, minWidth: 112, height: 42, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 21, backgroundColor: '#FFFFFF', paddingHorizontal: 14 },
-  leadPlayText: { color: colors.black, fontSize: 12, fontWeight: '900' },
-  leadSkeleton: { backgroundColor: colors.surfaceStrong },
-  skeletonBadge: { width: 120, height: 26, margin: 14, borderRadius: radius.sm, backgroundColor: 'rgba(255,255,255,0.44)' },
-  skeletonCopy: { position: 'absolute', left: 15, right: 15, bottom: 15 },
-  skeletonTitle: { width: '72%', height: 26, borderRadius: radius.sm, backgroundColor: 'rgba(255,255,255,0.68)' },
-  skeletonLine: { width: '42%', height: 11, marginTop: 9, borderRadius: radius.sm, backgroundColor: 'rgba(255,255,255,0.48)' },
-  skeletonButton: { width: 112, height: 42, marginTop: 14, borderRadius: radius.md, backgroundColor: 'rgba(255,255,255,0.72)' },
-  moodGrid: { marginTop: 12, flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  moodCard: { width: '100%', minHeight: 142, overflow: 'hidden', borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.13)', backgroundColor: colors.black, ...shadows.soft },
-  moodCardHighlighted: { borderWidth: 2, borderColor: colors.violet },
-  mosaic: { ...StyleSheet.absoluteFillObject, flexDirection: 'row', flexWrap: 'wrap', opacity: 0.65 },
-  mosaicImage: { width: '50%', height: '50%' },
-  mosaicImageSingle: { width: '100%', height: '100%' },
-  mosaicImagePair: { width: '50%', height: '100%' },
-  moodFavorite: { position: 'absolute', left: 10, top: 10, overflow: 'hidden', borderRadius: radius.sm, paddingHorizontal: 8, paddingVertical: 5, color: '#FFFFFF', backgroundColor: colors.violet, fontSize: 8, fontWeight: '900', textTransform: 'uppercase' },
-  moodBody: { flex: 1, justifyContent: 'flex-end', padding: 12 },
-  moodLabel: { color: '#FFFFFF', fontSize: 16, lineHeight: 19, fontWeight: '900' },
-  moodPromise: { marginTop: 4, color: 'rgba(255,255,255,0.7)', fontSize: 9, lineHeight: 13, fontWeight: '700' },
-  moodAction: { marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 5 },
-  moodActionText: { color: '#FFFFFF', fontSize: 9, fontWeight: '900', textTransform: 'uppercase' },
-  trackRail: { gap: 10, paddingTop: 12, paddingRight: 18 },
-  trackCard: { width: 156, overflow: 'hidden', borderRadius: radius.md, backgroundColor: colors.surface, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
-  trackCardTablet: { width: 190 },
-  trackCoverWrap: { width: '100%', aspectRatio: 1, overflow: 'hidden', borderTopLeftRadius: radius.md, borderTopRightRadius: radius.md, backgroundColor: colors.surfaceMuted },
-  trackCover: { width: '100%', height: '100%' },
-  trackPlay: { position: 'absolute', right: 8, bottom: 8, width: 38, height: 38, borderRadius: 19, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF' },
-  trackBody: { minHeight: 74, paddingTop: 10, paddingHorizontal: 10, paddingBottom: 9 },
-  trackTitle: { color: colors.text, fontSize: 12, fontWeight: '900' },
-  trackArtist: { marginTop: 3, color: colors.textSecondary, fontSize: 10, fontWeight: '700' },
-  trackStats: { marginTop: 8, flexDirection: 'row', gap: 9 },
-  trackStat: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  trackStatText: { color: colors.textTertiary, fontSize: 9, fontWeight: '800' },
-  loadingRail: { flexDirection: 'row', gap: 10, paddingTop: 12 },
-  loadingTrack: { width: 156, height: 230, borderRadius: radius.md, backgroundColor: colors.surfaceStrong },
-  collectionFeature: { minHeight: 290, marginTop: 12, overflow: 'hidden', borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.16)', backgroundColor: colors.black, ...shadows.floating },
-  collectionFeatureTablet: { minHeight: 330 },
-  collectionFeatureBody: { flex: 1, justifyContent: 'flex-end', padding: 16 },
-  collectionBadge: { alignSelf: 'flex-start', overflow: 'hidden', borderRadius: radius.sm, paddingHorizontal: 9, paddingVertical: 6, color: '#FFFFFF', backgroundColor: 'rgba(255,255,255,0.16)', fontSize: 9, fontWeight: '900', textTransform: 'uppercase' },
-  collectionTitle: { maxWidth: 650, marginTop: 10, color: '#FFFFFF', fontSize: 26, lineHeight: 29, fontWeight: '900' },
-  collectionText: { maxWidth: 560, marginTop: 6, color: 'rgba(255,255,255,0.74)', fontSize: 12, lineHeight: 18, fontWeight: '700' },
-  collectionFooter: { marginTop: 13, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 9 },
-  collectionCount: { color: 'rgba(255,255,255,0.68)', fontSize: 10, fontWeight: '800' },
-  collectionOpen: { height: 38, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 19, paddingHorizontal: 12, backgroundColor: '#FFFFFF' },
-  collectionOpenText: { color: colors.black, fontSize: 10, fontWeight: '900' },
-  collectionRail: { gap: 10, paddingTop: 12, paddingRight: 18 },
-  collectionTile: { width: 150 },
-  collectionTileTablet: { width: 190 },
-  collectionTileImage: { width: '100%', aspectRatio: 1.25, overflow: 'hidden', borderRadius: radius.md, backgroundColor: colors.surfaceMuted },
-  collectionTileTitle: { marginTop: 7, color: colors.text, fontSize: 11, lineHeight: 15, fontWeight: '900' },
-  collectionTileMeta: { marginTop: 3, color: colors.textTertiary, fontSize: 9, fontWeight: '800' },
-  artistRail: { gap: 10, paddingTop: 12, paddingRight: 18 },
-  artistCard: { width: 210, overflow: 'hidden', borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, borderTopWidth: 2, borderTopColor: colors.cyan, backgroundColor: colors.surface, padding: 11, gap: 9 },
-  artistCardTablet: { width: 240 },
-  artistIdentity: { flexDirection: 'row', alignItems: 'center', gap: 9 },
-  artistAvatar: { width: 48, height: 48, overflow: 'hidden', borderRadius: 24, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted },
-  artistInitial: { color: '#FFFFFF', fontSize: 18, fontWeight: '900' },
-  artistCopy: { flex: 1, minWidth: 0 },
-  artistName: { color: colors.text, fontSize: 13, fontWeight: '900' },
-  artistHandle: { marginTop: 2, color: colors.textTertiary, fontSize: 9, fontWeight: '800' },
-  artistTrack: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 7, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
-  artistTrackCover: { width: 38, height: 38, borderRadius: radius.sm },
-  artistTrackCopy: { flex: 1, minWidth: 0 },
-  artistTrackTitle: { color: colors.text, fontSize: 10, fontWeight: '900' },
-  artistTrackGenre: { marginTop: 2, color: colors.violet, fontSize: 8, fontWeight: '800' },
-  artistPlay: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet },
-  artistOpen: { height: 34, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderBottomWidth: 1, borderBottomColor: colors.violet },
-  artistOpenText: { color: colors.text, fontSize: 10, fontWeight: '900' },
-  clubsSection: { gap: 2 },
-  clubsGrid: { marginTop: 10, flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  clubChip: { minHeight: 44, flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, paddingHorizontal: 10, paddingVertical: 10 },
-  clubChipHighlighted: { borderColor: colors.violet, backgroundColor: colors.violetSoft },
-  clubDot: { width: 7, height: 7, borderRadius: 4 },
-  clubChipText: { flex: 1, minWidth: 0, color: colors.text, fontSize: 10, fontWeight: '900' },
-  errorState: { minHeight: 150, alignItems: 'center', justifyContent: 'center', gap: 8, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, backgroundColor: colors.surface, padding: 18 },
-  errorTitle: { color: colors.text, fontSize: 13, fontWeight: '900' },
-  retryButton: { minWidth: 104, height: 38, alignItems: 'center', justifyContent: 'center', borderRadius: radius.md, backgroundColor: colors.violet },
-  retryText: { color: '#FFFFFF', fontSize: 10, fontWeight: '900' },
+  search: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, borderRadius: 18, paddingHorizontal: 17 },
+  hero: { borderRadius: 27, overflow: 'hidden', justifyContent: 'space-between' }, heroTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 17 }, heroBadge: { flexDirection: 'row', alignItems: 'center', gap: 7, paddingVertical: 8, paddingHorizontal: 11, backgroundColor: 'rgba(5,10,20,.68)', borderRadius: 20 }, signal: { width: 5, height: 5, borderRadius: 3, backgroundColor: '#B9DFFF' }, badgeText: { fontSize: 10, fontWeight: '700', color: '#FFF' },
+  artIcon: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(5,10,20,.45)' }, heroBottom: { padding: 22, gap: 10 }, heroKicker: { color: '#C5D5E6', fontSize: 9, fontWeight: '700', letterSpacing: 2 }, heroTitle: { color: '#FFF', fontSize: 30, lineHeight: 34, letterSpacing: 0, fontWeight: '800' }, heroArtist: { color: '#CFD6E2', fontSize: 13, marginTop: 5 },
+  heroPlay: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: 9, backgroundColor: '#EDF5FF', paddingHorizontal: 20, minHeight: 44, borderRadius: 24, marginTop: 4 }, playLabel: { color: '#111A29', fontSize: 13, fontWeight: '800' },
+  mood: { height: 144, borderRadius: 20, overflow: 'hidden', padding: 17, justifyContent: 'space-between' }, moodLabel: { color: '#FFF', fontSize: 21, fontWeight: '800', letterSpacing: 0 },
+  avatar: { width: 108, height: 108, borderRadius: 54, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }, artistName: { fontSize: 14, fontWeight: '700', marginTop: 11, marginBottom: 5 },
+  collection: { borderRadius: 22, overflow: 'hidden' }, collectionTitle: { fontWeight: '700', fontSize: 16, letterSpacing: 0 },
+  club: { padding: 16, borderRadius: 19, flexDirection: 'row', alignItems: 'center', gap: 14 }, clubIcon: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
 });
-
-export default DiscoverV2Screen;

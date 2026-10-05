@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
-  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -14,7 +13,8 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { EntryAtmosphere } from '@/components/entry/EntryAtmosphere';
+import { EntryMotionScope } from '@/components/entry/EntryAtmosphere';
+import { mobile, SoundRoom } from '@/components/mobile/SoundRoom';
 import { SynauraMark } from '@/components/brand/SynauraMark';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
@@ -23,7 +23,7 @@ import { EntryPressable } from '@/components/entry/EntryPressable';
 import { entry } from '@/theme/entry';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 
-export const authColors = { text: entry.text, textSecondary: entry.muted, textTertiary: entry.faint, surface: entry.surface, surfaceStrong: entry.raised, surfaceMuted: entry.raised, border: entry.line, borderStrong: entry.line, violet: entry.violet, coral: entry.violet, cyan: entry.cyan };
+export const authColors = { text: mobile.text, textSecondary: mobile.muted, textTertiary: mobile.faint, surface: mobile.surface, surfaceStrong: mobile.raised, surfaceMuted: mobile.raised, border: mobile.line, borderStrong: mobile.line, violet: mobile.blue, coral: mobile.blue, cyan: mobile.blue };
 const colors = authColors;
 
 export function AuthScreen({
@@ -36,7 +36,7 @@ export function AuthScreen({
   const insets = useSafeAreaInsets();
   const layout = useResponsiveLayout();
   return (
-    <EntryAtmosphere>
+    <EntryMotionScope><SoundRoom quiet>
       <StatusBar style="light" />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -55,7 +55,7 @@ export function AuthScreen({
           {children}
         </ScrollView>
       </KeyboardAvoidingView>
-    </EntryAtmosphere>
+    </SoundRoom></EntryMotionScope>
   );
 }
 
@@ -66,22 +66,11 @@ export function AuthTopBar({
   caption: string;
   onBack: () => void;
 }) {
-  const layout = useResponsiveLayout();
   return (
     <View style={styles.topBar}>
-      <View style={styles.brand}>
-        <View style={styles.logoWrap}>
-          <SynauraMark size={38} />
-        </View>
-        <View>
-          <Text style={styles.brandName}>Synaura</Text>
-          <Text style={styles.brandCaption}>{caption}</Text>
-        </View>
-      </View>
-      <Pressable accessibilityLabel="Retour" onPress={onBack} style={[styles.backButton, layout.isNarrow && styles.backButtonNarrow]}>
-        <Ionicons name="arrow-back" size={17} color={colors.textSecondary} />
-        {!layout.isNarrow ? <Text style={styles.backText}>Accueil</Text> : null}
-      </Pressable>
+      <EntryPressable accessibilityRole="button" accessibilityLabel="Retour" onPress={onBack} style={styles.backButton}><Ionicons name="arrow-back" size={22} color={colors.text} /></EntryPressable>
+      <SynauraMark size={29} wordmark />
+      <View style={{ width: 44 }} />
     </View>
   );
 }
@@ -133,9 +122,9 @@ export function AuthField({
           onFocus={event => { setFocused(true); props.onFocus?.(event); }}
           onBlur={event => { setFocused(false); props.onBlur?.(event); }}
           accessibilityLabel={props.accessibilityLabel || label}
-          selectionColor={entry.violet}
+          selectionColor={mobile.blue}
           placeholderTextColor={colors.textTertiary}
-          style={[styles.input, focused && { borderColor: entry.violet, backgroundColor: '#23253F' }, rightIcon ? styles.inputWithRight : null, props.style]}
+          style={[styles.input, focused && { borderColor: mobile.blue, backgroundColor: '#172536' }, rightIcon ? styles.inputWithRight : null, props.style]}
         />
         {rightIcon && onRightPress ? (
           <Pressable accessibilityLabel="Afficher ou masquer" onPress={onRightPress} style={styles.rightIcon}>
@@ -155,7 +144,7 @@ export function AuthAlert({
   kind?: 'error' | 'success';
 }) {
   return (
-    <View style={[styles.alert, kind === 'success' && styles.alertSuccess]}>
+    <View accessibilityRole="alert" accessibilityLiveRegion="polite" style={[styles.alert, kind === 'success' && styles.alertSuccess]}>
       <Ionicons
         name={kind === 'success' ? 'checkmark-circle' : 'alert-circle'}
         size={17}
@@ -187,11 +176,11 @@ export function AuthPrimaryButton({
       style={[styles.primaryButton, (disabled || loading) && styles.disabled]}
       scaleTo={0.97}
     >
-      <LinearGradient pointerEvents="none" colors={['#C5B5FF', '#A4BBFF']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-      {loading ? <ActivityIndicator color="#17142E" /> : (
+      <LinearGradient pointerEvents="none" colors={['#E5F2FF', '#BBD9FF']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
+      {loading ? <ActivityIndicator color="#070A10" /> : (
         <>
           <Text style={styles.primaryText}>{label}</Text>
-          {icon ? <Ionicons name={icon} size={17} color="#17142E" /> : null}
+          {icon ? <Ionicons name={icon} size={17} color="#070A10" /> : null}
         </>
       )}
     </EntryPressable>
@@ -239,7 +228,7 @@ export function AuthPhoneButton({
       scaleTo={0.98}
     >
       <Ionicons name="phone-portrait-outline" size={19} color={colors.cyan} />
-      <Text style={styles.providerText}>Continuer avec le telephone</Text>
+      <Text style={styles.providerText}>Continuer avec le téléphone</Text>
     </MotionPressable>
   );
 }
@@ -261,14 +250,14 @@ export function AuthCheckRow({
       style={styles.checkRow}
     >
       <View style={[styles.checkbox, checked && styles.checkboxChecked]}>
-        {checked ? <Ionicons name="checkmark" size={15} color="#FFFAF2" /> : null}
+        {checked ? <Ionicons name="checkmark" size={15} color="#070A10" /> : null}
       </View>
       <Text style={styles.checkLabel}>{label}</Text>
     </Pressable>
   );
 }
 
-export function AuthDivider({ label = 'OU AVEC EMAIL' }: { label?: string }) {
+export function AuthDivider({ label = 'ou avec ton email' }: { label?: string }) {
   return (
     <View style={styles.divider}>
       <View style={styles.dividerLine} />
@@ -311,71 +300,17 @@ export const authStyles = StyleSheet.create({
 });
 
 const styles = StyleSheet.create({
-  fill: { flex: 1 },
-  screenContent: { flexGrow: 1, justifyContent: 'center', paddingVertical: 18 },
-  topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 28 },
-  brand: { flexDirection: 'row', alignItems: 'center', gap: 10, minWidth: 0, flexShrink: 1 },
-  logoWrap: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'transparent',
-  },
-  logo: { width: 38, height: 38, resizeMode: 'contain' },
-  brandName: { color: colors.text, fontSize: 21, lineHeight: 25, fontFamily: 'Inter_800ExtraBold' },
-  brandCaption: { marginTop: 2, color: colors.textTertiary, fontSize: 9, fontWeight: '900', textTransform: 'uppercase' },
-  backButton: { minHeight: 44, paddingHorizontal: 11, borderRadius: 20, flexDirection: 'row', alignItems: 'center', gap: 5 },
-  backButtonNarrow: { width: 38, paddingHorizontal: 0, justifyContent: 'center' },
-  backText: { color: colors.textSecondary, fontSize: 11, fontWeight: '900' },
-  card: {
-    backgroundColor: 'transparent',
-    padding: 10,
-  },
-  cardNarrow: { paddingHorizontal: 4 },
-  titleBlock: { marginBottom: 24 },
-  eyebrow: { color: colors.coral, fontSize: 10, fontWeight: '900', textTransform: 'uppercase' },
-  title: { marginTop: 12, color: colors.text, fontSize: 34, lineHeight: 40, letterSpacing: -1.1, fontFamily: 'Inter_600SemiBold' },
-  titleNarrow: { fontSize: 31, lineHeight: 36 },
-  subtitle: { marginTop: 10, color: colors.textSecondary, fontSize: 14, lineHeight: 21, fontWeight: '500' },
-  field: { gap: 7 },
-  fieldLabel: { color: colors.textSecondary, fontSize: 10, fontWeight: '900', textTransform: 'uppercase' },
-  inputWrap: { position: 'relative', justifyContent: 'center' },
-  inputIcon: { position: 'absolute', left: 15, zIndex: 2 },
-  input: {
-    minHeight: 56,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: 'rgba(25,31,48,.85)',
-    paddingLeft: 44,
-    paddingRight: 14,
-    color: colors.text,
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  inputWithRight: { paddingRight: 48 },
-  rightIcon: { position: 'absolute', right: 4, width: 42, height: 42, alignItems: 'center', justifyContent: 'center' },
-  alert: { marginBottom: 14, padding: 11, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: 'rgba(239,68,68,0.10)', borderWidth: 1, borderColor: 'rgba(239,68,68,0.20)' },
-  alertSuccess: { backgroundColor: 'rgba(34,197,94,0.10)', borderColor: 'rgba(34,197,94,0.20)' },
-  alertText: { flex: 1, color: '#FFAAAD', fontSize: 12, lineHeight: 17, fontWeight: '800' },
-  alertTextSuccess: { color: '#81DEB2' },
-  primaryButton: { flexGrow: 1, minHeight: 56, overflow: 'hidden', borderRadius: 18, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8, backgroundColor: entry.primary },
-  primaryText: { color: '#17142E', fontSize: 14, fontWeight: '700' },
-  disabled: { opacity: 0.45 },
-  pressed: { transform: [{ scale: 0.985 }], opacity: 0.88 },
-  providerButton: { minHeight: 54, borderRadius: 16, backgroundColor: colors.surfaceStrong, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },
-  providerText: { color: colors.text, fontSize: 13, fontWeight: '900' },
-  checkRow: { minHeight: 42, flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  checkbox: { width: 22, height: 22, borderRadius: 5, borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: colors.surfaceStrong, alignItems: 'center', justifyContent: 'center' },
-  checkboxChecked: { borderColor: entry.primary, backgroundColor: entry.primary },
-  checkLabel: { flex: 1, color: colors.textSecondary, fontSize: 11, lineHeight: 17, fontWeight: '700' },
-  divider: { marginVertical: 18, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  dividerLine: { flex: 1, height: 1, backgroundColor: colors.border },
-  dividerText: { color: colors.textTertiary, fontSize: 9, fontWeight: '900' },
-  info: { flexDirection: 'row', gap: 9, paddingVertical: 12, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong },
-  infoBody: { flex: 1, minWidth: 0 },
-  infoTitle: { color: colors.textSecondary, fontSize: 10, fontWeight: '900', textTransform: 'uppercase' },
-  infoText: { marginTop: 3, color: colors.textSecondary, fontSize: 11, lineHeight: 16, fontWeight: '700' },
+  fill: { flex: 1 }, screenContent: { flexGrow: 1, paddingHorizontal: 25 },
+  topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 30 }, backButton: { width: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  card: { paddingHorizontal: 6, paddingBottom: 20 }, cardNarrow: { paddingHorizontal: 4 },
+  titleBlock: { marginBottom: 32 }, eyebrow: { color: mobile.blue, fontSize: 10, letterSpacing: 1.8, textTransform: 'uppercase' },
+  title: { marginTop: 15, color: mobile.text, fontFamily: 'Inter_600SemiBold', fontSize: 35, lineHeight: 42 }, titleNarrow: { fontSize: 30, lineHeight: 37 }, subtitle: { color: mobile.muted, fontSize: 14, lineHeight: 22, marginTop: 13 },
+  field: { gap: 9 }, fieldLabel: { color: '#D0D9E9', fontSize: 12, fontWeight: '500' }, inputWrap: { position: 'relative', justifyContent: 'center' }, inputIcon: { position: 'absolute', left: 16, zIndex: 2 },
+  input: { minHeight: 56, borderRadius: 16, borderWidth: 1, borderColor: mobile.line, backgroundColor: 'rgba(19,28,42,.92)', paddingLeft: 46, paddingRight: 16, color: mobile.text, fontSize: 16 }, inputWithRight: { paddingRight: 48 }, rightIcon: { position: 'absolute', right: 4, minWidth: 44, minHeight: 44, alignItems: 'center', justifyContent: 'center' },
+  alert: { marginBottom: 16, padding: 14, borderRadius: 14, flexDirection: 'row', gap: 10, alignItems: 'center', backgroundColor: 'rgba(239,68,68,.12)' }, alertSuccess: { backgroundColor: 'rgba(34,197,94,.12)' }, alertText: { flex: 1, color: '#FFAAAD', fontSize: 13, lineHeight: 19 }, alertTextSuccess: { color: '#81DEB2' },
+  primaryButton: { flexGrow: 1, minHeight: 56, overflow: 'hidden', borderRadius: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 }, primaryText: { color: mobile.bg, fontSize: 15, fontWeight: '700' }, disabled: { opacity: .45 },
+  providerButton: { minHeight: 54, borderRadius: 16, backgroundColor: '#162031', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 11 }, providerText: { color: mobile.text, fontSize: 14, fontWeight: '500' },
+  checkRow: { minHeight: 44, flexDirection: 'row', alignItems: 'flex-start', gap: 11 }, checkbox: { width: 23, height: 23, borderRadius: 7, borderWidth: 1, borderColor: mobile.faint, backgroundColor: mobile.surface, alignItems: 'center', justifyContent: 'center' }, checkboxChecked: { borderColor: mobile.blue, backgroundColor: mobile.blue }, checkLabel: { flex: 1, color: mobile.muted, fontSize: 12, lineHeight: 19 },
+  divider: { marginVertical: 23, flexDirection: 'row', alignItems: 'center', gap: 14 }, dividerLine: { flex: 1, height: StyleSheet.hairlineWidth, backgroundColor: mobile.line }, dividerText: { color: mobile.faint, fontSize: 11 },
+  info: { flexDirection: 'row', gap: 11, padding: 15, borderRadius: 16, backgroundColor: mobile.surface }, infoBody: { flex: 1, minWidth: 0 }, infoTitle: { color: mobile.text, fontSize: 12, fontWeight: '600' }, infoText: { marginTop: 5, color: mobile.muted, fontSize: 12, lineHeight: 18 },
 });

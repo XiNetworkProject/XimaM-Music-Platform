@@ -42,6 +42,7 @@ import { useMobileSettings } from '@/settings/MobileSettingsProvider';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { colors } from '@/theme/tokens';
 import { recommendationReasonLabel } from '@/feed/recommendationReasons';
+import { useEntryMotion } from '@/components/entry/EntryAtmosphere';
 
 type Props = {
   visible: boolean;
@@ -58,6 +59,7 @@ export function FullPlayerModal({ visible, onClose }: Props) {
   const progress = usePlayerProgress(120);
   const library = useLibrary();
   const { settings, updateSettings } = useMobileSettings();
+  const animate = useEntryMotion(visible);
   const track = player.current;
 
   const [commentsOpen, setCommentsOpen] = useState(false);
@@ -83,8 +85,11 @@ export function FullPlayerModal({ visible, onClose }: Props) {
   const coverPulse = useRef(new Animated.Value(0)).current;
   const dragStartedRef = useRef(false);
   const relatedRequestRef = useRef(0);
+  const entityRef = useRef('');
+  const likePending = useRef(false);
 
   const trackId = track?._id || '';
+  entityRef.current = trackId;
   const isRadio = trackId.startsWith('radio-');
   const isAi = trackId.startsWith('ai-');
   const canInteract = !!trackId && !isRadio && !isAi;
@@ -99,21 +104,26 @@ export function FullPlayerModal({ visible, onClose }: Props) {
   }, [dragY, visible]);
 
   useEffect(() => {
+    let cancelled = false;
+    setLiked(Boolean(track?.isLiked)); setLikesCount(track?.likesCount || 0); setCommentsCount(track?.commentsCount || 0);
     if (!visible || !canInteract) return;
     void getTrackLikeStatus(trackId).then((data) => {
-      if (!data) return;
+      if (cancelled || !data) return;
       setLiked(data.liked);
-      setLikesCount(data.likesCount || track?.likesCount || 0);
-    });
+      setLikesCount(data.likesCount ?? track?.likesCount ?? 0);
+    }).catch(() => {});
     void getCommentsCount([trackId]).then((counts) => {
-      if (!counts) return;
+      if (cancelled || !counts) return;
       setCommentsCount(counts[trackId] ?? track?.commentsCount ?? 0);
-    });
+    }).catch(() => {});
+    return () => { cancelled = true; };
   }, [canInteract, track?.likesCount, track?.commentsCount, trackId, visible]);
 
   useEffect(() => {
+    let cancelled = false; setFollowing(false);
     if (!visible || !track?.artist?.username || isRadio) return;
-    void getArtistFollowState(track.artist.username).then(setFollowing);
+    void getArtistFollowState(track.artist.username).then(value => { if (!cancelled) setFollowing(value); }).catch(() => {});
+    return () => { cancelled = true; };
   }, [isRadio, track?.artist?.username, visible]);
 
   useEffect(() => {
@@ -138,7 +148,7 @@ export function FullPlayerModal({ visible, onClose }: Props) {
 
   // Subtle cover pulse only when playing.
   useEffect(() => {
-    if (!visible || !player.isPlaying || settings.reducedMotion) {
+    if (!animate || !player.isPlaying) {
       coverPulse.stopAnimation();
       Animated.timing(coverPulse, { toValue: 0, duration: 200, useNativeDriver: true }).start();
       return;
@@ -151,19 +161,19 @@ export function FullPlayerModal({ visible, onClose }: Props) {
     );
     loop.start();
     return () => loop.stop();
-  }, [coverPulse, player.isPlaying, settings.reducedMotion, visible]);
+  }, [animate, coverPulse, player.isPlaying]);
 
   const closeWithAnim = useCallback(() => {
     Animated.timing(dragY, {
       toValue: layout.height,
-      duration: 220,
+      duration: settings.reducedMotion ? 0 : 220,
       easing: Easing.out(Easing.cubic),
       useNativeDriver: true,
     }).start(() => {
       dragY.setValue(0);
       onClose();
     });
-  }, [dragY, layout.height, onClose]);
+  }, [dragY, layout.height, onClose, settings.reducedMotion]);
 
   // Swipe-down gesture on the header to close the modal naturally.
   const panResponder = useMemo(() => PanResponder.create({
@@ -228,17 +238,20 @@ export function FullPlayerModal({ visible, onClose }: Props) {
   }, [coverX, trackId]);
 
   const toggleLike = useCallback(async () => {
-    if (!canInteract) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    const willLike = !liked;
-    setLiked(willLike);
-    setLikesCount((c) => Math.max(0, c + (willLike ? 1 : -1)));
-    const result = await setTrackLike(trackId, willLike);
-    if (result) {
-      setLiked(result.liked);
-      setLikesCount(result.likesCount);
-    }
-  }, [canInteract, liked, trackId]);
+    if (!canInteract || likePending.current) return;
+    likePending.current = true;
+    const id = trackId; const previousCount = likesCount;
+    void Haptics.selectionAsync().catch(() => {});
+    setLiked(!liked); setLikesCount(Math.max(0, likesCount + (liked ? -1 : 1)));
+    try {
+      const result = await setTrackLike(id, !liked);
+      if (entityRef.current !== id) return;
+      if (!result) throw new Error('not saved');
+      setLiked(result.liked); setLikesCount(result.likesCount);
+    } catch {
+      if (entityRef.current === id) { setLiked(liked); setLikesCount(previousCount); setTasteFeedback('Réaction non enregistrée. Vérifie ta connexion et ton compte.'); }
+    } finally { likePending.current = false; }
+  }, [canInteract, liked, likesCount, trackId]);
 
   const toggleFollow = useCallback(async () => {
     const username = track?.artist?.username;
@@ -246,12 +259,15 @@ export function FullPlayerModal({ visible, onClose }: Props) {
     setFollowBusy(true);
     try {
       const result = await toggleArtistFollow(username);
-      if (result) setFollowing(result.following);
+      if (!result) throw new Error('not saved');
+      if (result && entityRef.current === trackId) setFollowing(result.following);
       Haptics.selectionAsync().catch(() => {});
+    } catch {
+      if (entityRef.current === trackId) setTasteFeedback('Impossible de modifier le suivi. Réessaie.');
     } finally {
       setFollowBusy(false);
     }
-  }, [followBusy, track?.artist?.username]);
+  }, [followBusy, track?.artist?.username, trackId]);
 
   const cycleSleepTimer = useCallback(() => {
     const next = !player.sleepTimerEnd ? 15 : sleepMinutes > 45 ? null : sleepMinutes > 20 ? 60 : 30;
@@ -269,14 +285,7 @@ export function FullPlayerModal({ visible, onClose }: Props) {
     Haptics.selectionAsync().catch(() => {});
     setMoreOpen(false);
     onClose();
-    navigation.navigate('Tabs', {
-      screen: 'AIStudio',
-      params: {
-        sourceTrackId: track._id,
-        sourceTrackType: track._id.startsWith('ai-') ? 'ai_track' : 'track',
-        mode: 'remix',
-      },
-    });
+    navigation.navigate('AIStudio', { sourceTrackId: track._id, sourceTrackType: track._id.startsWith('ai-') ? 'ai_track' : 'track', mode: 'remix' });
   }, [canRemixCurrent, navigation, onClose, track]);
 
   const openMomentSheet = useCallback((seconds?: number) => {
@@ -345,7 +354,7 @@ export function FullPlayerModal({ visible, onClose }: Props) {
   const recommendationExplanation = recommendationReasonLabel(track.recommendationReasons, relatedContext);
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="fullScreen" onRequestClose={closeWithAnim}>
+    <Modal visible={visible} animationType={settings.reducedMotion ? "none" : "slide"} presentationStyle="fullScreen" onRequestClose={closeWithAnim}>
       <Animated.View
         style={[
           styles.root,
@@ -374,7 +383,7 @@ export function FullPlayerModal({ visible, onClose }: Props) {
           ]}
         >
           <Pressable
-            accessibilityLabel="Reduire le lecteur"
+            accessibilityRole="button" accessibilityLabel="Réduire le lecteur"
             onPress={closeWithAnim}
             style={styles.headerButton}
           >
@@ -496,10 +505,7 @@ export function FullPlayerModal({ visible, onClose }: Props) {
             </View>
             <View style={styles.metaRow}>
               <Pressable
-                onPress={() => track.artist?.username && navigation.navigate('Tabs', {
-                  screen: 'PublicProfile',
-                  params: { username: track.artist.username },
-                })}
+                onPress={() => { if (track.artist?.username) { onClose(); navigation.navigate('PublicProfile', { username: track.artist.username }); } }}
                 disabled={!track.artist?.username || isRadio}
                 style={styles.artistRow}
               >
@@ -568,7 +574,7 @@ export function FullPlayerModal({ visible, onClose }: Props) {
             >
               <Ionicons name="shuffle" size={layout.compactControls ? 16 : 18} color={player.shuffleEnabled ? '#111111' : '#F7F6F3'} />
             </Pressable>
-            <Pressable accessibilityLabel="Titre precedent" onPress={() => void player.previous()} style={[styles.controlBtn, layout.compactControls && styles.controlBtnCompact]}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Titre précédent" onPress={() => void player.previous()} style={[styles.controlBtn, layout.compactControls && styles.controlBtnCompact]}>
               <Ionicons name="play-skip-back" size={transportIconSize} color="#F7F6F3" />
             </Pressable>
             <Pressable
@@ -631,6 +637,7 @@ export function FullPlayerModal({ visible, onClose }: Props) {
             />
           </View>
 
+          {tasteFeedback ? <Text accessibilityLiveRegion="polite" style={styles.tasteFeedback}>{tasteFeedback}</Text> : null}
           {relatedTracks.length ? (
             <RelatedTracksRail
               tracks={relatedTracks}
@@ -896,7 +903,7 @@ function MoreRow({
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: '#090909' },
+  root: { flex: 1, backgroundColor: '#080B13' },
   header: {
     paddingHorizontal: 16,
     paddingBottom: 8,
@@ -913,9 +920,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(8,8,8,0.58)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
+    backgroundColor: 'transparent',
   },
   headerCenter: { flex: 1, alignItems: 'center' },
   dragHandle: {
@@ -949,7 +954,7 @@ const styles = StyleSheet.create({
   },
   headerBadgeText: { color: colors.white, fontSize: 10, fontWeight: '900' },
   bodyScroll: { flex: 1 },
-  body: { flexGrow: 1, justifyContent: 'space-between', paddingHorizontal: 20, paddingTop: 4 },
+  body: { flexGrow: 1, paddingHorizontal: 24, paddingTop: 4 },
   bodyCompact: { paddingTop: 0 },
   coverZone: {
     flexGrow: 1,
@@ -964,7 +969,7 @@ const styles = StyleSheet.create({
     opacity: 0.38,
   },
   coverFrame: {
-    borderRadius: 22,
+    borderRadius: 30,
     overflow: 'hidden',
     backgroundColor: '#171313',
     borderWidth: StyleSheet.hairlineWidth,
@@ -1016,16 +1021,16 @@ const styles = StyleSheet.create({
     minHeight: 52,
     justifyContent: 'center',
   },
-  meta: { marginTop: 8 },
+  meta: { marginTop: 20 },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   title: {
     flex: 1,
     color: '#F7F6F3',
-    fontSize: 24,
-    lineHeight: 29,
-    fontWeight: '900',
+    fontSize: 28,
+    lineHeight: 34,
+    fontWeight: '800',
   },
-  titleCompact: { fontSize: 19, lineHeight: 23 },
+  titleCompact: { fontSize: 23, lineHeight: 28 },
   metaActions: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   metaAction: {
     minWidth: 44,
@@ -1036,11 +1041,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 5,
-    backgroundColor: 'rgba(8,8,8,0.58)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.28)',
+    backgroundColor: 'transparent',
   },
-  metaActionActive: { backgroundColor: 'rgba(8,8,8,0.78)', borderColor: 'rgba(255,255,255,0.42)' },
+  metaActionActive: { backgroundColor: 'rgba(190,170,255,0.12)' },
   metaActionValue: { color: '#F7F6F3', fontSize: 10, fontWeight: '900' },
   metaRow: {
     marginTop: 10,
@@ -1078,9 +1081,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 11,
     paddingVertical: 8,
     borderRadius: 8,
-    backgroundColor: 'rgba(8,8,8,0.58)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
+    backgroundColor: 'transparent',
   },
   followBtnDone: { backgroundColor: '#F7F6F3', borderColor: 'transparent' },
   followText: { color: '#F7F6F3', fontSize: 11, fontWeight: '900' },
@@ -1101,7 +1102,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: 'rgba(8,8,8,0.4)',
   },
-  controlBtnCompact: { width: 42, height: 42, borderRadius: 21 },
+  controlBtnCompact: { width: 48, height: 48, borderRadius: 24 },
   playBtn: {
     width: 64,
     height: 64,
@@ -1120,16 +1121,14 @@ const styles = StyleSheet.create({
   playBtnCompact: { width: 56, height: 56, borderRadius: 28 },
   smallBtn: {
     position: 'relative',
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(8,8,8,0.5)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.26)',
+    backgroundColor: 'transparent',
   },
-  smallBtnCompact: { width: 36, height: 36, borderRadius: 18 },
+  smallBtnCompact: { width: 44, height: 44, borderRadius: 22 },
   smallBtnActive: { backgroundColor: '#F7F6F3', borderColor: 'transparent' },
   repeatBadge: {
     position: 'absolute',
@@ -1148,20 +1147,18 @@ const styles = StyleSheet.create({
   actionRowCompact: { marginTop: 10 },
   actionBtn: { flex: 1, minWidth: 0, alignItems: 'center', gap: 6 },
   actionCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(8,8,8,0.66)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.3)',
+    backgroundColor: 'rgba(197,211,255,0.08)',
   },
   actionDisabled: { opacity: 0.32 },
   actionLabel: {
     color: 'rgba(255,255,255,0.82)',
-    fontSize: 9,
-    fontWeight: '900',
+    fontSize: 11,
+    fontWeight: '600',
   },
   relatedSection: {
     marginTop: 18,
@@ -1194,8 +1191,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#F7F6F3',
   },
-  relatedTitle: { marginTop: 7, color: '#F7F6F3', fontSize: 11, fontWeight: '900' },
-  relatedArtist: { marginTop: 2, color: 'rgba(255,255,255,0.62)', fontSize: 9, fontWeight: '700' },
+  relatedTitle: { marginTop: 9, color: '#F5F7FC', fontSize: 14, fontWeight: '700' },
+  relatedArtist: { marginTop: 4, color: '#A8B3C5', fontSize: 12, fontWeight: '500' },
   relatedReason: { marginTop: 3, color: colors.cyan, fontSize: 8, fontWeight: '800' },
   moreOverlay: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.7)' },
   moreSheet: {
@@ -1203,9 +1200,7 @@ const styles = StyleSheet.create({
     maxHeight: '90%',
     borderTopLeftRadius: 26,
     borderTopRightRadius: 26,
-    backgroundColor: '#151515',
-    borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.16)',
+    backgroundColor: '#111722',
     paddingHorizontal: 18,
     paddingTop: 12,
     gap: 4,
@@ -1234,7 +1229,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.14)',
   },
   moreIconActive: { backgroundColor: colors.violet, borderColor: 'transparent' },
-  moreLabel: { flex: 1, color: '#F7F6F3', fontSize: 14, fontWeight: '800' },
+  moreLabel: { flex: 1, color: '#F5F7FC', fontSize: 16, fontWeight: '600' },
   genres: {
     marginTop: 10,
     flexDirection: 'row',

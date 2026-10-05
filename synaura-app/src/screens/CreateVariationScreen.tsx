@@ -1,91 +1,35 @@
-import React from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { FlatList, StyleSheet, Text, TextInput, View, RefreshControl } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { getRemixSources } from '@/api/client';
 import type { RemixSource } from '@/api/types';
-import { SynauraBackground } from '@/components/SynauraBackground';
-import { AppHeader } from '@/components/ui/AppHeader';
-import { EmptyState } from '@/components/ui/EmptyState';
-import { colors, radius, spacing } from '@/theme/tokens';
+import { CollectionSurface, CollectionHeader, CollectionEmpty, useCollectionPalette } from '@/components/mobile/CollectionUI';
+import { SynauraImage } from '@/components/ui/SynauraImage';
+import { EntryPressable } from '@/components/entry/EntryPressable';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 
 export function CreateVariationScreen() {
-  const responsive = useResponsiveLayout();
-  const navigation = useNavigation<any>();
-  const route = useRoute<any>();
-  const challengeId: string = route.params?.challengeId || '';
-  const [sources, setSources] = React.useState<RemixSource[]>([]);
-  const [loading, setLoading] = React.useState(true);
-  const [error, setError] = React.useState<string | null>(null);
-
-  React.useEffect(() => {
-    let mounted = true;
-    getRemixSources()
-      .then((next) => mounted && setSources(next))
-      .catch((e) => mounted && setError(e instanceof Error ? e.message : 'Impossible de charger les morceaux autorises'))
-      .finally(() => mounted && setLoading(false));
-    return () => {
-      mounted = false;
-    };
+  const navigation = useNavigation<any>(); const route = useRoute<any>(); const p = useCollectionPalette(); const layout = useResponsiveLayout(); const insets = useSafeAreaInsets();
+  const [sources, setSources] = useState<RemixSource[]>([]); const [loading, setLoading] = useState(true); const [error, setError] = useState(''); const [query, setQuery] = useState('');
+  const epoch = useRef(0);
+  const load = useCallback(async () => {
+    const id = ++epoch.current; setLoading(true); setError('');
+    try { const result = await getRemixSources(); if (id === epoch.current) setSources(result); }
+    catch (reason) { if (id === epoch.current) setError(reason instanceof Error ? reason.message : 'Impossible de charger les morceaux autorisés.'); }
+    finally { if (id === epoch.current) setLoading(false); }
   }, []);
-
-  const openStudioWith = (source: RemixSource) => {
-    navigation.navigate('AIStudio', {
-      sourceTrackId: source.sourceTrackId,
-      sourceTrackType: source.sourceTrackType,
-      mode: 'remix',
-      ...(challengeId ? { challengeId } : null),
-    });
-  };
-
-  return (
-    <SynauraBackground>
-      <ScrollView contentContainerStyle={[styles.content, responsive.pageContent]} showsVerticalScrollIndicator={false}>
-        <AppHeader title="Créer une variation" subtitle="Choisis un morceau Synaura autorisé" onBack={() => navigation.goBack()} />
-        <Text style={styles.hint}>Le créateur original sera toujours crédité.</Text>
-
-        {loading ? <ActivityIndicator color={colors.cyan} style={{ marginTop: 24 }} /> : null}
-        {error ? <Text style={styles.error}>{error}</Text> : null}
-
-        {!loading && !error && sources.length === 0 ? (
-          <EmptyState icon="color-wand-outline" title="Aucun morceau disponible" text="Aucun morceau n'autorise la variation IA pour le moment." />
-        ) : null}
-
-        <View style={styles.list}>
-          {sources.map((source) => (
-            <Pressable
-              key={`${source.sourceTrackType}-${source.sourceTrackId}`}
-              onPress={() => openStudioWith(source)}
-              style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
-            >
-              {source.coverUrl ? <Image source={{ uri: source.coverUrl }} style={styles.cover} /> : <View style={styles.cover} />}
-              <View style={styles.copy}>
-                <Text numberOfLines={1} style={styles.title}>{source.title}</Text>
-                <Text numberOfLines={1} style={styles.artist}>{source.artist}</Text>
-                <Text style={styles.action}>Créer une variation</Text>
-              </View>
-              <Ionicons name="arrow-forward" size={18} color={colors.cyan} />
-            </Pressable>
-          ))}
-        </View>
-      </ScrollView>
-    </SynauraBackground>
-  );
+  useEffect(() => { void load(); return () => { epoch.current++; }; }, [load]);
+  const filtered = useMemo(() => sources.filter(source => (source.title + ' ' + source.artist).toLocaleLowerCase('fr').includes(query.trim().toLocaleLowerCase('fr'))), [sources, query]);
+  return <CollectionSurface><FlatList data={filtered} keyExtractor={item => item.sourceTrackType + item.sourceTrackId} initialNumToRender={8} windowSize={5} keyboardShouldPersistTaps="handled"
+    refreshControl={<RefreshControl refreshing={loading && sources.length > 0} onRefresh={() => void load()} tintColor={p.blue} />}
+    contentContainerStyle={[layout.pageContent, { paddingTop: insets.top, paddingBottom: layout.miniPlayerClearance + 24 }]}
+    ListHeaderComponent={<><CollectionHeader title="Créer une variation" onBack={() => navigation.goBack()} /><LinearGradient colors={['#1D2841', '#302444']} style={s.hero}><Ionicons name="git-branch-outline" size={34} color="#BFB2F1" /><Text style={s.title}>Leur son.{ '\n'}Ta nouvelle direction.</Text><Text style={s.description}>Choisis un morceau dont l’artiste autorise les variations. Il reste crédité.</Text></LinearGradient><View style={[s.search, { backgroundColor: p.surface }]}><Ionicons name="search" size={20} color={p.faint} /><TextInput accessibilityLabel="Rechercher un morceau à transformer" value={query} onChangeText={setQuery} placeholder="Titre ou artiste" placeholderTextColor={p.faint} style={[s.input, { color: p.text }]} /></View>{error && sources.length ? <CollectionEmpty title="Actualisation interrompue" text={error} action="Réessayer" onPress={() => void load()} /> : null}</>}
+    ListEmptyComponent={<CollectionEmpty loading={loading} icon="git-branch-outline" title={loading ? 'Morceaux autorisés…' : error ? 'Chargement interrompu' : query ? 'Aucun résultat' : 'Aucun morceau disponible'} text={error || (query ? 'Essaie un autre titre.' : 'Les artistes choisissent eux-mêmes les usages autorisés.')} action={error ? 'Réessayer' : undefined} onPress={error ? () => void load() : undefined} />}
+    renderItem={({ item }) => <EntryPressable accessibilityRole="button" accessibilityLabel={'Créer une variation de ' + item.title + ', ' + item.artist} onPress={() => navigation.navigate('AIStudio', { sourceTrackId: item.sourceTrackId, sourceTrackType: item.sourceTrackType, mode: 'remix', ...(route.params?.challengeId ? { challengeId: route.params.challengeId } : {}) })} style={s.row}><SynauraImage source={item.coverUrl} style={[s.cover, { backgroundColor: p.raised }]} /><View style={s.copy}><Text numberOfLines={2} style={[s.name, { color: p.text }]}>{item.title}</Text><Text numberOfLines={1} style={[s.artist, { color: p.muted }]}>{item.artist}</Text></View><Ionicons name="arrow-forward" size={22} color={p.blue} /></EntryPressable>}
+  /></CollectionSurface>;
 }
-
-const styles = StyleSheet.create({
-  content: { paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.xxl, gap: spacing.sm },
-  hint: { color: colors.textSecondary, fontSize: 12, lineHeight: 18, fontWeight: '700', padding: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.violetSoft },
-  error: { marginTop: spacing.md, color: colors.danger, fontSize: 13, fontWeight: '800' },
-  list: { marginTop: spacing.sm, gap: spacing.sm },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong },
-  rowPressed: { opacity: 0.7, transform: [{ scale: 0.99 }] },
-  cover: { width: 58, height: 58, borderRadius: radius.sm, backgroundColor: colors.surfaceMuted },
-  copy: { flex: 1, minWidth: 0 },
-  title: { color: colors.text, fontSize: 14, fontWeight: '900' },
-  artist: { marginTop: 2, color: colors.textTertiary, fontSize: 11, fontWeight: '700' },
-  action: { marginTop: 3, color: colors.cyan, fontSize: 10, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.4 },
-});
-
 export default CreateVariationScreen;
+const s = StyleSheet.create({ hero: { borderRadius: 28, padding: 25, gap: 17, marginVertical: 12 }, title: { color: '#F1F4FE', fontSize: 33, lineHeight: 38, fontWeight: '800' }, description: { color: '#CED0E3', fontSize: 15, lineHeight: 22 }, search: { minHeight: 54, borderRadius: 20, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, marginVertical: 16 }, input: { flex: 1, minWidth: 0, minHeight: 54, fontSize: 16 }, row: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 12 }, cover: { width: 65, height: 65, borderRadius: 18 }, copy: { flex: 1, minWidth: 0 }, name: { fontSize: 15, fontWeight: '700' }, artist: { marginTop: 6, fontSize: 12 } });

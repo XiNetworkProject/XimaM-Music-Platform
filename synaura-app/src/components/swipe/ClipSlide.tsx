@@ -14,6 +14,7 @@ import { toPublicMediaUrl } from '@/media/mediaUrls';
 import { LiveAtmosphere } from './LiveAtmosphere';
 import { LiveAction } from './SwipeSlide';
 import { InteractiveSeekBar } from './InteractiveSeekBar';
+import { useCallAudioLock } from '@/calls/useCallAudioLock';
 
 type Props = {
   clip: MusicClip; isActive: boolean; isPlaying: boolean; shouldLoadMedia: boolean;
@@ -26,6 +27,7 @@ type Props = {
 export function ClipSlide(props: Props) {
   const { clip, isActive, isPlaying, shouldLoadMedia, height, topPad, bottomPad } = props;
   const auth = useAuth();
+  const callAudioLocked = useCallAudioLock();
   const layout = useResponsiveLayout();
   const videoRef = useRef<VideoRef>(null);
   const audioRef = useRef<VideoRef>(null);
@@ -50,8 +52,8 @@ export function ClipSlide(props: Props) {
   const offset = Math.max(0, clip.sourceTrackOffsetSeconds || 0);
   const usesSourceAudio = Boolean(audioUrl && !audioFailed);
   const canUseSound = canUseSoundClientSide({ isOwner: auth.user?.id === clip.sourceTrack.artist?._id, allowClips: Boolean(clip.sourceTrack.allowClips), remixVisibility: clip.sourceTrack.remixVisibility || 'disabled' });
-  const playing = isActive && isPlaying;
-  const mediaHeight = Math.max(100, height - topPad - bottomPad - 147);
+  const playing = isActive && isPlaying && !callAudioLocked;
+  const mediaHeight = Math.max(100, height - topPad - bottomPad - 60);
   const mediaWidth = Math.min(layout.safeWidth, mediaHeight * aspect);
 
   useEffect(() => {
@@ -77,7 +79,7 @@ export function ClipSlide(props: Props) {
   return <View style={[styles.page, { height }]}>
     <LiveAtmosphere cover={poster} active={false} />
     <GestureDetector gesture={gesture}>
-      <View accessible accessibilityRole="button" accessibilityLabel={playing ? 'Mettre le clip en pause' : 'Lire le clip'} onAccessibilityTap={props.onPressAudio} style={{ position: 'absolute', left: layout.insets.left, right: layout.insets.right, top: topPad + 52, bottom: bottomPad + 95, alignItems: 'center', justifyContent: 'center' }}>
+      <View accessible accessibilityRole="button" accessibilityLabel={playing ? 'Mettre le clip en pause' : 'Lire le clip'} onAccessibilityTap={props.onPressAudio} style={{ position: 'absolute', left: layout.insets.left, right: layout.insets.right, top: topPad + 54, bottom: bottomPad + 6, alignItems: 'center', justifyContent: 'center' }}>
         {shouldLoadMedia && videoUrl && !videoFailed ? <Video ref={videoRef} source={videoSource} poster={poster || undefined} paused={!playing} repeat={false} muted={usesSourceAudio} disableFocus={usesSourceAudio} resizeMode="contain" playInBackground={false} playWhenInactive={false} style={{ width: mediaWidth, height: mediaWidth / aspect }} progressUpdateInterval={250}
           onLoad={event => { const length = Number(event.duration || 0); videoDuration.current = length; if (event.naturalSize.width > 0 && event.naturalSize.height > 0) setAspect(event.naturalSize.width / event.naturalSize.height); if (length > 0) setDuration(Math.min(length, clip.sourceTrackDurationSeconds || length)); setVideoReady(true); setBuffering(false); videoBuffering.current = false; videoRef.current?.seek(Math.max(0, audioTime.current - offset)); }}
           onProgress={event => { videoTime.current = event.currentTime; if (!usesSourceAudio) { setPosition(event.currentTime); if (event.currentTime >= duration - .1) finish(); } }}

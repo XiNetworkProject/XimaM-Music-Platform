@@ -2,9 +2,10 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
 import type { MessagingUser } from '@/api/client';
-import { colors } from '@/theme/tokens';
+import { useMessagingColors } from './useMessagingColors';
 
 export function MessagingAvatar({ user, size = 48, active = false }: { user: MessagingUser; size?: number; active?: boolean }) {
+  const colors = useMessagingColors();
   const initials = user.name
     .split(/\s+/)
     .filter(Boolean)
@@ -16,17 +17,17 @@ export function MessagingAvatar({ user, size = 48, active = false }: { user: Mes
       {user.avatar ? (
         <Image source={{ uri: user.avatar }} contentFit="cover" transition={140} style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: colors.surfaceMuted }} />
       ) : (
-        <View style={[styles.fallback, { width: size, height: size, borderRadius: size / 2 }]}>
-          <Text maxFontSizeMultiplier={1.1} style={[styles.initials, { fontSize: Math.max(11, size * 0.3) }]}>{initials}</Text>
+        <View style={[styles.fallback, { backgroundColor: colors.surfaceStrong, width: size, height: size, borderRadius: size / 2 }]}>
+          <Text maxFontSizeMultiplier={1.1} style={[styles.initials, { color: colors.text, fontSize: Math.max(11, size * 0.3) }]}>{initials}</Text>
         </View>
       )}
-      {active ? <View style={[styles.active, { borderRadius: Math.max(4, size * 0.11), width: Math.max(10, size * 0.24), height: Math.max(10, size * 0.24) }]} /> : null}
+      {active ? <View style={[styles.active, { backgroundColor: colors.cyan, borderColor: colors.background, borderRadius: Math.max(4, size * 0.11), width: Math.max(10, size * 0.24), height: Math.max(10, size * 0.24) }]} /> : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  fallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong },
-  initials: { color: colors.text, fontWeight: '900' },
-  active: { position: 'absolute', right: -1, bottom: -1, backgroundColor: colors.cyan, borderWidth: 2.5, borderColor: colors.background },
+  fallback: { alignItems: 'center', justifyContent: 'center' },
+  initials: { fontWeight: '700' },
+  active: { position: 'absolute', right: -1, bottom: -1, borderWidth: 2.5 },
 });

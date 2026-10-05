@@ -15,6 +15,7 @@ import {
 } from '@/api/client';
 import type { MusicClipSource } from '@/api/types';
 import { useAuth } from '@/auth/AuthProvider';
+import { requireClipDuration } from './clipPolicy';
 
 const STORAGE_KEY = 'synaura.clip-upload-queue.v1';
 const UPLOAD_DIRECTORY = `${FileSystem.documentDirectory}synaura-clip-uploads/`;
@@ -114,13 +115,14 @@ export function ClipUploadProvider({ children }: { children: React.ReactNode }) 
 
   const enqueue = useCallback((input: ClipUploadInput) => {
     if (!auth.user?.id) throw new Error('Connexion requise');
+    if (tasksRef.current.filter(task => task.status !== 'completed').length >= 8) throw new Error('La file contient déjà 8 clips. Termine ou retire un envoi avant d’en ajouter un.');
     const now = Date.now();
     const id = `clip-upload-${now}-${Math.random().toString(36).slice(2, 8)}`;
     const task: ClipUploadTask = {
       ...input,
       id,
       ownerId: auth.user.id,
-      duration: Math.max(15, Math.min(60, Math.round(input.duration || 30))),
+      duration: requireClipDuration(input.duration),
       offset: Math.max(0, Math.round(input.offset || 0)),
       caption: input.caption.trim().slice(0, 280),
       tags: input.tags.slice(0, 8),
@@ -141,6 +143,7 @@ export function ClipUploadProvider({ children }: { children: React.ReactNode }) 
   }, []);
 
   const revise = useCallback((taskId: string, input: ClipUploadInput) => {
+    requireClipDuration(input.duration);
     const previous = tasksRef.current.find((task) => task.id === taskId && task.status === 'failed');
     if (!previous) return;
     const assetChanged = input.asset.uri !== previous.asset.uri && input.asset.uri !== previous.localUri;

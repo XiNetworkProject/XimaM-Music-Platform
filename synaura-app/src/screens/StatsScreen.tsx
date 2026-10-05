@@ -19,10 +19,12 @@ import { getCreatorStatsDashboard } from '@/api/client';
 import { useAuth } from '@/auth/AuthProvider';
 import { AppHeader } from '@/components/ui/AppHeader';
 import { MotionPressable, Reveal } from '@/components/motion/Motion';
-import { SynauraBackground } from '@/components/SynauraBackground';
+import { CollectionSurface, CollectionHeader, CollectionIconButton, CollectionTabs } from '@/components/mobile/CollectionUI';
+import { useSurfaceColors } from '@/components/mobile/useSurfaceColors';
+import { buildStatsTrend, chartMaximum, linePath, validStatsMetrics } from '@/stats/chartModel';
 import { useNativeNotifications } from '@/notifications/NativeNotificationsProvider';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
-import { colors, radius, shadows } from '@/theme/tokens';
+import { radius, shadows } from '@/theme/tokens';
 import { navigatePrimaryTab } from '@/navigation/navigatePrimaryTab';
 import type {
   CreatorAudienceStats,
@@ -74,7 +76,7 @@ function percent(value: number | null | undefined) {
 
 function metricLabel(metric: CreatorStatsMetric, value: number | null | undefined) {
   if (metric === 'retention') return value == null ? 'Donnée insuffisante' : `${compact(value)}%`;
-  return compact(value);
+  return value == null ? '—' : compact(value);
 }
 
 function shortDate(value?: string | null) {
@@ -84,39 +86,17 @@ function shortDate(value?: string | null) {
   return date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
 }
 
-function metricValue(
-  metric: CreatorStatsMetric,
-  trackPoint?: CreatorTrackPoint,
-  postPoint?: CreatorStatsDashboard['posts']['series'][number],
-) {
-  if (metric === 'likes') return Number(trackPoint?.likes || 0) + Number(postPoint?.likes || 0);
-  if (metric === 'uniques') return Number(trackPoint?.uniques || 0);
-  if (metric === 'retention') return trackPoint?.retention ?? 0;
-  if (metric === 'posts') return Number(postPoint?.posts || 0);
-  if (metric === 'comments') return Number(postPoint?.comments || 0);
-  return Number(trackPoint?.plays || 0);
-}
-
-function linePath(values: number[], width: number, height: number) {
-  if (!values.length) return '';
-  const max = Math.max(1, ...values);
-  const step = width / Math.max(1, values.length - 1);
-  return values.map((value, index) => {
-    const x = index * step;
-    const y = height - 18 - (Math.max(0, value) / max) * (height - 36);
-    return `${index === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`;
-  }).join(' ');
-}
-
 export function StatsScreen() {
+  const colors = useSurfaceColors(); const styles = useMemo(() => createStyles(colors), [colors]);
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const auth = useAuth();
   const notifications = useNativeNotifications();
   const responsive = useResponsiveLayout();
   const requestId = useRef(0);
+  const [section, setSection] = useState<'overview' | 'audience' | 'content'>('overview');
   const [range, setRange] = useState<CreatorStatsRange>('30d');
-  const [view, setView] = useState<CreatorStatsView>('global');
+  const [view, setView] = useState<CreatorStatsView>(route.params?.trackId ? 'tracks' : 'global');
   const [metric, setMetric] = useState<CreatorStatsMetric>('plays');
   const [selectedTrack, setSelectedTrack] = useState<string>(String(route.params?.trackId || 'all'));
   const [compareTrack, setCompareTrack] = useState('');
@@ -133,7 +113,7 @@ export function StatsScreen() {
 
   const load = useCallback(async (refresh = false) => {
     if (!auth.user) {
-      setLoading(false);
+      requestId.current++; setDashboard(null); setLoading(false); setRefreshing(false);
       return;
     }
     const currentRequest = ++requestId.current;
@@ -153,7 +133,7 @@ export function StatsScreen() {
         setRefreshing(false);
       }
     }
-  }, [auth.user, compareTrack, range, selectedTrack]);
+  }, [auth.user?.id, compareTrack, range, selectedTrack]);
 
   useFocusEffect(useCallback(() => {
     void load(false);
@@ -176,21 +156,18 @@ export function StatsScreen() {
   const selectedTrackStat = tracks.find((track) => track.id === selectedTrack) || null;
   const sortedTracks = useMemo(() => [...tracks].sort((left, right) => right.plays - left.plays), [tracks]);
   const aiTracks = useMemo(() => sortedTracks.filter((track) => track.isAI).slice(0, 4), [sortedTracks]);
-  const postByDate = useMemo(() => new Map((posts?.series || []).map((point) => [point.date, point])), [posts?.series]);
-  const chartPoints = view === 'posts'
-    ? (posts?.series || []).map((point) => ({ date: point.date, value: metricValue(metric, undefined, point) }))
-    : trackSeries.map((point) => ({ date: point.date, value: metricValue(metric, point, view === 'global' ? postByDate.get(point.date) : undefined) }));
-  const chartValues = chartPoints.map((point) => point.value);
-  const compareValues = (dashboard?.compareSeries || []).map((point) => metricValue(metric, point));
+  const trend = useMemo(() => buildStatsTrend(trackSeries, posts?.series || [], dashboard?.compareSeries || [], view, metric), [trackSeries, posts?.series, dashboard?.compareSeries, view, metric]);
+  const chartPoints = trend.points; const chartValues = trend.values; const compareValues = trend.compareValues;
+  useEffect(() => { if (!validStatsMetrics(view).includes(metric)) setMetric(validStatsMetrics(view)[0]); }, [view, metric]);
   const realDays = trackSeries.filter((point) => point.dataQuality === 'real').length;
-  const uniqueListeners = trackSeries.reduce((total, point) => total + Number(point.uniques || 0), 0);
+  const listenerDays = trackSeries.reduce((total, point) => total + Number(point.uniques || 0), 0);
   const metricWidth: StyleProp<ViewStyle> = {
     width: responsive.isTablet ? '23.5%' : responsive.isTiny || responsive.hasVeryLargeText ? '100%' : '48.5%',
   };
 
   if (!auth.user) {
     return (
-      <SynauraBackground variant="warm">
+      <CollectionSurface>
         <View style={[styles.authGate, responsive.pageContent]}>
           <View style={styles.authIcon}><Ionicons name="analytics-outline" size={28} color={colors.violet} /></View>
           <Text style={styles.authTitle}>Tes statistiques créateur</Text>
@@ -199,32 +176,23 @@ export function StatsScreen() {
             <Text style={styles.primaryActionText}>Se connecter</Text>
           </MotionPressable>
         </View>
-      </SynauraBackground>
+      </CollectionSurface>
     );
   }
 
   return (
-    <SynauraBackground variant="warm">
+    <CollectionSurface>
       <ScrollView
         showsVerticalScrollIndicator={false}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void load(true)} tintColor={colors.violet} colors={[colors.violet]} />}
         contentContainerStyle={[
           styles.content,
           responsive.pageContent,
-          { paddingTop: 0, paddingBottom: responsive.miniPlayerClearance + 20 },
+          { paddingTop: responsive.insets.top, paddingBottom: responsive.miniPlayerClearance + 20 },
         ]}
       >
-        <AppHeader
-          flush
-          eyebrow="Tableau de bord"
-          title="Stats Synaura"
-          subtitle="Sons, posts, audience et engagement"
-          onBack={() => navigation.goBack()}
-          actions={[
-            { icon: notifications.unreadCount ? 'notifications' : 'notifications-outline', label: 'Activité', badge: notifications.unreadCount, onPress: () => navigation.navigate('Notifications') },
-            { icon: 'refresh-outline', label: 'Actualiser', onPress: () => void load(true) },
-          ]}
-        />
+        <CollectionHeader eyebrow="TON TABLEAU DE BORD" title="Statistiques" onBack={() => navigation.goBack()} actions={<CollectionIconButton icon="refresh-outline" label="Actualiser les statistiques" onPress={() => void load(true)} />} />
+        <CollectionTabs options={[{ value: 'overview', label: 'Vue d’ensemble' }, { value: 'audience', label: 'Audience' }, { value: 'content', label: 'Contenus' }]} value={section} onChange={setSection} />
 
         <HorizontalChoices
           value={range}
@@ -250,17 +218,18 @@ export function StatsScreen() {
 
         {dashboard ? (
           <>
+            {section === 'overview' ? <>
             <Reveal distance={8}>
-              <LinearGradient colors={['#111111', '#282321', '#30302B']} style={styles.scoreHero}>
+              <LinearGradient colors={['#163550', '#202D49', '#30284A']} style={styles.scoreHero}>
                 <View style={styles.scoreTop}>
-                  <View style={styles.scoreBadge}><Ionicons name="sparkles" size={14} color="#F3C7A8" /><Text style={styles.scoreBadgeText}>Score créateur</Text></View>
+                  <View style={styles.scoreBadge}><Ionicons name="sparkles" size={14} color="#F3C7A8" /><Text style={styles.scoreBadgeText}>Indice d’activité</Text></View>
                   <Text style={styles.periodLabel}>{RANGES.find((item) => item.key === range)?.label}</Text>
                 </View>
                 <View style={[styles.scoreBody, responsive.isTiny && styles.scoreBodyTiny]}>
                   <Text style={styles.scoreValue}>{creatorScore}</Text>
                   <View style={styles.scoreCopy}>
                     <Text style={styles.scoreTitle}>Performance générale</Text>
-                    <Text style={styles.scoreText}>Calculée uniquement avec tes écoutes, interactions, rétention mesurée et activité sociale.</Text>
+                    <Text style={styles.scoreText}>Repère interne sur 100, calculé à partir de tes écoutes et interactions. Pas une note artistique.</Text>
                   </View>
                 </View>
                 <View style={styles.scoreFooter}>
@@ -281,11 +250,11 @@ export function StatsScreen() {
             <DataQualityPanel realDays={realDays} overview={overview} />
 
             <Panel eyebrow="Lecture" title="Choisir ce que tu analyses">
-              <HorizontalChoices value={view} options={VIEWS} onChange={(next) => setView(next as CreatorStatsView)} accessibilityLabel="Vue statistique" />
-              <HorizontalChoices value={metric} options={METRICS} onChange={(next) => setMetric(next as CreatorStatsMetric)} accessibilityLabel="Métrique" compact />
+              <HorizontalChoices value={view} options={VIEWS} onChange={(next) => { setView(next as CreatorStatsView); if (next !== 'tracks') { setSelectedTrack('all'); setCompareTrack(''); } }} accessibilityLabel="Vue statistique" />
+              <HorizontalChoices value={metric} options={METRICS.filter(item => validStatsMetrics(view).includes(item.key as CreatorStatsMetric))} onChange={(next) => setMetric(next as CreatorStatsMetric)} accessibilityLabel="Métrique" compact />
             </Panel>
 
-            <TrackChoicePanel
+            {view === 'tracks' ? <TrackChoicePanel
               tracks={tracks}
               selectedTrack={selectedTrack}
               compareTrack={compareTrack}
@@ -294,34 +263,34 @@ export function StatsScreen() {
                 if (compareTrack === id) setCompareTrack('');
               }}
               onCompare={setCompareTrack}
-            />
+            /> : null}
 
             <TrendPanel
               metric={metric}
               points={chartPoints}
               values={chartValues}
-              compareValues={metric === 'posts' || metric === 'comments' ? [] : compareValues}
+              compareValues={view === 'tracks' ? compareValues : []}
               width={Math.max(240, responsive.availableContentWidth - 30)}
-              selectedTitle={selectedTrackStat?.title || 'Tous les sons'}
-              compareTitle={tracks.find((track) => track.id === compareTrack)?.title || ''}
+              selectedTitle={view === 'posts' ? 'Posts' : view === 'global' ? 'Sons + posts' : selectedTrackStat?.title || 'Tous les sons'}
+              compareTitle={view === 'tracks' ? tracks.find((track) => track.id === compareTrack)?.title || '' : ''}
             />
 
             <InsightPanel dashboard={dashboard} />
 
+            </> : null}
+            {section === 'audience' ? <>
+            <DataQualityPanel realDays={realDays} overview={overview} />
+            <AudiencePanel audience={dashboard.audience} />
+            <HeatmapPanel matrix={dashboard.heatmap.length ? dashboard.heatmap : EMPTY_HEATMAP} />
+            {selectedTrack !== 'all' ? <FunnelPanel detail={dashboard.trackDetail} trackTitle={selectedTrackStat?.title || 'Ce morceau'} /> : <Text style={styles.qualityText}>Sélectionne un morceau dans la vue d’ensemble pour explorer sa rétention.</Text>}
+            </> : null}
+            {section === 'content' ? <>
             <BestContentPanel
               track={overview?.bestTrack || sortedTracks[0] || null}
               post={posts?.bestPost || null}
               onTrack={(id) => navigation.navigate('TrackDetail', { trackId: id })}
               onPost={(id) => navigation.navigate('PostDetail', { postId: id })}
             />
-
-            <HeatmapPanel matrix={dashboard.heatmap.length ? dashboard.heatmap : EMPTY_HEATMAP} />
-
-            {selectedTrack !== 'all' ? (
-              <FunnelPanel detail={dashboard.trackDetail} trackTitle={selectedTrackStat?.title || 'Ce morceau'} />
-            ) : null}
-
-            <AudiencePanel audience={dashboard.audience} />
 
             <TrackRankingPanel
               tracks={sortedTracks.slice(0, 8)}
@@ -336,12 +305,13 @@ export function StatsScreen() {
             <TypeBreakdownPanel byType={posts?.byType || {}} />
             <AITracksPanel tracks={aiTracks} onOpen={(track) => navigation.navigate('TrackDetail', { trackId: track.id })} />
 
-            <View style={styles.metricGrid}>
+            </> : null}
+            {section !== 'content' ? <View style={styles.metricGrid}>
               <SmallSummary style={metricWidth} icon="time-outline" value={`${compact(overview?.listenHours)} h`} label={`Temps d'écoute${overview?.listenHoursEstimated ? ' estimé' : ''}`} />
-              <SmallSummary style={metricWidth} icon="people-outline" value={compact(uniqueListeners)} label="Uniques mesurés" />
+              <SmallSummary style={metricWidth} icon="people-outline" value={compact(listenerDays)} label="Auditeurs-jours (somme quotidienne)" />
               <SmallSummary style={metricWidth} icon="analytics-outline" value={overview?.avgRetentionEstimated ? '—' : `${compact(overview?.avgRetention)}%`} label={overview?.avgRetentionEstimated ? 'Rétention insuffisante' : 'Rétention moyenne'} />
               <SmallSummary style={metricWidth} icon="musical-notes-outline" value={compact(overview?.totalTracks)} label="Sons publiés" />
-            </View>
+            </View> : null}
 
             <Panel eyebrow="Continuer" title="Agir depuis tes chiffres">
               <View style={styles.actionsRow}>
@@ -353,11 +323,12 @@ export function StatsScreen() {
           </>
         ) : null}
       </ScrollView>
-    </SynauraBackground>
+    </CollectionSurface>
   );
 }
 
 function HeroStat({ value, label }: { value: string; label: string }) {
+  const colors = useSurfaceColors(); const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.heroStat}>
       <Text numberOfLines={1} style={styles.heroStatValue}>{value}</Text>
@@ -374,11 +345,12 @@ function MetricCard({ style, tone, icon, label, value, hint }: {
   value: string;
   hint: string;
 }) {
+  const colors = useSurfaceColors(); const styles = useMemo(() => createStyles(colors), [colors]);
   const palette = {
-    dark: { background: colors.text, foreground: '#FFFFFF' },
-    coral: { background: colors.coral, foreground: '#FFFFFF' },
-    violet: { background: colors.violet, foreground: '#FFFFFF' },
-    cyan: { background: '#327E78', foreground: '#FFFFFF' },
+    dark: { background: '#243952', foreground: '#F5F8FF' },
+    coral: { background: '#713D51', foreground: '#FFFFFF' },
+    violet: { background: '#514877', foreground: '#FFFFFF' },
+    cyan: { background: '#235D60', foreground: '#FFFFFF' },
   }[tone];
   return (
     <View style={[styles.metricCard, style, { backgroundColor: palette.background }]}>
@@ -396,6 +368,7 @@ function SmallSummary({ style, icon, value, label }: {
   value: string;
   label: string;
 }) {
+  const colors = useSurfaceColors(); const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={[styles.summaryCard, style]}>
       <Ionicons name={icon} size={18} color={colors.textTertiary} />
@@ -406,6 +379,7 @@ function SmallSummary({ style, icon, value, label }: {
 }
 
 function Panel({ eyebrow, title, children }: { eyebrow: string; title: string; children: React.ReactNode }) {
+  const colors = useSurfaceColors(); const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.panel}>
       <Text style={styles.panelEyebrow}>{eyebrow}</Text>
@@ -422,6 +396,7 @@ function HorizontalChoices({ value, options, onChange, accessibilityLabel, compa
   accessibilityLabel: string;
   compact?: boolean;
 }) {
+  const colors = useSurfaceColors(); const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.choiceRow} accessibilityLabel={accessibilityLabel}>
       {options.map((option) => {
@@ -429,7 +404,7 @@ function HorizontalChoices({ value, options, onChange, accessibilityLabel, compa
         return (
           <MotionPressable
             key={option.key}
-            onPress={() => onChange(option.key)}
+            accessibilityRole="tab" accessibilityState={{ selected: active }} onPress={() => onChange(option.key)}
             style={[styles.choice, compactMode && styles.choiceCompact, active && styles.choiceActive]}
             scaleTo={0.96}
           >
@@ -442,6 +417,7 @@ function HorizontalChoices({ value, options, onChange, accessibilityLabel, compa
 }
 
 function DataQualityPanel({ realDays, overview }: { realDays: number; overview?: CreatorStatsDashboard['overview'] }) {
+  const colors = useSurfaceColors(); const styles = useMemo(() => createStyles(colors), [colors]);
   const measured = realDays > 0;
   return (
     <View style={[styles.qualityPanel, measured ? styles.qualityPanelGood : styles.qualityPanelWarning]}>
@@ -467,6 +443,7 @@ function TrackChoicePanel({ tracks, selectedTrack, compareTrack, onSelect, onCom
   onSelect: (id: string) => void;
   onCompare: (id: string) => void;
 }) {
+  const colors = useSurfaceColors(); const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <Panel eyebrow="Comparaison" title="Sons analysés">
       <Text style={styles.fieldLabel}>Analyser</Text>
@@ -490,6 +467,7 @@ function TrackChoicePanel({ tracks, selectedTrack, compareTrack, onSelect, onCom
 }
 
 function TrackChip({ active, label, onPress }: { active: boolean; label: string; onPress: () => void }) {
+  const colors = useSurfaceColors(); const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <MotionPressable onPress={onPress} style={[styles.trackChip, active && styles.trackChipActive]} scaleTo={0.97}>
       <Ionicons name={active ? 'radio-button-on' : 'radio-button-off'} size={15} color={active ? colors.violet : colors.textTertiary} />
@@ -500,19 +478,21 @@ function TrackChip({ active, label, onPress }: { active: boolean; label: string;
 
 function TrendPanel({ metric, points, values, compareValues, width, selectedTitle, compareTitle }: {
   metric: CreatorStatsMetric;
-  points: Array<{ date: string; value: number }>;
-  values: number[];
-  compareValues: number[];
+  points: Array<{ date: string; value: number | null }>;
+  values: Array<number | null>;
+  compareValues: Array<number | null>;
   width: number;
   selectedTitle: string;
   compareTitle: string;
 }) {
+  const colors = useSurfaceColors(); const styles = useMemo(() => createStyles(colors), [colors]);
   const height = 176;
-  const path = linePath(values, width, height);
-  const comparePath = linePath(compareValues, width, height);
-  const area = path ? `${path} L ${width} ${height} L 0 ${height} Z` : '';
-  const last = values.at(-1) || 0;
-  const previous = values.at(-2) || 0;
+  const maximum = chartMaximum(values, compareValues);
+  const path = linePath(values, width, height, maximum);
+  const comparePath = linePath(compareValues, width, height, maximum);
+  const area = path && !values.includes(null) ? `${path} L ${width} ${height} L 0 ${height} Z` : '';
+  const last = values.at(-1) ?? null;
+  const previous = values.at(-2) ?? null;
   return (
     <Panel eyebrow="Tendance" title="Activité sur la période">
       <View style={styles.chartMeta}>
@@ -521,10 +501,10 @@ function TrendPanel({ metric, points, values, compareValues, width, selectedTitl
       </View>
       <View style={styles.chartValueRow}>
         <Text style={styles.chartValue}>{metricLabel(metric, last)}</Text>
-        <Text style={styles.chartDirection}>{last >= previous ? 'En hausse sur le dernier point' : 'Plus calme sur le dernier point'}</Text>
+        <Text style={styles.chartDirection}>{last === null || previous === null ? 'Données insuffisantes pour comparer' : last === previous ? 'Stable sur le dernier point' : last > previous ? 'En hausse sur le dernier point' : 'Plus calme sur le dernier point'}</Text>
       </View>
       {values.length ? (
-        <View style={styles.chartFrame}>
+        <View accessible accessibilityRole="image" accessibilityLabel={'Tendance de ' + selectedTitle + ', de ' + shortDate(points[0]?.date) + ' à ' + shortDate(points.at(-1)?.date) + '. Dernière valeur : ' + metricLabel(metric, last) + '. Échelle commune : 0 à ' + maximum} style={styles.chartFrame}>
           <Svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
             <Defs>
               <SvgLinearGradient id="statsArea" x1="0" y1="0" x2="0" y2="1">
@@ -547,6 +527,7 @@ function TrendPanel({ metric, points, values, compareValues, width, selectedTitl
 }
 
 function InsightPanel({ dashboard }: { dashboard: CreatorStatsDashboard }) {
+  const colors = useSurfaceColors(); const styles = useMemo(() => createStyles(colors), [colors]);
   const bestDay = [...dashboard.trackSeries].sort((left, right) => right.plays - left.plays)[0];
   const topCountry = Object.entries(dashboard.audience.countries).sort((left, right) => right[1] - left[1])[0];
   const topDevice = Object.entries(dashboard.audience.devices).sort((left, right) => right[1] - left[1])[0];
@@ -573,6 +554,7 @@ function BestContentPanel({ track, post, onTrack, onPost }: {
   onTrack: (id: string) => void;
   onPost: (id: string) => void;
 }) {
+  const colors = useSurfaceColors(); const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <Panel eyebrow="Meilleur contenu" title="Ce qui attire le plus">
       <View style={styles.bestRows}>
@@ -592,6 +574,7 @@ function BestContentPanel({ track, post, onTrack, onPost }: {
 }
 
 function HeatmapPanel({ matrix }: { matrix: number[][] }) {
+  const colors = useSurfaceColors(); const styles = useMemo(() => createStyles(colors), [colors]);
   const max = Math.max(1, ...matrix.flat());
   const days = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
   return (
@@ -618,6 +601,7 @@ function HeatmapPanel({ matrix }: { matrix: number[][] }) {
 }
 
 function FunnelPanel({ detail, trackTitle }: { detail: CreatorTrackDetail | null; trackTitle: string }) {
+  const colors = useSurfaceColors(); const styles = useMemo(() => createStyles(colors), [colors]);
   const funnel = detail?.funnel;
   const stages = [
     { label: 'Lecture lancée', value: funnel?.starts ? 100 : 0, suffix: `${compact(funnel?.starts)} départs` },
@@ -647,6 +631,7 @@ function FunnelPanel({ detail, trackTitle }: { detail: CreatorTrackDetail | null
 }
 
 function AudiencePanel({ audience }: { audience: CreatorAudienceStats }) {
+  const colors = useSurfaceColors(); const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <Panel eyebrow="Audience" title="Qui écoute et depuis où">
       <AudienceGroup title="Pays" icon="globe-outline" values={audience.countries} />
@@ -657,6 +642,7 @@ function AudiencePanel({ audience }: { audience: CreatorAudienceStats }) {
 }
 
 function AudienceGroup({ title, icon, values }: { title: string; icon: React.ComponentProps<typeof Ionicons>['name']; values: Record<string, number> }) {
+  const colors = useSurfaceColors(); const styles = useMemo(() => createStyles(colors), [colors]);
   const entries = Object.entries(values).sort((left, right) => right[1] - left[1]).slice(0, 5);
   return (
     <View style={styles.audienceGroup}>
@@ -673,6 +659,7 @@ function AudienceGroup({ title, icon, values }: { title: string; icon: React.Com
 }
 
 function TrackRankingPanel({ tracks, onOpen }: { tracks: CreatorTrackStat[]; onOpen: (track: CreatorTrackStat) => void }) {
+  const colors = useSurfaceColors(); const styles = useMemo(() => createStyles(colors), [colors]);
   const max = Math.max(1, ...tracks.map((track) => track.plays));
   return (
     <Panel eyebrow="Classement sons" title="Titres qui performent">
@@ -693,6 +680,7 @@ function TrackRankingPanel({ tracks, onOpen }: { tracks: CreatorTrackStat[]; onO
 }
 
 function PostRankingPanel({ posts, onOpen }: { posts: CreatorPostStat[]; onOpen: (post: CreatorPostStat) => void }) {
+  const colors = useSurfaceColors(); const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <Panel eyebrow="Classement posts" title="Posts qui font réagir">
       {posts.length ? posts.map((post, index) => (
@@ -711,6 +699,7 @@ function PostRankingPanel({ posts, onOpen }: { posts: CreatorPostStat[]; onOpen:
 }
 
 function TypeBreakdownPanel({ byType }: { byType: Record<string, number> }) {
+  const colors = useSurfaceColors(); const styles = useMemo(() => createStyles(colors), [colors]);
   const entries = Object.entries(byType).sort((left, right) => right[1] - left[1]);
   const max = Math.max(1, ...entries.map(([, value]) => value));
   return (
@@ -726,6 +715,7 @@ function TypeBreakdownPanel({ byType }: { byType: Record<string, number> }) {
 }
 
 function AITracksPanel({ tracks, onOpen }: { tracks: CreatorTrackStat[]; onOpen: (track: CreatorTrackStat) => void }) {
+  const colors = useSurfaceColors(); const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <Panel eyebrow="IA Studio" title="Meilleurs sons IA">
       {tracks.length ? tracks.map((track, index) => (
@@ -740,6 +730,7 @@ function AITracksPanel({ tracks, onOpen }: { tracks: CreatorTrackStat[]; onOpen:
 }
 
 function ActionButton({ icon, label, primary = false, onPress }: { icon: React.ComponentProps<typeof Ionicons>['name']; label: string; primary?: boolean; onPress: () => void }) {
+  const colors = useSurfaceColors(); const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <MotionPressable onPress={onPress} style={[styles.actionButton, primary && styles.actionButtonPrimary]} scaleTo={0.97}>
       <Ionicons name={icon} size={17} color={primary ? '#FFFFFF' : colors.text} />
@@ -749,142 +740,143 @@ function ActionButton({ icon, label, primary = false, onPress }: { icon: React.C
 }
 
 function EmptyLine({ text }: { text: string }) {
+  const colors = useSurfaceColors(); const styles = useMemo(() => createStyles(colors), [colors]);
   return <Text style={styles.emptyLine}>{text}</Text>;
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof useSurfaceColors>) => StyleSheet.create({
   content: { gap: 14 },
   authGate: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingVertical: 42 },
   authIcon: { width: 58, height: 58, borderRadius: 29, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violetSoft },
-  authTitle: { marginTop: 16, color: colors.text, fontSize: 23, lineHeight: 28, fontWeight: '900', textAlign: 'center' },
+  authTitle: { marginTop: 16, color: colors.text, fontSize: 23, lineHeight: 28, fontWeight: '700', textAlign: 'center' },
   authText: { maxWidth: 280, marginTop: 7, color: colors.textSecondary, fontSize: 13, lineHeight: 19, fontWeight: '600', textAlign: 'center' },
-  primaryAction: { minWidth: 160, height: 46, marginTop: 18, alignItems: 'center', justifyContent: 'center', borderRadius: radius.md, backgroundColor: colors.violet },
-  primaryActionText: { color: '#FFFFFF', fontSize: 12, fontWeight: '900' },
-  errorBanner: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: radius.md, borderWidth: 1, borderColor: 'rgba(217,109,99,0.2)', backgroundColor: colors.coralSoft, paddingHorizontal: 12 },
-  errorText: { flex: 1, minWidth: 0, color: colors.textSecondary, fontSize: 11, lineHeight: 15, fontWeight: '700' },
+  primaryAction: { minWidth: 160, height: 46, marginTop: 18, alignItems: 'center', justifyContent: 'center', borderRadius: 23, backgroundColor: colors.violet },
+  primaryActionText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
+  errorBanner: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: 23, borderWidth: 1, borderColor: 'rgba(217,109,99,0.2)', backgroundColor: colors.coralSoft, paddingHorizontal: 12 },
+  errorText: { flex: 1, minWidth: 0, color: colors.textSecondary, fontSize: 12, lineHeight: 19, fontWeight: '700' },
   loadingState: { minHeight: 220, alignItems: 'center', justifyContent: 'center', gap: 10 },
-  loadingText: { color: colors.textSecondary, fontSize: 11, fontWeight: '800' },
+  loadingText: { color: colors.textSecondary, fontSize: 12, fontWeight: '800' },
   choiceRow: { gap: 7, paddingRight: 8 },
-  choice: { minHeight: 42, alignItems: 'center', justifyContent: 'center', borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, paddingHorizontal: 14 },
-  choiceCompact: { minHeight: 38, paddingHorizontal: 12 },
+  choice: { minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 23, backgroundColor: colors.surface, paddingHorizontal: 14 },
+  choiceCompact: { minHeight: 44, paddingHorizontal: 12 },
   choiceActive: { borderColor: colors.violet, backgroundColor: colors.violet },
-  choiceText: { color: colors.textSecondary, fontSize: 10, fontWeight: '900' },
+  choiceText: { color: colors.textSecondary, fontSize: 12, fontWeight: '700' },
   choiceTextActive: { color: '#FFFFFF' },
-  scoreHero: { overflow: 'hidden', borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.16)', padding: 16, ...shadows.floating },
+  scoreHero: { overflow: 'hidden', borderRadius: 28, padding: 24 },
   scoreTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
   scoreBadge: { flexDirection: 'row', alignItems: 'center', gap: 6, borderLeftWidth: 3, borderLeftColor: colors.coral, paddingLeft: 8, paddingVertical: 4 },
-  scoreBadgeText: { color: 'rgba(255,255,255,0.8)', fontSize: 9, fontWeight: '900', textTransform: 'uppercase' },
-  periodLabel: { color: 'rgba(255,255,255,0.55)', fontSize: 10, fontWeight: '800' },
+  scoreBadgeText: { color: 'rgba(255,255,255,0.8)', fontSize: 12, fontWeight: '700', textTransform: 'uppercase' },
+  periodLabel: { color: 'rgba(255,255,255,0.55)', fontSize: 12, fontWeight: '800' },
   scoreBody: { marginTop: 20, flexDirection: 'row', alignItems: 'flex-end', gap: 16 },
   scoreBodyTiny: { alignItems: 'flex-start', flexDirection: 'column', gap: 5 },
-  scoreValue: { color: '#FFFFFF', fontSize: 58, lineHeight: 62, fontWeight: '900' },
+  scoreValue: { color: '#FFFFFF', fontSize: 58, lineHeight: 62, fontWeight: '700' },
   scoreCopy: { flex: 1, minWidth: 0, paddingBottom: 5 },
-  scoreTitle: { color: '#FFFFFF', fontSize: 18, lineHeight: 22, fontWeight: '900' },
-  scoreText: { marginTop: 4, color: 'rgba(255,255,255,0.58)', fontSize: 10, lineHeight: 15, fontWeight: '700' },
+  scoreTitle: { color: '#FFFFFF', fontSize: 18, lineHeight: 22, fontWeight: '700' },
+  scoreText: { marginTop: 4, color: 'rgba(255,255,255,.76)', fontSize: 12, lineHeight: 19, fontWeight: '700' },
   scoreFooter: { marginTop: 18, flexDirection: 'row', borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: 'rgba(255,255,255,0.16)', paddingTop: 13 },
   heroStat: { flex: 1, minWidth: 0 },
-  heroStatValue: { color: '#FFFFFF', fontSize: 17, fontWeight: '900' },
-  heroStatLabel: { marginTop: 2, color: 'rgba(255,255,255,0.48)', fontSize: 8, fontWeight: '800' },
+  heroStatValue: { color: '#FFFFFF', fontSize: 17, fontWeight: '700' },
+  heroStatLabel: { marginTop: 2, color: 'rgba(255,255,255,0.48)', fontSize: 12, fontWeight: '800' },
   metricGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 },
-  metricCard: { minHeight: 132, overflow: 'hidden', borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.13)', padding: 13, ...shadows.soft },
+  metricCard: { minHeight: 132, overflow: 'hidden', borderRadius: 23, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.13)', padding: 13, ...shadows.soft },
   metricIcon: { width: 35, height: 35, alignItems: 'center', justifyContent: 'center', borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.15)' },
-  metricLabel: { marginTop: 12, fontSize: 8, fontWeight: '900', textTransform: 'uppercase', opacity: 0.68 },
-  metricValue: { marginTop: 2, fontSize: 25, lineHeight: 30, fontWeight: '900' },
-  metricHint: { marginTop: 2, fontSize: 9, fontWeight: '700', opacity: 0.7 },
-  summaryCard: { minHeight: 112, borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, borderTopWidth: 2, borderTopColor: colors.cyan, backgroundColor: colors.surface, padding: 13 },
-  summaryValue: { marginTop: 11, color: colors.text, fontSize: 20, fontWeight: '900' },
-  summaryLabel: { marginTop: 3, color: colors.textSecondary, fontSize: 9, lineHeight: 13, fontWeight: '700' },
+  metricLabel: { marginTop: 12, fontSize: 12, fontWeight: '700', textTransform: 'uppercase', opacity: .9 },
+  metricValue: { marginTop: 2, fontSize: 25, lineHeight: 30, fontWeight: '700' },
+  metricHint: { marginTop: 2, fontSize: 12, fontWeight: '700', opacity: .85 },
+  summaryCard: { minHeight: 112, borderRadius: 23, borderTopWidth: 2, borderTopColor: colors.cyan, backgroundColor: colors.surface, padding: 13 },
+  summaryValue: { marginTop: 11, color: colors.text, fontSize: 20, fontWeight: '700' },
+  summaryLabel: { marginTop: 3, color: colors.textSecondary, fontSize: 12, lineHeight: 19, fontWeight: '700' },
   qualityPanel: { minHeight: 76, flexDirection: 'row', alignItems: 'flex-start', gap: 10, borderLeftWidth: 3, padding: 13 },
   qualityPanelGood: { borderColor: 'rgba(46,157,104,0.2)', backgroundColor: 'rgba(46,157,104,0.08)' },
   qualityPanelWarning: { borderColor: 'rgba(201,155,72,0.22)', backgroundColor: 'rgba(201,155,72,0.09)' },
   qualityCopy: { flex: 1, minWidth: 0 },
-  qualityTitle: { color: colors.text, fontSize: 12, fontWeight: '900' },
-  qualityText: { marginTop: 3, color: colors.textSecondary, fontSize: 10, lineHeight: 15, fontWeight: '600' },
-  panel: { borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, borderRadius: radius.md, backgroundColor: colors.surface, padding: 15 },
-  panelEyebrow: { color: colors.textTertiary, fontSize: 8, fontWeight: '900', textTransform: 'uppercase' },
-  panelTitle: { marginTop: 3, color: colors.text, fontSize: 18, lineHeight: 23, fontWeight: '900' },
+  qualityTitle: { color: colors.text, fontSize: 12, fontWeight: '700' },
+  qualityText: { marginTop: 3, color: colors.textSecondary, fontSize: 12, lineHeight: 19, fontWeight: '600' },
+  panel: { borderRadius: 23, backgroundColor: colors.surface, padding: 15 },
+  panelEyebrow: { color: colors.textTertiary, fontSize: 12, fontWeight: '700', textTransform: 'uppercase' },
+  panelTitle: { marginTop: 3, color: colors.text, fontSize: 18, lineHeight: 23, fontWeight: '700' },
   panelBody: { marginTop: 13, gap: 12 },
-  fieldLabel: { color: colors.textSecondary, fontSize: 9, fontWeight: '900', textTransform: 'uppercase' },
+  fieldLabel: { color: colors.textSecondary, fontSize: 12, fontWeight: '700', textTransform: 'uppercase' },
   trackChoiceRow: { gap: 7, paddingRight: 8 },
-  trackChip: { maxWidth: 210, minHeight: 40, flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surfaceMuted, paddingHorizontal: 11 },
+  trackChip: { maxWidth: 210, minHeight: 40, flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 23, backgroundColor: colors.surfaceMuted, paddingHorizontal: 11 },
   trackChipActive: { borderColor: colors.violet, backgroundColor: colors.violetSoft },
-  trackChipText: { maxWidth: 160, color: colors.textSecondary, fontSize: 10, fontWeight: '800' },
+  trackChipText: { maxWidth: 160, color: colors.textSecondary, fontSize: 12, fontWeight: '800' },
   trackChipTextActive: { color: colors.text },
   chartMeta: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   chartLegend: { maxWidth: '100%', flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendDotPrimary: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.violet },
   legendDotCompare: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.coral },
-  chartLegendText: { maxWidth: 210, color: colors.textSecondary, fontSize: 9, fontWeight: '800' },
+  chartLegendText: { maxWidth: 210, color: colors.textSecondary, fontSize: 12, fontWeight: '800' },
   chartValueRow: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between', gap: 10 },
-  chartValue: { color: colors.text, fontSize: 28, lineHeight: 32, fontWeight: '900' },
-  chartDirection: { flex: 1, color: colors.textTertiary, fontSize: 9, lineHeight: 13, fontWeight: '700', textAlign: 'right' },
-  chartFrame: { overflow: 'hidden', borderRadius: radius.md, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border, backgroundColor: '#111116' },
+  chartValue: { color: colors.text, fontSize: 28, lineHeight: 32, fontWeight: '700' },
+  chartDirection: { flex: 1, color: colors.textTertiary, fontSize: 12, lineHeight: 19, fontWeight: '700', textAlign: 'right' },
+  chartFrame: { overflow: 'hidden', borderRadius: 23, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border, backgroundColor: colors.surfaceStrong },
   chartDates: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  chartDate: { color: colors.textTertiary, fontSize: 8, fontWeight: '800' },
+  chartDate: { color: colors.textTertiary, fontSize: 12, fontWeight: '800' },
   insightRow: { minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 7 },
-  insightIndex: { width: 28, height: 28, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violetSoft },
-  insightIndexText: { color: colors.violet, fontSize: 10, fontWeight: '900' },
-  insightText: { flex: 1, minWidth: 0, color: colors.textSecondary, fontSize: 11, lineHeight: 16, fontWeight: '700' },
+  insightIndex: { width: 28, height: 28, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violetSoft },
+  insightIndexText: { color: colors.violet, fontSize: 12, fontWeight: '700' },
+  insightText: { flex: 1, minWidth: 0, color: colors.textSecondary, fontSize: 12, lineHeight: 19, fontWeight: '700' },
   rowDivider: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.border },
   bestRows: { gap: 0 },
   bestRow: { minHeight: 65, flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
-  bestIcon: { width: 38, height: 38, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted },
+  bestIcon: { width: 38, height: 38, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted },
   bestCopy: { flex: 1, minWidth: 0 },
-  bestKind: { color: colors.textTertiary, fontSize: 8, fontWeight: '900', textTransform: 'uppercase' },
-  bestTitle: { marginTop: 2, color: colors.text, fontSize: 12, fontWeight: '900' },
-  bestMeta: { maxWidth: 94, color: colors.textSecondary, fontSize: 8, lineHeight: 12, fontWeight: '800', textAlign: 'right' },
+  bestKind: { color: colors.textTertiary, fontSize: 12, fontWeight: '700', textTransform: 'uppercase' },
+  bestTitle: { marginTop: 2, color: colors.text, fontSize: 12, fontWeight: '700' },
+  bestMeta: { maxWidth: 94, color: colors.textSecondary, fontSize: 12, lineHeight: 12, fontWeight: '800', textAlign: 'right' },
   heatmapScroll: { paddingRight: 8 },
   heatmapLabels: { gap: 3, marginRight: 6 },
-  heatmapDay: { width: 25, height: 9, color: colors.textTertiary, fontSize: 7, fontWeight: '800' },
+  heatmapDay: { width: 31, height: 18, color: colors.textTertiary, fontSize: 12, fontWeight: '800' },
   heatmapRow: { flexDirection: 'row', gap: 2, marginBottom: 3 },
-  heatmapCell: { width: 9, height: 9, borderRadius: 2 },
+  heatmapCell: { width: 14, height: 18, borderRadius: 2 },
   heatmapHours: { marginTop: 5, flexDirection: 'row', justifyContent: 'space-between' },
-  heatmapHour: { color: colors.textTertiary, fontSize: 7, fontWeight: '700' },
+  heatmapHour: { color: colors.textTertiary, fontSize: 12, fontWeight: '700' },
   progressRow: { gap: 5 },
   progressLabels: { flexDirection: 'row', justifyContent: 'space-between', gap: 10 },
-  progressLabel: { flex: 1, color: colors.textSecondary, fontSize: 10, fontWeight: '800' },
-  progressValue: { color: colors.text, fontSize: 10, fontWeight: '900' },
+  progressLabel: { flex: 1, color: colors.textSecondary, fontSize: 12, fontWeight: '800' },
+  progressValue: { color: colors.text, fontSize: 12, fontWeight: '700' },
   progressTrack: { height: 6, overflow: 'hidden', borderRadius: 3, backgroundColor: colors.surfaceMuted },
   progressFill: { height: '100%', borderRadius: 3, backgroundColor: colors.violet },
   progressFillCoral: { height: '100%', borderRadius: 3, backgroundColor: colors.coral },
   sourceList: { marginTop: 5, gap: 7 },
   sourceRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
-  sourceName: { flex: 1, color: colors.text, fontSize: 10, fontWeight: '900', textTransform: 'capitalize' },
-  sourceValue: { color: colors.textTertiary, fontSize: 8, fontWeight: '700' },
+  sourceName: { flex: 1, color: colors.text, fontSize: 12, fontWeight: '700', textTransform: 'capitalize' },
+  sourceValue: { color: colors.textTertiary, fontSize: 12, fontWeight: '700' },
   audienceGroup: { gap: 7 },
   audienceTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   audienceRow: { minHeight: 24, flexDirection: 'row', alignItems: 'center', gap: 7 },
-  audienceName: { width: 72, color: colors.textSecondary, fontSize: 9, fontWeight: '800' },
+  audienceName: { width: 72, color: colors.textSecondary, fontSize: 12, fontWeight: '800' },
   audienceTrack: { flex: 1, height: 5, overflow: 'hidden', borderRadius: 3, backgroundColor: colors.surfaceMuted },
   audienceFill: { height: '100%', borderRadius: 3, backgroundColor: colors.cyan },
-  audienceValue: { width: 38, color: colors.text, fontSize: 9, fontWeight: '900', textAlign: 'right' },
+  audienceValue: { width: 38, color: colors.text, fontSize: 12, fontWeight: '700', textAlign: 'right' },
   rankingRow: { minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: 9, paddingVertical: 8 },
-  rank: { width: 16, color: colors.textTertiary, fontSize: 10, fontWeight: '900', textAlign: 'center' },
+  rank: { width: 16, color: colors.textTertiary, fontSize: 12, fontWeight: '700', textAlign: 'center' },
   rankingCover: { width: 45, height: 45, overflow: 'hidden', borderRadius: radius.sm, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted },
   rankingCopy: { flex: 1, minWidth: 0 },
   rankingTitleLine: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  rankingTitle: { flex: 1, minWidth: 0, color: colors.text, fontSize: 11, fontWeight: '900' },
-  aiBadge: { overflow: 'hidden', borderRadius: radius.sm, backgroundColor: colors.violetSoft, paddingHorizontal: 5, paddingVertical: 2, color: colors.violet, fontSize: 7, fontWeight: '900' },
+  rankingTitle: { flex: 1, minWidth: 0, color: colors.text, fontSize: 12, fontWeight: '700' },
+  aiBadge: { overflow: 'hidden', borderRadius: radius.sm, backgroundColor: colors.violetSoft, paddingHorizontal: 5, paddingVertical: 2, color: colors.violet, fontSize: 12, fontWeight: '700' },
   rankingBar: { height: 4, marginTop: 5, overflow: 'hidden', borderRadius: 2, backgroundColor: colors.surfaceMuted },
   rankingFill: { height: '100%', borderRadius: 2, backgroundColor: colors.coral },
-  rankingMeta: { marginTop: 4, color: colors.textTertiary, fontSize: 8, fontWeight: '700' },
+  rankingMeta: { marginTop: 4, color: colors.textTertiary, fontSize: 12, fontWeight: '700' },
   postRow: { minHeight: 72, flexDirection: 'row', alignItems: 'center', gap: 9, paddingVertical: 9 },
-  postIndex: { width: 30, height: 30, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.coralSoft },
-  postIndexText: { color: colors.coral, fontSize: 9, fontWeight: '900' },
+  postIndex: { width: 30, height: 30, borderRadius: 23, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.coralSoft },
+  postIndexText: { color: colors.coral, fontSize: 12, fontWeight: '700' },
   postCopy: { flex: 1, minWidth: 0 },
-  postType: { color: colors.textTertiary, fontSize: 7, fontWeight: '900', textTransform: 'uppercase' },
-  postTitle: { marginTop: 2, color: colors.text, fontSize: 11, lineHeight: 15, fontWeight: '900' },
-  postMeta: { marginTop: 3, color: colors.textTertiary, fontSize: 8, fontWeight: '700' },
+  postType: { color: colors.textTertiary, fontSize: 12, fontWeight: '700', textTransform: 'uppercase' },
+  postTitle: { marginTop: 2, color: colors.text, fontSize: 12, lineHeight: 19, fontWeight: '700' },
+  postMeta: { marginTop: 3, color: colors.textTertiary, fontSize: 12, fontWeight: '700' },
   postImage: { width: 44, height: 44, borderRadius: radius.sm, backgroundColor: colors.surfaceMuted },
   simpleRow: { minHeight: 54, flexDirection: 'row', alignItems: 'center', gap: 9, paddingVertical: 7 },
-  simpleTitle: { flex: 1, minWidth: 0, color: colors.text, fontSize: 11, fontWeight: '900' },
-  simpleValue: { color: colors.textSecondary, fontSize: 9, fontWeight: '800' },
+  simpleTitle: { flex: 1, minWidth: 0, color: colors.text, fontSize: 12, fontWeight: '700' },
+  simpleValue: { color: colors.textSecondary, fontSize: 12, fontWeight: '800' },
   actionsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  actionButton: { minHeight: 44, flexGrow: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: radius.md, backgroundColor: colors.surfaceMuted, paddingHorizontal: 12 },
+  actionButton: { minHeight: 44, flexGrow: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 23, backgroundColor: colors.surfaceMuted, paddingHorizontal: 12 },
   actionButtonPrimary: { backgroundColor: colors.violet },
-  actionButtonText: { color: colors.text, fontSize: 10, fontWeight: '900' },
+  actionButtonText: { color: colors.text, fontSize: 12, fontWeight: '700' },
   actionButtonTextPrimary: { color: '#FFFFFF' },
-  emptyLine: { borderRadius: radius.md, backgroundColor: colors.surfaceMuted, padding: 12, color: colors.textSecondary, fontSize: 10, lineHeight: 15, fontWeight: '700' },
+  emptyLine: { borderRadius: 23, backgroundColor: colors.surfaceMuted, padding: 12, color: colors.textSecondary, fontSize: 12, lineHeight: 19, fontWeight: '700' },
 });
 
 export default StatsScreen;

@@ -5,12 +5,14 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { getMusicChallenge } from '@/api/client';
 import type { MusicChallenge, MusicChallengeContentType, MusicChallengeDetail, MusicChallengeEntry } from '@/api/types';
 import { useAuth } from '@/auth/AuthProvider';
-import { SynauraBackground } from '@/components/SynauraBackground';
+import { CollectionSurface, CollectionHeader, CollectionIconButton } from '@/components/mobile/CollectionUI';
+import { useSurfaceColors } from '@/components/mobile/useSurfaceColors';
+import { EntryPressable } from '@/components/entry/EntryPressable';
 import { AppHeader } from '@/components/ui/AppHeader';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { LoadingSkeleton } from '@/components/ui/LoadingSkeleton';
 import { SoftCard } from '@/components/ui/SoftCard';
-import { colors, radius, spacing } from '@/theme/tokens';
+import { radius, spacing } from '@/theme/tokens';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { navigatePrimaryTab } from '@/navigation/navigatePrimaryTab';
 
@@ -41,6 +43,7 @@ function formatDate(value: string) {
 }
 
 export function ChallengeDetailScreen() {
+  const colors = useSurfaceColors(); const styles = React.useMemo(() => createStyles(colors), [colors]);
   const responsive = useResponsiveLayout();
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
@@ -51,34 +54,36 @@ export function ChallengeDetailScreen() {
   const [loading, setLoading] = React.useState(!initial);
   const [error, setError] = React.useState<string | null>(null);
 
+  const requestId = React.useRef(0);
   const load = React.useCallback(async () => {
-    if (!challengeId) return;
-    setLoading(true);
+    const epoch = ++requestId.current;
+    if (!challengeId) { setLoading(false); return; }
+    setLoading(true); setChallenge(current => current?.id === challengeId ? current : null);
     setError(null);
     try {
       const next = await getMusicChallenge(challengeId);
-      setChallenge(next);
+      if (epoch === requestId.current) setChallenge(next);
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Impossible de charger ce défi');
+      if (epoch === requestId.current) setError(e instanceof Error ? e.message : 'Impossible de charger ce défi');
     } finally {
-      setLoading(false);
+      if (epoch === requestId.current) setLoading(false);
     }
   }, [challengeId]);
 
-  React.useEffect(() => { void load(); }, [load]);
+  React.useEffect(() => { void load(); return () => { requestId.current++; }; }, [load]);
 
-  if (loading && !challenge) {
-    return <SynauraBackground><AppHeader title="Défi" onBack={() => navigation.goBack()} /><LoadingSkeleton rows={5} style={styles.loading} /></SynauraBackground>;
+  if (loading && (!challenge || challenge.id !== challengeId)) {
+    return <CollectionSurface><AppHeader title="Défi" onBack={() => navigation.goBack()} /><LoadingSkeleton rows={5} style={styles.loading} /></CollectionSurface>;
   }
 
   if (!challenge) {
     return (
-      <SynauraBackground>
+      <CollectionSurface>
         <AppHeader title="Défi" onBack={() => navigation.goBack()} />
         <View style={styles.loading}>
           <EmptyState icon="trophy-outline" title="Défi introuvable" text={error || "Ce défi n'existe plus ou n'est plus disponible."} actionLabel="Réessayer" onAction={() => void load()} />
         </View>
-      </SynauraBackground>
+      </CollectionSurface>
     );
   }
 
@@ -87,7 +92,7 @@ export function ChallengeDetailScreen() {
   const handleParticipate = () => {
     if (challenge.status !== 'active') return;
     if (!auth.user) {
-      navigation.getParent()?.navigate('Login', { returnTo: { screen: 'ChallengeDetail', params: { challengeId: challenge.id } } });
+      navigation.navigate('Login', { returnTo: { screen: 'ChallengeDetail', params: { challengeId: challenge.id } } });
       return;
     }
     const contentType = challenge.contentType;
@@ -112,14 +117,14 @@ export function ChallengeDetailScreen() {
   };
 
   return (
-    <SynauraBackground>
+    <CollectionSurface>
       <ScrollView
-        contentContainerStyle={[styles.content, responsive.pageContent, { paddingBottom: responsive.miniPlayerClearance + 24 }]}
+        contentContainerStyle={[styles.content, responsive.pageContent, { paddingTop: responsive.insets.top, paddingBottom: responsive.miniPlayerClearance + 24 }]}
         showsVerticalScrollIndicator={false}
       >
-        <AppHeader title="Défi" onBack={() => navigation.goBack()} />
+        <CollectionHeader title="À toi de jouer" eyebrow="DÉFI MUSICAL" onBack={() => navigation.goBack()} />
 
-        <SoftCard style={[styles.hero, { borderTopColor: accent }]}>
+        <View style={styles.hero}>
           <View style={styles.heroTop}>
             <View style={styles.heroIcon}><Ionicons name="trophy" size={20} color={colors.white} /></View>
             <View style={[styles.statusPill, challenge.status === 'active' && styles.statusPillActive]}>
@@ -136,14 +141,14 @@ export function ChallengeDetailScreen() {
           </View>
           <Text style={styles.dates}>Du {formatDate(challenge.startsAt)} au {formatDate(challenge.endsAt)}</Text>
 
-          <Pressable disabled={challenge.status !== 'active'} onPress={handleParticipate} style={[styles.cta, challenge.status !== 'active' && styles.ctaDisabled]}>
+          <EntryPressable disabled={challenge.status !== 'active'} onPress={handleParticipate} style={[styles.cta, challenge.status !== 'active' && styles.ctaDisabled]}>
             <Text style={styles.ctaText}>
               {challenge.status === 'active' ? 'Participer' : challenge.status === 'upcoming' ? "Ce défi n'a pas encore commencé" : 'Ce défi est terminé'}
             </Text>
             {challenge.status === 'active' ? <Ionicons name="arrow-forward" size={16} color={colors.paper} /> : null}
-          </Pressable>
+          </EntryPressable>
           {challenge.userHasEntry ? <Text style={styles.userEntryNote}>Tu as déjà une participation publiée dans ce défi.</Text> : null}
-        </SoftCard>
+        </View>
 
         <View>
           <Text style={styles.sectionTitle}>Participations</Text>
@@ -157,22 +162,14 @@ export function ChallengeDetailScreen() {
         </View>
         {error ? <Text style={styles.error}>{error}</Text> : null}
       </ScrollView>
-    </SynauraBackground>
+    </CollectionSurface>
   );
 }
 
-// Le Clip n'a pas de page de detail dediee (meme convention que le web,
-// resolveEntryContent() dans lib/musicChallenges.ts) : on ouvre le Scroll filtre
-// sur son morceau source, dont l'id est extrait de entry.href (seule source pour
-// ce champ, MusicChallengeEntry n'expose pas sourceTrackId directement).
-function sourceTrackIdFromHref(href: string): string | null {
-  const match = href.match(/[?&]sourceTrackId=([^&]+)/);
-  return match ? decodeURIComponent(match[1]) : null;
-}
-
 function EntryRow({ entry, navigation }: { entry: MusicChallengeEntry; navigation: any }) {
-  const clipSourceTrackId = entry.contentType === 'clip' ? sourceTrackIdFromHref(entry.href) : null;
-  const canOpen = entry.contentType === 'track' || entry.contentType === 'variation' || Boolean(clipSourceTrackId);
+  const colors = useSurfaceColors(); const styles = React.useMemo(() => createStyles(colors), [colors]);
+  const clipId = entry.contentType === 'clip' ? entry.contentId : null;
+  const canOpen = entry.contentType === 'track' || entry.contentType === 'variation' || Boolean(clipId);
   const content = (
     <>
       {entry.coverUrl ? <Image source={{ uri: entry.coverUrl }} style={styles.entryCover} /> : <View style={styles.entryCover} />}
@@ -184,47 +181,47 @@ function EntryRow({ entry, navigation }: { entry: MusicChallengeEntry; navigatio
   );
   if (!canOpen) return <View style={styles.entryRow}>{content}</View>;
   const onPress = () => {
-    if (clipSourceTrackId) {
-      navigatePrimaryTab(navigation, 'Swipe', { mode: 'clips', sourceTrackId: clipSourceTrackId });
+    if (clipId) {
+      navigatePrimaryTab(navigation, 'Swipe', { mode: 'clips', clipId });
     } else {
       navigation.navigate('TrackDetail', { trackId: entry.contentId });
     }
   };
   return (
-    <Pressable style={styles.entryRow} onPress={onPress}>
+    <EntryPressable accessibilityRole="button" accessibilityLabel={"Ouvrir " + entry.title} style={styles.entryRow} onPress={onPress}>
       {content}
-    </Pressable>
+    </EntryPressable>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: ReturnType<typeof useSurfaceColors>) => StyleSheet.create({
   content: { paddingBottom: 170, gap: spacing.lg, paddingHorizontal: spacing.lg },
   loading: { paddingHorizontal: spacing.lg },
-  hero: { gap: spacing.sm, borderWidth: 1, borderTopWidth: 3, borderColor: colors.border, borderTopColor: colors.violet, borderRadius: radius.lg, backgroundColor: colors.surface, padding: spacing.lg },
+  hero: { gap: 12, borderRadius: 29, backgroundColor: colors.surface, padding: 24 },
   heroTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   heroIcon: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet },
   statusPill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 4, paddingVertical: 6 },
   statusPillActive: { backgroundColor: 'rgba(43,201,111,0.14)' },
   statusDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: 'rgba(17,17,17,0.3)' },
   statusDotActive: { backgroundColor: '#2bc96f' },
-  statusText: { fontSize: 10, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.6, color: colors.textSecondary },
-  kicker: { marginTop: spacing.sm, fontSize: 10, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 1, color: colors.textTertiary },
-  title: { marginTop: 4, fontSize: 29, lineHeight: 33, fontWeight: '900', color: colors.text },
-  prompt: { marginTop: spacing.xs, fontSize: 13, lineHeight: 20, fontWeight: '600', color: colors.textSecondary },
+  statusText: { fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.6, color: colors.textSecondary },
+  kicker: { marginTop: spacing.sm, fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1, color: colors.textTertiary },
+  title: { marginTop: 4, fontSize: 32, lineHeight: 38, fontWeight: '700', color: colors.text },
+  prompt: { marginTop: spacing.xs, fontSize: 15, lineHeight: 24, fontWeight: '600', color: colors.textSecondary },
   metaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginTop: spacing.sm },
   metaPill: { flexDirection: 'row', alignItems: 'center', gap: 6, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, paddingVertical: 6 },
-  metaText: { fontSize: 11, fontWeight: '800', color: colors.textSecondary },
-  dates: { marginTop: spacing.xs, fontSize: 11, fontWeight: '700', color: colors.textTertiary },
-  cta: { marginTop: spacing.md, height: 48, borderRadius: 999, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: colors.violet },
+  metaText: { fontSize: 12, fontWeight: '800', color: colors.textSecondary },
+  dates: { marginTop: spacing.xs, fontSize: 12, fontWeight: '700', color: colors.textTertiary },
+  cta: { marginTop: spacing.md, minHeight: 52, borderRadius: 999, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: colors.violet },
   ctaDisabled: { opacity: 0.5 },
-  ctaText: { color: colors.paper, fontSize: 14, fontWeight: '900' },
-  userEntryNote: { marginTop: spacing.sm, fontSize: 11, fontWeight: '800', color: '#168746' },
-  sectionTitle: { marginBottom: spacing.sm, fontSize: 17, fontWeight: '900', color: colors.text },
+  ctaText: { color: colors.paper, fontSize: 14, fontWeight: '700' },
+  userEntryNote: { marginTop: spacing.sm, fontSize: 12, fontWeight: '800', color: '#168746' },
+  sectionTitle: { marginBottom: spacing.sm, fontSize: 17, fontWeight: '700', color: colors.text },
   emptyText: { fontSize: 13, fontWeight: '600', color: colors.textSecondary },
   entries: { gap: spacing.sm },
-  entryRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.sm, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
-  entryCover: { width: 48, height: 48, borderRadius: radius.sm, backgroundColor: colors.surfaceMuted },
-  entryTitle: { fontSize: 13, fontWeight: '900', color: colors.text },
-  entrySubtitle: { marginTop: 2, fontSize: 11, fontWeight: '700', color: colors.textSecondary },
-  error: { color: colors.danger, textAlign: 'center', fontSize: 11, fontWeight: '700' },
+  entryRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.sm, borderRadius: radius.md, backgroundColor: colors.surface },
+  entryCover: { width: 60, height: 60, borderRadius: radius.sm, backgroundColor: colors.surfaceMuted },
+  entryTitle: { fontSize: 13, fontWeight: '700', color: colors.text },
+  entrySubtitle: { marginTop: 2, fontSize: 12, fontWeight: '700', color: colors.textSecondary },
+  error: { color: colors.danger, textAlign: 'center', fontSize: 12, fontWeight: '700' },
 });

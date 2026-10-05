@@ -1,60 +1,38 @@
 import React from 'react';
-import {
-  ActivityIndicator,
-  Image,
-  Linking,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { FlatList, Image, Keyboard, Linking, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { API_BASE_URL, getPlaylistDetail, setTrackLike, type PlaylistDetail } from '@/api/client';
 import type { Track } from '@/api/types';
-import { TrackCover } from '@/components/TrackCover';
 import { useLibrary } from '@/library/LibraryProvider';
 import { usePlayer } from '@/player/PlayerProvider';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { EntityShareSheet } from '@/components/sharing/EntityShareSheet';
 import { ShareSheet } from '@/components/swipe/ShareSheet';
-
-const CREAM = '#FFFAF2';
-const INK = '#171313';
+import { BottomSheet } from '@/components/ui/BottomSheet';
+import { CollectionEmpty, CollectionHeader, CollectionHeading, CollectionIconButton, CollectionSurface, CollectionTabs, MusicRow, musicArtist, useCollectionPalette } from '@/components/mobile/CollectionUI';
+import { EntryPressable } from '@/components/entry/EntryPressable';
+import { SynauraSearchField } from '@/components/search/SynauraSearchField';
+import { shuffledTracks } from '@/components/search/searchModel';
+import { collectionSearch } from '@/components/mobile/collectionModel';
 
 type SortMode = 'position' | 'title' | 'duration';
-
 const SORT_OPTIONS: { value: SortMode; label: string }[] = [
-  { value: 'position', label: 'Ordre officiel' },
-  { value: 'title', label: 'Titre A-Z' },
-  { value: 'duration', label: 'Les plus longs' },
+  { value: 'position', label: 'Ordre original' }, { value: 'title', label: 'Titre A–Z' }, { value: 'duration', label: 'Durée' },
 ];
-
-function formatDuration(seconds?: number, compact = false) {
-  const total = Math.max(0, Math.round(seconds || 0));
+const NO_TRACKS: Track[] = [];
+function duration(seconds: number) {
+  const total = Math.max(0, Math.floor(seconds || 0));
   const hours = Math.floor(total / 3600);
-  const mins = Math.floor((total % 3600) / 60);
-  const secs = total % 60;
-  if (compact && hours > 0) return `${hours}h ${mins}m`;
-  if (compact) return `${mins}m ${secs}s`;
-  return hours > 0
-    ? `${hours}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
-    : `${mins}:${String(secs).padStart(2, '0')}`;
-}
-
-function artistName(track: Track) {
-  return track.artist?.name || track.artist?.username || 'Synaura';
+  return hours ? hours + ' h ' + Math.floor(total % 3600 / 60) + ' min' : Math.floor(total / 60) + ' min';
 }
 
 export function PlaylistDetailScreen() {
-  const insets = useSafeAreaInsets();
-  const responsive = useResponsiveLayout();
+  const layout = useResponsiveLayout();
+  const p = useCollectionPalette();
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
   const player = usePlayer();
@@ -62,11 +40,17 @@ export function PlaylistDetailScreen() {
   const playlistId = String(route.params?.playlistId || route.params?.slug || '');
   const [playlist, setPlaylist] = React.useState<PlaylistDetail | null>(null);
   const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
+  const [retry, setRetry] = React.useState(0);
   const [liked, setLiked] = React.useState<Record<string, boolean>>({});
   const [likeCounts, setLikeCounts] = React.useState<Record<string, number>>({});
+  const likePending = React.useRef(new Set<string>());
+  const entityVersion = React.useRef(0);
   const [query, setQuery] = React.useState('');
   const [genre, setGenre] = React.useState('Tous');
   const [sort, setSort] = React.useState<SortMode>('position');
+  const [toolsOpen, setToolsOpen] = React.useState(false);
+  const [selectedTrack, setSelectedTrack] = React.useState<Track | null>(null);
   const [toast, setToast] = React.useState<string | null>(null);
   const [shareCollectionOpen, setShareCollectionOpen] = React.useState(false);
   const [shareTrackTarget, setShareTrackTarget] = React.useState<Track | null>(null);
@@ -75,465 +59,179 @@ export function PlaylistDetailScreen() {
   const showToast = React.useCallback((message: string) => {
     setToast(message);
     if (toastTimer.current) clearTimeout(toastTimer.current);
-    toastTimer.current = setTimeout(() => setToast(null), 1800);
+    toastTimer.current = setTimeout(() => setToast(null), 2800);
   }, []);
-
   React.useEffect(() => () => { if (toastTimer.current) clearTimeout(toastTimer.current); }, []);
-
   React.useEffect(() => {
-    let mounted = true;
-    setLoading(true);
-    getPlaylistDetail(playlistId)
-      .then((next) => {
-        if (!mounted) return;
-        setPlaylist(next);
-        setLiked(Object.fromEntries(next.tracksList.map((track) => [track._id, Boolean(track.isLiked)])));
-        setLikeCounts(Object.fromEntries(next.tracksList.map((track) => [track._id, Number(track.likesCount || 0)])));
-      })
-      .catch(() => { if (mounted) setPlaylist(null); })
-      .finally(() => { if (mounted) setLoading(false); });
-    return () => { mounted = false; };
-  }, [playlistId]);
+    const version = ++entityVersion.current;
+    setPlaylist(null); setLoading(true); setError(null);
+    setQuery(''); setGenre('Tous'); setSort('position'); setToolsOpen(false);
+    setSelectedTrack(null); setShareTrackTarget(null); setShareCollectionOpen(false);
+    likePending.current.clear();
+    getPlaylistDetail(playlistId).then(next => {
+      if (entityVersion.current !== version) return;
+      setPlaylist(next);
+      setLiked(Object.fromEntries(next.tracksList.map(track => [track._id, Boolean(track.isLiked)])));
+      setLikeCounts(Object.fromEntries(next.tracksList.map(track => [track._id, Number(track.likesCount || 0)])));
+    }).catch(caught => {
+      if (entityVersion.current === version) setError(caught instanceof Error ? caught.message : 'Impossible de charger cette playlist.');
+    }).finally(() => { if (entityVersion.current === version) setLoading(false); });
+    return () => { entityVersion.current++; };
+  }, [playlistId, retry]);
 
-  const isEditorial = Boolean(playlist?.isEditorial || playlist?.collection);
-  const collection = playlist?.collection || null;
-  const colors = collection?.themeColors?.length
-    ? collection.themeColors
-    : playlist?.themeColors?.length
-      ? playlist.themeColors
-      : ['#8B5CF6', '#EC4899', '#22D3EE'];
-  const banner = collection?.bannerUrl || playlist?.bannerUrl || playlist?.covers?.[0] || null;
-  const cover = collection?.coverUrl || playlist?.coverUrl || playlist?.covers?.[0] || null;
-
-  const tracks = playlist?.tracksList || [];
-  const totalDuration = React.useMemo(() => tracks.reduce((sum, track) => sum + Number(track.duration || 0), 0), [tracks]);
-  const totalLikes = React.useMemo(() => Object.values(likeCounts).reduce((a, b) => a + Number(b || 0), 0), [likeCounts]);
-
-  const genres = React.useMemo(() => {
-    const values = new Set<string>();
-    for (const track of tracks) (track.genre || []).forEach((entry) => entry && values.add(entry));
-    return ['Tous', ...Array.from(values).slice(0, 16)];
-  }, [tracks]);
-
-  const visibleTracks = React.useMemo(() => {
-    const q = query.trim().toLowerCase();
-    let list = [...tracks];
-    if (genre !== 'Tous') list = list.filter((track) => (track.genre || []).some((entry) => entry.toLowerCase() === genre.toLowerCase()));
-    if (q) list = list.filter((track) => `${track.title} ${artistName(track)} ${(track.genre || []).join(' ')}`.toLowerCase().includes(q));
-    if (sort === 'title') list.sort((a, b) => a.title.localeCompare(b.title));
-    if (sort === 'duration') list.sort((a, b) => (b.duration || 0) - (a.duration || 0));
-    return list;
-  }, [tracks, genre, query, sort]);
-
-  const playFrom = React.useCallback((list: Track[], index = 0) => {
-    if (!list.length) return;
-    Haptics.selectionAsync().catch(() => {});
-    player.setQueueAndPlay(list, Math.max(0, index));
-  }, [player]);
-
-  const playTrack = React.useCallback((track: Track) => {
-    const active = player.current?._id === track._id;
-    if (active) {
-      player.togglePlayPause();
-      return;
-    }
-    const index = visibleTracks.findIndex((item) => item._id === track._id);
-    playFrom(visibleTracks, index >= 0 ? index : 0);
-  }, [player, playFrom, visibleTracks]);
-
-  const shufflePlay = React.useCallback(() => {
-    if (!tracks.length) return;
-    playFrom([...tracks].sort(() => Math.random() - 0.5), 0);
-  }, [playFrom, tracks]);
-
-  const cycleSort = React.useCallback(() => {
-    Haptics.selectionAsync().catch(() => {});
-    setSort((prev) => {
-      const i = SORT_OPTIONS.findIndex((o) => o.value === prev);
-      return SORT_OPTIONS[(i + 1) % SORT_OPTIONS.length].value;
-    });
-  }, []);
-
-  const slug = collection?.slug || playlist?.slug || playlist?.id || '';
-  const webUrl = `${API_BASE_URL}/playlists/${encodeURIComponent(slug)}`;
-
-  const copyLink = React.useCallback(async () => {
-    await Clipboard.setStringAsync(webUrl);
-    Haptics.selectionAsync().catch(() => {});
-    showToast('Lien copié');
-  }, [showToast, webUrl]);
-
-  const shareCollection = React.useCallback(() => {
-    if (playlist) setShareCollectionOpen(true);
-  }, [playlist]);
-
-  const queueTrack = React.useCallback((track: Track) => {
-    player.addNext(track);
-    Haptics.selectionAsync().catch(() => {});
-    showToast(`Ajouté à la file · ${track.title}`);
-  }, [player, showToast]);
-
-  const toggleLike = React.useCallback(async (track: Track) => {
-    const nextLiked = !liked[track._id];
-    Haptics.selectionAsync().catch(() => {});
-    setLiked((prev) => ({ ...prev, [track._id]: nextLiked }));
-    setLikeCounts((prev) => ({ ...prev, [track._id]: Math.max(0, Number(prev[track._id] || 0) + (nextLiked ? 1 : -1)) }));
-    const result = await setTrackLike(track._id, nextLiked);
-    if (result) {
-      setLiked((prev) => ({ ...prev, [track._id]: result.liked }));
-      setLikeCounts((prev) => ({ ...prev, [track._id]: result.likesCount }));
-    }
-  }, [liked]);
-
-  const shareTrack = React.useCallback((track: Track) => setShareTrackTarget(track), []);
-
-  const downloadTrack = React.useCallback(async (track: Track) => {
-    if (!track.audioUrl) return;
-    if (collection?.downloadEnabled === false || playlist?.downloadEnabled === false) return;
-    await library.downloadTrack(track);
-    showToast(`Téléchargement · ${track.title}`);
-  }, [collection?.downloadEnabled, library, playlist?.downloadEnabled, showToast]);
-
-  const badge = collection?.badge || playlist?.badge || (isEditorial ? 'Synaura Originals' : 'Playlist Synaura');
+  const collection = playlist?.collection;
+  const isEditorial = Boolean(playlist?.isEditorial || collection);
+  const tracks = playlist?.tracksList || NO_TRACKS;
+  const cover = collection?.coverUrl || playlist?.coverUrl || playlist?.covers?.[0];
+  const banner = collection?.bannerUrl || playlist?.bannerUrl || cover;
   const title = collection?.title || playlist?.title || '';
-  const subtitle = collection?.subtitle || playlist?.description || playlist?.vibe || 'Une selection musicale Synaura.';
-  const extraDescription = collection?.description && collection.description !== collection.subtitle ? collection.description : null;
+  const description = collection?.description || playlist?.description || playlist?.vibe;
+  const subtitle = collection?.subtitle;
+  const badge = collection?.badge || playlist?.badge || (isEditorial ? 'Synaura Originals' : 'Playlist');
+  const totalDuration = React.useMemo(() => tracks.reduce((sum, track) => sum + Number(track.duration || 0), 0), [tracks]);
+  const totalLikes = React.useMemo(() => Object.values(likeCounts).reduce((sum, count) => sum + count, 0), [likeCounts]);
+  const genres = React.useMemo(() => ['Tous', ...Array.from(new Set(tracks.flatMap(track => track.genre || []))).filter(Boolean).slice(0, 16)], [tracks]);
+  const visibleTracks = React.useMemo(() => {
+    const q = collectionSearch(query);
+    const next = tracks.filter(track => (genre === 'Tous' || (track.genre || []).includes(genre))
+      && collectionSearch([track.title, musicArtist(track), ...(track.genre || [])].join(' ')).includes(q));
+    if (sort === 'title') next.sort((a, b) => a.title.localeCompare(b.title, 'fr'));
+    if (sort === 'duration') next.sort((a, b) => (b.duration || 0) - (a.duration || 0));
+    return next;
+  }, [tracks, query, genre, sort]);
+  const slug = collection?.slug || playlist?.slug || playlist?.id || '';
+  const webUrl = API_BASE_URL + '/playlists/' + encodeURIComponent(slug);
   const commentsEnabled = collection?.commentsEnabled !== false && playlist?.commentsEnabled !== false;
+  const canDownload = collection?.downloadEnabled !== false && playlist?.downloadEnabled !== false;
+  const resetFilters = () => { setQuery(''); setGenre('Tous'); setSort('position'); };
+  const playFrom = async (list: Track[], index = 0) => {
+    if (!list.length) return;
+    Keyboard.dismiss();
+    void Haptics.selectionAsync().catch(() => {});
+    try { await player.setQueueAndPlay(list, index); } catch { showToast('Lecture indisponible. Réessaie.'); }
+  };
+  const playTrack = async (track: Track, index: number) => {
+    if (player.current?._id === track._id) await player.togglePlayPause();
+    else await playFrom(visibleTracks, index);
+  };
+  const copyLink = async () => {
+    try { await Clipboard.setStringAsync(webUrl); showToast('Lien copié'); } catch { showToast('Copie impossible.'); }
+  };
+  const queueTrack = (track: Track) => { player.addNext(track); showToast('À suivre · ' + track.title); };
+  const toggleLike = async (track: Track) => {
+    if (likePending.current.has(track._id)) return;
+    const version = entityVersion.current;
+    likePending.current.add(track._id);
+    const before = Boolean(liked[track._id]);
+    const beforeCount = likeCounts[track._id] || 0;
+    setLiked(previous => ({ ...previous, [track._id]: !before }));
+    setLikeCounts(previous => ({ ...previous, [track._id]: Math.max(0, beforeCount + (before ? -1 : 1)) }));
+    try {
+      const result = await setTrackLike(track._id, !before);
+      if (entityVersion.current !== version) return;
+      if (!result) throw new Error('like failed');
+      setLiked(previous => ({ ...previous, [track._id]: result.liked }));
+      setLikeCounts(previous => ({ ...previous, [track._id]: result.likesCount }));
+    } catch {
+      if (entityVersion.current !== version) return;
+      setLiked(previous => ({ ...previous, [track._id]: before }));
+      setLikeCounts(previous => ({ ...previous, [track._id]: beforeCount }));
+      showToast('Réaction non enregistrée. Vérifie ta connexion et ton compte.');
+    } finally { if (entityVersion.current === version) likePending.current.delete(track._id); }
+  };
+  const downloadTrack = async (track: Track) => {
+    if (!canDownload || !track.audioUrl) return;
+    try { await library.downloadTrack(track); } catch { showToast('Téléchargement impossible.'); }
+  };
+  const openDetail = (track: Track) => {
+    setSelectedTrack(null); Keyboard.dismiss();
+    navigation.navigate('TrackDetail', { trackId: track._id, track });
+  };
 
-  return (
-    <View style={styles.root}>
-      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-        {/* Fond degrade sur toute la hauteur du contenu: sombre -> theme -> theme */}
-        <View pointerEvents="none" style={styles.bgWrap}>
-          <LinearGradient colors={['#111111', '#171716', '#211F1C']} locations={[0, 0.58, 1]} style={StyleSheet.absoluteFill} />
-        </View>
-
-        <View style={[styles.content, responsive.pageContent, { paddingTop: insets.top + 10, paddingBottom: Math.max(insets.bottom + 132, responsive.miniPlayerClearance) }]}>
-        {/* Header */}
-        <View style={styles.topbar}>
-          <Pressable onPress={() => navigation.goBack()} style={styles.backBtn}>
-            <Ionicons name="arrow-back" size={16} color="rgba(255,250,242,0.82)" />
-            {!responsive.isTiny ? <Text style={styles.backText}>Retour</Text> : null}
-          </Pressable>
-          <View style={styles.topActions}>
-            <Pressable onPress={copyLink} style={styles.iconPill}><Ionicons name="copy-outline" size={16} color="rgba(255,250,242,0.82)" /></Pressable>
-            <Pressable onPress={shareCollection} style={styles.sharePill}>
-              <Ionicons name="share-social-outline" size={16} color="rgba(255,250,242,0.82)" />
-              {!responsive.isNarrow ? <Text style={styles.backText}>Partager</Text> : null}
-            </Pressable>
+  return <CollectionSurface>
+    <View style={[layout.pageContent, { paddingTop: layout.insets.top }]}>
+      <CollectionHeader title={isEditorial ? 'Collection' : 'Playlist'} onBack={() => navigation.goBack()} actions={playlist ? <>
+        <CollectionIconButton icon="share-outline" label="Partager la playlist" onPress={() => setShareCollectionOpen(true)} />
+        <CollectionIconButton icon="ellipsis-horizontal" label="Options de la playlist" onPress={() => setToolsOpen(true)} />
+      </> : undefined} />
+    </View>
+    <FlatList<Track> data={loading ? NO_TRACKS : visibleTracks} keyExtractor={(track, index) => track._id + ':' + index}
+      keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag" showsVerticalScrollIndicator={false}
+      contentContainerStyle={[layout.pageContent, { paddingBottom: layout.miniPlayerClearance + 28 }]}
+      initialNumToRender={8} windowSize={7}
+      ListHeaderComponent={playlist ? <>
+        {/* Keep the late-mounted FlatList header opaque; touch feedback stays animated. */}
+        <View>
+          <View style={[s.artStage, { height: layout.isPhoneLandscape ? 220 : 302, backgroundColor: p.surface }]}>
+            {banner ? <Image source={{ uri: banner }} blurRadius={22} style={[StyleSheet.absoluteFillObject, { opacity: .5 }]} /> : null}
+            <LinearGradient pointerEvents="none" colors={['rgba(7,10,16,.08)', 'rgba(7,10,16,.65)']} style={StyleSheet.absoluteFillObject} />
+            <EntryPressable accessibilityRole="button" accessibilityLabel={'Lire ' + title} disabled={!tracks.length}
+              onPress={() => void playFrom(tracks)} style={[s.cover, { width: layout.isPhoneLandscape ? 172 : Math.min(238, layout.availableContentWidth - 50), backgroundColor: p.raised }]}>
+              {cover ? <Image source={{ uri: cover }} style={StyleSheet.absoluteFillObject} /> : <Ionicons name="albums-outline" size={64} color={p.blue} />}
+            </EntryPressable>
+            <View pointerEvents="none" style={s.coverBadge}><Ionicons name={isEditorial ? 'sparkles' : 'musical-notes'} size={12} color="#DDEBFF" /><Text style={s.badge}>{badge}</Text></View>
+          </View>
+          <View style={s.heroCopy}><Text accessibilityRole="header" style={[s.title, { color: p.text }]}>{title}</Text>
+            {subtitle ? <Text style={[s.subtitle, { color: p.muted }]}>{subtitle}</Text> : null}
+            <Text style={[s.meta, { color: p.muted }]}>{playlist.curator || 'Synaura'} · {tracks.length} titre{tracks.length > 1 ? 's' : ''} · {duration(totalDuration)}</Text>
+          </View>
+          <View style={s.mainActions}>
+            <EntryPressable accessibilityRole="button" disabled={!tracks.length} onPress={() => void playFrom(tracks)} style={[s.play, { backgroundColor: p.text }]}><Ionicons name="play" size={22} color={p.bg} /><Text style={[s.playText, { color: p.bg }]}>Tout écouter</Text></EntryPressable>
+            <EntryPressable accessibilityRole="button" accessibilityLabel="Lire la playlist en aléatoire" disabled={!tracks.length} onPress={() => void playFrom(shuffledTracks(tracks))} style={[s.shuffle, { backgroundColor: p.surface }]}><Ionicons name="shuffle" size={26} color={p.text} /></EntryPressable>
           </View>
         </View>
-
-        {loading ? <ActivityIndicator color={CREAM} style={{ marginTop: 80 }} /> : null}
-
-        {playlist ? (
-          <>
-            {/* Hero */}
-            <View style={styles.hero}>
-              {banner ? <Image source={{ uri: banner }} style={styles.heroBanner} blurRadius={2} /> : null}
-              <LinearGradient colors={['rgba(17,13,13,0.92)', 'rgba(17,13,13,0.58)', 'rgba(17,13,13,0.20)']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFillObject} />
-              <View style={[styles.heroBody, responsive.isNarrow && styles.heroBodyNarrow]}>
-                <View style={styles.badgePill}><Text style={styles.badgeText}>{badge}</Text></View>
-                <Text maxFontSizeMultiplier={1.15} style={[styles.heroTitle, responsive.isNarrow && styles.heroTitleNarrow]}>{title}</Text>
-                <Text style={styles.heroSubtitle}>{subtitle}</Text>
-                {extraDescription ? <Text style={styles.heroDesc}>{extraDescription}</Text> : null}
-
-                <View style={styles.heroActions}>
-                  <Pressable onPress={() => playFrom(tracks, 0)} style={styles.primaryAction}>
-                    <Ionicons name="play" size={16} color={INK} />
-                    <Text style={styles.primaryActionText}>Tout lire</Text>
-                  </Pressable>
-                  <Pressable onPress={shufflePlay} style={styles.secondaryAction}>
-                    <Ionicons name="shuffle" size={16} color={CREAM} />
-                    <Text style={styles.secondaryActionText}>Aléatoire</Text>
-                  </Pressable>
-                  <Pressable onPress={() => visibleTracks[0] && queueTrack(visibleTracks[0])} style={styles.secondaryAction}>
-                    <Ionicons name="list" size={16} color={CREAM} />
-                    <Text style={styles.secondaryActionText}>Ajouter à la file</Text>
-                  </Pressable>
-                </View>
-
-                {/* Cover + stats */}
-                <View style={[styles.coverBlock, { maxWidth: Math.min(360, responsive.availableContentWidth) }]}>
-                  <View style={styles.coverGlow} />
-                  <View style={styles.coverWrap}>
-                    {cover ? <Image source={{ uri: cover }} style={StyleSheet.absoluteFillObject} /> : <Ionicons name="albums-outline" size={48} color={CREAM} />}
-                  </View>
-                  <View style={styles.statsCard}>
-                    <Stat label="Titres" value={String(tracks.length)} />
-                    <Stat label="Durée" value={formatDuration(totalDuration, true)} />
-                    <Stat label="Likes" value={String(totalLikes)} />
-                  </View>
-                </View>
-              </View>
-            </View>
-
-            {/* Filter bar */}
-            <View style={styles.filterBar}>
-              <View style={styles.searchPill}>
-                <Ionicons name="search" size={16} color="rgba(255,250,242,0.45)" />
-                <TextInput
-                  value={query}
-                  onChangeText={setQuery}
-                  placeholder="Rechercher dans la collection..."
-                  placeholderTextColor="rgba(255,250,242,0.36)"
-                  style={styles.searchInput}
-                />
-                {query ? (
-                  <Pressable onPress={() => setQuery('')}><Ionicons name="close" size={16} color="rgba(255,250,242,0.45)" /></Pressable>
-                ) : null}
-              </View>
-
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipRow}>
-                {genres.map((item) => {
-                  const on = genre === item;
-                  return (
-                    <Pressable key={item} onPress={() => setGenre(item)} style={[styles.chip, on && styles.chipOn]}>
-                      <Text style={[styles.chipText, on && styles.chipTextOn]}>{item}</Text>
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
-
-              <Pressable onPress={cycleSort} style={styles.sortSelect}>
-                <Text style={styles.sortSelectText}>{SORT_OPTIONS.find((o) => o.value === sort)?.label}</Text>
-                <Ionicons name="chevron-down" size={16} color="rgba(255,250,242,0.55)" />
-              </Pressable>
-            </View>
-
-            {/* Tracks */}
-            <View style={styles.list}>
-              {visibleTracks.map((track) => {
-                const active = player.current?._id === track._id;
-                const isPlaying = active && player.isPlaying;
-                const canDownload = collection?.downloadEnabled !== false && playlist.downloadEnabled !== false;
-                return (
-                  <View key={track._id} style={[styles.trackCard, active && styles.trackCardActive]}>
-                    <View style={styles.trackMain}>
-                      <Pressable onPress={() => playTrack(track)} style={styles.trackCoverBtn}>
-                        <TrackCover track={track} style={StyleSheet.absoluteFillObject as any} active={isPlaying} autoPlayVideo={isPlaying} />
-                        <View style={styles.playOverlay}>
-                          <Ionicons name={isPlaying ? 'pause' : 'play'} size={16} color={CREAM} style={isPlaying ? undefined : { marginLeft: 2 }} />
-                        </View>
-                      </Pressable>
-
-                      <View style={styles.trackCopy}>
-                        <Text numberOfLines={1} style={styles.trackTitle}>{track.title}</Text>
-                        <Text numberOfLines={1} style={styles.trackMeta}>
-                          {artistName(track)}{track.genre?.[0] ? `  ·  ${track.genre[0]}` : ''}  ·  {formatDuration(track.duration)}
-                        </Text>
-                      </View>
-                    </View>
-
-                    <View style={styles.actions}>
-                      <Pressable onPress={() => toggleLike(track)} style={[styles.likeBtn, liked[track._id] && styles.likeBtnOn]}>
-                        <Ionicons name={liked[track._id] ? 'heart' : 'heart-outline'} size={16} color={liked[track._id] ? '#FFD8EE' : 'rgba(255,250,242,0.62)'} />
-                        <Text style={[styles.likeCount, liked[track._id] && styles.likeCountOn]}>{likeCounts[track._id] || 0}</Text>
-                      </Pressable>
-                      {commentsEnabled ? (
-                        <Pressable onPress={() => navigation.navigate('TrackDetail', { trackId: track._id, track })} style={styles.roundBtn}>
-                          <Ionicons name="chatbubble-outline" size={16} color="rgba(255,250,242,0.62)" />
-                        </Pressable>
-                      ) : null}
-                      <Pressable onPress={() => queueTrack(track)} style={styles.roundBtn}>
-                        <Ionicons name="list" size={16} color="rgba(255,250,242,0.62)" />
-                      </Pressable>
-                      <Pressable onPress={() => shareTrack(track)} style={styles.roundBtn}>
-                        <Ionicons name="share-social-outline" size={16} color="rgba(255,250,242,0.62)" />
-                      </Pressable>
-                      {canDownload && track.audioUrl ? (
-                        <Pressable onPress={() => downloadTrack(track)} style={styles.roundBtn}>
-                          <Ionicons name="download-outline" size={16} color="rgba(255,250,242,0.62)" />
-                        </Pressable>
-                      ) : null}
-                    </View>
-                  </View>
-                );
-              })}
-
-              {!visibleTracks.length ? (
-                <View style={styles.emptyCard}>
-                  <Ionicons name="musical-notes-outline" size={36} color="rgba(255,250,242,0.34)" />
-                  <Text style={styles.emptyTitle}>Aucun titre ici</Text>
-                  <Text style={styles.emptyText}>Change la recherche ou le filtre de genre.</Text>
-                </View>
-              ) : null}
-            </View>
-
-            {/* Info cards */}
-            <InfoCard icon="sparkles-outline" title="À propos">
-              <Text style={styles.infoParagraph}>
-                {collection?.description || playlist.description || 'Une playlist Synaura à écouter, partager et sauvegarder.'}
-              </Text>
-            </InfoCard>
-
-            <InfoCard icon="list-outline" title="Actions utiles">
-              <View style={{ gap: 8 }}>
-                <Pressable onPress={() => playFrom(visibleTracks, 0)} style={styles.utilPrimary}>
-                  <Text style={styles.utilPrimaryText}>Lire la sélection visible</Text>
-                </Pressable>
-                <Pressable onPress={shufflePlay} style={styles.utilBtn}>
-                  <Text style={styles.utilBtnText}>Mélanger toute la collection</Text>
-                </Pressable>
-                <Pressable onPress={copyLink} style={styles.utilBtn}>
-                  <Text style={styles.utilBtnText}>Copier le lien public</Text>
-                </Pressable>
-              </View>
-            </InfoCard>
-
-            <InfoCard icon="time-outline" title="Détails">
-              <View style={styles.detailGrid}>
-                <Stat half label="Titres" value={String(tracks.length)} />
-                <Stat half label="Durée" value={formatDuration(totalDuration, true)} />
-                <Stat half label="Likes" value={String(totalLikes)} />
-                <Stat half label="Accès" value="Public" />
-              </View>
-            </InfoCard>
-
-            {isEditorial && collection?.slug ? (
-              <Pressable onPress={() => Linking.openURL(webUrl)} style={styles.webLink}>
-                <Text style={styles.webLinkText}>Ouvrir sur le web</Text>
-                <Ionicons name="open-outline" size={15} color={INK} />
-              </Pressable>
-            ) : null}
-          </>
-        ) : !loading ? <Text style={styles.empty}>Playlist introuvable.</Text> : null}
+        <View style={s.filters}><CollectionHeading title="Les titres" action="Filtrer" onPress={() => setToolsOpen(true)} />
+          <SynauraSearchField value={query} onChangeText={setQuery} onClear={() => setQuery('')} onSubmit={Keyboard.dismiss} placeholder="Dans cette playlist…" />
+          {genre !== 'Tous' || sort !== 'position' ? <EntryPressable accessibilityRole="button" onPress={resetFilters} style={s.activeFilter}><Text style={{ color: p.blue, fontSize: 13 }}>{genre} · {SORT_OPTIONS.find(item => item.value === sort)?.label}</Text><Ionicons name="close-circle-outline" size={20} color={p.blue} /></EntryPressable> : null}
         </View>
+      </> : null}
+      renderItem={({ item: track, index }) => <MusicRow track={track} playing={player.current?._id === track._id && player.isPlaying}
+        onPlay={() => void playTrack(track, index)} onOpen={() => openDetail(track)} onMore={() => { Keyboard.dismiss(); setSelectedTrack(track); }} />}
+      ListEmptyComponent={loading ? <CollectionEmpty loading title="La playlist arrive…" /> : error ?
+        <CollectionEmpty icon="cloud-offline-outline" title="Playlist indisponible" text={error} action="Réessayer" onPress={() => setRetry(value => value + 1)} /> :
+        <CollectionEmpty icon="musical-notes-outline" title={tracks.length ? 'Aucun titre ne correspond.' : 'Cette playlist attend ses sons.'}
+          action={tracks.length ? 'Réinitialiser les filtres' : undefined} onPress={tracks.length ? resetFilters : undefined} />}
+      ListFooterComponent={playlist && description ? <View style={[s.about, { backgroundColor: p.surface }]}><Text style={[s.aboutTitle, { color: p.text }]}>À propos</Text><Text style={[s.description, { color: p.muted }]}>{description}</Text><Text style={[s.meta, { color: p.faint }]}>{totalLikes} réaction{totalLikes > 1 ? 's' : ''}</Text></View> : null}
+    />
+    <BottomSheet visible={toolsOpen} title="Ta playlist, ton rythme" onClose={() => setToolsOpen(false)}>
+      <ScrollView contentContainerStyle={s.sheet} keyboardShouldPersistTaps="handled">
+        <CollectionHeading title="Trier les titres" />
+        <CollectionTabs options={SORT_OPTIONS} value={sort} onChange={setSort} />
+        {genres.length > 1 ? <><Text style={[s.groupLabel, { color: p.muted }]}>Genres</Text><View style={s.genreChips}>{genres.map(item => <EntryPressable key={item} accessibilityRole="button" accessibilityState={{ selected: genre === item }} onPress={() => setGenre(item)} style={[s.genre, { backgroundColor: genre === item ? p.text : p.surface }]}><Text style={{ color: genre === item ? p.bg : p.text, fontSize: 14 }}>{item}</Text></EntryPressable>)}</View></> : null}
+        <MenuAction icon="play-outline" title={'Écouter la sélection · ' + visibleTracks.length} disabled={!visibleTracks.length} onPress={() => { setToolsOpen(false); void playFrom(visibleTracks); }} />
+        <MenuAction icon="copy-outline" title="Copier le lien" onPress={() => { setToolsOpen(false); void copyLink(); }} />
+        {isEditorial && collection?.slug ? <MenuAction icon="open-outline" title="Voir sur le web" onPress={() => { setToolsOpen(false); void Linking.openURL(webUrl).catch(() => showToast('Lien indisponible.')); }} /> : null}
+        <EntryPressable accessibilityRole="button" onPress={() => setToolsOpen(false)} style={[s.done, { backgroundColor: p.text }]}><Text style={[s.playText, { color: p.bg }]}>Afficher les titres</Text></EntryPressable>
       </ScrollView>
-
-      <EntityShareSheet
-        visible={shareCollectionOpen && Boolean(playlist)}
-        title={title || 'Playlist Synaura'}
-        subtitle={subtitle}
-        kindLabel="Playlist"
-        url={webUrl}
-        imageUrl={playlist ? `${webUrl}/opengraph-image` : null}
-        fileKey={`playlist-${slug || 'synaura'}`}
-        onClose={() => setShareCollectionOpen(false)}
-      />
-      <ShareSheet visible={Boolean(shareTrackTarget)} track={shareTrackTarget} onClose={() => setShareTrackTarget(null)} />
-
-      {toast ? (
-        <View style={[styles.toast, { bottom: insets.bottom + 96 }]} pointerEvents="none">
-          <Text style={styles.toastText}>{toast}</Text>
-        </View>
-      ) : null}
-    </View>
-  );
+    </BottomSheet>
+    <BottomSheet visible={Boolean(selectedTrack) && !shareTrackTarget} title={selectedTrack?.title} subtitle={selectedTrack ? musicArtist(selectedTrack) : undefined} onClose={() => setSelectedTrack(null)}>
+      {selectedTrack ? <ScrollView contentContainerStyle={s.sheet}>
+        <MenuAction icon={liked[selectedTrack._id] ? 'heart' : 'heart-outline'} title={(liked[selectedTrack._id] ? 'Ne plus aimer' : 'J’aime') + ' · ' + (likeCounts[selectedTrack._id] || 0)} onPress={() => void toggleLike(selectedTrack)} />
+        <MenuAction icon="play-forward-outline" title="Écouter ensuite" onPress={() => { queueTrack(selectedTrack); setSelectedTrack(null); }} />
+        {commentsEnabled ? <MenuAction icon="chatbubble-outline" title="Commentaires et détails" onPress={() => openDetail(selectedTrack)} /> : <MenuAction icon="information-circle-outline" title="Voir le morceau" onPress={() => openDetail(selectedTrack)} />}
+        <MenuAction icon="share-outline" title="Partager ce son" onPress={() => setShareTrackTarget(selectedTrack)} />
+        {canDownload && selectedTrack.audioUrl ? <MenuAction icon="download-outline" title="Télécharger" onPress={() => { void downloadTrack(selectedTrack); setSelectedTrack(null); }} /> : null}
+      </ScrollView> : null}
+    </BottomSheet>
+    <EntityShareSheet visible={shareCollectionOpen && Boolean(playlist)} title={title || 'Playlist Synaura'} subtitle={subtitle || description}
+      kindLabel="Playlist" url={webUrl} imageUrl={playlist ? webUrl + '/opengraph-image' : null} fileKey={'playlist-' + (slug || 'synaura')} onClose={() => setShareCollectionOpen(false)} />
+    <ShareSheet visible={Boolean(shareTrackTarget)} track={shareTrackTarget} onClose={() => { setShareTrackTarget(null); setSelectedTrack(null); }} />
+    {toast ? <View pointerEvents="none" style={[s.toast, { bottom: layout.miniPlayerClearance + 8, backgroundColor: p.text }]}><Text accessibilityLiveRegion="polite" style={{ color: p.bg, textAlign: 'center', fontSize: 14 }}>{toast}</Text></View> : null}
+  </CollectionSurface>;
 }
 
-function Stat({ label, value, half }: { label: string; value: string; half?: boolean }) {
-  return (
-    <View style={[styles.stat, half && styles.statHalf]}>
-      <Text style={styles.statLabel}>{label}</Text>
-      <Text style={styles.statValue}>{value}</Text>
-    </View>
-  );
+function MenuAction({ icon, title, onPress, disabled = false }: { icon: keyof typeof Ionicons.glyphMap; title: string; onPress: () => void; disabled?: boolean }) {
+  const p = useCollectionPalette();
+  return <EntryPressable accessibilityRole="button" disabled={disabled} onPress={onPress} style={s.menuAction}><Ionicons name={icon} size={24} color={p.blue} /><Text style={[s.menuText, { color: p.text }]}>{title}</Text></EntryPressable>;
 }
-
-function InfoCard({ icon, title, children }: { icon: keyof typeof Ionicons.glyphMap; title: string; children: React.ReactNode }) {
-  return (
-    <View style={styles.infoCard}>
-      <View style={styles.infoHead}>
-        <Ionicons name={icon} size={18} color="rgba(255,250,242,0.82)" />
-        <Text style={styles.infoTitle}>{title}</Text>
-      </View>
-      {children}
-    </View>
-  );
-}
-
-const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: INK },
-  scroll: { flexGrow: 1 },
-  bgWrap: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
-  content: { paddingHorizontal: 16 },
-
-  // Header
-  topbar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 },
-  backBtn: { height: 44, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, paddingHorizontal: 16, backgroundColor: 'rgba(255,255,255,0.10)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
-  backText: { color: 'rgba(255,250,242,0.82)', fontSize: 12, fontWeight: '900' },
-  topActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  iconPill: { width: 44, height: 44, borderRadius: 999, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.10)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
-  sharePill: { height: 44, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, paddingHorizontal: 16, backgroundColor: 'rgba(255,255,255,0.10)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.12)' },
-
-  // Hero
-  hero: { borderRadius: 20, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.08)', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.16)' },
-  heroBanner: { ...StyleSheet.absoluteFillObject, opacity: 0.48 },
-  heroBody: { padding: 22 },
-  heroBodyNarrow: { padding: 14 },
-  badgePill: { alignSelf: 'flex-start', borderLeftWidth: 3, borderLeftColor: '#4A9EAA', paddingLeft: 9, paddingVertical: 3, marginBottom: 14 },
-  badgeText: { color: 'rgba(255,250,242,0.82)', fontSize: 10, fontWeight: '900', textTransform: 'uppercase' },
-  heroTitle: { color: CREAM, fontSize: 38, lineHeight: 42, fontWeight: '900' },
-  heroTitleNarrow: { fontSize: 30, lineHeight: 34 },
-  heroSubtitle: { color: 'rgba(255,250,242,0.78)', fontSize: 16, lineHeight: 24, fontWeight: '700', marginTop: 16 },
-  heroDesc: { color: 'rgba(255,250,242,0.56)', fontSize: 13, lineHeight: 20, fontWeight: '600', marginTop: 8 },
-  heroActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 22 },
-  primaryAction: { height: 48, borderRadius: 999, backgroundColor: CREAM, paddingHorizontal: 22, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  primaryActionText: { color: INK, fontSize: 14, fontWeight: '900' },
-  secondaryAction: { height: 48, borderRadius: 999, backgroundColor: 'rgba(255,255,255,0.14)', paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  secondaryActionText: { color: CREAM, fontSize: 14, fontWeight: '900' },
-
-  coverBlock: { width: '100%', maxWidth: 360, alignSelf: 'center', marginTop: 28 },
-  coverGlow: { display: 'none' },
-  coverWrap: { width: '100%', aspectRatio: 1, borderRadius: 14, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.10)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' },
-  statsCard: { flexDirection: 'row', marginTop: 12, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.2)' },
-
-  // Stat
-  stat: { flex: 1, paddingHorizontal: 5, paddingVertical: 12 },
-  statHalf: { flex: 0, flexGrow: 0, flexBasis: '48%' },
-  statLabel: { color: 'rgba(255,250,242,0.42)', fontSize: 9, fontWeight: '900', letterSpacing: 1, textTransform: 'uppercase' },
-  statValue: { color: CREAM, fontSize: 14, fontWeight: '900', marginTop: 5 },
-
-  // Filter bar
-  filterBar: { marginTop: 20, borderTopWidth: StyleSheet.hairlineWidth, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.18)', paddingVertical: 12, gap: 10 },
-  searchPill: { height: 48, flexDirection: 'row', alignItems: 'center', gap: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.22)', paddingHorizontal: 2 },
-  searchInput: { flex: 1, color: CREAM, fontSize: 14, fontWeight: '700', padding: 0 },
-  chipRow: { gap: 8, paddingRight: 4 },
-  chip: { height: 38, borderRadius: 12, paddingHorizontal: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.09)' },
-  chipOn: { backgroundColor: CREAM, borderColor: CREAM },
-  chipText: { color: 'rgba(255,250,242,0.58)', fontSize: 12, fontWeight: '900' },
-  chipTextOn: { color: INK },
-  sortSelect: { height: 44, paddingHorizontal: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.22)' },
-  sortSelectText: { color: CREAM, fontSize: 13, fontWeight: '900' },
-
-  // Tracks
-  list: { marginTop: 16 },
-  trackCard: { borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.15)', paddingVertical: 12 },
-  trackCardActive: { borderLeftWidth: 3, borderLeftColor: '#4A9EAA', backgroundColor: 'rgba(255,255,255,0.06)', paddingLeft: 9 },
-  trackMain: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  trackCoverBtn: { width: 62, height: 62, borderRadius: 8, overflow: 'hidden', backgroundColor: 'rgba(255,255,255,0.10)', alignItems: 'center', justifyContent: 'center' },
-  playOverlay: { width: 36, height: 36, borderRadius: 999, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(23,19,19,0.78)' },
-  trackCopy: { flex: 1, minWidth: 0 },
-  trackTitle: { color: CREAM, fontSize: 16, fontWeight: '900' },
-  trackMeta: { color: 'rgba(255,250,242,0.48)', fontSize: 12, fontWeight: '700', marginTop: 5 },
-  actions: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginTop: 12 },
-  likeBtn: { height: 40, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, paddingHorizontal: 14, backgroundColor: 'rgba(255,255,255,0.10)' },
-  likeBtnOn: { backgroundColor: 'rgba(236,72,153,0.20)' },
-  likeCount: { color: 'rgba(255,250,242,0.62)', fontSize: 12, fontWeight: '900' },
-  likeCountOn: { color: '#FFD8EE' },
-  roundBtn: { width: 40, height: 40, borderRadius: 999, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(255,255,255,0.10)' },
-
-  emptyCard: { borderRadius: 26, borderWidth: 1, borderColor: 'rgba(255,255,255,0.10)', backgroundColor: 'rgba(255,255,255,0.10)', padding: 28, alignItems: 'center' },
-  emptyTitle: { color: CREAM, fontSize: 18, fontWeight: '900', marginTop: 12 },
-  emptyText: { color: 'rgba(255,250,242,0.50)', fontSize: 13, fontWeight: '700', marginTop: 4, textAlign: 'center' },
-
-  // Info cards
-  infoCard: { marginTop: 20, borderTopWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.2)', paddingTop: 18 },
-  infoHead: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 },
-  infoTitle: { color: CREAM, fontSize: 18, fontWeight: '900' },
-  infoParagraph: { color: 'rgba(255,250,242,0.62)', fontSize: 14, lineHeight: 22, fontWeight: '600' },
-  utilPrimary: { borderRadius: 12, backgroundColor: CREAM, paddingHorizontal: 16, paddingVertical: 14 },
-  utilPrimaryText: { color: INK, fontSize: 14, fontWeight: '900' },
-  utilBtn: { borderBottomWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.18)', paddingHorizontal: 2, paddingVertical: 14 },
-  utilBtnText: { color: 'rgba(255,250,242,0.78)', fontSize: 14, fontWeight: '900' },
-  detailGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-
-  webLink: { alignSelf: 'flex-start', marginTop: 16, height: 44, borderRadius: 999, backgroundColor: CREAM, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center', gap: 8 },
-  webLinkText: { color: INK, fontSize: 13, fontWeight: '900' },
-
-  empty: { textAlign: 'center', color: 'rgba(255,250,242,0.68)', fontWeight: '800', marginTop: 70 },
-
-  toast: { position: 'absolute', left: 24, right: 24, alignItems: 'center' },
-  toastText: { overflow: 'hidden', borderRadius: 999, backgroundColor: 'rgba(23,19,19,0.94)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.14)', color: CREAM, fontSize: 13, fontWeight: '800', paddingHorizontal: 18, paddingVertical: 12 },
+const s = StyleSheet.create({
+  artStage: { borderRadius: 28, alignItems: 'center', justifyContent: 'center', overflow: 'hidden', marginTop: 6 },
+  cover: { aspectRatio: 1, borderRadius: 21, overflow: 'hidden', justifyContent: 'center', alignItems: 'center', transform: [{ rotate: '-4deg' }], elevation: 12, shadowColor: '#000', shadowOpacity: .35, shadowRadius: 25, shadowOffset: { width: 0, height: 14 } },
+  coverBadge: { position: 'absolute', bottom: 12, left: 15, right: 15, flexDirection: 'row', gap: 6, alignItems: 'center', justifyContent: 'center' }, badge: { color: '#DDEBFF', fontSize: 11, fontWeight: '700', letterSpacing: 1, flexShrink: 1 },
+  heroCopy: { gap: 9, paddingTop: 22 }, title: { fontSize: 30, fontWeight: '800' }, subtitle: { fontSize: 15, lineHeight: 22 }, meta: { fontSize: 12, lineHeight: 19 },
+  mainActions: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 21, marginBottom: 28 }, play: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, minHeight: 56, paddingHorizontal: 18, paddingVertical: 12, borderRadius: 28 }, playText: { fontSize: 16, fontWeight: '800' }, shuffle: { width: 56, height: 56, borderRadius: 28, justifyContent: 'center', alignItems: 'center' },
+  filters: { marginBottom: 10 }, activeFilter: { minHeight: 44, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8, paddingHorizontal: 4 }, about: { borderRadius: 24, padding: 22, gap: 12, marginTop: 28 }, aboutTitle: { fontSize: 19, fontWeight: '700' }, description: { fontSize: 15, lineHeight: 24 },
+  sheet: { padding: 20, paddingBottom: 30, gap: 10 }, groupLabel: { marginTop: 14, fontSize: 13, fontWeight: '700' }, genreChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, paddingBottom: 14 }, genre: { minHeight: 44, paddingHorizontal: 15, paddingVertical: 12, borderRadius: 23 },
+  menuAction: { flexDirection: 'row', alignItems: 'center', gap: 15, minHeight: 56, paddingVertical: 10 }, menuText: { flex: 1, fontSize: 16, fontWeight: '600' }, done: { borderRadius: 26, minHeight: 54, alignItems: 'center', justifyContent: 'center', marginTop: 12 },
+  toast: { position: 'absolute', alignSelf: 'center', maxWidth: '90%', borderRadius: 22, paddingHorizontal: 20, paddingVertical: 14 },
 });

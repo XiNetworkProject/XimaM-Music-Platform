@@ -1,3 +1,6 @@
+import { SoundRoom } from '@/components/mobile/SoundRoom';
+import { SynauraMark } from '@/components/brand/SynauraMark';
+import { EntryPressable } from '@/components/entry/EntryPressable';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -18,19 +21,17 @@ import { PendingApprovalsModal } from '@/components/variations/PendingApprovalsM
 import { useAuth } from '@/auth/AuthProvider';
 import { TrackCover } from '@/components/TrackCover';
 import { CreatorLevelCard } from '@/components/events/SynauraEvents';
-import { SynauraBackground } from '@/components/SynauraBackground';
+import { CollectionSurface, CollectionHeader, CollectionTabs, CollectionIconButton, CollectionEmpty } from '@/components/mobile/CollectionUI';
 import { TrackEditBottomSheet, type TrackEditForm } from '@/components/profile/TrackEditBottomSheet';
 import { usePlayer } from '@/player/PlayerProvider';
 import { useLibrary } from '@/library/LibraryProvider';
 import { colors } from '@/theme/tokens';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { MobileBadge } from '@/components/mobile/MobileBadge';
-import { AppHeader } from '@/components/ui/AppHeader';
 import { useMessagingUnread } from '@/messaging/useMessagingUnread';
 import { useNativeNotifications } from '@/notifications/NativeNotificationsProvider';
 import { PostAttachedTrackCard } from '@/components/social/PostAttachedTrackCard';
 import { MotionPressable } from '@/components/motion/Motion';
-import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { ProfileIdentityHero, ProfileIdentityHeroSkeleton } from '@/components/profile/ProfileIdentityHero';
 import { ClipEditBottomSheet, type ClipEditForm } from '@/components/profile/ClipEditBottomSheet';
 import { ProfileClipActionsSheet } from '@/components/profile/ProfileClipActionsSheet';
@@ -453,49 +454,26 @@ export function ProfileScreen() {
   };
 
   if (!auth.user) {
-    return (
-      <SynauraBackground variant="warm">
-        <ScrollView contentContainerStyle={[styles.content, responsive.pageContent, { paddingTop: insets.top + 28, paddingBottom: responsive.bottomDockClearance + 24 }]}>
-          <View style={styles.loginHero}>
-            <View style={styles.loginIcon}><Ionicons name="person-circle" size={38} color="#FFFAF2" /></View>
-            <Text style={styles.loginTitle}>Ton espace Synaura</Text>
-            <Text style={styles.loginText}>Connecte-toi pour publier, gérer tes sons, suivre tes stats et synchroniser ta bibliothèque.</Text>
-            <View style={styles.guestHighlights}>
-              <GuestHighlight icon="musical-notes-outline" text="Retrouve ton feed et tes sons" />
-              <GuestHighlight icon="notifications-outline" text="Synchronise tes notifications" />
-              <GuestHighlight icon="cloud-upload-outline" text="Publie depuis ton téléphone" />
-            </View>
-            <View style={styles.guestActions}>
-              <Pressable style={styles.primaryButton} onPress={() => navigation.navigate('Login')}>
-                <Text style={styles.primaryText}>Se connecter</Text>
-              </Pressable>
-              <Pressable style={styles.registerButton} onPress={() => navigation.navigate('Register')}>
-                <Text style={styles.registerText}>Créer un compte</Text>
-              </Pressable>
-            </View>
-          </View>
-        </ScrollView>
-      </SynauraBackground>
-    );
+    return <CollectionSurface><ScrollView contentContainerStyle={[responsive.pageContent, { paddingTop: insets.top + 8, paddingBottom: responsive.miniPlayerClearance }]}>
+      <CollectionHeader title="Profil" eyebrow="UN UNIVERS À TOI" actions={<CollectionIconButton icon="settings-outline" label="Paramètres" onPress={() => navigation.navigate('Settings')} />} />
+      <View style={{ minHeight: 270, borderRadius: 28, overflow: 'hidden', marginTop: 22 }}><SoundRoom quiet><View style={{ flex: 1, minHeight: 270, alignItems: 'center', justifyContent: 'center', padding: 28 }}><SynauraMark size={66} /><Text style={{ color: '#F5F7FC', fontSize: 34, lineHeight: 39, letterSpacing: 0, fontWeight: '800', textAlign: 'center', marginTop: 25 }}>Ta musique.{'\n'}Ta signature.</Text></View></SoundRoom></View>
+      <CollectionEmpty icon="person-outline" title="Fais-toi une place." text="Partage tes sons, rencontre tes artistes et crée ton profil." action="Se connecter" onPress={() => navigation.navigate('Login')} />
+      <EntryPressable accessibilityRole="button" onPress={() => navigation.navigate('Register')} style={{ minHeight: 48, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: colors.text, fontWeight: '700', fontSize: 14 }}>Créer un compte gratuit ↗</Text></EntryPressable>
+    </ScrollView></CollectionSurface>;
   }
 
   return (
-    <SynauraBackground variant="warm">
+    <CollectionSurface>
       <ScrollView
-        contentContainerStyle={[styles.content, responsive.pageContent, { paddingTop: 0, paddingBottom: responsive.miniPlayerClearance }]}
+        contentContainerStyle={[styles.content, responsive.pageContent, { paddingTop: responsive.insets.top + 8, paddingBottom: responsive.miniPlayerClearance }]}
         refreshControl={<RefreshControl refreshing={loading || clipsLoading} onRefresh={() => void refreshProfile(true)} />}
         showsVerticalScrollIndicator={false}
       >
-        <AppHeader
-          flush
-          title="Profil"
-          subtitle="Ton univers sur Synaura"
-          actions={[
-            { icon: messagingUnread.total ? 'chatbubble-ellipses' : 'chatbubble-ellipses-outline', label: 'Messages', badge: messagingUnread.total, onPress: () => navigation.navigate('Messages') },
-            { icon: nativeNotifications.unreadCount ? 'notifications' : 'notifications-outline', label: 'Activité', badge: nativeNotifications.unreadCount, onPress: () => navigation.navigate('Notifications') },
-            { icon: 'settings-outline', label: 'Paramètres', onPress: () => navigation.navigate('Settings') },
-          ]}
-        />
+        <CollectionHeader title="Mon profil" actions={<>
+          <CollectionIconButton icon="chatbubble-ellipses-outline" label="Messages" badge={messagingUnread.total} onPress={() => navigation.navigate('Messages')} />
+          <CollectionIconButton icon="notifications-outline" label="Activité" badge={nativeNotifications.unreadCount} onPress={() => navigation.navigate('Notifications')} />
+          <CollectionIconButton icon="settings-outline" label="Paramètres" onPress={() => navigation.navigate('Settings')} />
+        </>} />
         {profile ? (
           <ProfileIdentityHero
             profile={profile}
@@ -514,9 +492,8 @@ export function ProfileScreen() {
 
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
-        <SegmentedControl
+        <CollectionTabs
           value={profileTab}
-          compact
           options={(['sons', 'clips', 'posts', 'playlists', 'variations'] as ProfileTab[]).map((item) => ({ value: item, label: PROFILE_TAB_LABELS[item] }))}
           onChange={setProfileTab}
         />
@@ -539,7 +516,7 @@ export function ProfileScreen() {
 
         {profileTab === 'sons' && (clipsLoading || Boolean(clipsError) || clips.length > 0) ? (
           <View style={styles.card}>
-            <SectionTitle title="Clips recents" action={clips.length ? `${clips.length}` : undefined} />
+            <SectionTitle title="Clips récents" action={clips.length ? `${clips.length}` : undefined} />
             {clipsLoading ? <Empty text="Chargement des clips..." /> : clipsError ? (
               <Pressable onPress={() => void loadClips(0, { creatorId: profile?.id, creatorUsername: profile?.username })} style={styles.emptyAction}>
                 <Ionicons name="refresh" size={18} color="#7C5CFF" />
@@ -857,7 +834,7 @@ export function ProfileScreen() {
         items={pendingVariations}
         onDecided={handleVariationDecided}
       />
-    </SynauraBackground>
+    </CollectionSurface>
   );
 }
 
@@ -907,19 +884,19 @@ function Empty({ text }: { text: string }) {
 }
 
 const styles = StyleSheet.create({
-  content: { paddingHorizontal: 18, paddingBottom: 160, gap: 14 },
+  content: { paddingHorizontal: 18, paddingBottom: 160, gap: 24 },
   ownerDashboard: { flexDirection: 'row', flexWrap: 'wrap', gap: 9 },
-  ownerDashboardItem: { minHeight: 82, flexBasis: 220, flexGrow: 1, flexDirection: 'row', alignItems: 'center', gap: 11, borderRadius: 14, borderWidth: StyleSheet.hairlineWidth, padding: 13 },
+  ownerDashboardItem: { minHeight: 82, flexBasis: 220, flexGrow: 1, flexDirection: 'row', alignItems: 'center', gap: 11, borderRadius: 22, padding: 18 },
   ownerDashboardStats: { borderColor: 'rgba(74,158,170,0.3)', backgroundColor: colors.surfaceStrong },
   ownerDashboardEvents: { borderColor: 'rgba(74,158,170,0.34)', backgroundColor: colors.surfaceStrong },
   ownerDashboardIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(74,158,170,0.12)' },
   ownerDashboardIconLight: { backgroundColor: colors.violetSoft },
   ownerDashboardCopy: { flex: 1, minWidth: 0 },
-  ownerDashboardKicker: { color: 'rgba(255,255,255,0.52)', fontSize: 8, fontWeight: '900', textTransform: 'uppercase' },
+  ownerDashboardKicker: { color: colors.textSecondary, fontSize: 8, fontWeight: '900', textTransform: 'uppercase' },
   ownerDashboardKickerDark: { color: colors.violet },
-  ownerDashboardTitle: { marginTop: 2, color: '#FFFFFF', fontSize: 13, fontWeight: '900' },
+  ownerDashboardTitle: { marginTop: 2, color: colors.text, fontSize: 13, fontWeight: '900' },
   ownerDashboardTitleDark: { color: colors.text },
-  ownerDashboardText: { marginTop: 3, color: 'rgba(255,255,255,0.58)', fontSize: 9, fontWeight: '700' },
+  ownerDashboardText: { marginTop: 3, color: colors.textSecondary, fontSize: 9, fontWeight: '700' },
   ownerDashboardTextDark: { color: colors.textSecondary },
   loginHero: { borderRadius: 14, backgroundColor: colors.surface, padding: 20, alignItems: 'center', borderWidth: 1, borderColor: colors.borderStrong, shadowColor: colors.black, shadowOpacity: 0.26, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 6 },
   loginIcon: { width: 74, height: 74, borderRadius: 22, backgroundColor: colors.violet, alignItems: 'center', justifyContent: 'center' },

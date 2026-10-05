@@ -1,9 +1,9 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, BackHandler, Image, KeyboardAvoidingView, Platform, Linking, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SvgXml } from 'react-native-svg';
 import {
@@ -31,16 +31,16 @@ import {
   type MobileAccountDetails,
 } from '@/auth/AuthProvider';
 import { ProfileImagePicker } from '@/components/profile/ProfileImagePicker';
-import { SynauraBackground } from '@/components/SynauraBackground';
-import { colors } from '@/theme/tokens';
+import { CollectionEmpty, CollectionHeader, CollectionIconButton, CollectionReveal, CollectionSurface } from '@/components/mobile/CollectionUI';
+import { useSurfaceColors } from '@/components/mobile/useSurfaceColors';
+import { SETTINGS_GROUPS, matchesSetting } from '@/settings/settingsCatalog';
 import legalContent from '@/legal/legalDocuments.json';
 import { useAppUpdate } from '@/updates/UpdateProvider';
 import { SHOW_SHUTDOWN_NOTICES } from '@/config/features';
 import { useMobileSettings, type ThemeMode } from '@/settings/MobileSettingsProvider';
 import { validateSocialUrl, type SocialPlatform } from '@/utils/validateSocialUrl';
 import { useNativeNotifications } from '@/notifications/NativeNotificationsProvider';
-import { AppHeader } from '@/components/ui/AppHeader';
-import { MotionPressable, Reveal } from '@/components/motion/Motion';
+import { EntryPressable as MotionPressable } from '@/components/entry/EntryPressable';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { MessagingAvatar } from '@/components/messaging/MessagingAvatar';
 
@@ -105,7 +105,7 @@ function formattedTotpSecret(secret: string) {
 const SETTINGS_DESCRIPTIONS: Record<Exclude<Tab, 'overview'>, string> = {
   profil: 'Identité, images, bio et liens sociaux',
   compte: 'Session et informations du compte',
-  preferences: 'Lecture, données et animations',
+  preferences: 'Thème, lecture, données et animations',
   notifications: 'Push et alertes de ton activité',
   events: 'Participation et rappels Synaura Events',
   parrainage: 'Invitations et crédits gagnés',
@@ -116,6 +116,8 @@ const SETTINGS_DESCRIPTIONS: Record<Exclude<Tab, 'overview'>, string> = {
 };
 
 export function SettingsScreen() {
+  const colors = useSurfaceColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const auth = useAuth();
   const appUpdate = useAppUpdate();
   const mobileSettings = useMobileSettings();
@@ -124,6 +126,12 @@ export function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const responsive = useResponsiveLayout();
   const [tab, setTab] = useState<Tab>('overview');
+  const route = useRoute<any>();
+  const scrollRef = useRef<ScrollView>(null);
+  const [search, setSearch] = useState('');
+  const [loadError, setLoadError] = useState('');
+  useEffect(() => { if (route.params?.section === 'notifications') setTab('notifications'); }, [route.params?.section]);
+  useEffect(() => { scrollRef.current?.scrollTo({ y: 0, animated: false }); }, [tab]);
   const [profile, setProfile] = useState<MobileProfile | null>(null);
   const [notif, setNotif] = useState<NotificationPrefs | null>(null);
   const [referral, setReferral] = useState<ReferralData | null>(null);
@@ -156,6 +164,14 @@ export function SettingsScreen() {
   const [securityBusy, setSecurityBusy] = useState(false);
   const [selectedLegalId, setSelectedLegalId] = useState<string | null>(null);
   const selectedLegal = legalContent.find((document) => document.id === selectedLegalId) || null;
+  useFocusEffect(useCallback(() => {
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (selectedLegalId) { setSelectedLegalId(null); return true; }
+      if (tab !== 'overview') { setTab('overview'); return true; }
+      return false;
+    });
+    return () => subscription.remove();
+  }, [selectedLegalId, tab]));
 
   const tabs = useMemo<Array<{ key: Exclude<Tab, 'overview'>; label: string; icon: keyof typeof Ionicons.glyphMap }>>(() => [
     { key: 'profil', label: 'Profil', icon: 'person-outline' },
@@ -173,6 +189,7 @@ export function SettingsScreen() {
   const load = useCallback(async () => {
     if (!auth.user?.username) return;
     setLoading(true);
+    setLoadError('');
     try {
       const [nextProfile, nextNotif, nextReferral, nextUsage, nextPreferences, nextBlockedUsers] = await Promise.all([
         getMyProfile(auth.user.username),
@@ -215,6 +232,8 @@ export function SettingsScreen() {
         badgesText: nextProfile.badges.join(', '),
         featuredTrackId: nextProfile.featuredTrackId || '',
       });
+    } catch {
+      setLoadError('Actualisation impossible. Les réglages de cet appareil restent disponibles.');
     } finally {
       setLoading(false);
     }
@@ -478,19 +497,18 @@ export function SettingsScreen() {
     ]);
   };
 
-  if (!auth.user) {
-    return (
-      <SynauraBackground variant="warm">
-        <View style={[styles.center, { paddingTop: insets.top }]}>
-          <Text style={styles.title}>Parametres</Text>
-          <Text style={styles.muted}>Connecte-toi pour acceder aux parametres.</Text>
-        </View>
-      </SynauraBackground>
-    );
-  }
+  if (selectedLegal) return <LegalReader document={selectedLegal} onClose={() => setSelectedLegalId(null)} />;
 
-  if (selectedLegal) {
-    return <LegalReader document={selectedLegal} onClose={() => setSelectedLegalId(null)} />;
+  if (!auth.user) {
+    return <CollectionSurface>
+      <View style={[responsive.pageContent, { paddingTop: insets.top }]}><CollectionHeader title="Paramètres" onBack={() => navigation.goBack()} /></View>
+      <ScrollView contentContainerStyle={[styles.content, responsive.pageContent, { paddingBottom: responsive.miniPlayerClearance + 24 }]}>
+        <CollectionReveal><Text style={styles.guestTitle}>Synaura, à ta façon.</Text><Text style={styles.sectionText}>Ces réglages restent sur cet appareil.</Text></CollectionReveal>
+        <LocalPreferences />
+        <CollectionEmpty icon="person-circle-outline" title="Ton compte, tes choix." text="Connecte-toi pour gérer ton profil, ta confidentialité et tes notifications." action="Se connecter" onPress={() => navigation.navigate('Login', { returnTo: { screen: 'Settings' } })} />
+        {legalDocuments.map(document => <MotionPressable key={document.path} accessibilityRole="button" onPress={() => setSelectedLegalId(document.path.split('/').pop() || null)} style={styles.settingsRow}><Ionicons name={document.icon} size={20} color={colors.cyan} /><Text style={styles.settingsTitle}>{document.label}</Text><Ionicons name="chevron-forward" size={17} color={colors.textTertiary} /></MotionPressable>)}
+      </ScrollView>
+    </CollectionSurface>;
   }
 
   const activeCategory = tab === 'overview' ? null : tabs.find((item) => item.key === tab) || null;
@@ -500,69 +518,48 @@ export function SettingsScreen() {
   const qrXml = mfaEnrollment?.qrCode ? totpQrXml(mfaEnrollment.qrCode) : '';
 
   return (
-    <SynauraBackground variant="warm">
+    <CollectionSurface>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <View style={[responsive.pageContent, { paddingTop: insets.top }]}>
+        <CollectionHeader title={activeCategory?.label || 'Paramètres'} onBack={activeCategory ? () => setTab('overview') : () => navigation.goBack()} actions={tab === 'overview' ? <CollectionIconButton icon="refresh-outline" label="Actualiser les paramètres" onPress={() => void load()} /> : undefined} />
+      </View>
       <ScrollView
-        contentContainerStyle={[styles.content, responsive.pageContent, { paddingTop: 0, paddingBottom: responsive.bottomDockClearance + 30 }]}
+        ref={scrollRef}
+        contentContainerStyle={[styles.content, responsive.pageContent, { paddingBottom: responsive.miniPlayerClearance + 24 }]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
       >
-        <AppHeader
-          flush
-          title={activeCategory?.label || 'Paramètres'}
-          subtitle={activeCategory ? SETTINGS_DESCRIPTIONS[activeCategory.key] : `@${auth.user.username || profile?.username || 'synaura'}`}
-          onBack={activeCategory ? () => setTab('overview') : () => navigation.goBack()}
-          action={tab === 'overview' ? { icon: 'refresh-outline', label: 'Actualiser', onPress: () => void load() } : undefined}
-        />
-
+        {loadError ? <Pressable accessibilityRole="button" accessibilityLabel="Réessayer l’actualisation" onPress={() => void load()} style={styles.loadError}><Ionicons name="cloud-offline-outline" size={20} color={colors.cyan} /><Text style={styles.sectionText}>{loadError}</Text></Pressable> : null}
         {loading ? <View style={styles.inlineLoading}><ActivityIndicator color={colors.violet} /><Text style={styles.muted}>Synchronisation...</Text></View> : null}
 
         {tab === 'overview' ? (
           <>
-            <Reveal distance={8} style={styles.overviewHero}>
-              <View style={styles.overviewAvatar}>
-                {profile?.avatar ? <Image source={{ uri: profile.avatar }} style={StyleSheet.absoluteFillObject} /> : <Text style={styles.overviewAvatarText}>{(profile?.name || auth.user.name || auth.user.username || 'S').slice(0, 1).toUpperCase()}</Text>}
-              </View>
-              <View style={styles.overviewCopy}>
-                <Text numberOfLines={1} style={styles.overviewName}>{profile?.name || auth.user.name || auth.user.username}</Text>
-                <Text numberOfLines={1} style={styles.overviewMeta}>{auth.user.email || `@${auth.user.username}`}</Text>
-              </View>
-              <View style={styles.overviewStatus}><View style={styles.overviewStatusDot} /><Text style={styles.overviewStatusText}>Synchronisé</Text></View>
-            </Reveal>
-
-            <View style={styles.dashboardShortcuts}>
-              <MotionPressable onPress={() => navigation.navigate('Stats')} style={[styles.dashboardShortcut, styles.dashboardShortcutDark]} scaleTo={0.98}>
-                <Ionicons name="analytics-outline" size={20} color="#FFFFFF" />
-                <View style={styles.dashboardShortcutCopy}>
-                  <Text style={styles.dashboardShortcutTitleLight}>Stats Synaura</Text>
-                  <Text numberOfLines={1} style={styles.dashboardShortcutTextLight}>Audience et performances</Text>
-                </View>
-                <Ionicons name="arrow-forward" size={15} color="#FFFFFF" />
+            <CollectionReveal>
+              <MotionPressable accessibilityRole="button" accessibilityLabel="Modifier mon profil" onPress={() => setTab('profil')} style={styles.overviewHero}>
+                <View style={styles.overviewAvatar}>{profile?.avatar ? <Image source={{ uri: profile.avatar }} style={StyleSheet.absoluteFillObject} /> : <Text style={styles.overviewAvatarText}>{(profile?.name || auth.user.name || auth.user.username || 'S').slice(0, 1).toUpperCase()}</Text>}</View>
+                <View style={styles.overviewCopy}><Text numberOfLines={1} style={styles.overviewName}>{profile?.name || auth.user.name || auth.user.username}</Text><Text style={styles.overviewMeta}>Voir et modifier ton profil</Text></View>
+                <Ionicons name="arrow-forward" size={22} color={colors.cyan} />
               </MotionPressable>
-              <MotionPressable onPress={() => navigation.navigate('City')} style={styles.dashboardShortcut} scaleTo={0.98}>
-                <Ionicons name="flash-outline" size={20} color={colors.violet} />
-                <View style={styles.dashboardShortcutCopy}>
-                  <Text style={styles.dashboardShortcutTitle}>Synaura Events</Text>
-                  <Text numberOfLines={1} style={styles.dashboardShortcutText}>Votes et challenges</Text>
-                </View>
-                <Ionicons name="arrow-forward" size={15} color={colors.text} />
-              </MotionPressable>
-            </View>
-
-            <View style={styles.settingsMenu}>
-              {tabs.map((item, index) => (
-                <Reveal key={item.key} delay={Math.min(index * 30, 180)} distance={5}>
-                  <MotionPressable onPress={() => setTab(item.key)} style={styles.settingsRow} scaleTo={0.985}>
-                    <View style={styles.settingsIcon}><Ionicons name={item.icon} size={19} color={colors.violet} /></View>
-                    <View style={styles.settingsCopy}>
-                      <Text style={styles.settingsTitle}>{item.label}</Text>
-                      <Text numberOfLines={1} style={styles.settingsDescription}>{SETTINGS_DESCRIPTIONS[item.key]}</Text>
-                    </View>
-                    {item.key === 'updates' && appUpdate.release && appUpdate.release.versionCode > appUpdate.currentVersionCode ? <View style={styles.updateDot} /> : null}
-                    <Ionicons name="chevron-forward" size={17} color={colors.textTertiary} />
-                  </MotionPressable>
-                </Reveal>
-              ))}
-            </View>
+            </CollectionReveal>
+            <View style={styles.search}><Ionicons name="search-outline" size={19} color={colors.textTertiary} /><TextInput accessibilityLabel="Rechercher un réglage" value={search} onChangeText={setSearch} placeholder="Trouver un réglage" placeholderTextColor={colors.textTertiary} style={styles.searchInput} />{search ? <CollectionIconButton icon="close-circle" label="Effacer la recherche" onPress={() => setSearch('')} /> : null}</View>
+              {!search ? <View style={styles.dashboardShortcuts}>
+                <MotionPressable accessibilityRole="button" onPress={() => navigation.navigate('Boosters')} style={styles.dashboardShortcut}><Ionicons name="gift-outline" size={22} color={colors.violet} /><Text style={styles.dashboardShortcutTitle}>Mes boosters</Text><Ionicons name="arrow-forward" size={18} color={colors.textTertiary} /></MotionPressable>
+              <MotionPressable accessibilityRole="button" onPress={() => navigation.navigate('Stats')} style={styles.dashboardShortcut}><Ionicons name="analytics-outline" size={22} color={colors.cyan} /><Text style={styles.dashboardShortcutTitle}>Mes statistiques</Text><Ionicons name="arrow-forward" size={18} color={colors.textTertiary} /></MotionPressable>
+              <MotionPressable accessibilityRole="button" onPress={() => navigation.navigate('City')} style={styles.dashboardShortcut}><Ionicons name="flash-outline" size={22} color={colors.violet} /><Text style={styles.dashboardShortcutTitle}>Events</Text><Ionicons name="arrow-forward" size={18} color={colors.textTertiary} /></MotionPressable>
+            </View> : null}
+            {SETTINGS_GROUPS.map(group => {
+              const entries = tabs.filter(item => (group.keys as readonly string[]).includes(item.key) && matchesSetting(search, item.label, SETTINGS_DESCRIPTIONS[item.key]));
+              if (!entries.length) return null;
+              return <View key={group.title} style={styles.settingsGroup}><Text accessibilityRole="header" style={styles.groupHeading}>{group.title}</Text><View style={styles.settingsMenu}>
+                {entries.map(item => <MotionPressable key={item.key} accessibilityRole="button" onPress={() => setTab(item.key)} style={styles.settingsRow} scaleTo={0.985}>
+                  <View style={styles.settingsIcon}><Ionicons name={item.icon} size={22} color={colors.cyan} /></View>
+                  <View style={styles.settingsCopy}><Text style={styles.settingsTitle}>{item.label}</Text><Text style={styles.settingsDescription}>{SETTINGS_DESCRIPTIONS[item.key]}</Text></View>
+                  {item.key === 'updates' && appUpdate.release && appUpdate.release.versionCode > appUpdate.currentVersionCode ? <View style={styles.updateDot} /> : null}<Ionicons name="chevron-forward" size={18} color={colors.textTertiary} />
+                </MotionPressable>)}
+              </View></View>;
+            })}
+            {search && !tabs.some(item => matchesSetting(search, item.label, SETTINGS_DESCRIPTIONS[item.key])) ? <CollectionEmpty icon="search-outline" title="Aucun réglage trouvé" text="Essaie « thème », « lecture » ou « compte »." /> : null}
           </>
         ) : null}
 
@@ -688,7 +685,7 @@ export function SettingsScreen() {
 
             <Text style={styles.groupTitle}>Informations privees</Text>
             <Field
-              label="Prenom"
+              label="Prénom"
               value={accountForm.firstName}
               onChangeText={(firstName) => setAccountForm((current) => ({ ...current, firstName }))}
             />
@@ -747,11 +744,8 @@ export function SettingsScreen() {
         ) : null}
 
         {tab === 'preferences' ? (
-          <Section title="Preferences" text="Reglages locaux de l'app mobile.">
-            <ThemeSelector
-              value={mobileSettings.settings.themeMode}
-              onChange={(themeMode) => void mobileSettings.updateSettings({ themeMode })}
-            />
+          <Section title="Préférences" text="Ta lecture, ton ambiance et ta confidentialité.">
+            <LocalPreferences />
             <MessagingPrivacySelector value={messagingPrivacy} onChange={(value) => void patchMessagingPrivacy(value)} />
             {hiddenArtistsCount > 0 ? (
               <View style={styles.hiddenArtistsRow}>
@@ -767,12 +761,8 @@ export function SettingsScreen() {
                 </Pressable>
               </View>
             ) : null}
-            <Toggle label="Autoplay" value={mobileSettings.settings.autoplay} onValueChange={(value) => void mobileSettings.updateSettings({ autoplay: value })} />
-            <Toggle label="Qualite audio haute" value={mobileSettings.settings.highQuality} onValueChange={(value) => void mobileSettings.updateSettings({ highQuality: value })} />
-            <Toggle label="Pochettes video" value={mobileSettings.settings.coverVideos} onValueChange={(value) => void mobileSettings.updateSettings({ coverVideos: value })} />
-            <Toggle label="Fond dynamique" value={mobileSettings.settings.dynamicBackground} onValueChange={(value) => void mobileSettings.updateSettings({ dynamicBackground: value })} />
-            <Toggle label="Economiseur de donnees" value={mobileSettings.settings.dataSaver} onValueChange={(value) => void mobileSettings.updateSettings({ dataSaver: value })} />
-            <Toggle label="Activite visible" value={mobileSettings.settings.activityVisible} onValueChange={(value) => void mobileSettings.updateSettings({ activityVisible: value })} />
+
+            <Toggle label="Activité visible" value={mobileSettings.settings.activityVisible} onValueChange={(value) => void mobileSettings.updateSettings({ activityVisible: value })} />
             <Toggle
               label="Push appareil"
               value={mobileSettings.settings.pushDevice}
@@ -788,7 +778,7 @@ export function SettingsScreen() {
                 })();
               }}
             />
-            <Toggle label="Reduire les animations" value={mobileSettings.settings.reducedMotion} onValueChange={(value) => void mobileSettings.updateSettings({ reducedMotion: value })} />
+
           </Section>
         ) : null}
 
@@ -872,7 +862,7 @@ export function SettingsScreen() {
         ) : null}
 
         {tab === 'updates' ? (
-          <Section title="Mises a jour" text="Installe les nouvelles versions directement depuis Synaura.">
+          <Section title="Mises à jour" text="Installe les nouvelles versions directement depuis Synaura.">
             <Info label="Version installee" value={`${appUpdate.currentVersionName} (${appUpdate.currentVersionCode})`} />
             {appUpdate.release ? (
               <Info label="Derniere version" value={`${appUpdate.release.versionName} (${appUpdate.release.versionCode})`} />
@@ -917,7 +907,7 @@ export function SettingsScreen() {
         ) : null}
 
         {tab === 'securite' ? (
-          <Section title="Securite" text="Protection locale, double verification et sessions.">
+          <Section title="Sécurité" text="Protection locale, double vérification et sessions.">
             <Text style={styles.groupTitle}>Verrouillage de l'app</Text>
             <View style={styles.securityPanel}>
               <View style={styles.securityIcon}>
@@ -1088,11 +1078,36 @@ export function SettingsScreen() {
           </Section>
         ) : null}
       </ScrollView>
-    </SynauraBackground>
+      </KeyboardAvoidingView>
+    </CollectionSurface>
   );
 }
 
+
+function LocalPreferences() {
+  const colors = useSurfaceColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
+  const { settings, updateSettings } = useMobileSettings();
+  return <View style={styles.localPreferences}>
+    <ThemeSelector value={settings.themeMode} onChange={themeMode => void updateSettings({ themeMode })} />
+    <Text accessibilityRole="header" style={styles.groupHeading}>L’écoute</Text>
+    <View style={styles.preferenceGroup}>
+      <Toggle label="Lecture automatique" value={settings.autoplay} onValueChange={autoplay => void updateSettings({ autoplay })} />
+      <Toggle label="Haute qualité audio" value={settings.highQuality} onValueChange={highQuality => void updateSettings({ highQuality })} />
+      <Toggle label="Économiser les données" value={settings.dataSaver} onValueChange={dataSaver => void updateSettings({ dataSaver })} />
+    </View>
+    <Text accessibilityRole="header" style={styles.groupHeading}>L’ambiance</Text>
+    <View style={styles.preferenceGroup}>
+      <Toggle label="Pochettes animées" value={settings.coverVideos} onValueChange={coverVideos => void updateSettings({ coverVideos })} />
+      <Toggle label="Fond dynamique" value={settings.dynamicBackground} onValueChange={dynamicBackground => void updateSettings({ dynamicBackground })} />
+      <Toggle label="Réduire les animations" value={settings.reducedMotion} onValueChange={reducedMotion => void updateSettings({ reducedMotion })} />
+    </View>
+  </View>;
+}
+
 function Section({ title, text, children }: { title: string; text: string; children: React.ReactNode }) {
+  const colors = useSurfaceColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>{title}</Text>
@@ -1103,13 +1118,15 @@ function Section({ title, text, children }: { title: string; text: string; child
 }
 
 function LegalReader({ document, onClose }: { document: LegalDocument; onClose: () => void }) {
+  const colors = useSurfaceColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
   const responsive = useResponsiveLayout();
   const webPath = document.id === 'fermeture' ? '/fermeture' : `/legal/${document.id}`;
   let number = 0;
 
   return (
-    <SynauraBackground variant="warm">
+    <CollectionSurface>
       <ScrollView contentContainerStyle={[styles.legalReader, responsive.pageContent, { paddingTop: insets.top + 10 }]} showsVerticalScrollIndicator={false}>
         <View style={styles.header}>
           <Pressable onPress={onClose} style={styles.back}><Ionicons name="chevron-back" size={20} color={colors.text} /></Pressable>
@@ -1142,33 +1159,37 @@ function LegalReader({ document, onClose }: { document: LegalDocument; onClose: 
           })}
         </View>
       </ScrollView>
-    </SynauraBackground>
+    </CollectionSurface>
   );
 }
 
 function Field({ label, value, onChangeText, multiline, hint }: { label: string; value: string; onChangeText: (value: string) => void; multiline?: boolean; hint?: string }) {
+  const colors = useSurfaceColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.field}>
       <View style={styles.fieldHead}>
         <Text style={styles.label}>{label}</Text>
         {hint ? <Text style={styles.hint}>{hint}</Text> : null}
       </View>
-      <TextInput value={value} onChangeText={onChangeText} multiline={multiline} textAlignVertical={multiline ? 'top' : 'center'} placeholderTextColor={colors.textTertiary} style={[styles.input, multiline && styles.inputMulti]} />
+      <TextInput accessibilityLabel={label} value={value} onChangeText={onChangeText} multiline={multiline} textAlignVertical={multiline ? 'top' : 'center'} placeholderTextColor={colors.textTertiary} style={[styles.input, multiline && styles.inputMulti]} />
     </View>
   );
 }
 
 function Toggle({ label, value, onValueChange }: { label: string; value: boolean; onValueChange: (value: boolean) => void }) {
+  const colors = useSurfaceColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.toggleRow}>
       <Text style={styles.toggleLabel}>{label}</Text>
-      <Switch value={value} onValueChange={onValueChange} />
+      <Switch accessibilityLabel={label} value={value} onValueChange={onValueChange} trackColor={{ false: colors.surfaceStrong, true: colors.violet }} thumbColor="#FFFFFF" />
     </View>
   );
 }
 
 const BIRTHDAY_VISIBILITY_OPTIONS = [
-  { value: 'private', label: 'Prive' },
+  { value: 'private', label: 'Privé' },
   { value: 'friends', label: 'Amis' },
   { value: 'public', label: 'Public' },
 ] as const;
@@ -1180,9 +1201,11 @@ function BirthdayVisibilitySelector({
   value: 'private' | 'friends' | 'public';
   onChange: (value: 'private' | 'friends' | 'public') => void;
 }) {
+  const colors = useSurfaceColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.themeBlock}>
-      <Text style={styles.toggleLabel}>Visibilite de l'anniversaire</Text>
+      <Text style={styles.toggleLabel}>Visibilité de l’anniversaire</Text>
       <View style={styles.themeSelector} accessibilityRole="radiogroup">
         {BIRTHDAY_VISIBILITY_OPTIONS.map((option) => {
           const selected = value === option.value;
@@ -1212,6 +1235,8 @@ const THEME_OPTIONS: Array<{ value: ThemeMode; label: string; icon: keyof typeof
 ];
 
 function ThemeSelector({ value, onChange }: { value: ThemeMode; onChange: (value: ThemeMode) => void }) {
+  const colors = useSurfaceColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.themeBlock}>
       <View>
@@ -1246,6 +1271,8 @@ const MESSAGING_PRIVACY_OPTIONS = [
 ] as const;
 
 function MessagingPrivacySelector({ value, onChange }: { value: 'everyone' | 'following' | 'nobody'; onChange: (value: 'everyone' | 'following' | 'nobody') => void }) {
+  const colors = useSurfaceColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.messagingPrivacy}>
       <View>
@@ -1268,6 +1295,8 @@ function MessagingPrivacySelector({ value, onChange }: { value: 'everyone' | 'fo
 }
 
 function Info({ label, value }: { label: string; value: string }) {
+  const colors = useSurfaceColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.info}>
       <Text style={styles.infoLabel}>{label}</Text>
@@ -1277,6 +1306,8 @@ function Info({ label, value }: { label: string; value: string }) {
 }
 
 function Usage({ label, used, limit, percentage }: { label: string; used: number; limit: number; percentage: number }) {
+  const colors = useSurfaceColors();
+  const styles = useMemo(() => createStyles(colors), [colors]);
   return (
     <View style={styles.info}>
       <View style={styles.usageTop}><Text style={styles.infoLabel}>{label}</Text><Text style={styles.infoLabel}>{used}/{limit < 0 ? '∞' : limit}</Text></View>
@@ -1285,58 +1316,67 @@ function Usage({ label, used, limit, percentage }: { label: string; used: number
   );
 }
 
-const styles = StyleSheet.create({
-  content: { paddingHorizontal: 18, paddingBottom: 130, gap: 14 },
+const createStyles = (colors: ReturnType<typeof useSurfaceColors>) => StyleSheet.create({
+  guestTitle: { color: colors.text, fontSize: 28, fontWeight: '800', marginTop: 16 },
+  localPreferences: { gap: 14 },
+  preferenceGroup: { borderRadius: 24, paddingHorizontal: 16, backgroundColor: colors.surface },
+  groupHeading: { color: colors.textSecondary, fontSize: 13, fontWeight: '700', marginTop: 12, marginBottom: 4 },
+  settingsGroup: { gap: 10 },
+  loadError: { padding: 16, borderRadius: 18, backgroundColor: colors.surfaceStrong, flexDirection: 'row', gap: 12 },
+  search: { flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.surface, paddingHorizontal: 16, borderRadius: 18 },
+  searchInput: { flex: 1, minWidth: 0, minHeight: 52, paddingVertical: 12, fontSize: 15, color: colors.text },
+
+  content: { gap: 18 },
   center: { flex: 1, justifyContent: 'center', padding: 24 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  back: { width: 38, height: 38, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  back: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   kicker: { color: colors.textTertiary, fontSize: 10, fontWeight: '900', textTransform: 'uppercase' },
   title: { color: colors.text, fontSize: 25, fontWeight: '900' },
   muted: { color: colors.textSecondary, fontSize: 12, fontWeight: '700', lineHeight: 18 },
   inlineLoading: { minHeight: 42, flexDirection: 'row', alignItems: 'center', gap: 9, paddingHorizontal: 4 },
-  overviewHero: { minHeight: 84, flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 20, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(74,158,170,0.34)', backgroundColor: '#15181A', padding: 12 },
-  overviewAvatar: { width: 50, height: 50, borderRadius: 25, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet },
+  overviewHero: { minHeight: 106, flexDirection: 'row', alignItems: 'center', gap: 16, borderRadius: 26, backgroundColor: colors.surface, padding: 18 },
+  overviewAvatar: { width: 60, height: 60, borderRadius: 23, overflow: 'hidden', alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violet },
   overviewAvatarText: { color: colors.white, fontSize: 21, fontWeight: '900' },
   overviewCopy: { flex: 1, minWidth: 0 },
-  overviewName: { color: colors.white, fontSize: 16, fontWeight: '900' },
-  overviewMeta: { marginTop: 4, color: 'rgba(255,255,255,0.55)', fontSize: 10, fontWeight: '700' },
+  overviewName: { color: colors.text, fontSize: 20, fontWeight: '700' },
+  overviewMeta: { marginTop: 6, color: colors.textSecondary, fontSize: 13 },
   overviewStatus: { flexDirection: 'row', alignItems: 'center', gap: 5 },
   overviewStatusDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.cyan },
   overviewStatusText: { color: 'rgba(255,255,255,0.72)', fontSize: 9, fontWeight: '900' },
-  dashboardShortcuts: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  dashboardShortcut: { minHeight: 70, flexBasis: 210, flexGrow: 1, flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: 10, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, borderTopWidth: 2, borderTopColor: colors.cyan, backgroundColor: colors.surface, paddingHorizontal: 11 },
+  dashboardShortcuts: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  dashboardShortcut: { flexBasis: 180, flexGrow: 1, minHeight: 58, padding: 15, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.surface, borderRadius: 20 },
   dashboardShortcutDark: { borderColor: 'rgba(115,87,198,0.42)', backgroundColor: '#191621' },
   dashboardShortcutCopy: { flex: 1, minWidth: 0 },
-  dashboardShortcutTitle: { color: colors.text, fontSize: 12, fontWeight: '900' },
+  dashboardShortcutTitle: { flex: 1, color: colors.text, fontSize: 14, fontWeight: '700' },
   dashboardShortcutText: { marginTop: 2, color: colors.textSecondary, fontSize: 9, fontWeight: '700' },
   dashboardShortcutTitleLight: { color: '#FFFFFF', fontSize: 12, fontWeight: '900' },
   dashboardShortcutTextLight: { marginTop: 2, color: 'rgba(255,255,255,0.58)', fontSize: 9, fontWeight: '700' },
-  settingsMenu: { overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, borderRadius: 14, backgroundColor: colors.surface },
-  settingsRow: { minHeight: 66, flexDirection: 'row', alignItems: 'center', gap: 11, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border, paddingHorizontal: 12 },
-  settingsIcon: { width: 38, height: 38, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violetSoft },
+  settingsMenu: { borderRadius: 24, backgroundColor: colors.surface, paddingHorizontal: 6 },
+  settingsRow: { minHeight: 80, flexDirection: 'row', alignItems: 'center', gap: 13, paddingHorizontal: 12, paddingVertical: 14 },
+  settingsIcon: { width: 44, height: 44, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceStrong },
   settingsCopy: { flex: 1, minWidth: 0 },
-  settingsTitle: { color: colors.text, fontSize: 13, fontWeight: '900' },
-  settingsDescription: { marginTop: 3, color: colors.textSecondary, fontSize: 10, fontWeight: '600' },
+  settingsTitle: { flexShrink: 1, color: colors.text, fontSize: 16, lineHeight: 22, fontWeight: '700' },
+  settingsDescription: { marginTop: 4, color: colors.textSecondary, fontSize: 12, lineHeight: 18 },
   updateDot: { width: 7, height: 7, borderRadius: 3.5, backgroundColor: colors.coral },
   section: { paddingVertical: 4 },
-  sectionTitle: { color: colors.text, fontSize: 18, fontWeight: '900' },
-  sectionText: { marginTop: 5, color: colors.textSecondary, fontSize: 12, lineHeight: 18, fontWeight: '700' },
+  sectionTitle: { color: colors.text, fontSize: 24, fontWeight: '700' },
+  sectionText: { flexShrink: 1, marginTop: 6, color: colors.textSecondary, fontSize: 14, lineHeight: 22 },
   sectionBody: { marginTop: 15, gap: 12 },
   groupTitle: { marginTop: 4, color: colors.violet, fontSize: 11, fontWeight: '900', textTransform: 'uppercase' },
   featureChoice: { minHeight: 44, borderRadius: 10, paddingHorizontal: 11, flexDirection: 'row', alignItems: 'center', gap: 9, backgroundColor: colors.surfaceStrong, borderWidth: 1, borderColor: colors.border },
   featureChoiceActive: { backgroundColor: 'rgba(124,92,255,0.1)', borderColor: 'rgba(124,92,255,0.28)' },
   featureChoiceText: { flex: 1, color: colors.text, fontSize: 12, fontWeight: '900' },
   field: { gap: 7 },
-  fieldHead: { flexDirection: 'row', justifyContent: 'space-between' },
-  label: { color: colors.text, fontSize: 12, fontWeight: '900' },
-  hint: { color: colors.textTertiary, fontSize: 10, fontWeight: '800' },
-  input: { minHeight: 46, borderRadius: 9, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, backgroundColor: colors.surfaceStrong, paddingHorizontal: 12, color: colors.text, fontSize: 14, fontWeight: '700' },
+  fieldHead: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 6 },
+  label: { color: colors.text, fontSize: 14, fontWeight: '700' },
+  hint: { color: colors.textSecondary, fontSize: 12, lineHeight: 18 },
+  input: { minHeight: 52, borderRadius: 16, backgroundColor: colors.surface, paddingHorizontal: 16, paddingVertical: 12, color: colors.text, fontSize: 16 },
   inputMulti: { minHeight: 96, paddingTop: 12, paddingBottom: 12 },
-  toggleRow: { minHeight: 50, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.border, paddingHorizontal: 2, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  toggleLabel: { flex: 1, color: colors.text, fontSize: 13, fontWeight: '900', textTransform: 'capitalize' },
-  themeBlock: { gap: 12, paddingBottom: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
-  themeHint: { marginTop: 4, color: colors.textSecondary, fontSize: 10, lineHeight: 15, fontWeight: '700' },
-  themeSelector: { minHeight: 48, flexDirection: 'row', gap: 5, padding: 4, borderRadius: 12, backgroundColor: colors.surfaceStrong, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
+  toggleRow: { minHeight: 64, gap: 14, paddingVertical: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  toggleLabel: { flexShrink: 1, color: colors.text, fontSize: 15, lineHeight: 22, fontWeight: '600' },
+  themeBlock: { gap: 14, paddingBottom: 12 },
+  themeHint: { marginTop: 6, color: colors.textSecondary, fontSize: 12, lineHeight: 18 },
+  themeSelector: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   messagingPrivacy: { gap: 12, paddingBottom: 14, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.border },
   messagingChoices: { overflow: 'hidden', borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, backgroundColor: colors.surface },
   messagingChoice: { minHeight: 58, paddingHorizontal: 12, paddingVertical: 9, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border, flexDirection: 'row', alignItems: 'center', gap: 10 },
@@ -1355,46 +1395,46 @@ const styles = StyleSheet.create({
   unblockText: { color: colors.text, fontSize: 9, fontWeight: '900' },
   emptyBlocked: { minHeight: 44, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceMuted },
   emptyBlockedText: { color: colors.textSecondary, fontSize: 10, fontWeight: '700' },
-  themeOption: { flex: 1, minWidth: 0, minHeight: 40, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, borderRadius: 9 },
+  themeOption: { flex: 1, flexBasis: 85, minHeight: 76, flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 20, backgroundColor: colors.surface },
   themeOptionActive: { backgroundColor: colors.violet },
   themeOptionPressed: { opacity: 0.76 },
-  themeOptionText: { color: colors.textSecondary, fontSize: 11, fontWeight: '900' },
+  themeOptionText: { color: colors.textSecondary, fontSize: 13, fontWeight: '700' },
   themeOptionTextActive: { color: colors.white },
   hiddenArtistsRow: { minHeight: 58, flexDirection: 'row', alignItems: 'center', gap: 10, borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.border, paddingBottom: 12 },
   restoreTasteButton: { minHeight: 38, alignItems: 'center', justifyContent: 'center', borderRadius: 9, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, backgroundColor: colors.surfaceStrong, paddingHorizontal: 12 },
   restoreTasteText: { color: colors.text, fontSize: 10, fontWeight: '900' },
   info: { borderBottomWidth: StyleSheet.hairlineWidth, borderColor: colors.border, paddingVertical: 11, gap: 5 },
-  infoLabel: { color: colors.textTertiary, fontSize: 10, fontWeight: '900', letterSpacing: 1.1, textTransform: 'uppercase' },
-  infoValue: { color: colors.text, fontSize: 14, fontWeight: '900' },
+  infoLabel: { color: colors.textSecondary, fontSize: 12, fontWeight: '600' },
+  infoValue: { color: colors.text, fontSize: 16, lineHeight: 23, fontWeight: '600' },
   legalDocument: { minHeight: 66, flexDirection: 'row', alignItems: 'center', gap: 11, borderRadius: 10, backgroundColor: colors.surfaceStrong, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.border, padding: 11 },
   legalIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violetSoft },
   legalCopy: { flex: 1, minWidth: 0 },
   legalTitle: { color: colors.text, fontSize: 13, fontWeight: '900' },
-  legalDescription: { marginTop: 3, color: colors.textSecondary, fontSize: 10, lineHeight: 14, fontWeight: '700' },
+  legalDescription: { marginTop: 5, color: colors.textSecondary, fontSize: 12, lineHeight: 18 },
   legalReader: { paddingHorizontal: 16, paddingBottom: 170, gap: 14 },
   legalReaderTitle: { marginTop: 2, color: colors.text, fontSize: 22, lineHeight: 26, fontWeight: '900' },
   legalReaderSubtitle: { color: colors.textSecondary, fontSize: 12, lineHeight: 18, fontWeight: '800' },
   webDocumentButton: { alignSelf: 'flex-start', minHeight: 42, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 10, backgroundColor: '#171313', paddingHorizontal: 14 },
   webDocumentText: { color: '#FFFAF2', fontSize: 11, fontWeight: '900' },
   legalArticle: { borderRadius: 14, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, padding: 14, gap: 10 },
-  legalParagraph: { color: colors.textSecondary, fontSize: 12, lineHeight: 19, fontWeight: '600' },
+  legalParagraph: { color: colors.textSecondary, fontSize: 15, lineHeight: 25 },
   legalHeading: { marginTop: 14, color: colors.text, fontSize: 18, lineHeight: 23, fontWeight: '900' },
   legalSubheading: { marginTop: 8, color: colors.text, fontSize: 14, lineHeight: 19, fontWeight: '900' },
   legalListRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 9, paddingLeft: 4 },
   legalBullet: { width: 6, height: 6, borderRadius: 3, marginTop: 7, backgroundColor: '#7C5CFF' },
   legalNumber: { minWidth: 18, color: '#7C5CFF', fontSize: 11, lineHeight: 19, fontWeight: '900' },
   legalListText: { flex: 1 },
-  primary: { height: 48, borderRadius: 11, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: colors.violet },
+  primary: { minHeight: 52, paddingVertical: 14, paddingHorizontal: 16, borderRadius: 22, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: colors.violet },
   primaryText: { color: '#FFFAF2', fontSize: 13, fontWeight: '900' },
-  secondary: { height: 46, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceStrong, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong },
+  secondary: { minHeight: 50, padding: 14, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceStrong },
   secondaryText: { color: colors.text, fontSize: 13, fontWeight: '900' },
   buttonContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   securityPanel: { minHeight: 70, flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 8, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, backgroundColor: colors.surface, padding: 10 },
   securityIcon: { width: 40, height: 40, borderRadius: 8, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.violetSoft },
   securityIconSuccess: { backgroundColor: 'rgba(46,140,98,0.12)' },
   securityCopy: { flex: 1, minWidth: 0 },
-  securityTitle: { color: colors.text, fontSize: 12, fontWeight: '900' },
-  securityText: { marginTop: 3, color: colors.textSecondary, fontSize: 9, lineHeight: 14, fontWeight: '700' },
+  securityTitle: { color: colors.text, fontSize: 15, fontWeight: '700' },
+  securityText: { marginTop: 4, color: colors.textSecondary, fontSize: 12, lineHeight: 18 },
   iconAction: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center', borderRadius: 8, backgroundColor: 'rgba(217,45,32,0.08)' },
   totpSetup: { alignItems: 'center', gap: 10, borderRadius: 8, borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, backgroundColor: colors.surface, padding: 12 },
   totpQr: { width: 196, height: 196, alignItems: 'center', justifyContent: 'center', borderRadius: 8, backgroundColor: '#FFFFFF', padding: 10 },

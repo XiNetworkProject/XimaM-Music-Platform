@@ -1,267 +1,67 @@
-import React from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import React, { useState } from 'react';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import type { MobileProfile, MobileProfileTrack } from '@/api/client';
 import { MobileSocialLinks } from '@/components/mobile/MobileSocialLinks';
-import { MotionPressable, Reveal } from '@/components/motion/Motion';
-import { TrackCover } from '@/components/TrackCover';
+import { EntryPressable } from '@/components/entry/EntryPressable';
+import { SynauraImage } from '@/components/ui/SynauraImage';
+import { getTrackCoverImage } from '@/components/TrackCover';
+import { CollectionReveal, MusicRow, musicCount, useCollectionPalette } from '@/components/mobile/CollectionUI';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
-import { colors, radius } from '@/theme/tokens';
+import { usePlayer } from '@/player/PlayerProvider';
 
-type HeroAction = {
-  label: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  onPress: () => void;
-  active?: boolean;
-  loading?: boolean;
-};
-
-type IconAction = {
-  label: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  onPress: () => void;
-};
-
-export function ProfileIdentityHero({
-  profile,
-  spotlightTrack,
-  own = false,
-  primaryAction,
-  secondaryAction,
-  onShare,
-  onPlaySpotlight,
-}: {
-  profile: MobileProfile;
-  spotlightTrack?: MobileProfileTrack | null;
-  own?: boolean;
-  primaryAction: HeroAction;
-  secondaryAction?: IconAction;
-  onShare: () => void;
-  onPlaySpotlight?: () => void;
+type HeroAction = { label: string; icon: keyof typeof Ionicons.glyphMap; onPress: () => void; active?: boolean; loading?: boolean };
+type IconAction = { label: string; icon: keyof typeof Ionicons.glyphMap; onPress: () => void };
+export function ProfileIdentityHero({ profile, spotlightTrack, own = false, primaryAction, secondaryAction, onShare, onPlaySpotlight }: {
+  profile: MobileProfile; spotlightTrack?: MobileProfileTrack | null; own?: boolean;
+  primaryAction: HeroAction; secondaryAction?: IconAction; onShare: () => void; onPlaySpotlight?: () => void;
 }) {
-  const responsive = useResponsiveLayout();
-  const backdropUri = profile.banner || spotlightTrack?.coverUrl || null;
-  const backdropIsCover = !profile.banner && Boolean(spotlightTrack?.coverUrl);
-  const hasSocialLinks = Object.values(profile.socialLinks || {}).some(Boolean);
-  const compactStats = responsive.isTiny || responsive.hasVeryLargeText;
-  const visualHeight = responsive.isTablet ? 270 : responsive.isNarrow ? 202 : 224;
-  const stats = own
-    ? [
-        { label: 'Abonnés', value: compact(profile.followerCount) },
-        { label: 'Abonnements', value: compact(profile.followingCount) },
-        { label: 'Sons', value: compact(profile.tracks.length || profile.tracksCount) },
-        { label: 'Écoutes', value: compact(profile.totalPlays) },
-      ]
-    : [
-        { label: 'Abonnés', value: compact(profile.followerCount) },
-        { label: 'Sons', value: compact(profile.tracks.length || profile.tracksCount) },
-        { label: 'Écoutes', value: compact(profile.totalPlays) },
-        { label: "J’aime", value: compact(profile.totalLikes || profile.tracks.reduce((sum, track) => sum + Number(track.likesCount || 0), 0)) },
-      ];
-
-  return (
-    <Reveal distance={8} scaleFrom={0.995} style={styles.hero}>
-      <View style={[styles.visual, { height: visualHeight }]}>
-        {backdropUri ? (
-          <Image
-            source={{ uri: backdropUri }}
-            resizeMode="cover"
-            blurRadius={backdropIsCover ? 14 : 0}
-            style={[StyleSheet.absoluteFillObject, backdropIsCover && styles.coverBackdrop]}
-          />
-        ) : (
-          <View style={[StyleSheet.absoluteFillObject, styles.fallback]}>
-            <View style={styles.fallbackRailViolet} />
-            <View style={styles.fallbackRailCyan} />
-            <View style={styles.fallbackRailCoral} />
-          </View>
-        )}
-        <View style={styles.visualShade} />
-        <View style={styles.visualBottomShade} />
-        <View style={styles.visualTop}>
-          <View style={styles.identityLabel}>
-            <Ionicons name={profile.isArtist ? 'musical-notes' : 'headset'} size={12} color="#FFFFFF" />
-            <Text style={styles.identityLabelText}>{profile.isArtist ? 'Artiste Synaura' : 'Profil Synaura'}</Text>
-          </View>
-          {profile.isVerified ? (
-            <View style={styles.verifiedLabel}>
-              <Ionicons name="checkmark-circle" size={14} color="#FFFFFF" />
-              <Text style={styles.verifiedLabelText}>Vérifié</Text>
-            </View>
-          ) : null}
-        </View>
-
-        {spotlightTrack ? (
-          <MotionPressable onPress={onPlaySpotlight || (() => {})} style={[styles.spotlight, responsive.isNarrow && styles.spotlightNarrow, responsive.isTablet && styles.spotlightTablet]} scaleTo={0.98}>
-            <TrackCover track={spotlightTrack} style={[styles.spotlightCover, responsive.isNarrow && styles.spotlightCoverNarrow]} />
-            <View style={styles.spotlightCopy}>
-              <Text style={styles.spotlightLabel}>À écouter</Text>
-              <Text numberOfLines={1} style={styles.spotlightTitle}>{spotlightTrack.title}</Text>
-              <Text numberOfLines={1} style={styles.spotlightMeta}>{compact(spotlightTrack.plays || 0)} écoute{Number(spotlightTrack.plays || 0) > 1 ? 's' : ''}</Text>
-            </View>
-            <View style={[styles.spotlightPlay, responsive.isNarrow && styles.spotlightPlayNarrow]}>
-              <Ionicons name="play" size={16} color={colors.black} />
-            </View>
-          </MotionPressable>
-        ) : null}
-      </View>
-
-      <View style={styles.body}>
-        <View style={styles.identityRow}>
-          <View style={[styles.avatar, responsive.isNarrow && styles.avatarNarrow]}>
-            {profile.avatar ? (
-              <Image source={{ uri: profile.avatar }} style={StyleSheet.absoluteFillObject} />
-            ) : (
-              <Text style={styles.avatarText}>{profile.name.slice(0, 1).toUpperCase()}</Text>
-            )}
-          </View>
-          <View style={styles.nameBlock}>
-            <View style={styles.nameRow}>
-              <Text maxFontSizeMultiplier={1.16} numberOfLines={2} style={[styles.name, responsive.isNarrow && styles.nameNarrow]}>{profile.name}</Text>
-              {profile.isVerified ? <Ionicons name="checkmark-circle" size={20} color={colors.violet} /> : null}
-            </View>
-            <Text numberOfLines={1} style={styles.handle}>@{profile.username}</Text>
-          </View>
-        </View>
-
-        <View style={styles.actions}>
-          <MotionPressable
-            disabled={primaryAction.loading}
-            onPress={primaryAction.onPress}
-            style={[styles.primaryAction, primaryAction.active && styles.primaryActionActive]}
-            scaleTo={0.97}
-          >
-            <Ionicons name={primaryAction.loading ? 'ellipsis-horizontal' : primaryAction.icon} size={17} color={primaryAction.active ? colors.white : colors.black} />
-            <Text numberOfLines={1} style={[styles.primaryActionText, primaryAction.active && styles.primaryActionTextActive]}>{primaryAction.label}</Text>
-          </MotionPressable>
-          <MotionPressable accessibilityLabel="Partager le profil" onPress={onShare} style={styles.iconAction} scaleTo={0.92}>
-            <Ionicons name="share-outline" size={18} color={colors.text} />
-          </MotionPressable>
-          {secondaryAction ? (
-            <MotionPressable accessibilityLabel={secondaryAction.label} onPress={secondaryAction.onPress} style={styles.iconAction} scaleTo={0.92}>
-              <Ionicons name={secondaryAction.icon} size={19} color={colors.text} />
-            </MotionPressable>
-          ) : null}
-        </View>
-
-        {profile.bio ? (
-          <Text style={styles.bio}>{profile.bio}</Text>
-        ) : own ? (
-          <MotionPressable onPress={primaryAction.onPress} style={styles.completeProfile} scaleTo={0.985}>
-            <Ionicons name="sparkles-outline" size={16} color={colors.violet} />
-            <Text style={styles.completeProfileText}>Ajoute une bio et une bannière à ton univers.</Text>
-            <Ionicons name="arrow-forward" size={15} color={colors.violet} />
-          </MotionPressable>
-        ) : null}
-
-        {(profile.genre.length || profile.location || profile.badges.length) ? (
-          <View style={styles.pills}>
-            {profile.genre.slice(0, 3).map((genre) => <Text key={genre} style={styles.genrePill}>{genre}</Text>)}
-            {profile.location ? (
-              <View style={styles.locationPill}>
-                <Ionicons name="location-outline" size={12} color={colors.textSecondary} />
-                <Text numberOfLines={1} style={styles.locationText}>{profile.location}</Text>
-              </View>
-            ) : null}
-            {profile.badges.slice(0, 2).map((badge) => <Text key={badge} style={styles.badgePill}>{badge}</Text>)}
-          </View>
-        ) : null}
-
-        {hasSocialLinks ? <View style={styles.socialLinks}><MobileSocialLinks links={profile.socialLinks} /></View> : null}
-
-        <View style={[styles.stats, compactStats && styles.statsCompact]}>
-          {stats.map((stat) => (
-            <View key={stat.label} style={[styles.stat, compactStats && styles.statCompact]}>
-              <Text numberOfLines={1} adjustsFontSizeToFit style={styles.statValue}>{stat.value}</Text>
-              <Text numberOfLines={1} style={styles.statLabel}>{stat.label}</Text>
-            </View>
-          ))}
-        </View>
-      </View>
-    </Reveal>
-  );
-}
-
-export function ProfileIdentityHeroSkeleton() {
-  return (
-    <View style={styles.skeleton}>
-      <View style={styles.skeletonVisual} />
-      <View style={styles.skeletonBody}>
-        <View style={styles.skeletonAvatar} />
-        <View style={styles.skeletonLineWide} />
-        <View style={styles.skeletonLine} />
+  const p = useCollectionPalette();
+  const layout = useResponsiveLayout();
+  const player = usePlayer();
+  const [expanded, setExpanded] = useState(false);
+  const backdrop = profile.banner || getTrackCoverImage(spotlightTrack);
+  const stats = [
+    { label: 'abonnés', value: profile.followerCount },
+    { label: 'sons', value: profile.tracksCount || profile.tracks.length },
+    { label: 'écoutes', value: profile.totalPlays },
+    { label: own ? 'abonnements' : 'j’aime', value: own ? profile.followingCount : profile.totalLikes },
+  ];
+  return <CollectionReveal style={{ gap: 19 }}>
+    <View style={[s.portrait, { minHeight: layout.isTablet ? 350 : 284, backgroundColor: p.raised }]}>
+      {backdrop ? <SynauraImage source={backdrop} blurRadius={profile.banner ? 0 : 18} style={StyleSheet.absoluteFillObject} /> : <LinearGradient colors={['#14263B', '#3D3268', '#121823']} style={StyleSheet.absoluteFillObject} />}
+      <LinearGradient colors={['rgba(7,10,16,.05)', 'rgba(7,10,16,.4)', '#070A10']} locations={[0, .35, 1]} style={StyleSheet.absoluteFillObject} />
+      <View style={s.portraitTop}><Text style={s.role}>{profile.isArtist ? 'ARTISTE SYNAURA' : 'MEMBRE SYNAURA'}</Text><EntryPressable accessibilityRole="button" accessibilityLabel="Partager le profil" onPress={onShare} style={s.share}><Ionicons name="share-outline" size={20} color="#FFF" /></EntryPressable></View>
+      <View style={s.identity}>
+        <View style={s.avatar}>{profile.avatar ? <SynauraImage source={profile.avatar} style={StyleSheet.absoluteFillObject} /> : <Text style={s.initial}>{profile.name.charAt(0).toUpperCase()}</Text>}</View>
+        <View style={{ flex: 1, minWidth: 0 }}><View style={s.nameRow}><Text style={[s.name, { fontSize: layout.isNarrow ? 26 : 32 }]}>{profile.name}</Text>{profile.isVerified ? <Ionicons accessibilityLabel="Compte vérifié" name="checkmark-circle" size={21} color="#B9DFFF" /> : null}</View><Text style={s.handle}>@{profile.username}</Text></View>
       </View>
     </View>
-  );
+    <View style={[s.actions, layout.hasVeryLargeText && { flexDirection: 'column' }]}>
+      <EntryPressable accessibilityRole="button" accessibilityState={{ busy: primaryAction.loading }} disabled={primaryAction.loading} onPress={primaryAction.onPress} style={[s.primary, { backgroundColor: primaryAction.active ? p.raised : p.text }]}>
+        {primaryAction.loading ? <ActivityIndicator size="small" color={p.bg} /> : <Ionicons name={primaryAction.icon} size={18} color={primaryAction.active ? p.text : p.bg} />}
+        <Text style={[s.actionText, { color: primaryAction.active ? p.text : p.bg }]}>{primaryAction.label}</Text>
+      </EntryPressable>
+      {secondaryAction ? <EntryPressable accessibilityRole="button" onPress={secondaryAction.onPress} style={[s.secondary, { backgroundColor: p.surface }]}><Ionicons name={secondaryAction.icon} size={18} color={p.blue} /><Text style={[s.actionText, { color: p.text }]}>{secondaryAction.label}</Text></EntryPressable> : null}
+    </View>
+    <View style={s.stats}>{stats.map(stat => <View key={stat.label} style={[s.stat, { width: layout.hasLargeText ? '48%' : '24%' }]}><Text style={[s.statValue, { color: p.text }]}>{musicCount(stat.value)}</Text><Text style={[s.statLabel, { color: p.muted }]}>{stat.label}</Text></View>)}</View>
+    {profile.bio ? <View><Text numberOfLines={expanded ? undefined : 3} style={[s.bio, { color: p.muted }]}>{profile.bio}</Text>{profile.bio.length > 150 ? <EntryPressable accessibilityRole="button" accessibilityState={{ expanded }} onPress={() => setExpanded(value => !value)} style={{ minHeight: 44, justifyContent: 'center' }}><Text style={{ color: p.blue, fontWeight: '700', fontSize: 13 }}>{expanded ? 'Réduire' : 'Lire la suite'}</Text></EntryPressable> : null}</View> : own ? <EntryPressable accessibilityRole="button" onPress={primaryAction.onPress}><Text style={[s.bio, { color: p.blue }]}>Une bio, quelques mots. Fais découvrir qui tu es. ↗</Text></EntryPressable> : null}
+    {profile.genre.length || profile.location ? <View style={s.tags}>{profile.genre.slice(0, 3).map(genre => <Text key={genre} style={[s.tag, { color: p.muted, backgroundColor: p.surface }]}>{genre}</Text>)}{profile.location ? <Text style={[s.tag, { color: p.muted }]}>{profile.location}</Text> : null}</View> : null}
+    {Object.values(profile.socialLinks || {}).some(Boolean) ? <MobileSocialLinks links={profile.socialLinks} /> : null}
+    {spotlightTrack && onPlaySpotlight ? <View style={[s.spotlight, { backgroundColor: p.surface }]}><View style={s.spotlightHeading}><Ionicons name="sparkles-outline" size={14} color={p.blue} /><Text style={[s.spotlightLabel, { color: p.blue }]}>POUR ENTRER DANS SON UNIVERS</Text></View><MusicRow track={spotlightTrack} playing={player.current?._id === spotlightTrack._id && player.isPlaying} onPlay={onPlaySpotlight} subtitle={musicCount(spotlightTrack.plays) + ' écoutes'} /></View> : null}
+  </CollectionReveal>;
 }
-
-function compact(value: number) {
-  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
-  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
-  return String(value || 0);
+export function ProfileIdentityHeroSkeleton() {
+  const p = useCollectionPalette();
+  return <View accessibilityLabel="Chargement du profil" style={[s.portrait, { height: 320, backgroundColor: p.surface, alignItems: 'center', justifyContent: 'center' }]}><ActivityIndicator color={p.blue} /></View>;
 }
-
-const styles = StyleSheet.create({
-  hero: { overflow: 'visible' },
-  visual: { overflow: 'hidden', borderRadius: radius.lg, borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.18)', backgroundColor: colors.black, shadowColor: colors.black, shadowOpacity: 0.34, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 8 },
-  coverBackdrop: { transform: [{ scale: 1.08 }], opacity: 0.88 },
-  fallback: { overflow: 'hidden', backgroundColor: '#171313' },
-  fallbackRailViolet: { position: 'absolute', left: '9%', top: '-12%', width: '26%', height: '130%', backgroundColor: '#7357C6', opacity: 0.46, transform: [{ rotate: '14deg' }] },
-  fallbackRailCyan: { position: 'absolute', left: '44%', top: '-18%', width: '20%', height: '145%', backgroundColor: '#4A9EAA', opacity: 0.38, transform: [{ rotate: '-9deg' }] },
-  fallbackRailCoral: { position: 'absolute', right: '2%', top: '18%', width: '18%', height: '96%', backgroundColor: '#D96D63', opacity: 0.4, transform: [{ rotate: '18deg' }] },
-  visualShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(17,17,17,0.24)' },
-  visualBottomShade: { position: 'absolute', left: 0, right: 0, bottom: 0, height: '52%', backgroundColor: 'rgba(17,17,17,0.42)' },
-  visualTop: { padding: 14, flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 },
-  identityLabel: { flexDirection: 'row', alignItems: 'center', gap: 6, borderLeftWidth: 3, borderLeftColor: colors.cyan, paddingLeft: 8, paddingVertical: 3, backgroundColor: 'rgba(17,17,17,0.2)' },
-  identityLabelText: { color: '#FFFFFF', fontSize: 9, fontWeight: '900' },
-  verifiedLabel: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 4, paddingVertical: 4 },
-  verifiedLabelText: { color: '#FFFFFF', fontSize: 8, fontWeight: '900' },
-  spotlight: { position: 'absolute', left: 122, right: 14, bottom: 14, minHeight: 62, flexDirection: 'row', alignItems: 'center', gap: 9, borderRadius: radius.sm, padding: 7, backgroundColor: 'rgba(13,13,13,0.82)', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(255,255,255,0.2)' },
-  spotlightNarrow: { left: 104, minHeight: 56, gap: 7, padding: 6 },
-  spotlightTablet: { left: undefined, width: 440 },
-  spotlightCover: { width: 48, height: 48, borderRadius: radius.sm },
-  spotlightCoverNarrow: { width: 42, height: 42 },
-  spotlightCopy: { flex: 1, minWidth: 0 },
-  spotlightLabel: { color: '#8FD3DC', fontSize: 8, fontWeight: '900' },
-  spotlightTitle: { marginTop: 3, color: colors.white, fontSize: 12, fontWeight: '900' },
-  spotlightMeta: { marginTop: 2, color: 'rgba(255,255,255,0.58)', fontSize: 8, fontWeight: '700' },
-  spotlightPlay: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.white },
-  spotlightPlayNarrow: { width: 32, height: 32 },
-  body: { paddingHorizontal: 4, paddingBottom: 2 },
-  identityRow: { minHeight: 66, flexDirection: 'row', alignItems: 'flex-start' },
-  avatar: { width: 96, height: 96, marginTop: -48, marginLeft: 10, overflow: 'hidden', borderRadius: 48, borderWidth: 4, borderColor: colors.background, backgroundColor: '#E7DED2', alignItems: 'center', justifyContent: 'center' },
-  avatarNarrow: { width: 84, height: 84, marginTop: -42, borderRadius: 42 },
-  avatarText: { color: colors.black, fontSize: 32, fontWeight: '900' },
-  nameBlock: { flex: 1, minWidth: 0, paddingLeft: 12, paddingTop: 9, paddingRight: 4 },
-  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  name: { flexShrink: 1, color: colors.text, fontSize: 25, lineHeight: 29, fontWeight: '900' },
-  nameNarrow: { fontSize: 21, lineHeight: 25 },
-  handle: { marginTop: 3, color: colors.textTertiary, fontSize: 11, fontWeight: '800' },
-  actions: { marginTop: 10, flexDirection: 'row', gap: 8 },
-  primaryAction: { flex: 1, minWidth: 0, height: 46, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: radius.md, backgroundColor: colors.paper, paddingHorizontal: 12 },
-  primaryActionActive: { backgroundColor: colors.cyan },
-  primaryActionText: { flexShrink: 1, color: colors.black, fontSize: 12, fontWeight: '900' },
-  primaryActionTextActive: { color: colors.white },
-  iconAction: { width: 46, height: 46, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: colors.borderStrong, backgroundColor: colors.surfaceStrong },
-  bio: { marginTop: 14, maxWidth: 680, color: colors.textSecondary, fontSize: 13, lineHeight: 20, fontWeight: '600' },
-  completeProfile: { marginTop: 13, minHeight: 46, flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: radius.sm, paddingHorizontal: 11, backgroundColor: colors.violetSoft },
-  completeProfileText: { flex: 1, color: colors.violet, fontSize: 11, lineHeight: 16, fontWeight: '800' },
-  pills: { marginTop: 12, flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  genrePill: { overflow: 'hidden', borderRadius: radius.sm, paddingHorizontal: 9, paddingVertical: 6, color: colors.violet, backgroundColor: colors.violetSoft, fontSize: 9, fontWeight: '900' },
-  badgePill: { overflow: 'hidden', borderRadius: radius.sm, paddingHorizontal: 9, paddingVertical: 6, color: '#A2453E', backgroundColor: colors.coralSoft, fontSize: 9, fontWeight: '900' },
-  locationPill: { maxWidth: '100%', flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: radius.sm, paddingHorizontal: 8, paddingVertical: 6, backgroundColor: colors.surfaceMuted },
-  locationText: { flexShrink: 1, color: colors.textSecondary, fontSize: 9, fontWeight: '900' },
-  socialLinks: { marginTop: 12 },
-  stats: { marginTop: 15, flexDirection: 'row', overflow: 'hidden', borderWidth: StyleSheet.hairlineWidth, borderColor: colors.borderStrong, borderRadius: radius.md, backgroundColor: 'rgba(255,255,255,0.04)' },
-  statsCompact: { flexWrap: 'wrap' },
-  stat: { flex: 1, minWidth: 0, alignItems: 'flex-start', paddingHorizontal: 10, paddingVertical: 13, borderRightWidth: StyleSheet.hairlineWidth, borderRightColor: colors.border },
-  statCompact: { flex: 0, width: '50%', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border },
-  statValue: { maxWidth: '100%', color: colors.text, fontSize: 18, fontWeight: '900' },
-  statLabel: { maxWidth: '100%', marginTop: 3, color: colors.textTertiary, fontSize: 8, fontWeight: '800' },
-  skeleton: { overflow: 'hidden', borderRadius: radius.sm },
-  skeletonVisual: { height: 220, backgroundColor: colors.surfaceStrong },
-  skeletonBody: { minHeight: 132, paddingHorizontal: 10 },
-  skeletonAvatar: { width: 96, height: 96, marginTop: -48, borderRadius: 48, borderWidth: 4, borderColor: colors.background, backgroundColor: colors.surfaceMuted },
-  skeletonLineWide: { width: '56%', height: 14, marginTop: 12, borderRadius: radius.sm, backgroundColor: colors.surfaceStrong },
-  skeletonLine: { width: '34%', height: 9, marginTop: 8, borderRadius: radius.sm, backgroundColor: colors.surfaceMuted },
+const s = StyleSheet.create({
+  portrait: { borderRadius: 25, overflow: 'hidden', justifyContent: 'space-between' }, portraitTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 17 }, role: { color: '#D9E6FA', fontSize: 9, fontWeight: '800', letterSpacing: 2 }, share: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(6,10,20,.45)' },
+  identity: { flexDirection: 'row', alignItems: 'center', gap: 15, padding: 21, paddingTop: 45, paddingBottom: 25 }, avatar: { width: 68, height: 68, borderRadius: 25, overflow: 'hidden', backgroundColor: '#26354A', alignItems: 'center', justifyContent: 'center' }, initial: { color: '#D3E7FF', fontSize: 30, fontWeight: '700' },
+  nameRow: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 7 }, name: { color: '#F5F7FC', fontWeight: '800', letterSpacing: 0, flexShrink: 1 }, handle: { color: '#BBCADB', marginTop: 5, fontSize: 13 },
+  actions: { flexDirection: 'row', gap: 10 }, primary: { flex: 1, minHeight: 48, paddingHorizontal: 16, paddingVertical: 13, borderRadius: 25, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }, secondary: { flex: 1, minHeight: 48, paddingHorizontal: 14, paddingVertical: 13, borderRadius: 25, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 }, actionText: { fontSize: 13, fontWeight: '700', flexShrink: 1 },
+  stats: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 16, paddingVertical: 8 }, stat: { alignItems: 'center' }, statValue: { fontSize: 21, fontWeight: '800', letterSpacing: 0 }, statLabel: { marginTop: 5, fontSize: 10 },
+  bio: { fontSize: 14, lineHeight: 23 }, tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, tag: { fontSize: 11, paddingVertical: 7, paddingHorizontal: 11, borderRadius: 12 },
+  spotlight: { borderRadius: 20, padding: 15, paddingBottom: 5 }, spotlightHeading: { flexDirection: 'row', alignItems: 'center', gap: 7 }, spotlightLabel: { fontSize: 8, fontWeight: '800', letterSpacing: 1.4 },
 });
