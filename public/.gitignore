@@ -2,3 +2,11 @@
 temp/
 *.wav
 *.mp3
+
+# Sons d'appel fournis pour l'interface web (pas des générations temporaires).
+!audio/calls/incoming.mp3
+!audio/calls/outgoing.mp3
+!audio/calls/connected.mp3
+!audio/calls/missed.mp3
+!audio/calls/unavailable.mp3
+!audio/calls/ended.mp3

@@ -13,9 +13,10 @@ import { fmtCount, fmtTime, trackArtistName } from './helpers';
 import { WaveformSeekBar, invalidateTrackMoments } from './WaveformSeekBar';
 import { TrackCover, getTrackCoverImage } from '@/components/TrackCover';
 import { usePlayer, usePlayerProgress } from '@/player/PlayerProvider';
-import { useMobileSettings } from '@/settings/MobileSettingsProvider';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { LiveAtmosphere } from './LiveAtmosphere';
+import { ArtworkHalo } from './ArtworkHalo';
+import { LiveCoverMotion } from './LiveMotion';
 import { MOMENT_REACTIONS } from '@/constants/momentReactions';
 
 type Action = 'like' | 'comment' | 'share' | 'queue' | 'lyrics' | 'save' | 'remix' | 'useSound' | 'more';
@@ -117,8 +118,6 @@ function LiveTimeline({ track, onSeek, onCreateMoment }: Pick<Props, 'track' | '
 export const SwipeSlide = memo(function SwipeSlide(props: Props) {
   const { track, height, topPad, bottomPad, isActive, isPlaying, onPress, onDoubleTapLike, onAction } = props;
   const layout = useResponsiveLayout();
-  const { settings } = useMobileSettings();
-  const reveal = useRef(new Animated.Value(isActive ? 1 : 0)).current;
   const landscape = layout.isLandscape;
   const bodyHeight = height - topPad - bottomPad - 66;
   const compact = bodyHeight < 480;
@@ -131,10 +130,6 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
     Gesture.Tap().enabled(isActive).numberOfTaps(2).maxDelay(240).maxDistance(12).runOnJS(true).onEnd((_event, success) => { if (success) onDoubleTapLike(); }),
     Gesture.Tap().enabled(isActive).maxDistance(12).runOnJS(true).onEnd((_event, success) => { if (success) onPress(); }),
   ), [isActive, onDoubleTapLike, onPress]);
-  useEffect(() => {
-    const animation = Animated.timing(reveal, { toValue: isActive ? 1 : 0, duration: settings.reducedMotion ? 0 : 280, easing: Easing.out(Easing.cubic), useNativeDriver: true, isInteraction: false });
-    animation.start(); return () => animation.stop();
-  }, [isActive, settings.reducedMotion, reveal]);
   const actions = <>
     <LiveAction icon={props.isLiked ? 'heart' : 'heart-outline'} active={props.isLiked} label={props.isLiked ? 'Retirer mon like' : 'Aimer'} count={props.likesCount} onPress={() => onAction('like')} />
     <LiveAction icon="chatbubble-outline" label="Commentaires et moments" count={props.commentsCount} disabled={track._id.startsWith('ai-')} onPress={() => onAction('comment')} />
@@ -151,18 +146,21 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
   </>;
   return <EntryMotionScope active={isActive}><View style={[styles.page, { height }]}>
     <LiveAtmosphere cover={getTrackCoverImage(track)} active={isActive && isPlaying} />
-    <Animated.View style={[styles.layout, { paddingTop: topPad + 58, paddingBottom: bottomPad + 8, opacity: reveal.interpolate({ inputRange: [0, 1], outputRange: [.65, 1] }), transform: [{ translateY: reveal.interpolate({ inputRange: [0, 1], outputRange: [16, 0] }) }] }, landscape && styles.landscape]}>
+    <View style={[styles.layout, { paddingTop: topPad + 58, paddingBottom: bottomPad + 8 }, landscape && styles.landscape]}>
       <View style={[styles.artZone, landscape && { flex: 1, flexDirection: 'column', paddingBottom: 0 }]}>
         <View style={{ alignItems: 'center', flex: 1 }}>
+          <LiveCoverMotion size={coverSize} active={isActive && isPlaying}>
+          {isActive ? <ArtworkHalo size={coverSize} active={isPlaying} /> : null}
           <GestureDetector gesture={gesture}>
             <View accessible accessibilityRole="button" accessibilityLabel={(isPlaying ? 'Mettre en pause ' : 'Écouter ') + track.title} onAccessibilityTap={onPress} style={[styles.art, { width: coverSize, height: coverSize }]}>
-              <TrackCover track={track} active={isActive && isPlaying} autoPlayVideo={isActive && isPlaying} style={StyleSheet.absoluteFill} />
+              <TrackCover track={track} animatedSurface active={isActive && isPlaying} autoPlayVideo={isActive && isPlaying} style={StyleSheet.absoluteFill} />
               {!isPlaying || props.isLoading ? <View pointerEvents="none" style={styles.playOverlay}><View style={styles.play}>
                 {props.isLoading ? <ActivityIndicator color={mobile.text} /> : <Ionicons name="play" size={29} color={mobile.text} />}
               </View></View> : null}
               <LikeEcho key={track._id} liked={props.isLiked} active={isActive} />
             </View>
           </GestureDetector>
+          </LiveCoverMotion>
         </View>
         {landscape ? <View style={{ width: '100%', marginTop: 8 }}>{identity}</View> : !compact ? <View style={styles.sideActions}>{actions}</View> : null}
       </View>
@@ -173,7 +171,7 @@ export const SwipeSlide = memo(function SwipeSlide(props: Props) {
         {isActive ? <LiveTimeline key={track._id} track={track} onSeek={props.onSeek} onCreateMoment={props.onCreateMoment} /> : <View style={{ height: 76 }} />}
         {track.remixAttribution ? <Text numberOfLines={1} style={styles.attribution}>Inspiré de {track.remixAttribution.title}</Text> : null}
       </View>
-    </Animated.View>
+    </View>
   </View></EntryMotionScope>;
 });
 

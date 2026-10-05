@@ -1,15 +1,13 @@
 {
-  "title": "Synaura 0.27.0 — Ton univers, partout",
+  "title": "Synaura 0.27.1 — Un Live plus vivant",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Nouvelle expérience native : Live, découverte, bibliothèque, profils et recherche",
-    "Lecteurs repensés, pages morceau enrichies et accès plus direct aux actions",
-    "Studio, publications et clips jusqu’à 4 minutes, avec suivi des uploads",
-    "Communauté, City, statistiques, abonnements et boosters réunis dans l’app",
-    "Messagerie renouvelée et appels Android avec six nouvelles sonneries et sons de suivi",
+    "Live : transitions liées au swipe, pochettes en mouvement et halo lumineux",
+    "Fond animé et particules pendant la lecture, avec respect de la réduction des animations",
+    "Pochettes vidéo adaptées aux nouvelles transitions du Live",
+    "Les six sons d’appel Synaura sont aussi disponibles sur le site web",
     "Pour recevoir un appel, garde Synaura ouverte : la réception app fermée n’est pas encore disponible",
-    "Thèmes clair et sombre, petits écrans et réduction des animations pris en charge",
     "Mise à jour sans désinstaller : même application et même signature"
   ]
 }

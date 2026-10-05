@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { StyleSheet, View, type ImageStyle, type StyleProp, type ViewStyle } from 'react-native';
-import Video from 'react-native-video';
+import Video, { ViewType } from 'react-native-video';
 import type { Track } from '@/api/types';
 import { SynauraImage } from '@/components/ui/SynauraImage';
 import { useMobileSettings } from '@/settings/MobileSettingsProvider';
@@ -14,6 +14,7 @@ type Props = {
   posterSource?: string | null;
   active?: boolean;
   autoPlayVideo?: boolean;
+  animatedSurface?: boolean;
   style?: StyleProp<ViewStyle>;
   imageStyle?: StyleProp<ImageStyle>;
   contentFit?: 'cover' | 'contain' | 'fill';
@@ -68,6 +69,7 @@ export function TrackCover({
   posterSource,
   active = true,
   autoPlayVideo = false,
+  animatedSurface = false,
   style,
   imageStyle,
   contentFit = 'cover',
@@ -116,6 +118,7 @@ export function TrackCover({
       />
       {showVideo && video ? (
         <Video
+          viewType={animatedSurface ? ViewType.TEXTURE : undefined}
           source={{ uri: video }}
           paused={false}
           muted

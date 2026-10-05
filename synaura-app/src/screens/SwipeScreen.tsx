@@ -88,6 +88,8 @@ import { ShareSheet } from '@/components/swipe/ShareSheet';
 import { PostSlide } from '@/components/swipe/PostSlide';
 import { ClipShareSheet } from '@/components/social/ClipShareSheet';
 import { SwipeSlide } from '@/components/swipe/SwipeSlide';
+import { LivePageMotion } from '@/components/swipe/LiveMotion';
+import { useEntryMotion } from '@/components/entry/EntryAtmosphere';
 import {
   FEED_MODE_META,
   FeedMode,
@@ -220,7 +222,9 @@ export function SwipeScreen() {
   const fetchedFollowIdsRef = useRef<Set<string>>(new Set());
   const listRef = useRef<FlatList<ScrollFeedItem>>(null);
   const headerOpacity = useRef(new Animated.Value(1)).current;
-  const feedProgress = useRef(new Animated.Value(0)).current;
+  const scrollOffset = useRef(new Animated.Value(0)).current;
+  const liveMotion = useEntryMotion(isFocused && !homePreludeVisible);
+  const handleNativeScroll = useMemo(() => Animated.event([{ nativeEvent: { contentOffset: { y: scrollOffset } } }], { useNativeDriver: true }), [scrollOffset]);
   const lastCommittedIndexRef = useRef(0);
   const gestureStartIndexRef = useRef(0);
   const lastFlowCommitAtRef = useRef(0);
@@ -541,14 +545,6 @@ export function SwipeScreen() {
     fetchedLikeIdsRef.current.clear();
     setLikedMap({});
   }, [auth.user?.id]);
-
-  useEffect(() => {
-    Animated.timing(feedProgress, {
-      toValue: feedItems.length ? Math.min(1, (activeIndex + 1) / feedItems.length) : 0,
-      duration: settings.reducedMotion ? 0 : 220,
-      useNativeDriver: false,
-    }).start();
-  }, [activeIndex, feedItems.length, feedProgress, settings.reducedMotion]);
 
   useEffect(() => {
     if (isFocused) return;
@@ -1382,7 +1378,7 @@ export function SwipeScreen() {
     void loadMore();
   }, [loadMore]);
 
-  const renderItem = useCallback(({ item, index }: { item: ScrollFeedItem; index: number }) => {
+  const renderSlide = useCallback(({ item, index }: { item: ScrollFeedItem; index: number }) => {
     const isActive = isFocused && !homePreludeVisible && index === activeIndex;
 
     if (item.kind === 'clip') {
@@ -1628,6 +1624,12 @@ export function SwipeScreen() {
     useThisSound,
   ]);
 
+  const renderItem = useCallback((value: { item: ScrollFeedItem; index: number }) => (
+    <LivePageMotion offset={scrollOffset} index={value.index} height={itemHeight} motion={liveMotion && value.item.kind === 'track'}>
+      {renderSlide(value)}
+    </LivePageMotion>
+  ), [itemHeight, liveMotion, renderSlide, scrollOffset]);
+
   const headerStyle = useMemo(() => ({
     paddingTop: insets.top + 8,
     opacity: headerOpacity,
@@ -1686,7 +1688,7 @@ export function SwipeScreen() {
           </MotionPressable>
         </View>
       ) : (
-        <FlatList
+        <Animated.FlatList
           importantForAccessibility={homePreludeVisible ? 'no-hide-descendants' : 'auto'}
           key={`flow-${feedMode}-${resumeGeneration}`}
           ref={listRef}
@@ -1702,6 +1704,8 @@ export function SwipeScreen() {
           overScrollMode="never"
           directionalLockEnabled
           scrollEventThrottle={16}
+          onScroll={handleNativeScroll}
+          onLayout={() => scrollOffset.setValue(activeIndexRef.current * itemHeight)}
           showsVerticalScrollIndicator={false}
           onScrollBeginDrag={handleScrollBeginDrag}
           onScrollEndDrag={handleScrollEndDrag}
