@@ -33,7 +33,7 @@ export async function getCallHistory(userId: string, conversationId: string | nu
     (SELECT jsonb_agg(jsonb_build_object('id',m.user_id,'name',m.name,'state',m.state))
       FROM public.voice_call_members m WHERE m.call_id=h.id) AS members
     FROM public.voice_call_history h JOIN public.voice_call_members mine ON mine.call_id=h.id AND mine.user_id=$1
-    WHERE ($2::uuid IS NULL OR h.conversation_id=$2) AND ($3::timestamptz IS NULL OR h.created_at<$3)
+    WHERE ($2::text IS NULL OR h.conversation_id=$2) AND ($3::timestamptz IS NULL OR h.created_at<$3)
     ORDER BY h.created_at DESC,h.id DESC LIMIT 51`,[userId,conversationId,before]);
   const calls=rows.slice(0,50).map(row=>{
     const connected=messagingIso(row.connected_at), ended=messagingIso(row.ended_at);

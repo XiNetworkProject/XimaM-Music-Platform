@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
   const limited=enforceRequestRateLimit(request,'call-history',60,60_000,session.user.id);if(limited)return limited;
   const conversationId=request.nextUrl.searchParams.get('conversationId');
   const before=request.nextUrl.searchParams.get('before');
-  if((conversationId&&!/^[a-f0-9-]{36}$/i.test(conversationId))||(before&&!Number.isFinite(Date.parse(before))))return NextResponse.json({error:'Pagination invalide'},{status:400,headers});
+  if((conversationId&&!/^[a-z0-9_-]{1,128}$/i.test(conversationId))||(before&&!Number.isFinite(Date.parse(before))))return NextResponse.json({error:'Pagination invalide'},{status:400,headers});
   try{return NextResponse.json(await getCallHistory(session.user.id,conversationId,before),{headers});}
   catch {return NextResponse.json({error:'Historique momentanément indisponible'},{status:503,headers});}
 }

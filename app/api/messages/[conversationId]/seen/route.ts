@@ -27,7 +27,7 @@ export async function PUT(
     let body;try{body=text?JSON.parse(text):{};}catch{return NextResponse.json({error:'Messages invalides'},{status:400});}
     if(!body||typeof body!=='object')return NextResponse.json({error:'Messages invalides'},{status:400});
     const ids = body.messageIds;
-    if (ids !== undefined && (!Array.isArray(ids) || ids.length>100 || ids.some(id=>typeof id!=='string'||!/^[0-9a-f-]{36}$/i.test(id)))) {
+    if (ids !== undefined && (!Array.isArray(ids) || ids.length>100 || ids.some(id=>typeof id!=='string'||!/^[a-z0-9_-]{1,128}$/i.test(id)))) {
       return NextResponse.json({error:'Messages invalides'},{status:400});
     }
     const now = new Date().toISOString();
@@ -35,7 +35,7 @@ export async function PUT(
     // send the messages actually visible, never all rooms or newly arriving rows.
     await queryDatabase(`INSERT INTO public.message_read_receipts(message_id,user_id,read_at)
       SELECT id,$2,$3 FROM public.messages WHERE conversation_id=$1 AND sender_id<>$2
-      AND created_at<=$3 AND ($4::uuid[] IS NULL OR id=ANY($4::uuid[]))
+      AND created_at<=$3 AND ($4::text[] IS NULL OR id=ANY($4::text[]))
       ON CONFLICT DO NOTHING`,[conversationId,session.user.id,now,ids ?? null]);
     return NextResponse.json({ success: true, seenAt: now });
   } catch (error) {

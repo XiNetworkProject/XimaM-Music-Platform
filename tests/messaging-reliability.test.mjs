@@ -74,12 +74,22 @@ test('seen endpoint is account bound, participant bound and ID bounded',async()=
   const fixture=routeMocks(),route=load('app/api/messages/[conversationId]/seen/route.ts',fixture.mocks);
   assert.equal((await route.PUT(request({messageIds:[]},'bob'),{params:{conversationId:'conversation'}})).status,403);
   assert.equal((await route.PUT(request({messageIds:[]}),{params:{conversationId:'other'}})).status,403);
-  assert.equal((await route.PUT(request({messageIds:['bad']}),{params:{conversationId:'conversation'}})).status,400);
-  const ids=['11111111-1111-4111-8111-111111111111'];
+  assert.equal((await route.PUT(request({messageIds:['bad/id']}),{params:{conversationId:'conversation'}})).status,400);
+  const ids=['11111111-1111-4111-8111-111111111111','legacy_message_123'];
   assert.equal((await route.PUT(request({messageIds:ids}),{params:{conversationId:'conversation'}})).status,200);
   assert.equal(fixture.queries.length,1);assert.deepEqual(fixture.queries[0].args.slice(0,2),['conversation','alice']);assert.deepEqual(fixture.queries[0].args[3],ids);
   assert.match(fixture.queries[0].sql,/conversation_id=\$1 AND sender_id<>\$2/);
   assert.doesNotMatch(fixture.queries[0].sql,/UPDATE.*is_read/s);
+  assert.match(fixture.queries[0].sql,/\$4::text\[\]/);
+});
+
+test('messaging IDs preserve the production text contract; users and calls remain UUID',()=>{
+  const migration=source('database/migrations/20261006100000_messaging_call_history.sql');
+  assert.match(migration,/conversation_id text NOT NULL/);
+  assert.match(migration,/message_id text NOT NULL/);
+  assert.match(migration,/user_id uuid NOT NULL/);
+  assert.doesNotMatch(source('lib/messagingReceipts.ts'),/::uuid\[\]/);
+  assert.match(source('lib/voice/history.ts'),/\$2::text IS NULL/);
 });
 test('call registry persists a missed call once and does not count ringing as connected',async()=>{
   let now=1000000;const persisted=[],notified=[];

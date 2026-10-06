@@ -4,7 +4,7 @@
 SET LOCAL lock_timeout = '3s';
 CREATE TABLE public.voice_call_history (
   id uuid PRIMARY KEY,
-  conversation_id uuid NOT NULL REFERENCES public.conversations(id) ON DELETE CASCADE,
+  conversation_id text NOT NULL REFERENCES public.conversations(id) ON DELETE CASCADE,
   caller_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   title text NOT NULL,
   is_group boolean NOT NULL DEFAULT false,
@@ -46,7 +46,7 @@ REVOKE ALL ON public.messaging_presence FROM PUBLIC,anon,authenticated;
 GRANT SELECT,INSERT,UPDATE,DELETE ON public.messaging_presence TO synaura_app;
 -- Per-recipient receipts: one reader in a group must not clear everybody's inbox.
 CREATE TABLE public.message_read_receipts (
-  message_id uuid NOT NULL REFERENCES public.messages(id) ON DELETE CASCADE,
+  message_id text NOT NULL REFERENCES public.messages(id) ON DELETE CASCADE,
   user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   read_at timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (message_id, user_id)
