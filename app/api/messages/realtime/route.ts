@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/database';
 import { getApiSession } from '@/lib/getApiSession';
+import { messagingIso } from '@/lib/messagingTime';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,7 +33,7 @@ export async function GET(request: NextRequest) {
     .order('created_at', { ascending: true })
     .limit(50);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ now: new Date().toISOString(), events: events || [] }, {
+  return NextResponse.json({ now: new Date().toISOString(), events: (events || []).map(event=>({...event,created_at:messagingIso(event.created_at),expires_at:messagingIso(event.expires_at)})) }, {
     headers: { 'Cache-Control': 'private, no-store' },
   });
 }

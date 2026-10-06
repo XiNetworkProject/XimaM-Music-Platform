@@ -18,6 +18,8 @@ import {
   usersAreFriends,
 } from '@/lib/messaging';
 import { notifyNewMessage } from '@/lib/notifications';
+import { messagingIso } from '@/lib/messagingTime';
+import { getMessageReceipts } from '@/lib/messagingReceipts';
 
 export const dynamic = 'force-dynamic';
 
@@ -59,12 +61,8 @@ function messageDto(
   attachments: any[] = [],
   pinned = false,
 ) {
-  const createdAt = message.created_at;
-  const seenBy = participants
-    .filter((participant) => participant.user_id === message.sender_id || (
-      participant.last_read_at && new Date(participant.last_read_at).getTime() >= new Date(createdAt).getTime()
-    ))
-    .map((participant) => participant.user_id);
+  const createdAt = messagingIso(message.created_at);
+  const seenBy = [message.sender_id,...(message.receiptUserIds || [])];
   const deleted = Boolean(message.deleted_at);
   return {
     id: String(message.id),
@@ -90,8 +88,8 @@ function messageDto(
     seenBy,
     reactions: reactions.map((reaction) => ({ userId: reaction.user_id, reaction: reaction.reaction })),
     createdAt,
-    updatedAt: message.updated_at,
-    editedAt: message.edited_at || null,
+    updatedAt: messagingIso(message.updated_at),
+    editedAt: messagingIso(message.edited_at),
     pinned,
     deleted,
   };
@@ -159,6 +157,8 @@ export async function GET(
     const participants = await getConversationParticipantIds(conversationId);
     const profiles = await getMessagingProfiles(participants.map((participant) => participant.user_id));
     const messageIds = page.map((message) => message.id);
+    const receipts = await getMessageReceipts(messageIds);
+    page = page.map(message=>({...message,receiptUserIds:receipts.get(message.id)||[]}));
     const replyIds = Array.from(new Set(page.map((message) => message.reply_to_id).filter(Boolean)));
     const replyById = new Map<string, ReplyMessageRow>(
       page.map((message) => [String(message.id), message]),
@@ -260,7 +260,7 @@ export async function GET(
       },
       messages,
       hasMore,
-      nextCursor: hasMore && page.length ? page[0].created_at : null,
+      nextCursor: hasMore && page.length ? messagingIso(page[0].created_at) : null,
     });
   } catch (error) {
     console.error('[messages/conversation] GET failed:', error);
@@ -275,6 +275,8 @@ export async function POST(
   try {
     const session = await getApiSession(request);
     if (!session?.user?.id) return NextResponse.json({ error: 'Non authentifie' }, { status: 401 });
+    const recipient = request.headers.get('X-Synaura-Notification-User');
+    if (recipient && recipient !== session.user.id) return NextResponse.json({error:'Compte de notification différent'},{status:403});
     const conversationId = params.conversationId;
     if (!await requireConversationParticipant(conversationId, session.user.id)) {
       return NextResponse.json({ error: 'Acces refuse' }, { status: 403 });

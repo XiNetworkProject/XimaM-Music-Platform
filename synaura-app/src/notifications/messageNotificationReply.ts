@@ -25,6 +25,8 @@ type PendingMessageAction = {
   key: string;
   action: 'reply' | 'read';
   conversationId: string;
+  recipientId: string;
+  messageId: string | null;
   roomId: string | null;
   content: string;
   notificationId: string;
@@ -211,6 +213,8 @@ function pendingActionFromResponse(response: MessageNotificationResponse): Pendi
     key,
     action,
     conversationId,
+    recipientId: String(data.recipient_id || ''),
+    messageId: typeof data.message_id === 'string' ? data.message_id : null,
     roomId,
     content,
     notificationId,
@@ -226,6 +230,7 @@ function retryAt(action: PendingMessageAction) {
 }
 
 async function deliverPendingAction(action: PendingMessageAction) {
+  if(!action.recipientId) throw new Error('Ouvre la discussion pour confirmer ton compte.');
   let token = await getStoredMobileAccessToken();
   if (!token) throw new Error('Session indisponible');
   const path = action.action === 'reply'
@@ -241,10 +246,11 @@ async function deliverPendingAction(action: PendingMessageAction) {
         clientId: `notification-${hash(action.key)}`,
       }),
     }
-    : { method: 'PUT' };
+    : { method: 'PUT',body:JSON.stringify({messageIds:action.messageId?[action.messageId]:[]}) };
+  init.headers={'X-Synaura-Notification-User':action.recipientId};
 
   let response = await fetchWithTimeout(path, token, init);
-  if (response.status === 401 || response.status === 403) {
+  if (response.status === 401) {
     token = await getStoredMobileAccessToken(true);
     if (!token) throw new Error('Session expirée');
     response = await fetchWithTimeout(path, token, init);
@@ -257,6 +263,7 @@ async function deliverPendingAction(action: PendingMessageAction) {
   await markActionHandled(action.key);
   await updatePendingAction(action.key, () => null);
   await Notifications.dismissNotificationAsync(action.notificationId).catch(() => {});
+  await Notifications.dismissNotificationAsync(`pending-${hash(action.key)}`).catch(()=>{});
 }
 
 export async function flushPendingMessageNotificationActions(options: { force?: boolean } = {}) {
@@ -265,6 +272,7 @@ export async function flushPendingMessageNotificationActions(options: { force?: 
     let delivered = 0;
     const actions = await readPendingActions();
     for (const action of actions) {
+      if(Date.now()-action.createdAt>24*60*60_000){await updatePendingAction(action.key,()=>null);continue;}
       if (!options.force && retryAt(action) > Date.now()) continue;
       if (await isActionHandled(action.key)) {
         await updatePendingAction(action.key, () => null);
@@ -300,6 +308,9 @@ export async function handleMessageNotificationAction(response: MessageNotificat
     return true;
   }
   await upsertPendingAction(action);
-  await flushPendingMessageNotificationActions({ force: true });
+  const result=await flushPendingMessageNotificationActions({ force: true });
+  if(result.pending&&(await readPendingActions()).some(item=>item.key===action.key)) {
+    await Notifications.scheduleNotificationAsync({identifier:`pending-${hash(action.key)}`,content:{title:'Action non envoyée',body:'Connexion indisponible ou compte à vérifier. Ouvre la discussion pour réessayer.',data:{url:`/messages/${action.conversationId}`}},trigger:null});
+  }
   return true;
 }

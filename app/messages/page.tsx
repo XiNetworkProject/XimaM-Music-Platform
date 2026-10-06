@@ -28,6 +28,7 @@ import { SynauraConfirmDialog, SynauraOverlay, SynauraOverlayDescription, Synaur
 import { SynauraButton, SynauraInput } from "@/components/ui/SynauraPrimitives";
 import PeopleFinder from '@/components/messaging/PeopleFinder';
 import MessagingPrivacy from '@/components/messaging/MessagingPrivacy';
+import { CallHistory } from '@/components/messaging/CallHistory';
 
 type MessagingProfile = {
   id: string;
@@ -460,6 +461,7 @@ function MessagesContent() {
       <main className="ms-inbox min-h-screen pb-24 text-syn-textPrimary lg:pb-12">
       <div className="v2-inbox-layout chambre-inbox ms-inbox-grid">
         <header className="v2-inbox-heading">
+          <CallHistory />
           <div>
             <p className="mb-2 text-[11px] font-extrabold uppercase text-[color-mix(in_srgb,var(--syn-accent)_65%,var(--syn-text-primary))]">
               SYNAURA / ENSEMBLE

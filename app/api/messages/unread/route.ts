@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
 import { dbAdmin } from '@/lib/database';
+import { getUnreadMessages } from '@/lib/messagingReceipts';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,22 +17,14 @@ export async function GET(request: NextRequest) {
       .is('archived_at', null);
     const ids = (participations || []).map((row) => row.conversation_id);
     const [messagesResult, requestsResult] = await Promise.all([
-      ids.length
-        ? dbAdmin
-            .from('messages')
-            .select('id', { count: 'exact', head: true })
-            .in('conversation_id', ids)
-            .neq('sender_id', userId)
-            .eq('is_read', false)
-            .is('deleted_at', null)
-        : Promise.resolve({ count: 0, error: null }),
+      getUnreadMessages(userId,ids),
       dbAdmin
         .from('message_requests')
         .select('id', { count: 'exact', head: true })
         .eq('target_id', userId)
         .eq('status', 'pending'),
     ]);
-    const messages = Number(messagesResult.count || 0);
+    const messages = messagesResult.reduce((sum,row)=>sum+row.count,0);
     const requestsCount = Number(requestsResult.count || 0);
     return NextResponse.json({ messages, requests: requestsCount, total: messages + requestsCount });
   } catch (error) {

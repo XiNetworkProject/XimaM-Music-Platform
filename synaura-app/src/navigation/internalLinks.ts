@@ -91,7 +91,7 @@ export async function openInternalLink(
   }
   if (root === 'messages' && id) {
     const query = toQuery(urlOrPath);
-    navigation.navigate('Conversation', { conversationId: decodeURIComponent(id), roomId: query.get('room') || undefined });
+    navigation.navigate('Conversation', { conversationId: decodeURIComponent(id), roomId: query.get('room') || undefined, showCalls:query.get('calls')==='1' });
     return true;
   }
   if (root === 'messages') {

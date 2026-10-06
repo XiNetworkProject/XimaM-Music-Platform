@@ -41,6 +41,7 @@ object SynauraBubbleManager {
   const val EXTRA_MESSAGES_JSON = "messagesJson"
   private const val CHANNEL_ID = "synaura-conversations"
   private val avatarExecutor = Executors.newSingleThreadExecutor()
+  private val visibleGenerations = java.util.concurrent.ConcurrentHashMap<String, Long>()
 
   fun isSupported() = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
 
@@ -95,6 +96,8 @@ object SynauraBubbleManager {
 
   fun show(context: Context, conversationId: String, title: String, accentColor: String, avatarUrl: String, messagesJson: String): Boolean {
     if (!isSupported() || conversationId.isBlank()) return false
+    val generation = System.nanoTime()
+    visibleGenerations[conversationId] = generation
     createChannel(context)
     preferences(context).edit()
       .putString(EXTRA_CONVERSATION_ID, conversationId)
@@ -112,7 +115,11 @@ object SynauraBubbleManager {
       avatarExecutor.execute {
         val downloaded = downloadAvatar(avatarUrl) ?: return@execute
         runCatching { FileOutputStream(iconFile).use { downloaded.compress(Bitmap.CompressFormat.PNG, 92, it) } }
-        runCatching { postNotification(context, conversationId, title, accentColor, avatarUrl, messagesJson, downloaded) }
+        synchronized(visibleGenerations) {
+          if (visibleGenerations[conversationId] == generation) {
+            runCatching { postNotification(context, conversationId, title, accentColor, avatarUrl, messagesJson, downloaded) }
+          }
+        }
       }
     }
     return true
@@ -121,7 +128,10 @@ object SynauraBubbleManager {
   fun hide(context: Context, conversationId: String? = null) {
     val id = conversationId?.takeIf { it.isNotBlank() }
       ?: preferences(context).getString(EXTRA_CONVERSATION_ID, "").orEmpty()
-    if (id.isNotBlank()) NotificationManagerCompat.from(context).cancel(notificationId(id))
+    synchronized(visibleGenerations) {
+      visibleGenerations.remove(id)
+      if (id.isNotBlank()) NotificationManagerCompat.from(context).cancel(notificationId(id))
+    }
   }
 
   private fun postNotification(context: Context, conversationId: String, title: String, accentColor: String, avatarUrl: String, messagesJson: String, avatar: Bitmap) {
@@ -184,6 +194,7 @@ object SynauraBubbleManager {
       .setBubbleMetadata(bubble)
       .setAutoCancel(false)
       .setOnlyAlertOnce(true)
+      .setSilent(true)
       .build()
     NotificationManagerCompat.from(context).notify(notificationId(conversationId), notification)
   }

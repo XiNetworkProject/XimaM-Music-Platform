@@ -1,3 +1,4 @@
+import { AppState } from 'react-native';
 import {
   getMessagingRealtimeSnapshot,
   publishMessagingEphemeral,
@@ -32,10 +33,11 @@ export async function subscribeToConversationRealtime(
   let connected = false;
 
   const poll = async () => {
-    if (stopped || running) return;
+    if (stopped || running || AppState.currentState !== 'active') return;
     running = true;
     try {
       const snapshot = await getMessagingRealtimeSnapshot(conversationId, since);
+      if (stopped) return;
       since = snapshot.now || new Date().toISOString();
       if (!connected) {
         connected = true;
@@ -82,6 +84,7 @@ export async function subscribeToMessagingInboxRealtime(
   onChange: (table: InboxTable) => void,
 ) {
   const emit = () => {
+    if (AppState.currentState !== 'active') return;
     (['messages', 'conversations', 'participants', 'requests', 'friendships', 'blocks'] as InboxTable[])
       .forEach(onChange);
   };

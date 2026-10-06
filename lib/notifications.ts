@@ -272,8 +272,8 @@ async function sendWebPush(userId: string, type: NotifType, title: string, body:
     icon: '/brand/2026/synaura-symbol-2026-white.png',
     badge: '/brand/2026/synaura-symbol-2026-white.png',
     url: url || '/',
-    tag: `synaura-${type}-${Date.now()}`,
-    data: { type, ...(data || {}) },
+    tag: data?.call_id ? `synaura-call-${data.call_id}` : data?.message_id ? `synaura-message-${data.message_id}` : `synaura-${type}-${Date.now()}`,
+    data: { type, ...(data || {}), recipient_id: userId },
   });
 
   const expired: string[] = [];
@@ -282,7 +282,7 @@ async function sendWebPush(userId: string, type: NotifType, title: string, body:
       await webpush.sendNotification(
         { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
         payload,
-        { TTL: 86400 },
+        { TTL: data?.kind === 'incoming_call' ? Math.max(1,Math.ceil((Number(data.expires_at)-Date.now())/1000)) : 86400, urgency: 'high', timeout: 5000 },
       );
     } catch (err: any) {
       if (err?.statusCode === 404 || err?.statusCode === 410) {
@@ -318,6 +318,8 @@ async function sendNativePush(userId: string, type: NotifType, title: string, bo
   };
   if (EXPO_ACCESS_TOKEN) headers.Authorization = `Bearer ${EXPO_ACCESS_TOKEN}`;
   const isMessage = TYPE_TO_CATEGORY[type] === 'message';
+  const isCall = data?.kind === 'incoming_call';
+  const isCallUpdate = Boolean(data?.call_id);
   const conversationKey = String(data?.conversation_id || data?.related_id || '')
     .replace(/[^a-zA-Z0-9_-]/g, '')
     .slice(0, 40);
@@ -332,14 +334,14 @@ async function sendNativePush(userId: string, type: NotifType, title: string, bo
         to,
         title,
         body,
-        sound: 'default',
+        sound: isCall ? 'synaura_call_incoming.mp3' : data?.kind === 'call_ended' ? null : 'default',
         priority: 'high',
-        ttl: isMessage ? 6 * 60 * 60 : 24 * 60 * 60,
-        channelId: isMessage ? 'synaura-messages' : 'synaura-activity',
-        categoryId: isMessage ? 'synaura_message' : undefined,
-        collapseId: isMessage ? messageGroupKey : undefined,
-        tag: isMessage ? messageGroupKey : undefined,
-        data: { type, url: url || '/notifications', ...(data || {}) },
+        ttl: isCall ? Math.max(1,Math.ceil((Number(data?.expires_at)-Date.now())/1000)) : isMessage ? 6 * 60 * 60 : 24 * 60 * 60,
+        channelId: isCall ? 'synaura-calls-v1' : isMessage ? 'synaura-messages' : 'synaura-activity',
+        categoryId: isCall ? 'synaura_call' : type === 'new_message' && !isCallUpdate ? 'synaura_message' : undefined,
+        collapseId: isCallUpdate ? `synaura-call-${data?.call_id}` : isMessage ? messageGroupKey : undefined,
+        tag: isCallUpdate ? `synaura-call-${data?.call_id}` : isMessage ? messageGroupKey : undefined,
+        data: { type, url: url || '/notifications', ...(data || {}), recipient_id: userId },
       }))),
     });
   } catch (cause) {
@@ -394,6 +396,12 @@ async function sendNativePush(userId: string, type: NotifType, title: string, bo
     .update({ last_error: entry.error, updated_at: new Date().toISOString() })
     .eq('user_id', userId)
     .eq('endpoint', entry.endpoint)));
+}
+
+export async function sendCallPush(userId: string, title: string, body: string, url: string, data: Record<string, unknown>) {
+  const prefs = await getUserPrefs(userId);
+  if (prefs?.push_enabled === false || prefs?.new_message === false) return;
+  await Promise.allSettled([sendWebPush(userId,'new_message',title,body,url,data),sendNativePush(userId,'new_message',title,body,url,data)]);
 }
 
 export async function createBroadcast(opts: {

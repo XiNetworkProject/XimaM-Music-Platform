@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { AppState, PermissionsAndroid, Platform } from 'react-native';
+import { AppState, DeviceEventEmitter, PermissionsAndroid, Platform } from 'react-native';
+import { CALL_NOTIFICATION_EVENT, pendingCallIntent, clearCallIntent, dismissCallNotifications } from '@/notifications/callNotificationActions';
 import { AudioSession, AndroidAudioTypePresets } from '@livekit/react-native';
 import { Room, RoomEvent, createLocalAudioTrack, type LocalAudioTrack } from 'livekit-client';
 import { useAuth } from '@/auth/AuthProvider';
@@ -69,6 +70,7 @@ export function NativeCallProvider({ children }: { children: React.ReactNode }) 
     epoch.current++;
     const previous = resources.current; resources.current = null;
     const id = previous?.call?.id;
+    if(id)void dismissCallNotifications(id).catch(()=>{});
     activeId.current = null; connected.current = false;
     stopCallSound();
     setCurrent(null); setPhase('idle'); setExpanded(false); setConnectedAt(null);
@@ -175,6 +177,7 @@ export function NativeCallProvider({ children }: { children: React.ReactNode }) 
       if (!alive()) return;
       const data = await voiceCallAction(action, device.current, action === 'start' ? { conversationId: id } : { callId: id });
       local.call = data.call;
+      void dismissCallNotifications(data.call.id).catch(()=>{});
       if (!alive()) { void voiceCallAction('leave', device.current, { callId: data.call.id }).catch(() => {}); return; }
       if (!data.url || !data.token || !/^wss:\/\//.test(data.url)) throw new Error('Connexion sécurisée indisponible.');
       activeId.current = data.call.id; setCurrent(data.call);
@@ -186,7 +189,7 @@ export function NativeCallProvider({ children }: { children: React.ReactNode }) 
         setConnectedIds(ids);
         if (hasRemoteParticipant(ids, userId)) {
           setPhase('connected');
-          if (!connected.current) { connected.current = true; setConnectedAt(Date.now()); playCallSound('connected'); }
+          if (!connected.current) { connected.current = true; setConnectedAt(Date.now()); playCallSound('connected'); void voiceCallAction('connected',device.current,{callId:data.call.id}).catch(()=>{}); }
         } else { setPhase('waiting'); if (!connected.current) playCallSound('outgoing'); }
       };
       room.on(RoomEvent.ParticipantConnected, roster);
@@ -215,11 +218,28 @@ export function NativeCallProvider({ children }: { children: React.ReactNode }) 
     const existing = callsRef.current.find(call => call.conversationId === conversationId && ['invited', 'left', 'declined'].includes(call.mine));
     void connect(existing ? 'join' : 'start', existing?.id || conversationId);
   };
+  const connectRef=useRef(connect);connectRef.current=connect;
+  useEffect(()=>{
+    if(!allowed||!foreground)return;
+    let cancelled=false;
+    const consume=async()=>{
+      const intent=await pendingCallIntent(userId);if(!intent||cancelled||pending.current||resources.current)return;
+      const result=await getVoiceCalls();if(cancelled)return;
+      const invitation=result.calls.find(call=>call.id===intent.id&&call.mine==='invited');
+      await clearCallIntent();
+      if(!invitation){setError('Cet appel est déjà terminé ou a été pris sur un autre appareil.');return;}
+      setCalls(result.calls);setEnabled(result.enabled);
+      if(intent.answer)await connectRef.current('join',intent.id);
+    };
+    const run=()=>{void consume().catch(()=>setError('Impossible de récupérer l’appel. Vérifie ta connexion.'));};
+    const listener=DeviceEventEmitter.addListener(CALL_NOTIFICATION_EVENT,run);run();
+    return()=>{cancelled=true;listener.remove();};
+  },[allowed,foreground,userId]);
   const decline = async () => {
     if (!incoming || busy) return;
     const id = incoming.id;
     previousIncoming.current = null; stopCallSound(); setBusy(true);
-    try { await voiceCallAction('decline', device.current, { callId: id }); setCalls(items => items.filter(item => item.id !== id)); playCallSound('unavailable'); }
+    try { await voiceCallAction('decline', device.current, { callId: id }); void dismissCallNotifications(id).catch(()=>{}); setCalls(items => items.filter(item => item.id !== id)); playCallSound('unavailable'); }
     catch { setError('Impossible de refuser cet appel. Réessaie.'); }
     finally { setBusy(false); }
   };

@@ -58,6 +58,7 @@ import { SynauraOverlay } from '@/components/ui/SynauraOverlay';
 import { useVoiceCalls } from '@/components/messaging/VoiceCallProvider';
 import { useMessagingViewport } from '@/hooks/useMessagingViewport';
 import { Phone } from 'lucide-react';
+import { CallHistory } from '@/components/messaging/CallHistory';
 
 type MessagingProfile = {
   id: string;
@@ -66,6 +67,7 @@ type MessagingProfile = {
   avatar: string | null;
   isVerified?: boolean;
   lastSeen?: string | null;
+  isOnline?: boolean;
 };
 
 type MessagingContact = {
@@ -308,6 +310,13 @@ function ConversationContent() {
   } | null>(null);
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const composerRef=useRef<HTMLTextAreaElement>(null);
+  const notificationFocused=useRef(false);
+  useEffect(()=>{
+    if(!loading&&!notificationFocused.current&&composerRef.current&&new URLSearchParams(location.search).get('compose')==='1'){
+      notificationFocused.current=true;composerRef.current.focus();
+    }
+  },[loading]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const mediaChunksRef = useRef<Blob[]>([]);
@@ -332,12 +341,26 @@ function ConversationContent() {
     if (roomId) setActiveRoomId(roomId);
   }, []);
 
-  const markSeen = useCallback(async () => {
-    if (!conversationId) return;
-    await fetch(`/api/messages/${encodeURIComponent(conversationId)}/seen`, {
-      method: "PUT",
-    }).catch(() => null);
-  }, [conversationId]);
+  useEffect(()=>{
+    const root=scrollRef.current,userId=session?.user?.id;
+    if(!root||!userId)return;
+    const visible=new Map<string,number>(),acknowledged=new Set<string>();let busy=false;
+    const observer=new IntersectionObserver(entries=>{
+      entries.forEach(entry=>{const id=(entry.target as HTMLElement).dataset.messageId!;
+        if(entry.isIntersecting&&entry.intersectionRatio>=.5)visible.set(id,Date.now());else visible.delete(id);
+      });
+    },{root,threshold:.5});
+    root.querySelectorAll('[data-message-id]').forEach(node=>observer.observe(node));
+    const reset=()=>visible.forEach((_,id)=>visible.set(id,Date.now()));
+    document.addEventListener('visibilitychange',reset);window.addEventListener('focus',reset);
+    const timer=setInterval(()=>{
+      if(busy||document.visibilityState!=='visible'||!document.hasFocus())return;
+      const ids=Array.from(visible).filter(([id,since])=>Date.now()-since>=500&&!acknowledged.has(id)&&messages.some(m=>m.id===id&&m.sender.id!==userId&&!m.seenBy.includes(userId))).map(([id])=>id).slice(0,100);
+      if(!ids.length)return;busy=true;
+      void fetch(`/api/messages/${encodeURIComponent(conversationId)}/seen`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({messageIds:ids})}).then(response=>{if(response.ok)ids.forEach(id=>acknowledged.add(id));}).catch(()=>{}).finally(()=>{busy=false;});
+    },800);
+    return()=>{observer.disconnect();clearInterval(timer);document.removeEventListener('visibilitychange',reset);window.removeEventListener('focus',reset);};
+  },[conversationId,activeRoomId,messages,session?.user?.id]);
 
   const loadMessages = useCallback(
     async (options?: { quiet?: boolean; before?: string | null }) => {
@@ -388,17 +411,6 @@ function ConversationContent() {
           setHasMore(Boolean(payload.hasMore));
           setNextCursor(payload.nextCursor || null);
         }
-        const currentUserId = session?.user?.id;
-        if (
-          !before &&
-          currentUserId &&
-          incoming.some(
-            (message: Message) =>
-              message.sender.id !== currentUserId &&
-              !message.seenBy.includes(currentUserId)
-          )
-        )
-          void markSeen();
       } catch (error) {
         if (controller.signal.aborted) return;
         setLoadError(error instanceof Error ? error.message : 'Chargement impossible');
@@ -412,7 +424,7 @@ function ConversationContent() {
         if (requestRef.current === controller) requestRef.current = null;
       }
     },
-    [activeRoomId, conversationId, markSeen, session?.user?.id]
+    [activeRoomId, conversationId, session?.user?.id]
   );
 
   useEffect(() => {
@@ -1152,7 +1164,7 @@ function ConversationContent() {
         activeRoom.type === "voice_notes" ? " · vocaux asynchrones" : ""
       }`
     : other
-    ? `@${other.username}`
+    ? other.isOnline ? 'En ligne' : other.lastSeen ? `Vu ${new Date(other.lastSeen).toLocaleString('fr-FR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'})}` : `@${other.username}`
     : "Groupe Synaura";
   const canSend = Boolean(conversation?.canMessage && !conversation?.blocked);
   const ownId = session?.user?.id;
@@ -1260,6 +1272,7 @@ function ConversationContent() {
             </p>
           </button>
           {voice.enabled && conversation?.canMessage && <button type="button" className="ms-circle" aria-label={voice.currentConversation ? "Revenir à l’appel" : "Appeler cette discussion"} disabled={voice.busy || isRecording || startingRecording || Boolean(recordingBlob)} onClick={() => voice.start(conversationId)}><Phone size={19} /></button>}
+          <CallHistory conversationId={conversationId} compact/>
           <button type="button" className="ms-circle ms-customize-button" aria-label="Personnaliser cette discussion" onClick={() => { setPreferenceDraft(conversation?.preferences || null); setCustomizeOpen(true); }}><Palette size={19} /></button>
           <div className="relative">
             <button
@@ -1444,6 +1457,7 @@ function ConversationContent() {
                     </div>
                   ) : null}
                   <div
+                    data-message-id={message.id}
                     className={`group/message flex items-end gap-2 ${
                       own ? "justify-end" : "justify-start"
                     } ${startsGroup && index ? "pt-3" : ""}`}
@@ -1602,9 +1616,9 @@ function ConversationContent() {
                         <span>{formatClock(message.createdAt)}</span>
                         {own && isLastOwn ? (
                           message.seenBy.some((id) => id !== ownId) ? (
-                            <CheckCheck className="h-3 w-3 text-syn-accent2" />
+                            <span className="text-syn-accent2">Vu{conversation?.type==='group'?` par ${message.seenBy.filter(id=>id!==ownId).length}`:''}</span>
                           ) : (
-                            <Check className="h-3 w-3" />
+                            <span>Envoyé</span>
                           )
                         ) : null}
                       </div>
@@ -1797,6 +1811,7 @@ function ConversationContent() {
                   </div>
                 ) : (
                   <textarea
+                    ref={composerRef}
                     aria-label="Écrire un message"
                     value={draft}
                     onChange={(event) => { setDraft(event.target.value.slice(0, 2_000)); event.target.style.height = 'auto'; event.target.style.height = `${Math.min(128, event.target.scrollHeight)}px`; }}

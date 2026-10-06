@@ -1,13 +1,14 @@
 {
-  "title": "Synaura 0.27.1 — Un Live plus vivant",
+  "title": "Synaura 0.27.2 — Messages et appels",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Live : transitions liées au swipe, pochettes en mouvement et halo lumineux",
-    "Fond animé et particules pendant la lecture, avec respect de la réduction des animations",
-    "Pochettes vidéo adaptées aux nouvelles transitions du Live",
-    "Les six sons d’appel Synaura sont aussi disponibles sur le site web",
-    "Pour recevoir un appel, garde Synaura ouverte : la réception app fermée n’est pas encore disponible",
+    "Correction des notifications répétées lors de la fermeture de l’application",
+    "Réponse aux messages depuis les notifications Android",
+    "Notifications d’appel avec actions pour répondre ou refuser",
+    "Historique des nouveaux appels : manqués, entrants, sortants et durées",
+    "Dates corrigées, messages vus par destinataire et présence en ligne",
+    "Après la mise à jour, ouvre Synaura et autorise les notifications pour activer les nouveaux contrôles",
     "Mise à jour sans désinstaller : même application et même signature"
   ]
 }

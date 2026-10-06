@@ -385,7 +385,12 @@ const API_REQUEST_TIMEOUT_MS = 15000;
 export function getVoiceCalls() {
   return request<{ enabled: boolean; calls: import('@/calls/callModel').VoiceCall[] }>('/api/messages/calls');
 }
-export function voiceCallAction(action: 'start' | 'join' | 'leave' | 'decline' | 'heartbeat', device: string, values: { callId?: string; conversationId?: string } = {}) {
+export type CallHistoryEntry={id:string;conversationId:string;title:string;group:boolean;direction:string;outcome:string;createdAt:string;durationSeconds:number|null;members:{id:string;name:string}[]};
+export function getCallHistory(conversationId?:string,before?:string){
+  const params=new URLSearchParams({...conversationId?{conversationId}:{},...before?{before}:{}});
+  return request<{calls:CallHistoryEntry[];nextCursor:string|null}>('/api/messages/calls/history?'+params);
+}
+export function voiceCallAction(action: 'start' | 'join' | 'leave' | 'decline' | 'heartbeat' | 'connected', device: string, values: { callId?: string; conversationId?: string } = {}) {
   return request<{ call: import('@/calls/callModel').VoiceCall; url?: string; token?: string }>('/api/messages/calls', {
     method: 'POST', body: JSON.stringify({ action, device, ...values }),
   });
@@ -1029,6 +1034,7 @@ export async function getPlaylistDetail(playlistId: string): Promise<PlaylistDet
 }
 
 export type MessagingUser = {
+  isOnline?: boolean;
   id: string;
   name: string;
   username: string;
@@ -1167,6 +1173,7 @@ export type MessagingRelationship = {
 
 function normalizeMessagingUser(raw: any): MessagingUser {
   return {
+    isOnline: Boolean(raw?.isOnline),
     id: safeString(raw?.id || raw?._id, ''),
     name: safeString(raw?.name, raw?.username || 'Utilisateur Synaura'),
     username: safeString(raw?.username, 'utilisateur'),
@@ -1469,8 +1476,12 @@ export async function uploadMessageImage(uri: string, name = `synaura-message-${
   return uploaded.url;
 }
 
-export async function markConversationSeen(conversationId: string): Promise<void> {
-  await request(`/api/messages/${encodeURIComponent(conversationId)}/seen`, { method: 'PUT' });
+export async function markConversationSeen(conversationId: string, messageIds: string[]): Promise<void> {
+  await request(`/api/messages/${encodeURIComponent(conversationId)}/seen`, { method: 'PUT', body: JSON.stringify({messageIds}) });
+}
+
+export async function publishMessagingPresence(device:string,active:boolean) {
+  await request('/api/messages/presence',{method:'POST',body:JSON.stringify({device,active})});
 }
 
 export async function reactToConversationMessage(conversationId: string, messageId: string, reaction: MessagingReactionName | null): Promise<void> {

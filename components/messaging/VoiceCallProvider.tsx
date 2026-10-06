@@ -41,6 +41,16 @@ export function VoiceCallProvider({ children }: { children: ReactNode }) {
   const releaseMusic = useRef<(() => void) | null>(null);
   const generation = useRef(0);
   const busyRef = useRef(false);
+  useEffect(()=>{
+    if(!user)return;
+    const presenceDevice=crypto.randomUUID();
+    const send=(active:boolean)=>void fetch('/api/messages/presence',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({device:presenceDevice,active}),keepalive:!active}).catch(()=>{});
+    const changed=()=>send(document.visibilityState==='visible');
+    const leave=()=>send(false);
+    changed();const timer=setInterval(()=>{if(document.visibilityState==='visible')send(true);},20_000);
+    document.addEventListener('visibilitychange',changed);window.addEventListener('pagehide',leave);
+    return()=>{clearInterval(timer);document.removeEventListener('visibilitychange',changed);window.removeEventListener('pagehide',leave);leave();};
+  },[user]);
 
   const post = useCallback(async (action: string, values: Record<string, string> = {}) => {
     const response = await fetch('/api/messages/calls', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, device: device.current, ...values }), signal: AbortSignal.timeout(12_000), keepalive: action === 'leave' });
@@ -148,7 +158,7 @@ export function VoiceCallProvider({ children }: { children: ReactNode }) {
         if (attempt !== generation.current || roomRef.current !== room || !created) return;
         setConnectedPeople([room.localParticipant.identity, ...Array.from(room.remoteParticipants.keys())]);
         if (room.remoteParticipants.size > 0) {
-          if (!connected.current) { connected.current = true; sounds.current?.play('connected', created.id); }
+          if (!connected.current) { connected.current = true; sounds.current?.play('connected', created.id); void post('connected',{callId:created.id}).catch(()=>{}); }
         } else if (!connected.current) sounds.current?.play('outgoing', created.id, created.created + 45_000);
       };
       room.on(RoomEvent.TrackSubscribed, incoming => {

@@ -108,12 +108,22 @@ self.addEventListener('push', (event) => {
 
   const tag = notificationData.tag || '';
   const type = (notificationData.data && notificationData.data.type) || '';
+  const kind = notificationData.data?.kind;
+  if (kind === 'call_ended') {
+    event.waitUntil(self.registration.getNotifications({tag}).then(items=>items.forEach(item=>item.close())));
+    return;
+  }
+  if (kind === 'incoming_call' && Number(notificationData.data.expires_at) <= Date.now()) return;
   const isBoostNotif = tag.startsWith('boost');
   const isSynauraNotif = tag.startsWith('synaura-');
   const isMusicPlayer = !isBoostNotif && !isSynauraNotif;
 
   let actions;
-  if (isBoostNotif) {
+  if (kind === 'incoming_call') {
+    actions = [{action:'answer-call',title:'Répondre'},{action:'decline-call',title:'Refuser'}];
+  } else if (type === 'new_message' && !notificationData.data?.call_id) {
+    actions = [{action:'reply-message',title:'Répondre'},{action:'read-message',title:'Marquer lu'}];
+  } else if (isBoostNotif) {
     actions = [
       { action: 'open-boosters', title: 'Ouvrir' },
       { action: 'dismiss', title: 'Plus tard' },
@@ -160,6 +170,34 @@ self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
   if (event.action === 'dismiss') return;
+  if (['decline-call','read-message','answer-call','reply-message'].includes(event.action)) {
+    event.waitUntil((async()=>{
+      const data=event.notification.data||{};
+      if(['decline-call','read-message'].includes(event.action)) {
+        try {
+          if(!data.recipient_id)throw Error('recipient');
+          const isCall=event.action==='decline-call';
+          const response=await fetch(isCall?'/api/messages/calls':`/api/messages/${encodeURIComponent(data.conversation_id)}/seen`,{
+            method:isCall?'POST':'PUT',credentials:'include',headers:{'Content-Type':'application/json','X-Synaura-Notification-User':data.recipient_id},
+            body:JSON.stringify(isCall?{action:'decline',callId:data.call_id,device:crypto.randomUUID()}:{messageIds:data.message_id?[data.message_id]:[]})
+          });
+          if(!response.ok)throw Error('response');return;
+        } catch {
+          await self.registration.showNotification('Action non envoyée',{body:'Ouvre Synaura pour vérifier ta connexion et réessayer.',tag:'synaura-action-failed',data:{url:'/messages'}});
+          return;
+        }
+      }
+      // Web browsers do not offer Android RemoteInput. Open the actual composer/
+      // incoming call, preserving the explicit microphone acceptance in the app.
+      const target=new URL(data.url||'/messages',self.location.origin);
+      if(target.origin!==self.location.origin)return;
+      if(event.action==='reply-message')target.searchParams.set('compose','1');
+      const windows=await self.clients.matchAll({type:'window',includeUncontrolled:true});
+      const client=windows.find(item=>new URL(item.url).origin===self.location.origin);
+      if(client){await client.navigate(target.href);await client.focus();}
+      else await self.clients.openWindow(target.href);
+    })());return;
+  }
 
   if (event.action === 'open-boosters') {
     event.waitUntil(self.clients.openWindow('/boosters'));
@@ -167,7 +205,9 @@ self.addEventListener('notificationclick', (event) => {
   }
 
   if (event.action === 'open-url' || !event.action) {
-    const notifUrl = event.notification.data?.url;
+    const rawUrl = event.notification.data?.url;
+    const target = new URL(rawUrl || '/',self.location.origin);
+    const notifUrl = target.origin === self.location.origin ? target.href : null;
     if (notifUrl && notifUrl !== '/') {
       event.waitUntil(
         self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {

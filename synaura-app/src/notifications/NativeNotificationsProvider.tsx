@@ -10,10 +10,13 @@ import {
   sendNativePushTest,
   unregisterNativePushToken,
   getNotificationUnreadCount,
+  publishMessagingPresence,
 } from '@/api/client';
 import { useAuth } from '@/auth/AuthProvider';
 import { openInternalLink } from '@/navigation/internalLinks';
 import { navigationRef } from '@/navigation/navigationRef';
+import { isVisibleConversation } from '@/messaging/visibleConversation';
+import { CALL_CATEGORY, ANSWER_CALL, DECLINE_CALL, handleCallNotificationResponse } from './callNotificationActions';
 import {
   handleMessageNotificationAction,
   flushPendingMessageNotificationActions,
@@ -49,10 +52,10 @@ const NativeNotificationsContext = createContext<NativeNotificationsContextValue
 let lastOpenedNotificationId = '';
 
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
+  handleNotification: async notification => ({
+    shouldShowBanner: notification.request.content.data?.kind !== 'call_ended' && !isVisibleConversation(notification.request.content.data),
+    shouldShowList: notification.request.content.data?.kind !== 'call_ended' && !isVisibleConversation(notification.request.content.data),
+    shouldPlaySound: !isVisibleConversation(notification.request.content.data) && notification.request.content.data?.kind !== 'incoming_call' && notification.request.content.data?.kind !== 'call_ended',
     shouldSetBadge: true,
   }),
 });
@@ -60,6 +63,15 @@ Notifications.setNotificationHandler({
 async function configureAndroidChannel() {
   if (Platform.OS !== 'android') return;
   await Promise.all([
+    Notifications.setNotificationChannelAsync('synaura-calls-v1', {
+      name:'Appels Synaura',importance:Notifications.AndroidImportance.MAX,
+      sound:'synaura_call_incoming.mp3',vibrationPattern:[0,500,300,500],
+      audioAttributes:{usage:Notifications.AndroidAudioUsage.NOTIFICATION_RINGTONE},
+    }),
+    Notifications.setNotificationCategoryAsync(CALL_CATEGORY,[
+      {identifier:DECLINE_CALL,buttonTitle:'Refuser',options:{opensAppToForeground:false}},
+      {identifier:ANSWER_CALL,buttonTitle:'Répondre',options:{opensAppToForeground:true}},
+    ]),
     Notifications.setNotificationChannelAsync(CHANNEL_ID, {
       name: 'Activite Synaura',
       description: 'Commentaires, reactions, abonnements et sorties musicales',
@@ -111,6 +123,9 @@ function readablePushError(cause: unknown) {
 }
 
 async function openNotificationResponse(response: Notifications.NotificationResponse | null) {
+  if (response && await handleCallNotificationResponse(response)) {
+    await Notifications.clearLastNotificationResponseAsync().catch(()=>{});return;
+  }
   if (response && isMessageNotificationAction(response)) {
     try {
       await handleMessageNotificationAction(response);
@@ -150,6 +165,15 @@ export function NativeNotificationsProvider({ children }: { children: React.Reac
   const registrationPromiseRef = useRef<Promise<string> | null>(null);
   const lastRegistrationRef = useRef<{ token: string; syncedAt: number } | null>(null);
   const lastPushTokenEventAtRef = useRef(0);
+  useEffect(()=>{
+    if(!auth.user?.id||!auth.token||auth.mfaRequired||auth.biometricLocked)return;
+    const device=globalThis.crypto.randomUUID();
+    const send=(active:boolean)=>void publishMessagingPresence(device,active).catch(()=>{});
+    const beat=()=>{if(AppState.currentState==='active')send(true);};
+    beat();const timer=setInterval(beat,20_000);
+    const listener=AppState.addEventListener('change',state=>send(state==='active'));
+    return()=>{clearInterval(timer);listener.remove();send(false);};
+  },[auth.user?.id,auth.token,auth.mfaRequired,auth.biometricLocked]);
 
   const refreshUnread = useCallback(async (knownCount?: number) => {
     if (!auth.token) {
@@ -277,7 +301,7 @@ export function NativeNotificationsProvider({ children }: { children: React.Reac
 
   useEffect(() => {
     const responseSubscription = Notifications.addNotificationResponseReceivedListener((response) => {
-      void openNotificationResponse(response);
+      void openNotificationResponse(response).catch(()=>setError('Action non envoyée. Vérifie ta connexion et réessaie.'));
     });
     const receivedSubscription = Notifications.addNotificationReceivedListener(() => {
       void refreshUnread();

@@ -34,7 +34,9 @@ export async function POST(request: NextRequest) {
   const parsed = await readLimitedJson<Record<string, unknown>>(request, 2048);
   if (!parsed.ok) return parsed.response;
   const { action, callId, conversationId, device } = parsed.value;
-  if (!['start', 'join', 'leave', 'decline', 'heartbeat'].includes(String(action)) || typeof device !== 'string' || !/^[a-f0-9-]{36}$/i.test(device)) return NextResponse.json({ error: 'Action invalide' }, { status: 400, headers });
+  const recipient=request.headers.get('x-synaura-notification-user');
+  if(recipient&&recipient!==session.user.id)return NextResponse.json({error:'Cette notification appartient à un autre compte.'},{status:403,headers});
+  if (!['start', 'join', 'leave', 'decline', 'heartbeat', 'connected'].includes(String(action)) || typeof device !== 'string' || !/^[a-f0-9-]{36}$/i.test(device)) return NextResponse.json({ error: 'Action invalide' }, { status: 400, headers });
   const limited = enforceRequestRateLimit(request, action === 'start' ? 'voice-start' : 'voice-action', action === 'start' ? 6 : 90, 60_000, session.user.id);
   if (limited) return limited;
   try {
@@ -46,7 +48,7 @@ export async function POST(request: NextRequest) {
       call = await service.registry.start(session.user.id, conversationId, device);
     } else {
       if (typeof callId !== 'string' || !/^[a-f0-9-]{36}$/i.test(callId)) throw new CallError('Appel invalide.', 400);
-      call = await service.registry.action(session.user.id, callId, device, action as 'join' | 'leave' | 'decline' | 'heartbeat');
+      call = await service.registry.action(session.user.id, callId, device, action as 'join' | 'leave' | 'decline' | 'heartbeat' | 'connected');
     }
     const credentials = action === 'start' || action === 'join' ? await callCredentials(service, call, session.user.id) : {};
     return NextResponse.json({ call: service.registry.view(call, session.user.id), ...credentials }, { headers });

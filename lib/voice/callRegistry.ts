@@ -2,8 +2,8 @@
 // No chat history, media, credentials or microphone data is stored here.
 export type VoicePerson = { id: string; name: string };
 export type VoiceAccess = { title: string; group: boolean; people: VoicePerson[] };
-export type CallMember = VoicePerson & { state: 'invited' | 'joined' | 'declined' | 'left'; device: string | null; seen: number };
-export type VoiceCall = { id: string; conversationId: string; room: string; callerId: string; title: string; group: boolean; created: number; status: 'ringing' | 'active' | 'ended'; members: CallMember[]; reason?: string; closed?: boolean };
+export type CallMember = VoicePerson & { state: 'invited' | 'joined' | 'declined' | 'left'; device: string | null; seen: number; joinedAt?: number; leftAt?: number };
+export type VoiceCall = { id: string; conversationId: string; room: string; callerId: string; title: string; group: boolean; created: number; status: 'ringing' | 'active' | 'ended'; members: CallMember[]; reason?: string; closed?: boolean; connectedAt?: number; endedAt?: number };
 export class CallError extends Error {
   status: number;
   constructor(message: string, status = 409) { super(message); this.status = status; }
@@ -16,6 +16,9 @@ export type VoiceDependencies = {
   now: () => number;
   id: () => string;
   roomPrefix?: string;
+  persist?: (call: VoiceCall) => Promise<void>;
+  notify?: (call: VoiceCall, event: 'incoming' | 'answered' | 'ended') => Promise<void>;
+  mediaConnectedAt?: (room: string) => Promise<number | undefined>;
 };
 export const CALL_RING_MS = 45_000;
 export const CALL_LEASE_MS = 45_000;
@@ -23,6 +26,7 @@ export const CALL_MAX_MS = 2 * 60 * 60_000;
 
 export class CallRegistry {
   private calls = new Map<string, VoiceCall>();
+  private notifications = new Map<string, Promise<void>>();
   private pending: Promise<unknown> = Promise.resolve();
   private deps: VoiceDependencies;
   private capacity: number;
@@ -35,11 +39,25 @@ export class CallRegistry {
   private busy(user: string, except?: string) {
     return Array.from(this.calls.values()).some(c => c.id !== except && c.status !== 'ended' && c.members.some(m => m.id === user && m.state === 'joined'));
   }
+  private notify(call: VoiceCall, event: 'incoming' | 'answered' | 'ended') {
+    if (!this.deps.notify) return;
+    // External push delivery must never hold the global signalling lock. Keep
+    // each call's lifecycle ordered, with an immutable snapshot of its members.
+    const snapshot = structuredClone(call);
+    const previous = this.notifications.get(call.id) || Promise.resolve();
+    const task = previous.catch(() => {}).then(() => this.deps.notify!(snapshot,event));
+    this.notifications.set(call.id,task);
+    const release = () => { if (this.notifications.get(call.id) === task) this.notifications.delete(call.id); };
+    void task.then(release,release);
+  }
   private async end(call: VoiceCall, reason: string) {
     call.status = 'ended'; call.reason = reason;
+    call.endedAt ??= this.deps.now();
+    await this.deps.persist?.(call);
     // Retain a tombstone until SFU closure succeeds; sweep retries failures.
     await this.deps.deleteRoom(call.room);
     call.closed = true;
+    this.notify(call, 'ended');
   }
   private async check(call: VoiceCall, user: string) {
     if (call.status === 'ended') throw new CallError('Cet appel est terminé.', 410);
@@ -68,12 +86,14 @@ export class CallRegistry {
       const call: VoiceCall = { id, conversationId, room: `${this.deps.roomPrefix || 'synaura-call-'}${id}`, callerId: user, title: access.title, group: access.group, created: this.deps.now(), status: 'ringing', members: access.people.map(p => ({ ...p, state: p.id === user ? 'joined' : 'invited', device: p.id === user ? device : null, seen: this.deps.now() })) };
       // Store before the network operation so a lost CreateRoom response can be cleaned up.
       this.calls.set(id, call);
-      try { await this.deps.createRoom(call.room); }
+      call.members.find(member => member.id === user)!.joinedAt = call.created;
+      try { await this.deps.persist?.(call); await this.deps.createRoom(call.room); }
       catch (error) { call.status = 'ended'; call.reason = 'service-unavailable'; throw error; }
+      this.notify(call, 'incoming');
       return call;
     });
   }
-  action(user: string, id: string, device: string, action: 'join' | 'heartbeat' | 'leave' | 'decline') {
+  action(user: string, id: string, device: string, action: 'join' | 'heartbeat' | 'connected' | 'leave' | 'decline') {
     return this.serial(async () => {
       const call = this.calls.get(id);
       const member = call?.members.find(m => m.id === user);
@@ -82,12 +102,17 @@ export class CallRegistry {
         if (action === 'leave' || action === 'decline') return call;
         throw new CallError('Cet appel est terminé.', 410);
       }
+      if (call.status === 'ringing' && this.deps.now()-call.created > CALL_RING_MS) {
+        await this.end(call,'timeout');
+        throw new CallError('Cet appel est terminé.',410);
+      }
       if (member.state === 'joined' && member.device !== device) throw new CallError('Cet appel est ouvert dans un autre onglet ou appareil.');
       if (action === 'leave' || action === 'decline') {
         if (action === 'decline' && member.state === 'joined') throw new CallError('Quitte l’appel pour raccrocher.');
         member.state = action === 'decline' ? 'declined' : 'left'; member.device = null;
+        member.leftAt = this.deps.now();
         if (!call.group || !call.members.some(m => m.state === 'joined') || (call.status === 'ringing' && !call.members.some(m => m.state === 'invited'))) await this.end(call, action);
-        else await this.deps.removeMember(call.room, user);
+        else { await this.deps.removeMember(call.room, user); await this.deps.persist?.(call); }
         return call;
       }
       try { await this.check(call, user); }
@@ -98,9 +123,18 @@ export class CallRegistry {
       if (action === 'join') {
         if (this.busy(user, id)) throw new CallError('Tu es déjà dans un appel.');
         member.state = 'joined'; member.device = device;
+        member.joinedAt ??= this.deps.now(); member.leftAt = undefined;
         if (call.members.filter(m => m.state === 'joined').length > 1) call.status = 'active';
       } else if (member.state !== 'joined') throw new CallError('Tu n’as pas rejoint cet appel.', 403);
       member.seen = this.deps.now();
+      if (!call.connectedAt && call.status === 'active' && this.deps.mediaConnectedAt) {
+        const at = await this.deps.mediaConnectedAt(call.room);
+        // LiveKit's joinedAt has second precision. A fast answer may round down
+        // below the millisecond start time, but still proves two RTC participants.
+        if (at && at >= call.created-1000 && at <= this.deps.now()) call.connectedAt = Math.max(call.created,at);
+      }
+      await this.deps.persist?.(call);
+      if (action === 'join') this.notify(call,'answered');
       return call;
     });
   }
@@ -108,7 +142,7 @@ export class CallRegistry {
     return Array.from(this.calls.values()).filter(c => c.status !== 'ended' && c.members.some(m => m.id === user && (c.group || m.state === 'invited' || m.state === 'joined'))).map(c => this.view(c, user));
   }
   view(call: VoiceCall, user: string) {
-    return { id: call.id, conversationId: call.conversationId, title: call.title, group: call.group, callerId: call.callerId, status: call.status, created: call.created, mine: call.members.find(m => m.id === user)?.state, members: call.members.map(({ id, name, state }) => ({ id, name, state })) };
+    return { id: call.id, conversationId: call.conversationId, title: call.title, group: call.group, callerId: call.callerId, status: call.status, created: call.created, connectedAt: call.connectedAt || null, reason: call.reason || null, mine: call.members.find(m => m.id === user)?.state, members: call.members.map(({ id, name, state }) => ({ id, name, state })) };
   }
   ownsRoom(room: string) { return Array.from(this.calls.values()).some(c => c.room === room && c.status !== 'ended'); }
   sweep() {
@@ -124,6 +158,7 @@ export class CallRegistry {
           catch { await this.end(call, 'access-changed'); continue; }
           for (const member of call.members.filter(m => m.state === 'joined' && now - m.seen > CALL_LEASE_MS)) {
             member.state = 'left'; member.device = null;
+            member.leftAt = member.seen;
             if (!call.group) { await this.end(call, 'disconnected'); break; }
             await this.deps.removeMember(call.room, member.id);
           }

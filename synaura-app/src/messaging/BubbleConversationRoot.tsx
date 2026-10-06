@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useVisibleMessageReceipts } from './useVisibleMessageReceipts';
 import {
   ActivityIndicator,
   BackHandler,
@@ -137,6 +138,7 @@ function BubbleConversation({ conversationId = '', title = 'Discussion Synaura',
   const listRef = useRef<FlashListRef<MessagingMessage>>(null);
   const refreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [user, setUser] = useState<StoredUser | null>(null);
+  const onVisibleMessages=useVisibleMessageReceipts(conversationId,user?.id,true);
   const [messages, setMessages] = useState<MessagingMessage[]>([]);
   const [conversationTitle, setConversationTitle] = useState(title);
   const [draft, setDraft] = useState('');
@@ -155,9 +157,6 @@ function BubbleConversation({ conversationId = '', title = 'Discussion Synaura',
         conversation: page.conversation,
         messages: page.messages,
       }).catch(() => {});
-      if (page.messages.some((message) => message.sender.id !== user.id && !message.seenBy.includes(user.id))) {
-        void markConversationSeen(conversationId).catch(() => {});
-      }
     }
   }, [conversationId, title, user?.id]);
 
@@ -278,6 +277,8 @@ function BubbleConversation({ conversationId = '', title = 'Discussion Synaura',
     {empty ? <View style={styles.center}><Ionicons name="chatbubble-ellipses-outline" size={27} color={color} /><Text style={styles.emptyTitle}>La discussion commence ici</Text></View> : null}
     {messages.length ? <FlashList
       ref={listRef}
+      onViewableItemsChanged={onVisibleMessages}
+      viewabilityConfig={{itemVisiblePercentThreshold:50,minimumViewTime:500}}
       data={messages}
       keyExtractor={(message) => message.id}
       contentContainerStyle={styles.list}

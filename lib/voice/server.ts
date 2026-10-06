@@ -5,6 +5,8 @@ import { queryDatabase } from '@/lib/postgres';
 import { CallError, CallRegistry, type VoiceCall } from './callRegistry';
 import { voiceConfig, type VoiceConfig } from './config';
 import { voiceConversationAllowed, voiceRoomOwned, voiceUserAllowed } from './access';
+import { saveCallHistory, closeInterruptedCallHistory } from './history';
+import { notifyCallLifecycle } from './push';
 
 async function conversationAccess(conversationId: string, user: string, config: VoiceConfig) {
   if (!voiceUserAllowed(config.access, user)) throw new CallError('Les appels ne sont pas disponibles pour ce compte.', 403);
@@ -42,10 +44,19 @@ async function makeService() {
     deleteRoom: removeRoom,
     removeMember: async (room, id) => { try { await media.removeParticipant(room, id); } catch (e) { if (!isMissingRoom(e)) throw e; } },
     now: Date.now, id: randomUUID, roomPrefix: config.roomPrefix,
+    persist: saveCallHistory,
+    notify: notifyCallLifecycle,
+    mediaConnectedAt: async room => {
+      const participants = await media.listParticipants(room);
+      const times = participants
+        .map(person => Number(person.joinedAt) * 1000).sort((a,b)=>a-b);
+      return times.length >= 2 ? times[1] : undefined;
+    },
   }, config.maxCalls);
   // This namespace is exclusive to the single application process. After a
   // restart, end its orphaned calls; never delete other LiveKit rooms.
   for (const room of await media.listRooms()) if (voiceRoomOwned(config.roomPrefix, room.name)) await removeRoom(room.name);
+  await closeInterruptedCallHistory();
   const timer = setInterval(() => { void registry.sweep().catch(() => console.error('[voice] maintenance unavailable')); }, 15_000);
   timer.unref();
   return { registry, config, media, removeRoom };

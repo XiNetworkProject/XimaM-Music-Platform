@@ -53,7 +53,12 @@ test('chaque new Audio web est moteur, lecteur coordonné, sonde ou diagnostic c
     'components/ai-studio/UploadConfirmModal.tsx': 1,
     'components/upload/TrackListEditor.tsx': 1,
     'lib/audio/AudioCore.ts': 1,
+    'lib/voice/callSounds.ts': 1,
   });
+  const calls = await read('lib/voice/callSounds.ts');
+  assert.match(calls, /audio\.dataset\.synauraAudioPolicy = 'independent'/);
+  assert.match(calls, /audio\.preload = 'none'/);
+  assert.match(calls, /\/audio\/calls\//);
 });
 
 test('la façade directe reste limitée au provider et à une page diagnostic', async () => {

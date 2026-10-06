@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { messageDate } from '@/messaging/messageTime';
 import {
   ActivityIndicator,
   Modal,
@@ -42,6 +43,7 @@ import { subscribeToMessagingInboxRealtime } from '@/messaging/realtime';
 import { radius, spacing } from '@/theme/tokens';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import type { MessagingSharePayload } from '@/navigation/Tabs';
+import { CallHistory } from '@/components/messaging/CallHistory';
 
 type InboxTab = 'conversations' | 'requests' | 'contacts';
 type ListRow =
@@ -56,7 +58,7 @@ function routeTab(value: unknown): InboxTab {
 
 function relativeDate(value?: string | null) {
   if (!value) return '';
-  const timestamp = new Date(value).getTime();
+  const timestamp = messageDate(value).getTime();
   if (!Number.isFinite(timestamp)) return '';
   const minutes = Math.max(0, Math.floor((Date.now() - timestamp) / 60_000));
   if (minutes < 1) return "À l'instant";
@@ -65,13 +67,11 @@ function relativeDate(value?: string | null) {
   if (hours < 24) return `${hours} h`;
   const days = Math.floor(hours / 24);
   if (days < 7) return `${days} j`;
-  return new Date(value).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+  return messageDate(value).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
 }
 
 function isActive(user?: MessagingUser | null) {
-  if (!user?.lastSeen) return false;
-  const value = new Date(user.lastSeen).getTime();
-  return Number.isFinite(value) && Date.now() - value < 5 * 60_000;
+  return Boolean(user?.isOnline);
 }
 
 function preview(conversation: MessagingConversation) {
@@ -321,6 +321,7 @@ export function MessagesScreen() {
           <TextInput accessibilityLabel="Rechercher dans la messagerie" value={search} onChangeText={setSearch} placeholder={tab === 'contacts' ? 'Trouver un ami' : tab === 'requests' ? 'Trouver une demande' : 'Rechercher une discussion'} placeholderTextColor={colors.textTertiary} style={styles.searchInput} returnKeyType="search" />
           {search ? <CollectionIconButton icon="close-circle" label="Effacer la recherche" onPress={() => setSearch('')} /> : null}
         </View>
+        <CallHistory />
         <CollectionTabs options={tabs} value={tab} onChange={value => { setTab(value); setSearch(''); void Haptics.selectionAsync().catch(() => {}); }} />
         {errorMessage ? <Pressable onPress={() => setErrorMessage('')} style={styles.errorBanner}><Ionicons name="alert-circle-outline" size={17} color={colors.coral} /><Text style={styles.errorText}>{errorMessage}</Text><Ionicons name="close" size={16} color={colors.textTertiary} /></Pressable> : null}
         {pendingShare ? <View style={styles.shareBanner}><Ionicons name="musical-notes" size={17} color={colors.cyan} /><View style={styles.shareBannerCopy}><Text numberOfLines={1} style={styles.shareBannerTitle}>{pendingShare.metadata.title}</Text><Text style={styles.shareBannerText}>Sera envoyé dans la discussion choisie.</Text></View><Pressable hitSlop={8} onPress={() => navigation.setParams({ share: undefined })}><Ionicons name="close" size={18} color={colors.textTertiary} /></Pressable></View> : null}

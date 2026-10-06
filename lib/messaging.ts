@@ -1,6 +1,7 @@
 import 'server-only';
 
 import { dbAdmin } from '@/lib/database';
+import { messagingIso } from './messagingTime';
 
 export type MessagingProfile = {
   id: string;
@@ -9,6 +10,7 @@ export type MessagingProfile = {
   avatar: string | null;
   isVerified: boolean;
   lastSeen: string | null;
+  isOnline: boolean;
 };
 
 export const MESSAGE_PAGE_SIZE = 50;
@@ -82,7 +84,8 @@ export function formatMessagingProfile(profile: any): MessagingProfile {
     username: String(profile?.username || 'utilisateur'),
     avatar: typeof profile?.avatar === 'string' && profile.avatar ? profile.avatar : null,
     isVerified: Boolean(profile?.is_verified),
-    lastSeen: typeof profile?.last_seen === 'string' ? profile.last_seen : null,
+    lastSeen: messagingIso(profile?.last_seen),
+    isOnline: Boolean(profile?.is_online),
   };
 }
 
@@ -96,7 +99,12 @@ export async function getMessagingProfiles(userIds: string[]) {
     .select('id, name, username, avatar, is_verified, last_seen')
     .in('id', uniqueIds);
 
-  (data || []).forEach((profile) => profiles.set(profile.id, formatMessagingProfile(profile)));
+  const {data:presence}=await dbAdmin.from('messaging_presence').select('user_id,last_active_at,expires_at').in('user_id',uniqueIds);
+  (data || []).forEach((profile) => {
+    const devices=(presence||[]).filter(device=>device.user_id===profile.id);
+    const times=[messagingIso(profile.last_seen),...devices.map(device=>messagingIso(device.last_active_at))].filter(Boolean).sort();
+    profiles.set(profile.id, formatMessagingProfile({...profile,last_seen:times.at(-1)||null,is_online:devices.some(device=>Date.parse(messagingIso(device.expires_at)||'')>Date.now())}));
+  });
   return profiles;
 }
 

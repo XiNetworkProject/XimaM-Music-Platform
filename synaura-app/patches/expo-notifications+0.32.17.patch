@@ -1,0 +1,54 @@
+diff --git a/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/presentation/builders/ExpoNotificationBuilder.kt b/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/presentation/builders/ExpoNotificationBuilder.kt
+index 610d303..d9e8395 100644
+--- a/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/presentation/builders/ExpoNotificationBuilder.kt
++++ b/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/notifications/presentation/builders/ExpoNotificationBuilder.kt
+@@ -40,6 +40,18 @@ open class ExpoNotificationBuilder(
+     builder: NotificationCompat.Builder,
+     categoryIdentifier: String
+   ) {
++    if (categoryIdentifier == "synaura_call") {
++      // Persisted Expo action intents work with the JS process terminated too.
++      val reject = NotificationAction("decline_call", "Refuser", false)
++      val answer = NotificationAction("answer_call", "Répondre", true)
++      builder.setCategory(NotificationCompat.CATEGORY_CALL)
++        .setTimeoutAfter(max(1L, (notificationContent.body?.optLong("expires_at", 0L) ?: 0L) - System.currentTimeMillis()))
++      if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
++        builder.addAction(buildButtonAction(reject))
++        builder.addAction(buildButtonAction(answer))
++      }
++      return
++    }
+     var actions = emptyList<NotificationAction>()
+     try {
+       val category: NotificationCategory? = store.getNotificationCategory(categoryIdentifier)
+@@ -153,5 +165,12 @@ open class ExpoNotificationBuilder(
+     } else {
+       builder.setLargeIcon(largeIcon)
+     }
+-    return builder.build()
++    val result = builder.build()
++    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && content.categoryId == "synaura_call") {
++      val caller = android.app.Person.Builder().setName(content.title ?: "Synaura").setImportant(true).build()
++      return Notification.Builder.recoverBuilder(context, result).setStyle(Notification.CallStyle.forIncomingCall(caller,
++        createNotificationResponseIntent(context, notification, NotificationAction("decline_call", "Refuser", false)),
++        createNotificationResponseIntent(context, notification, NotificationAction("answer_call", "Répondre", true)))).build()
++    }
++    return result
+   }
+diff --git a/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/service/delegates/ExpoPresentationDelegate.kt b/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/service/delegates/ExpoPresentationDelegate.kt
+index 38f6fba..978b6e4 100644
+--- a/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/service/delegates/ExpoPresentationDelegate.kt
++++ b/node_modules/expo-notifications/android/src/main/java/expo/modules/notifications/service/delegates/ExpoPresentationDelegate.kt
+@@ -92,6 +92,12 @@ open class ExpoPresentationDelegate(
+    * set badge count without showing a notification.
+    */
+   override fun presentNotification(notification: Notification, behavior: NotificationBehaviorRecord?) {
++    val data = notification.notificationRequest.content.body
++    if (data?.optString("kind") == "call_ended") {
++      NotificationManagerCompat.from(context).cancel(notification.notificationRequest.identifier, getNotifyId(notification.notificationRequest))
++      return
++    }
++    if (data?.optString("kind") == "incoming_call" && data.optLong("expires_at", 0L) <= System.currentTimeMillis()) return
+     if (behavior?.shouldPresentAlert == false) {
+       if (behavior.shouldPlaySound) {
+         val sound = getNotificationSoundUri(notification) ?: Settings.System.DEFAULT_NOTIFICATION_URI

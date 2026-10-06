@@ -22,7 +22,10 @@ import { Image } from 'expo-image';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
+import { useFocusEffect, useIsFocused, useNavigation, useRoute } from '@react-navigation/native';
+import { useVisibleMessageReceipts } from '@/messaging/useVisibleMessageReceipts';
+import { messageDate } from '@/messaging/messageTime';
+import { CallHistory } from '@/components/messaging/CallHistory';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Video from 'react-native-video';
 import {
@@ -129,20 +132,21 @@ function mergeMessages(previous: MessagingMessage[], incoming: MessagingMessage[
     if (localId && localId !== message.id) byId.delete(localId);
     byId.set(message.id, message);
   });
-  return Array.from(byId.values()).sort((first, second) => new Date(first.createdAt).getTime() - new Date(second.createdAt).getTime());
+  return Array.from(byId.values()).sort((first, second) => messageDate(first.createdAt).getTime() - messageDate(second.createdAt).getTime());
 }
 
 function clock(value: string) {
-  return new Date(value).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  const date=messageDate(value);
+  return Number.isFinite(date.getTime()) ? date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '';
 }
 
 function dayKey(value: string) {
-  const date = new Date(value);
+  const date = messageDate(value);
   return Number.isFinite(date.getTime()) ? `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}` : value;
 }
 
 function dayLabel(value: string) {
-  const date = new Date(value);
+  const date = messageDate(value);
   if (!Number.isFinite(date.getTime())) return '';
   const today = new Date();
   const yesterday = new Date(today);
@@ -167,9 +171,7 @@ function messagePreview(message: MessagingMessage) {
 }
 
 function recentlyActive(user?: MessagingUser | null) {
-  if (!user?.lastSeen) return false;
-  const timestamp = new Date(user.lastSeen).getTime();
-  return Number.isFinite(timestamp) && Date.now() - timestamp < 5 * 60_000;
+  return Boolean(user?.isOnline);
 }
 
 function recordingClock(durationMillis: number) {
@@ -317,6 +319,8 @@ export function ConversationScreen() {
   const cacheWriteRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const typingStopRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const typingActiveRef = useRef(false);
+  const isFocused=useIsFocused();
+  const onVisibleMessages=useVisibleMessageReceipts(conversationId,auth.user?.id,isFocused,activeRoomId);
 
   const conversationQuery = useQuery({
     queryKey: [...messagingKeys.conversation(conversationId), activeRoomId],
@@ -377,14 +381,6 @@ export function ConversationScreen() {
     setHasMore(data.hasMore);
     setNextCursor(data.nextCursor);
     setMuted(Boolean(data.conversation.muted));
-    const currentUserId = auth.user?.id;
-    if (currentUserId && data.messages.some((message) => (
-      message.sender.id !== currentUserId && !message.seenBy.includes(currentUserId)
-    ))) {
-      void markConversationSeen(conversationId)
-        .then(() => queryClient.invalidateQueries({ queryKey: messagingKeys.unread() }))
-        .catch(() => {});
-    }
   }, [auth.user?.id, conversationId, conversationQuery.data, queryClient]);
 
   useEffect(() => {
@@ -506,7 +502,7 @@ export function ConversationScreen() {
         : realtimeState === 'error'
           ? 'Reconnexion...'
           : other
-            ? (recentlyActive(other) || (liveSignal?.active && liveSignal.type === 'presence') ? 'Actif récemment' : `@${other.username}`)
+            ? (recentlyActive(other) ? 'En ligne' : other.lastSeen ? `Vu ${dayLabel(other.lastSeen)} à ${clock(other.lastSeen)}` : `@${other.username}`)
             : 'Groupe Synaura';
 
   const voiceRecorder = useVoiceMessageRecorder({
@@ -1239,7 +1235,7 @@ export function ConversationScreen() {
             <Text style={styles.time}>{clock(message.createdAt)}{message.editedAt ? ' · modifié' : ''}</Text>
             {message.localState === 'sending' ? <ActivityIndicator size={9} color={colors.textTertiary} /> : null}
             {message.localState === 'failed' ? <Pressable onPress={() => void retryMessage(message)} style={styles.retryStatus}><Ionicons name="alert-circle" size={13} color={colors.coral} /><Text style={styles.retryStatusText}>Renvoyer</Text></Pressable> : null}
-            {own && !message.localState && message.id === lastOwnMessageId ? <Ionicons name={message.seenBy.some((id) => id !== ownId) ? 'checkmark-done' : 'checkmark'} size={13} color={message.seenBy.some((id) => id !== ownId) ? colors.cyan : colors.textTertiary} /> : null}
+            {own && !message.localState && message.id === lastOwnMessageId ? <Text accessibilityLabel={message.seenBy.some(id=>id!==ownId)?'Message vu':'Message envoyé'} style={[styles.time,{color:message.seenBy.some(id=>id!==ownId)?colors.cyan:colors.textTertiary}]}>{message.seenBy.some(id=>id!==ownId)?`Vu${conversation.type==='group'?` par ${message.seenBy.filter(id=>id!==ownId).length}`:''}`:'Envoyé'}</Text> : null}
           </View>
         </View>
       </View>
@@ -1253,6 +1249,7 @@ export function ConversationScreen() {
       <ConversationBackdrop preferences={preferences} fallbackImage={conversation.avatarUrl || other?.avatar || null} />
       <ConversationHeader navigation={navigation} user={other || null} title={conversationTitle} subtitle={conversationSubtitle} onMenu={() => setMenuOpen(true)} layout={layout} accentColor={accentColor}
         onCall={calls.enabled && canMessage ? () => { setPlayingAudioId(null); setVoicePreviewPlaying(false); if (voiceRecorder.phase === 'recording') { setErrorMessage('Termine ton vocal avant d’appeler.'); return; } calls.start(conversationId); } : undefined} />
+      <CallHistory conversationId={conversationId} initiallyOpen={Boolean(route.params?.showCalls)}/>
       {conversation.type === 'group' && conversation.rooms?.length ? (
         <View style={styles.roomBar}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[styles.roomBarContent, { paddingHorizontal: layout.gutter }]}>
@@ -1268,6 +1265,8 @@ export function ConversationScreen() {
       {errorMessage ? <Pressable onPress={() => setErrorMessage('')} style={[styles.errorBanner, layout.contentFrame, { marginHorizontal: layout.gutter }]}><Ionicons name="alert-circle-outline" size={17} color={colors.coral} /><Text style={styles.errorText}>{errorMessage}</Text><Ionicons name="close" size={16} color={colors.textTertiary} /></Pressable> : null}
       <FlashList
         ref={listRef}
+        onViewableItemsChanged={onVisibleMessages}
+        viewabilityConfig={{itemVisiblePercentThreshold:50,minimumViewTime:500}}
         data={messages}
         keyExtractor={(message) => message.id}
         renderItem={renderMessage}

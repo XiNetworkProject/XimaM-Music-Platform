@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { messagingIso } from '@/lib/messagingTime';
+import { getUnreadMessages } from '@/lib/messagingReceipts';
 import { getApiSession } from '@/lib/getApiSession';
 import { dbAdmin } from '@/lib/database';
 import {
@@ -25,7 +27,7 @@ function lastMessagePreview(message: any) {
     sharedEntityType: message.deleted_at ? null : message.shared_entity_type || null,
     sharedEntityId: message.deleted_at ? null : message.shared_entity_id || null,
     metadata: message.deleted_at ? {} : metadata,
-    createdAt: message.created_at,
+    createdAt: messagingIso(message.created_at),
     senderId: String(message.sender_id),
   };
 }
@@ -59,18 +61,12 @@ export async function GET(request: NextRequest) {
     const activeIds = (conversations || []).map((row) => row.id);
     if (!activeIds.length) return NextResponse.json({ conversations: [], total: 0, unread: 0 });
 
-    const [{ data: participantRows }, { data: unreadRows }] = await Promise.all([
+    const [{ data: participantRows }, unreadRows] = await Promise.all([
       dbAdmin
         .from('conversation_participants')
         .select('conversation_id, user_id, last_read_at, role, nickname')
         .in('conversation_id', activeIds),
-      dbAdmin
-        .from('messages')
-        .select('conversation_id')
-        .in('conversation_id', activeIds)
-        .neq('sender_id', userId)
-        .eq('is_read', false)
-        .is('deleted_at', null),
+      getUnreadMessages(userId,activeIds),
     ]);
 
     const participantsByConversation = new Map<string, any[]>();
@@ -94,7 +90,7 @@ export async function GET(request: NextRequest) {
 
     const unreadByConversation = new Map<string, number>();
     (unreadRows || []).forEach((row) => {
-      unreadByConversation.set(row.conversation_id, (unreadByConversation.get(row.conversation_id) || 0) + 1);
+      unreadByConversation.set(row.conversation_id, row.count);
     });
 
     const otherUserIds = Array.from(new Set((participantRows || [])
@@ -142,8 +138,8 @@ export async function GET(request: NextRequest) {
         muted: Boolean(ownParticipation?.muted_until && new Date(ownParticipation.muted_until).getTime() > Date.now()),
         archived: Boolean(ownParticipation?.archived_at),
         preferences: formatConversationPreferences(ownParticipation),
-        createdAt: conversation.created_at,
-        updatedAt: conversation.last_message_at || conversation.updated_at,
+        createdAt: messagingIso(conversation.created_at),
+        updatedAt: messagingIso(conversation.last_message_at || conversation.updated_at),
       };
     });
 
