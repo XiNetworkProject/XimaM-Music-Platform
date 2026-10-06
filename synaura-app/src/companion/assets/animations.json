@@ -1,0 +1,215 @@
+{
+  "idle": {
+    "label": "Tranquille",
+    "frames": [
+      "blink_00"
+    ],
+    "fps": 1,
+    "loop": true
+  },
+  "stand": {
+    "label": "À l’affût",
+    "frames": [
+      "stand_00"
+    ],
+    "fps": 1,
+    "loop": true
+  },
+  "blink": {
+    "label": "Petit clin d’œil",
+    "frames": [
+      "blink_00",
+      "blink_01",
+      "blink_02",
+      "blink_01",
+      "blink_03"
+    ],
+    "fps": 9,
+    "duration": 0.62
+  },
+  "sit": {
+    "label": "Bien installé",
+    "frames": [
+      "blink_03"
+    ],
+    "fps": 1,
+    "loop": true
+  },
+  "tail": {
+    "label": "Queue étoilée",
+    "frames": [
+      "tail_00",
+      "tail_01",
+      "tail_02",
+      "tail_03",
+      "tail_04",
+      "tail_05",
+      "tail_04",
+      "tail_03",
+      "tail_02",
+      "tail_01"
+    ],
+    "fps": 5,
+    "duration": 4,
+    "loop": true
+  },
+  "curious": {
+    "label": "Hmm… c’est quoi ?",
+    "frames": [
+      "emotion_01"
+    ],
+    "fps": 1,
+    "duration": 3
+  },
+  "look": {
+    "label": "La tête dans les étoiles",
+    "frames": [
+      "emotion_02"
+    ],
+    "fps": 1,
+    "duration": 3
+  },
+  "happy": {
+    "label": "Un petit bonheur",
+    "frames": [
+      "emotion_00"
+    ],
+    "fps": 1,
+    "duration": 2.7
+  },
+  "pet": {
+    "label": "Encore une caresse ?",
+    "frames": [
+      "emotion_00"
+    ],
+    "fps": 1,
+    "duration": 2.8
+  },
+  "walk": {
+    "label": "En promenade",
+    "frames": [
+      "walk_00",
+      "walk_01",
+      "walk_02",
+      "walk_03",
+      "walk_04",
+      "walk_05",
+      "walk_06"
+    ],
+    "fps": 8,
+    "loop": true
+  },
+  "run": {
+    "label": "À toute allure !",
+    "frames": [
+      "walk_00",
+      "walk_01",
+      "walk_02",
+      "walk_03",
+      "walk_04",
+      "walk_05",
+      "walk_06"
+    ],
+    "fps": 14,
+    "loop": true
+  },
+  "jump": {
+    "label": "Vers les étoiles !",
+    "frames": [
+      "portrait_05"
+    ],
+    "fps": 1,
+    "duration": 1.05
+  },
+  "play": {
+    "label": "Attrape l’étoile !",
+    "frames": [
+      "portrait_05"
+    ],
+    "fps": 1,
+    "duration": 3.2
+  },
+  "sniff": {
+    "label": "Une piste à explorer",
+    "frames": [
+      "stand_00"
+    ],
+    "fps": 1,
+    "duration": 2.8
+  },
+  "sleep": {
+    "label": "Dans les bras de la lune",
+    "frames": [
+      "sleep_00",
+      "sleep_01",
+      "sleep_02",
+      "sleep_03",
+      "sleep_04",
+      "sleep_05"
+    ],
+    "fps": 2.2,
+    "loop": true
+  },
+  "wake": {
+    "label": "Un réveil tout doux",
+    "frames": [
+      "wake_00",
+      "wake_01",
+      "wake_02",
+      "wake_03"
+    ],
+    "fps": 2.2,
+    "duration": 1.85
+  },
+  "music": {
+    "label": "Dans son univers",
+    "frames": [
+      "music_00",
+      "music_01",
+      "music_02",
+      "music_03",
+      "music_04",
+      "music_05"
+    ],
+    "fps": 4,
+    "loop": true
+  },
+  "disappear": {
+    "label": "Poussière d’étoiles",
+    "frames": [
+      "vanish_00",
+      "vanish_01",
+      "vanish_02",
+      "vanish_03",
+      "vanish_04",
+      "vanish_05",
+      "vanish_06",
+      "vanish_07"
+    ],
+    "fps": 7,
+    "duration": 1.3
+  },
+  "hidden": {
+    "label": "Pas loin… juste invisible",
+    "frames": [
+      "empty"
+    ],
+    "fps": 1,
+    "loop": true
+  },
+  "appear": {
+    "label": "Me revoilà !",
+    "frames": [
+      "appear_00",
+      "appear_01",
+      "appear_02",
+      "appear_03",
+      "appear_04",
+      "appear_05",
+      "appear_06",
+      "appear_07"
+    ],
+    "fps": 7,
+    "duration": 1.3
+  }
+}

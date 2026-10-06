@@ -66,6 +66,7 @@ import { SynauraQueryProvider } from '@/query/SynauraQueryProvider';
 import { ConversationBubbleProvider } from '@/messaging/ConversationBubbleProvider';
 import { MessageOutboxProvider } from '@/messaging/MessageOutboxProvider';
 import { NativeCallProvider } from '@/calls/NativeCallProvider';
+import { NativeCompanion } from '@/companion/NativeCompanion';
 
 export type RootStackParamList = RootTabsParamList & {
   Tabs: { screen?: string; params?: Record<string, unknown> } | undefined;
@@ -283,6 +284,7 @@ function SynauraRuntime() {
                     <RootStackNavigator />
                     <NativePlayerChrome activeRoute={activeRoute} open={playerOpen} onOpen={() => setPlayerOpen(true)} onClose={() => setPlayerOpen(false)} />
                     <NativeNotificationNudge activeRoute={activeRoute} />
+                    <NativeCompanion activeRoute={activeRoute} blocked={playerOpen} />
                   </NavigationContainer>
                   <AnimatedBootSplash />
                   </NativeNotificationsProvider>

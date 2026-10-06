@@ -255,6 +255,8 @@ export default function NotificationCenter({ className = '' }: NotificationCente
   const [showPanel, setShowPanel] = useState(false);
   const [dbNotifs, setDbNotifs] = useState<DBNotification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [countOwner,setCountOwner]=useState<string|null>(null);
+  useEffect(()=>{if(countOwner&&countOwner===session?.user?.id)window.dispatchEvent(new CustomEvent('synaura:companion-notifications',{detail:{owner:countOwner,count:unreadCount}}));},[unreadCount,countOwner,session?.user?.id]);
   const [loading, setLoading] = useState(false);
   const [category, setCategory] = useState('all');
   const [pushStatus, setPushStatus] = useState<'unknown' | 'granted' | 'denied' | 'unsupported' | 'unavailable'>('unknown');
@@ -296,8 +298,9 @@ export default function NotificationCenter({ className = '' }: NotificationCente
       if (!res.ok) return;
       const data = await res.json();
       setUnreadCount(data.unread || 0);
+      setCountOwner(session?.user?.id||null);
     } catch {}
-  }, []);
+  }, [session?.user?.id]);
 
   const fetchNotifs = useCallback(async (cat?: string) => {
     try {
@@ -308,8 +311,9 @@ export default function NotificationCenter({ className = '' }: NotificationCente
       const data = await res.json();
       setDbNotifs(data.notifications || []);
       setUnreadCount(data.unread || 0);
+      setCountOwner(session?.user?.id||null);
     } catch {}
-  }, []);
+  }, [session?.user?.id]);
 
   useEffect(() => {
     if (!isAuthenticated) return;

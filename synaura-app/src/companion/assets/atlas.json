@@ -1,0 +1,838 @@
+{
+  "version": "1.0.0",
+  "image": "atlas.png",
+  "size": {
+    "w": 2560,
+    "h": 2880
+  },
+  "frameSize": 320,
+  "anchor": {
+    "x": 0.5,
+    "y": 0.925
+  },
+  "frames": {
+    "stand_00": {
+      "x": 0,
+      "y": 0,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 201,
+        "h": 209
+      },
+      "source": "idle-sheet",
+      "normalizationScale": 1.1101
+    },
+    "stand_01": {
+      "x": 320,
+      "y": 0,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 176,
+        "h": 207
+      },
+      "source": "idle-sheet",
+      "normalizationScale": 1.1101
+    },
+    "stand_02": {
+      "x": 640,
+      "y": 0,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 172,
+        "h": 209
+      },
+      "source": "idle-sheet",
+      "normalizationScale": 1.1101
+    },
+    "stand_03": {
+      "x": 960,
+      "y": 0,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 178,
+        "h": 213
+      },
+      "source": "idle-sheet",
+      "normalizationScale": 1.1101
+    },
+    "stand_04": {
+      "x": 1280,
+      "y": 0,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 180,
+        "h": 205
+      },
+      "source": "idle-sheet",
+      "normalizationScale": 1.1101
+    },
+    "stand_05": {
+      "x": 1600,
+      "y": 0,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 181,
+        "h": 211
+      },
+      "source": "idle-sheet",
+      "normalizationScale": 1.1101
+    },
+    "stand_06": {
+      "x": 1920,
+      "y": 0,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 183,
+        "h": 210
+      },
+      "source": "idle-sheet",
+      "normalizationScale": 1.1101
+    },
+    "stand_07": {
+      "x": 2240,
+      "y": 0,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 177,
+        "h": 208
+      },
+      "source": "idle-sheet",
+      "normalizationScale": 1.1101
+    },
+    "blink_00": {
+      "x": 0,
+      "y": 320,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 217,
+        "h": 226
+      },
+      "source": "idle-sheet",
+      "normalizationScale": 1.0909
+    },
+    "blink_01": {
+      "x": 320,
+      "y": 320,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 214,
+        "h": 227
+      },
+      "source": "idle-sheet",
+      "normalizationScale": 1.0909
+    },
+    "blink_02": {
+      "x": 640,
+      "y": 320,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 195,
+        "h": 225
+      },
+      "source": "idle-sheet",
+      "normalizationScale": 1.0909
+    },
+    "blink_03": {
+      "x": 960,
+      "y": 320,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 210,
+        "h": 226
+      },
+      "source": "idle-sheet",
+      "normalizationScale": 1.0909
+    },
+    "tail_00": {
+      "x": 1280,
+      "y": 320,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 202,
+        "h": 225
+      },
+      "source": "idle-sheet",
+      "normalizationScale": 1.087
+    },
+    "tail_01": {
+      "x": 1600,
+      "y": 320,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 204,
+        "h": 223
+      },
+      "source": "idle-sheet",
+      "normalizationScale": 1.087
+    },
+    "tail_02": {
+      "x": 1920,
+      "y": 320,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 197,
+        "h": 222
+      },
+      "source": "idle-sheet",
+      "normalizationScale": 1.087
+    },
+    "tail_03": {
+      "x": 2240,
+      "y": 320,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 197,
+        "h": 224
+      },
+      "source": "idle-sheet",
+      "normalizationScale": 1.087
+    },
+    "tail_04": {
+      "x": 0,
+      "y": 640,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 200,
+        "h": 219
+      },
+      "source": "idle-sheet",
+      "normalizationScale": 1.087
+    },
+    "tail_05": {
+      "x": 320,
+      "y": 640,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 216,
+        "h": 227
+      },
+      "source": "idle-sheet",
+      "normalizationScale": 1.087
+    },
+    "emotion_00": {
+      "x": 640,
+      "y": 640,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 232,
+        "h": 232
+      },
+      "source": "idle-sheet",
+      "normalizationScale": 1.0288
+    },
+    "emotion_01": {
+      "x": 960,
+      "y": 640,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 201,
+        "h": 240
+      },
+      "source": "idle-sheet",
+      "normalizationScale": 1.0288
+    },
+    "emotion_02": {
+      "x": 1280,
+      "y": 640,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 188,
+        "h": 216
+      },
+      "source": "idle-sheet",
+      "normalizationScale": 1.0288
+    },
+    "emotion_03": {
+      "x": 1600,
+      "y": 640,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 213,
+        "h": 226
+      },
+      "source": "idle-sheet",
+      "normalizationScale": 1.0288
+    },
+    "emotion_04": {
+      "x": 1920,
+      "y": 640,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 209,
+        "h": 228
+      },
+      "source": "idle-sheet",
+      "normalizationScale": 1.0288
+    },
+    "music_00": {
+      "x": 2240,
+      "y": 640,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 212,
+        "h": 225
+      },
+      "source": "music-sleep-sheet",
+      "normalizationScale": 1.0823
+    },
+    "music_01": {
+      "x": 0,
+      "y": 960,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 218,
+        "h": 226
+      },
+      "source": "music-sleep-sheet",
+      "normalizationScale": 1.0823
+    },
+    "music_02": {
+      "x": 320,
+      "y": 960,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 209,
+        "h": 224
+      },
+      "source": "music-sleep-sheet",
+      "normalizationScale": 1.0823
+    },
+    "music_03": {
+      "x": 640,
+      "y": 960,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 217,
+        "h": 224
+      },
+      "source": "music-sleep-sheet",
+      "normalizationScale": 1.0823
+    },
+    "music_04": {
+      "x": 960,
+      "y": 960,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 203,
+        "h": 222
+      },
+      "source": "music-sleep-sheet",
+      "normalizationScale": 1.0823
+    },
+    "music_05": {
+      "x": 1280,
+      "y": 960,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 212,
+        "h": 224
+      },
+      "source": "music-sleep-sheet",
+      "normalizationScale": 1.0823
+    },
+    "sleep_00": {
+      "x": 1600,
+      "y": 960,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 231,
+        "h": 169
+      },
+      "source": "music-sleep-sheet",
+      "normalizationScale": 1.0872
+    },
+    "sleep_01": {
+      "x": 1920,
+      "y": 960,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 234,
+        "h": 169
+      },
+      "source": "music-sleep-sheet",
+      "normalizationScale": 1.0872
+    },
+    "sleep_02": {
+      "x": 2240,
+      "y": 960,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 238,
+        "h": 168
+      },
+      "source": "music-sleep-sheet",
+      "normalizationScale": 1.0872
+    },
+    "sleep_03": {
+      "x": 0,
+      "y": 1280,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 224,
+        "h": 166
+      },
+      "source": "music-sleep-sheet",
+      "normalizationScale": 1.0872
+    },
+    "sleep_04": {
+      "x": 320,
+      "y": 1280,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 233,
+        "h": 160
+      },
+      "source": "music-sleep-sheet",
+      "normalizationScale": 1.0872
+    },
+    "sleep_05": {
+      "x": 640,
+      "y": 1280,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 224,
+        "h": 161
+      },
+      "source": "music-sleep-sheet",
+      "normalizationScale": 1.0872
+    },
+    "wake_00": {
+      "x": 960,
+      "y": 1280,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 234,
+        "h": 138
+      },
+      "source": "music-sleep-sheet",
+      "normalizationScale": 1.144
+    },
+    "wake_01": {
+      "x": 1280,
+      "y": 1280,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 239,
+        "h": 162
+      },
+      "source": "music-sleep-sheet",
+      "normalizationScale": 1.144
+    },
+    "wake_02": {
+      "x": 1600,
+      "y": 1280,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 246,
+        "h": 197
+      },
+      "source": "music-sleep-sheet",
+      "normalizationScale": 1.144
+    },
+    "wake_03": {
+      "x": 1920,
+      "y": 1280,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 239,
+        "h": 217
+      },
+      "source": "music-sleep-sheet",
+      "normalizationScale": 1.144
+    },
+    "vanish_00": {
+      "x": 2240,
+      "y": 1280,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 164,
+        "h": 166
+      },
+      "source": "magic-sheet",
+      "normalizationScale": 1.35
+    },
+    "vanish_01": {
+      "x": 0,
+      "y": 1600,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 158,
+        "h": 169
+      },
+      "source": "magic-sheet",
+      "normalizationScale": 1.35
+    },
+    "vanish_02": {
+      "x": 320,
+      "y": 1600,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 165,
+        "h": 167
+      },
+      "source": "magic-sheet",
+      "normalizationScale": 1.35
+    },
+    "vanish_03": {
+      "x": 640,
+      "y": 1600,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 183,
+        "h": 169
+      },
+      "source": "magic-sheet",
+      "normalizationScale": 1.35
+    },
+    "vanish_04": {
+      "x": 960,
+      "y": 1600,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 165,
+        "h": 166
+      },
+      "source": "magic-sheet",
+      "normalizationScale": 1.35
+    },
+    "vanish_05": {
+      "x": 1280,
+      "y": 1600,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 179,
+        "h": 161
+      },
+      "source": "magic-sheet",
+      "normalizationScale": 1.35
+    },
+    "vanish_06": {
+      "x": 1600,
+      "y": 1600,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 150,
+        "h": 142
+      },
+      "source": "magic-sheet",
+      "normalizationScale": 1.35
+    },
+    "vanish_07": {
+      "x": 1920,
+      "y": 1600,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 142,
+        "h": 133
+      },
+      "source": "magic-sheet",
+      "normalizationScale": 1.35
+    },
+    "appear_00": {
+      "x": 2240,
+      "y": 1600,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 131,
+        "h": 120
+      },
+      "source": "magic-sheet",
+      "normalizationScale": 1.35
+    },
+    "appear_01": {
+      "x": 0,
+      "y": 1920,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 140,
+        "h": 148
+      },
+      "source": "magic-sheet",
+      "normalizationScale": 1.35
+    },
+    "appear_02": {
+      "x": 320,
+      "y": 1920,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 172,
+        "h": 165
+      },
+      "source": "magic-sheet",
+      "normalizationScale": 1.35
+    },
+    "appear_03": {
+      "x": 640,
+      "y": 1920,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 175,
+        "h": 173
+      },
+      "source": "magic-sheet",
+      "normalizationScale": 1.35
+    },
+    "appear_04": {
+      "x": 960,
+      "y": 1920,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 177,
+        "h": 174
+      },
+      "source": "magic-sheet",
+      "normalizationScale": 1.35
+    },
+    "appear_05": {
+      "x": 1280,
+      "y": 1920,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 179,
+        "h": 174
+      },
+      "source": "magic-sheet",
+      "normalizationScale": 1.35
+    },
+    "appear_06": {
+      "x": 1600,
+      "y": 1920,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 178,
+        "h": 179
+      },
+      "source": "magic-sheet",
+      "normalizationScale": 1.35
+    },
+    "appear_07": {
+      "x": 1920,
+      "y": 1920,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 184,
+        "h": 182
+      },
+      "source": "magic-sheet",
+      "normalizationScale": 1.35
+    },
+    "walk_00": {
+      "x": 2240,
+      "y": 1920,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 173,
+        "h": 148
+      },
+      "source": "beige-concept-walk-cutout",
+      "normalizationScale": 1.54
+    },
+    "walk_01": {
+      "x": 0,
+      "y": 2240,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 170,
+        "h": 142
+      },
+      "source": "beige-concept-walk-cutout",
+      "normalizationScale": 1.54
+    },
+    "walk_02": {
+      "x": 320,
+      "y": 2240,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 186,
+        "h": 137
+      },
+      "source": "beige-concept-walk-cutout",
+      "normalizationScale": 1.5376
+    },
+    "walk_03": {
+      "x": 640,
+      "y": 2240,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 155,
+        "h": 137
+      },
+      "source": "beige-concept-walk-cutout",
+      "normalizationScale": 1.54
+    },
+    "walk_04": {
+      "x": 960,
+      "y": 2240,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 162,
+        "h": 141
+      },
+      "source": "beige-concept-walk-cutout",
+      "normalizationScale": 1.54
+    },
+    "walk_05": {
+      "x": 1280,
+      "y": 2240,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 159,
+        "h": 147
+      },
+      "source": "beige-concept-walk-cutout",
+      "normalizationScale": 1.54
+    },
+    "walk_06": {
+      "x": 1600,
+      "y": 2240,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 160,
+        "h": 150
+      },
+      "source": "beige-concept-walk-cutout",
+      "normalizationScale": 1.54
+    },
+    "portrait_00": {
+      "x": 1920,
+      "y": 2240,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 455,
+        "h": 452
+      },
+      "source": "large-pose-sheet",
+      "normalizationScale": 0.5752
+    },
+    "portrait_01": {
+      "x": 2240,
+      "y": 2240,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 476,
+        "h": 448
+      },
+      "source": "large-pose-sheet",
+      "normalizationScale": 0.5804
+    },
+    "portrait_02": {
+      "x": 0,
+      "y": 2560,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 344,
+        "h": 463
+      },
+      "source": "large-pose-sheet",
+      "normalizationScale": 0.5616
+    },
+    "portrait_03": {
+      "x": 320,
+      "y": 2560,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 373,
+        "h": 412
+      },
+      "source": "large-pose-sheet",
+      "normalizationScale": 0.6311
+    },
+    "portrait_04": {
+      "x": 640,
+      "y": 2560,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 436,
+        "h": 289
+      },
+      "source": "large-pose-sheet",
+      "normalizationScale": 0.656
+    },
+    "portrait_05": {
+      "x": 960,
+      "y": 2560,
+      "w": 320,
+      "h": 320,
+      "originalSize": {
+        "w": 491,
+        "h": 386
+      },
+      "source": "large-pose-sheet",
+      "normalizationScale": 0.5825
+    },
+    "empty": {
+      "x": 1280,
+      "y": 2560,
+      "w": 320,
+      "h": 320,
+      "source": "transparent"
+    }
+  }
+}

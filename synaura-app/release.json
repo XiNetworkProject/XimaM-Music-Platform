@@ -1,14 +1,14 @@
 {
-  "title": "Synaura 0.27.2 — Messages et appels",
+  "title": "Synaura 0.28.0 — Ton compagnon fennec",
   "mandatory": false,
   "minimumVersionCode": 2,
   "releaseNotes": [
-    "Correction des notifications répétées lors de la fermeture de l’application",
-    "Réponse aux messages depuis les notifications Android",
-    "Notifications d’appel avec actions pour répondre ou refuser",
-    "Historique des nouveaux appels : manqués, entrants, sortants et durées",
-    "Dates corrigées, messages vus par destinataire et présence en ligne",
-    "Après la mise à jour, ouvre Synaura et autorise les notifications pour activer les nouveaux contrôles",
+    "Un compagnon fennec animé t’accompagne pendant ta navigation",
+    "Il réagit à la musique, aux appels et aux notifications sans lire tes messages privés",
+    "Des guides Synaura et une recherche de contenus pour t’aider quand tu en as besoin",
+    "Déplace-le, personnalise son nom et sa taille, ou masque-le à tout moment",
+    "Il reste discret pendant les appels, la saisie et le lecteur plein écran",
+    "Aucune lecture automatique déclenchée par le compagnon : tu gardes le contrôle",
     "Mise à jour sans désinstaller : même application et même signature"
   ]
 }

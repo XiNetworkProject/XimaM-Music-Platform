@@ -11,8 +11,8 @@ import { CallSounds, remoteEndCue, type CallCue } from '@/lib/voice/callSounds';
 import './voice-calls.css';
 
 type CallView = { id: string; conversationId: string; title: string; group: boolean; callerId: string; created: number; status: 'ringing' | 'active' | 'ended'; mine: string; members: { id: string; name: string; state: string }[] };
-type VoiceContext = { enabled: boolean; busy: boolean; currentConversation: string | null; start: (id: string) => void };
-const Context = createContext<VoiceContext>({ enabled: false, busy: false, currentConversation: null, start: () => undefined });
+type VoiceContext = { enabled: boolean; busy: boolean; incoming: boolean; currentConversation: string | null; start: (id: string) => void };
+const Context = createContext<VoiceContext>({ enabled: false, busy: false, incoming: false, currentConversation: null, start: () => undefined });
 export const useVoiceCalls = () => useContext(Context);
 
 export function VoiceCallProvider({ children }: { children: ReactNode }) {
@@ -217,7 +217,7 @@ export function VoiceCallProvider({ children }: { children: ReactNode }) {
     try { if (track.isMuted) await track.unmute(); else await track.mute(); setMuted(track.isMuted); }
     catch { setError('Le micro ne répond pas. Raccroche puis réessaie.'); }
   };
-  return <Context.Provider value={{ enabled, busy, currentConversation: current?.conversationId || null, start }}>{children}
+  return <Context.Provider value={{ enabled, busy, incoming:Boolean(incoming), currentConversation: current?.conversationId || null, start }}>{children}
     {error && !expanded && <div className="voice-notice" role="status"><span>{error}</span><button aria-label="Fermer le message d’appel" onClick={() => setError('')}>×</button></div>}
     {incoming && !current && !busy && <section className="voice-incoming" role="region" aria-label="Appel entrant"><div className="voice-orbit"><Phone size={22} /></div><div><strong>{caller}</strong><span>{incoming.group ? incoming.title : 'Appel vocal entrant'}</span>{soundsBlocked && <button className="voice-enable" onClick={() => sounds.current?.retry()}>Activer la sonnerie</button>}</div><button className="voice-control danger" aria-label="Refuser l’appel" onClick={() => void decline()}><PhoneOff size={20} /></button><button className="voice-control accept" aria-label="Accepter l’appel" onClick={() => void connect('join', incoming.id)}><Phone size={20} /></button></section>}
     {current && !expanded && <button className="voice-pill" onClick={() => setExpanded(true)} aria-label="Ouvrir l’appel en cours"><span className="voice-dot" /><Phone size={17} /><span>{title}</span>{muted && <MicOff size={16} />}</button>}

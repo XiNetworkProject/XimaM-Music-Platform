@@ -33,6 +33,7 @@ import CommentsRegistration from '@/components/comments/CommentsRegistration';
 import ActionsRegistration from '@/components/actions/ActionsRegistration';
 import { Suspense } from 'react';
 import CreateRegistration from '@/components/create/CreateRegistration';
+import FennecCompanion from '@/components/companion/FennecCompanion';
 
 const SYNAURA_THEME_STORAGE_KEY = 'synaura.theme.mode.v1';
 
@@ -176,6 +177,7 @@ export default function RootLayout({
           <CommentsRegistration />
           <ActionsRegistration />
           <Suspense fallback={null}><CreateRegistration /></Suspense>
+          <Suspense fallback={null}><FennecCompanion /></Suspense>
           </ContextSurfaceProvider>
         </Providers>
         </SynauraThemeProvider>

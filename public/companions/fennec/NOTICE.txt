@@ -1,0 +1,5 @@
+Synaura renard-fennec beige — assets supplied by the user, Synaura-compagnon 1.0 (2026-10-06).
+Original artwork and animation sequences preserved. No generated replacement images.
+Web engine adapted only to suspend idle rendering when paused/reduced-motion.
+Native renderer uses the same atlas and frame timings; procedural transforms are native equivalents.
+Not a microphone listener. No audio playback or external AI provider is created by the companion.
