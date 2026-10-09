@@ -388,6 +388,21 @@ export async function inspectOwnedClipVideo(publicId: string, ownerId: string) {
   return { duration: probe.duration, bytes: file.size };
 }
 
+/** Re-check the actual owned upload before committing a publication. No client sizes are trusted. */
+export async function inspectOwnedPublicationMedia(publicId: string, ownerId: string, kind: 'audio' | 'cover' | 'cover-video') {
+  const safe = safeRelativePathFromPublicId(publicId);
+  const config = KIND_CONFIG[kind];
+  if (!safe || !isLocalMediaOwnedBy(publicId, ownerId) || path.posix.dirname(safe.relative) !== config.folder) throw new Error('Ce fichier ne correspond pas à un envoi autorisé de ton compte.');
+  const file = await stat(safe.absolute);
+  if (!file.isFile() || file.size <= 0 || file.size > config.maxBytes) throw new Error('Le fichier est vide ou trop volumineux.');
+  const probe = await validateStoredContent(safe.absolute, config.mediaClass, path.extname(safe.absolute));
+  if (kind !== 'cover' && (!probe.duration || !Number.isFinite(probe.duration))) throw new Error('La durée du fichier est invalide. Exporte à nouveau le fichier.');
+  if (kind === 'cover-video' && probe.duration! > 7.1) throw new Error('La pochette animée doit durer au maximum 7 secondes.');
+  const posterRelative = path.posix.join(path.posix.dirname(safe.relative), 'posters', `${path.posix.basename(safe.relative, path.posix.extname(safe.relative))}.jpg`);
+  if (kind === 'cover-video') await stat(path.join(MEDIA_ROOT, ...posterRelative.split('/')));
+  return { bytes: file.size, duration: probe.duration || 0, posterUrl: kind === 'cover-video' ? localMediaPublicUrl(posterRelative) : null };
+}
+
 export function isLocalMediaKind(value: unknown): value is LocalMediaKind {
   return typeof value === 'string' && Object.prototype.hasOwnProperty.call(KIND_CONFIG, value);
 }

@@ -4,5 +4,6 @@ export function usesUnifiedNavigation(pathname: string | null | undefined) {
   return /^\/(live|discover|radar|library|create|upload|publish|studio|ai-generator|ai-library|posts|profile|track|playlists|album|settings|stats|search|notifications|messages|subscriptions|city|community|challenges|download|boosters|clips|support)(\/|$)/.test(pathname)
     || /^\/v2(?:\/(live|discover))?$/.test(pathname)
     || pathname === '/dev/studio'
+    || pathname === '/dev/publication'
     || pathname === '/dev/stats';
 }

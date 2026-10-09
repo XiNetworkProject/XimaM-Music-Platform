@@ -31,7 +31,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Non autorise' }, { status: 401 });
     }
     if (session?.user?.id) {
-      const userUploadLimit = enforceRequestRateLimit(request, 'upload-media-user', 30, 60 * 60_000, session.user.id);
+      // A release can contain 50 tracks plus its cover; don't strand it halfway through.
+      const releaseFile = kind === 'audio' || kind === 'cover' || kind === 'cover-video';
+      const userUploadLimit = enforceRequestRateLimit(request, releaseFile ? 'upload-release-files' : 'upload-media-user', releaseFile ? 80 : 30, 60 * 60_000, session.user.id);
       if (userUploadLimit) return userUploadLimit;
     }
     if (ADMIN_KINDS.has(kind)) {

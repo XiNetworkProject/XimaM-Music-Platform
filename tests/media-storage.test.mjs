@@ -113,3 +113,15 @@ test('rejects MIME and extension mismatches before writing', async () => {
     /MIME/,
   );
 });
+
+test('publication inspection requires the real owned file and the exact media kind', async () => {
+  const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+cN1sAAAAASUVORK5CYII=', 'base64');
+  const body = new ReadableStream({ start(controller) { controller.enqueue(png); controller.close(); } });
+  const stored = await storage.storeRequestBody({ kind: 'cover', originalName: 'fixture.png', contentType: 'image/png', contentLength: png.length, body, ownerId: 'publication-test-owner' });
+  const inspected = await storage.inspectOwnedPublicationMedia(stored.public_id, 'publication-test-owner', 'cover');
+  assert.equal(inspected.bytes, png.length);
+  await assert.rejects(storage.inspectOwnedPublicationMedia(stored.public_id, 'other-user', 'cover'));
+  await assert.rejects(storage.inspectOwnedPublicationMedia(stored.public_id, 'publication-test-owner', 'audio'));
+  await storage.deleteLocalMedia(stored.public_id);
+  await assert.rejects(storage.inspectOwnedPublicationMedia(stored.public_id, 'publication-test-owner', 'cover'));
+});

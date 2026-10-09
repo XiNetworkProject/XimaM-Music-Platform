@@ -28,10 +28,10 @@ export default function FeaturingSearch({ artists, onChange }: Props) {
     if (q.trim().length < 2) { setResults([]); return; }
     setLoading(true);
     try {
-      const res = await fetch(`/api/admin/emails?action=users&query=${encodeURIComponent(q)}`);
+      const res = await fetch(`/api/search?filter=artists&limit=8&q=${encodeURIComponent(q)}`);
       if (res.ok) {
         const data = await res.json();
-        setResults(data.users || []);
+        setResults((data.artists || []).map((artist: any) => ({ id: artist.id || artist._id, username: artist.username, name: artist.artistName || artist.name, avatar_url: artist.avatar })));
       }
     } catch {} finally { setLoading(false); }
   }, []);

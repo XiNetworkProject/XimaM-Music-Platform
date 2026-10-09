@@ -127,7 +127,7 @@ export function shouldRenderGlobalMiniPlayer(pathname: string | null) {
   if (isChamberProductRoute(pathname) || isV2PilotRoute(pathname)) return false;
   if (pathname === '/' || pathname === '/live' || pathname.startsWith('/swipe')) return false;
   if (/^\/messages\/[^/]+/.test(pathname)) return false;
-  if (pathname.startsWith('/upload')) return false;
+  if (pathname.startsWith('/upload') || pathname === '/publish' || pathname === '/dev/publication') return false;
   if (pathname.startsWith('/clips/new')) return false;
   if (pathname.startsWith('/create/variation') || pathname === '/create') return false;
   if (pathname.startsWith('/auth') || pathname.startsWith('/onboarding') || pathname.startsWith('/enter') || pathname.startsWith('/landing')) return false;

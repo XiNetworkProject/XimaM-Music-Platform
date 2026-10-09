@@ -1,3 +1,5 @@
+import { STYLE_FAMILIES } from './publication/styleFamilies';
+
 export interface GenreCategory {
   name: string;
   emoji: string;
@@ -5,7 +7,7 @@ export interface GenreCategory {
   genres: string[];
 }
 
-export const GENRE_CATEGORIES: GenreCategory[] = [
+const BASE_GENRE_CATEGORIES: GenreCategory[] = [
   {
     name: 'Pop & Mainstream',
     emoji: '🎤',
@@ -80,7 +82,10 @@ export const GENRE_CATEGORIES: GenreCategory[] = [
   },
 ];
 
-export const MUSIC_GENRES: string[] = GENRE_CATEGORIES.flatMap((c) => c.genres);
+export const GENRE_CATEGORIES: GenreCategory[] = BASE_GENRE_CATEGORIES.map(category => ({
+  ...category, genres: Array.from(new Set([...category.genres, ...Object.values(STYLE_FAMILIES[category.name] || {}).flat()])),
+}));
+export const MUSIC_GENRES: string[] = Array.from(new Set(GENRE_CATEGORIES.flatMap((c) => c.genres)));
 
 export type MusicGenre = string;
 

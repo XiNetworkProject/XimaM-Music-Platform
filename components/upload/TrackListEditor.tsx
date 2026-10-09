@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowUp, ArrowDown, Play, Pause, Trash2, ChevronDown, ChevronRight, GripVertical } from 'lucide-react';
 import { coordinateSecondaryAudioElement } from '@/lib/audio/AudioCore';
+import GenrePicker from './GenrePicker';
 
 export type TrackMeta = {
   file: File;
@@ -50,6 +51,7 @@ export default function TrackListEditor({ tracks, onChange }: Props) {
 
   const move = (from: number, to: number) => {
     if (to < 0 || to >= tracks.length) return;
+    cleanup(); setExpandedIdx(null);
     const arr = [...tracks];
     const [item] = arr.splice(from, 1);
     arr.splice(to, 0, item);
@@ -57,7 +59,7 @@ export default function TrackListEditor({ tracks, onChange }: Props) {
   };
 
   const remove = (idx: number) => {
-    if (playingIdx === idx) cleanup();
+    cleanup(); setExpandedIdx(null);
     onChange(tracks.filter((_, i) => i !== idx));
   };
 
@@ -76,6 +78,7 @@ export default function TrackListEditor({ tracks, onChange }: Props) {
 
             <button
               type="button"
+              aria-label={`${playingIdx === idx ? 'Mettre en pause' : 'Écouter'} ${t.title}`}
               onClick={() => togglePlay(idx)}
               className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl border border-white/[0.08] bg-white/[0.04] hover:bg-white/[0.08] flex items-center justify-center transition flex-shrink-0"
             >
@@ -85,6 +88,8 @@ export default function TrackListEditor({ tracks, onChange }: Props) {
             <div className="flex-1 min-w-0">
               <input
                 type="text"
+                aria-label={`Titre du morceau ${idx + 1}`}
+                maxLength={200}
                 value={t.title}
                 onChange={(e) => update(idx, { title: e.target.value })}
                 className="w-full h-8 px-2 rounded-lg bg-transparent text-sm text-white outline-none focus:bg-white/[0.04] transition placeholder:text-white/20"
@@ -99,31 +104,33 @@ export default function TrackListEditor({ tracks, onChange }: Props) {
             <div className="flex items-center gap-1">
               <button
                 type="button"
+                aria-label={`Options du morceau ${idx + 1}`}
+                aria-expanded={expandedIdx === idx}
                 onClick={() => setExpandedIdx(expandedIdx === idx ? null : idx)}
                 className="w-7 h-7 rounded-lg hover:bg-white/[0.06] flex items-center justify-center transition text-white/30"
               >
                 {expandedIdx === idx ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
               </button>
-              <button type="button" onClick={() => move(idx, idx - 1)} disabled={idx === 0} className="w-7 h-7 rounded-lg hover:bg-white/[0.06] flex items-center justify-center transition text-white/30 disabled:opacity-20"><ArrowUp className="w-3.5 h-3.5" /></button>
-              <button type="button" onClick={() => move(idx, idx + 1)} disabled={idx === tracks.length - 1} className="w-7 h-7 rounded-lg hover:bg-white/[0.06] flex items-center justify-center transition text-white/30 disabled:opacity-20"><ArrowDown className="w-3.5 h-3.5" /></button>
-              <button type="button" onClick={() => remove(idx)} className="w-7 h-7 rounded-lg hover:bg-red-500/10 flex items-center justify-center transition text-white/30 hover:text-red-400"><Trash2 className="w-3.5 h-3.5" /></button>
+              <button type="button" aria-label={`Monter le morceau ${idx + 1}`} onClick={() => move(idx, idx - 1)} disabled={idx === 0} className="w-7 h-7 rounded-lg hover:bg-white/[0.06] flex items-center justify-center transition text-white/30 disabled:opacity-20"><ArrowUp className="w-3.5 h-3.5" /></button>
+              <button type="button" aria-label={`Descendre le morceau ${idx + 1}`} onClick={() => move(idx, idx + 1)} disabled={idx === tracks.length - 1} className="w-7 h-7 rounded-lg hover:bg-white/[0.06] flex items-center justify-center transition text-white/30 disabled:opacity-20"><ArrowDown className="w-3.5 h-3.5" /></button>
+              <button type="button" aria-label={`Retirer le morceau ${idx + 1}`} onClick={() => remove(idx)} className="w-7 h-7 rounded-lg hover:bg-red-500/10 flex items-center justify-center transition text-white/30 hover:text-red-400"><Trash2 className="w-3.5 h-3.5" /></button>
             </div>
           </div>
 
           {expandedIdx === idx && (
             <div className="px-3 pb-3 space-y-2 bg-white/[0.01]">
-              <label className="flex items-center gap-2 text-xs text-white/50">
-                <input
-                  type="checkbox"
-                  checked={t.isExplicitOverride === true}
-                  onChange={(e) => update(idx, { isExplicitOverride: e.target.checked ? true : null })}
-                  className="h-3.5 w-3.5 rounded border-white/20"
-                />
-                Contenu explicite (cette piste)
+              <label className="text-xs text-white/60">Contenu de cette piste
+                <select value={t.isExplicitOverride === null ? 'inherit' : String(t.isExplicitOverride)} onChange={e => update(idx, { isExplicitOverride: e.target.value === 'inherit' ? null : e.target.value === 'true' })}>
+                  <option value="inherit">Réglage commun de la sortie</option><option value="true">Explicite</option><option value="false">Non explicite</option>
+                </select>
               </label>
+              <label className="flex items-center gap-2 text-xs text-white/60"><input type="checkbox" checked={t.genreOverride !== null} onChange={e => update(idx, { genreOverride: e.target.checked ? [] : null })}/>Choisir des styles propres à cette piste</label>
+              {t.genreOverride !== null && <GenrePicker selected={t.genreOverride} onChange={value => update(idx, { genreOverride: value })}/>}
               <div>
                 <label className="text-xs text-white/40 mb-1 block">Paroles (optionnel)</label>
                 <textarea
+                  aria-label={`Paroles du morceau ${idx + 1}`}
+                  maxLength={20000}
                   value={t.lyricsOverride || ''}
                   onChange={(e) => update(idx, { lyricsOverride: e.target.value || null })}
                   rows={3}

@@ -1,122 +1,31 @@
 'use client';
+import { useMemo, useState } from 'react';
+import { Search, X, ChevronDown } from 'lucide-react';
+import { GENRE_CATEGORIES, MUSIC_GENRES } from '@/lib/genres';
+import { STYLE_FAMILIES, normalizeStyleSearch } from '@/lib/publication/styleFamilies';
 
-import { useState, useMemo } from 'react';
-import { Search, X, ChevronDown, ChevronRight } from 'lucide-react';
-import { GENRE_CATEGORIES } from '@/lib/genres';
-
-interface Props {
-  selected: string[];
-  onChange: (genres: string[]) => void;
-  max?: number;
-}
-
-export default function GenrePicker({ selected, onChange, max = 5 }: Props) {
+export default function GenrePicker({ selected, onChange, max = 5 }: { selected: string[]; onChange: (genres: string[]) => void; max?: number }) {
   const [search, setSearch] = useState('');
-  const [expandedCat, setExpandedCat] = useState<string | null>(null);
-
-  const filtered = useMemo(() => {
-    if (!search.trim()) return GENRE_CATEGORIES;
-    const q = search.toLowerCase();
-    return GENRE_CATEGORIES.map((cat) => ({
-      ...cat,
-      genres: cat.genres.filter((g) => g.toLowerCase().includes(q)),
-    })).filter((cat) => cat.genres.length > 0);
-  }, [search]);
-
-  const toggle = (genre: string) => {
-    if (selected.includes(genre)) {
-      onChange(selected.filter((g) => g !== genre));
-    } else if (selected.length < max) {
-      onChange([...selected, genre]);
-    }
-  };
-
-  return (
-    <div className="space-y-3">
-      {/* Selected chips */}
-      {selected.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {selected.map((g) => (
-            <button
-              key={g}
-              type="button"
-              onClick={() => toggle(g)}
-              className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-violet-500/15 border border-violet-500/30 text-xs text-violet-300 hover:bg-red-500/15 hover:border-red-500/30 hover:text-red-300 transition"
-            >
-              {g}
-              <X className="w-3 h-3" />
-            </button>
-          ))}
-          <span className="text-[10px] text-white/30 self-center ml-1">{selected.length}/{max}</span>
-        </div>
-      )}
-
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-white/30" />
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full h-10 pl-9 pr-3 rounded-xl bg-white/[0.04] border border-white/[0.08] text-sm text-white placeholder:text-white/20 outline-none focus:border-white/[0.16] focus:ring-1 focus:ring-white/[0.08]"
-          placeholder="Rechercher un genre..."
-        />
-      </div>
-
-      {/* Categories */}
-      <div className="max-h-[280px] overflow-y-auto space-y-1 pr-1 scrollbar-thin scrollbar-thumb-white/10">
-        {filtered.map((cat) => {
-          const isExpanded = expandedCat === cat.name || !!search.trim();
-          const hasSelected = cat.genres.some((g) => selected.includes(g));
-          return (
-            <div key={cat.name}>
-              <button
-                type="button"
-                onClick={() => setExpandedCat(isExpanded && !search.trim() ? null : cat.name)}
-                className={[
-                  'w-full flex items-center gap-2 px-3 py-2 rounded-xl text-sm transition',
-                  hasSelected ? 'text-white bg-white/[0.04]' : 'text-white/60 hover:bg-white/[0.03]',
-                ].join(' ')}
-              >
-                <span className="text-base">{cat.emoji}</span>
-                <span className="font-medium flex-1 text-left">{cat.name}</span>
-                <span className="text-[10px] text-white/30">{cat.genres.length}</span>
-                {isExpanded ? (
-                  <ChevronDown className="w-4 h-4 text-white/30" />
-                ) : (
-                  <ChevronRight className="w-4 h-4 text-white/30" />
-                )}
-              </button>
-              {isExpanded && (
-                <div className="flex flex-wrap gap-1.5 px-3 pb-2 pt-1">
-                  {cat.genres.map((g) => {
-                    const isActive = selected.includes(g);
-                    const disabled = !isActive && selected.length >= max;
-                    return (
-                      <button
-                        key={g}
-                        type="button"
-                        disabled={disabled}
-                        onClick={() => toggle(g)}
-                        className={[
-                          'px-2.5 py-1 rounded-full text-xs transition-colors',
-                          isActive
-                            ? 'bg-violet-500/20 border border-violet-500/40 text-violet-300'
-                            : disabled
-                            ? 'bg-white/[0.02] border border-white/[0.05] text-white/20 cursor-not-allowed'
-                            : 'bg-white/[0.04] border border-white/[0.08] text-white/50 hover:bg-white/[0.08] hover:text-white/80',
-                        ].join(' ')}
-                      >
-                        {g}
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const q = normalizeStyleSearch(search);
+  const categories = useMemo(() => GENRE_CATEGORIES.map(c => ({ ...c, genres: c.genres.filter(g => !q || normalizeStyleSearch(g).includes(q) || normalizeStyleSearch(c.name).includes(q) || Object.entries(STYLE_FAMILIES[c.name] || {}).some(([parent, children]) => normalizeStyleSearch(parent).includes(q) && children.includes(g))) })).filter(c => c.genres.length), [q]);
+  const toggle = (g: string) => onChange(selected.includes(g) ? selected.filter(x => x !== g) : selected.length < max ? [...selected, g] : selected);
+  const chip = (g: string) => <button key={g} type="button" aria-pressed={selected.includes(g)} disabled={!selected.includes(g) && selected.length >= max} onClick={() => toggle(g)} className={`rounded-full border px-3 py-1.5 text-xs transition-colors disabled:opacity-30 ${selected.includes(g) ? 'border-sky-300/40 bg-sky-300/15 text-sky-100' : 'border-white/10 text-slate-300 hover:bg-white/10'}`}>{g}</button>;
+  return <div className="space-y-3">
+    <div className="flex flex-wrap gap-2">{selected.map((g, i) => <button type="button" key={g} onClick={() => toggle(g)} aria-label={`Retirer ${g}`} className="flex items-center gap-2 rounded-full bg-sky-200/15 px-3 py-2 text-xs text-sky-100">{i === 0 && <span className="text-[9px] uppercase opacity-60">Principal</span>}{g}<X size={12}/></button>)}</div>
+    <label className="flex items-center gap-2 rounded-xl border border-white/10 bg-black/15 px-3"><Search size={15}/><input aria-label="Rechercher des genres et sous-genres" className="min-w-0 flex-1 bg-transparent py-3 text-sm outline-none" value={search} onChange={e => setSearch(e.target.value)} placeholder={`Explorer ${MUSIC_GENRES.length} styles et sous-styles…`}/>{search && <button type="button" onClick={() => setSearch('')} aria-label="Effacer la recherche"><X size={14}/></button>}</label>
+    <p className="text-xs text-slate-400">{selected.length}/{max} · Facultatif. Le premier style est le principal.{selected.length >= max && ' Retire un style pour en choisir un autre.'}</p>
+    <div className="max-h-[360px] overflow-y-auto overscroll-contain space-y-1 pr-1">
+      {!categories.length && <p className="p-4 text-sm text-slate-400">Aucun style trouvé. Essaie un terme plus large.</p>}
+      {categories.map(c => {
+        const open = Boolean(q) || expanded === c.name;
+        const families = Object.entries(STYLE_FAMILIES[c.name] || {});
+        const children = new Set(families.flatMap(([, values]) => values));
+        return <div key={c.name} className="rounded-xl border border-white/5">
+          <button type="button" aria-expanded={open} onClick={() => setExpanded(open ? null : c.name)} className="flex w-full items-center gap-3 px-3 py-3 text-left text-sm"><span aria-hidden>{c.emoji}</span><span className="flex-1">{c.name}</span><span className="text-xs text-slate-400">{c.genres.length}</span><ChevronDown size={14} className={open ? 'rotate-180' : ''}/></button>
+          {open && <div className="space-y-3 px-3 pb-4"><div className="flex flex-wrap gap-1.5">{c.genres.filter(g => !children.has(g)).map(chip)}</div>{families.map(([parent, values]) => { const visible = values.filter(g => c.genres.includes(g)); return visible.length ? <div key={parent}><p className="mb-2 text-[11px] text-slate-400">Explorer {parent}</p><div className="flex flex-wrap gap-1.5">{visible.map(chip)}</div></div> : null; })}</div>}
+        </div>;
+      })}
     </div>
-  );
+  </div>;
 }

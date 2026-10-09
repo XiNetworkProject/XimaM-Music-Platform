@@ -18,7 +18,7 @@ export default function OnboardingGate({ children }: { children: ReactNode }) {
   const router = useRouter();
   const checkedUser = useRef<string | null>(null);
   const [gateState, setGateState] = useState<'checking' | 'ready' | 'redirecting' | 'error'>('checking');
-  const offlineStudioLab = process.env.NODE_ENV !== 'production' && pathname === '/dev/studio';
+  const offlineStudioLab = process.env.NODE_ENV !== 'production' && (pathname === '/dev/studio' || pathname === '/dev/publication');
   const offlineStatsLab = process.env.NODE_ENV !== 'production' && pathname === '/dev/stats';
   // Public catalogue, pricing and discussion lists remain readable without onboarding. Account
   // data and checkout keep their server-side session checks; private routes
