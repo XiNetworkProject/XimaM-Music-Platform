@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
 import { dbAdmin } from '@/lib/database';
 import { normalizeSunoItem } from '@/lib/suno-normalize';
+import { safeFeedbackText } from '@/lib/studio/feedback';
 import { enforceRequestRateLimit, isSafeOpaqueIdentifier } from '@/lib/security/requestSecurity';
 
 const BASE = 'https://api.sunoapi.org';
@@ -80,7 +81,13 @@ export async function GET(req: NextRequest) {
           : ['ERROR', 'CREATE_TASK_FAILED', 'GENERATE_AUDIO_FAILED', 'CALLBACK_EXCEPTION', 'SENSITIVE_WORD_ERROR'].includes(statusUpper)
             ? 'ERROR'
             : statusRaw;
-    return NextResponse.json({ taskId, status, tracks });
+    // Return only documented failure fields, never the provider request/credentials.
+    const failed = status === 'ERROR' || statusUpper.endsWith('_FAILED');
+    return NextResponse.json({ taskId, status, tracks, ...(failed ? {
+      errorCode: safeFeedbackText(json?.data?.errorCode == null ? statusUpper : String(json.data.errorCode)),
+      errorMessage: safeFeedbackText(json?.data?.errorMessage),
+      providerStatus: statusUpper,
+    } : {}) });
   } catch {
     console.error('[suno/status] fournisseur indisponible');
     return NextResponse.json({ error: 'Service IA temporairement indisponible' }, { status: 502 });

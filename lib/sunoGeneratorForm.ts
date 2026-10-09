@@ -18,10 +18,11 @@ type GeneratorPayloadInput = {
   lyrics: string;
   selectedTags: string[];
   remixPrompt?: string;
-  duration: number;
+  duration?: number;
   styleInfluence: number;
   weirdness: number;
   audioWeight: number;
+  variety?: number;
   negativeTags: string;
   vocalGender: string;
   uploadUrl?: string | null;
@@ -64,23 +65,26 @@ export function buildSunoGeneratorPayload(input: GeneratorPayloadInput): Record<
   if (customMode) {
     const style = withSelectedTags(input.style, input.selectedTags, input.remixPrompt);
     const title = input.title.trim() ? input.title : input.uploadUrl ? 'Remix' : '';
-    if (!title.trim()) throw new Error('Titre requis en mode sur mesure.');
-    if (!style.trim()) throw new Error('Ajoute une direction musicale.');
-    if (!input.instrumental && !input.lyrics.trim()) throw new Error('Ajoute des paroles, génère-les avec le bouton Paroles, ou active Instrumental.');
+    // Generate V6 accepts lyrics alone; upload-cover retains its separate contract.
+    if (input.uploadUrl && !style.trim()) throw new Error('Ajoute une direction musicale pour la reprise.');
+    if (input.uploadUrl && !input.instrumental && !input.lyrics.trim()) throw new Error('Ajoute des paroles ou active Instrumental pour la reprise.');
+    if (!style.trim() && !(input.instrumental ? '' : input.lyrics.trim()) && !input.negativeTags.trim()) throw new Error('Ajoute des paroles, un style ou des styles à exclure.');
     assertLength(style, SUNO_GENERATION_LIMITS.style, 'Direction musicale et tags');
     assertLength(title, SUNO_GENERATION_LIMITS.title, 'Titre');
     if (!input.instrumental) assertLength(input.lyrics, SUNO_GENERATION_LIMITS.prompt, 'Paroles');
-    if (!Number.isFinite(input.duration) || input.duration < SUNO_GENERATION_LIMITS.minDuration || input.duration > SUNO_GENERATION_LIMITS.maxDuration) {
+    assertLength(input.negativeTags, 1000, 'Styles à exclure');
+    if (input.duration != null && (!Number.isFinite(input.duration) || input.duration < SUNO_GENERATION_LIMITS.minDuration || input.duration > SUNO_GENERATION_LIMITS.maxDuration)) {
       throw new Error(`Choisis une durée entre ${SUNO_GENERATION_LIMITS.minDuration} et ${SUNO_GENERATION_LIMITS.maxDuration} secondes.`);
     }
     Object.assign(payload, {
       title: title || undefined,
       style,
       prompt: input.instrumental ? undefined : input.lyrics,
-      duration: Math.round(input.duration),
+      duration: input.duration == null ? undefined : Math.round(input.duration),
       styleWeight: weight(input.styleInfluence),
       weirdnessConstraint: weight(input.weirdness),
-      audioWeight: weight(input.audioWeight),
+      audioWeight: input.instrumental && !input.uploadUrl ? undefined : weight(input.audioWeight),
+      ...(input.variety != null ? { variety: input.variety } : {}),
       negativeTags: input.negativeTags || undefined,
       vocalGender: input.vocalGender || undefined,
     });

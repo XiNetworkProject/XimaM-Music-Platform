@@ -114,6 +114,10 @@ export default function ClubDetailPage() {
   const { audioState, setQueueAndPlay, play, pause } = useAudioPlayer();
   const [posts, setPosts] = useState<ClubPost[]>([]);
   const [loading, setLoading] = useState(true);
+  const [postsError, setPostsError] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [retry, setRetry] = useState(0);
   const [clubChallenge, setClubChallenge] = useState<ClubChallenge | null>(null);
 
   useEffect(() => {
@@ -141,27 +145,30 @@ export default function ClubDetailPage() {
     };
   }, [club]);
 
+  useEffect(() => { setPage(1); setPosts([]); }, [club?.slug]);
   useEffect(() => {
-    if (!club) {
-      setLoading(false);
-      return;
-    }
+    if (!club) { setLoading(false); return; }
     let mounted = true;
+    const controller = new AbortController();
     setLoading(true);
-    fetch(`/api/community/posts?category=${encodeURIComponent(club.category)}&limit=30&sort=recent`, { cache: 'no-store' })
-      .then((response) => (response.ok ? response.json() : null))
+    setPostsError(false);
+    fetch(`/api/community/posts?category=${encodeURIComponent(club.category)}&limit=30&sort=recent&page=${page}`, { cache: 'no-store', signal: controller.signal })
+      .then((response) => { if (!response.ok) throw new Error('club unavailable'); return response.json(); })
       .then((json) => {
         if (!mounted || !json) return;
-        setPosts(Array.isArray(json.posts) ? json.posts : []);
+        if (!Array.isArray(json.posts)) throw new Error('invalid posts');
+        setPosts(current => page === 1 ? json.posts : Array.from(new Map([...current, ...json.posts].map(post => [post.id, post])).values()));
+        setHasMore(page < Number(json.pagination?.totalPages || 0));
       })
-      .catch(() => {})
+      .catch(() => { if (mounted && !controller.signal.aborted) setPostsError(true); })
       .finally(() => {
         if (mounted) setLoading(false);
       });
     return () => {
       mounted = false;
+      controller.abort();
     };
-  }, [club]);
+  }, [club, page, retry]);
 
   if (!club) {
     return (
@@ -271,7 +278,8 @@ export default function ClubDetailPage() {
 
         <section id="club-posts" className="chambre-club-posts space-y-3">
           <h2 className="text-xl font-black tracking-[-0.04em] text-[#171313]">Discussions du Club</h2>
-          {loading ? (
+          {postsError && <div role="alert" className="p-5"><p>Impossible de charger les discussions. Ce n’est pas un club vide.</p><button className="mt-3 min-h-11 underline" onClick={() => setRetry(value => value + 1)}>Réessayer</button></div>}
+          {loading && !posts.length ? (
             <SynauraPanel className="grid min-h-[220px] place-items-center p-8">
               <div className="mx-auto h-9 w-9 animate-spin rounded-full border-2 border-black/12 border-t-[#171313]" />
             </SynauraPanel>
@@ -287,7 +295,7 @@ export default function ClubDetailPage() {
                 />
               ))}
             </div>
-          ) : (
+          ) : !postsError ? (
             <SynauraPanel className="p-8 text-center">
               <Music2 className="mx-auto h-10 w-10 text-black/22" />
               <p className="mt-3 text-sm font-black text-black/52">Aucune discussion dans ce Club pour le moment.</p>
@@ -296,7 +304,8 @@ export default function ClubDetailPage() {
                 {club.actions[0].label}
               </Link>
             </SynauraPanel>
-          )}
+          ) : null}
+          {hasMore && !postsError && <button className="min-h-11 px-5 py-3" disabled={loading} onClick={() => setPage(value => value + 1)}>{loading ? 'Chargement…' : 'Voir plus de discussions'}</button>}
         </section>
       </div>
     </SynauraAppShell>

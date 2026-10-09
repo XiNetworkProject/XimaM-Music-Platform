@@ -40,8 +40,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     }
 
-    const body = await request.json();
-    const { post_id } = body;
+    const body = await request.json().catch(() => null);
+    const post_id = typeof body?.post_id === 'string' ? body.post_id.trim() : '';
 
     if (!post_id) {
       return NextResponse.json({ error: 'ID du post requis' }, { status: 400 });
@@ -52,9 +52,10 @@ export async function POST(request: NextRequest) {
       .from('forum_posts')
       .select('id, user_id, title')
       .eq('id', post_id)
-      .single();
+      .maybeSingle();
 
-    if (postError || !post) {
+    if (postError) throw postError;
+    if (!post) {
       return NextResponse.json({ error: 'Post non trouvé' }, { status: 404 });
     }
 
@@ -72,7 +73,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (existingLike) {
-      return NextResponse.json({ error: 'Post déjà liké' }, { status: 400 });
+      return NextResponse.json({ success: true, is_liked: true });
     }
 
     // Ajouter le like
@@ -85,6 +86,7 @@ export async function POST(request: NextRequest) {
       .select()
       .single();
 
+    if (error?.code === '23505') return NextResponse.json({ success: true, is_liked: true });
     if (error) {
       console.error('Erreur lors de l\'ajout du like:', error);
       return NextResponse.json({ error: 'Erreur lors de l\'ajout du like' }, { status: 500 });

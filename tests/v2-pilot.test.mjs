@@ -160,6 +160,8 @@ test('Live entry displays the actual feed anchor and entering never mutates audi
     'lucide-react': { ArrowDown: () => null, ArrowUpRight: () => null, Headphones: () => null, Heart: () => null, MessageCircle: () => null, Share2: () => null, Pause: () => null, Play: () => null },
     '@/app/providers': { useAudioPlayer: () => audio }, './PilotImage': { default: () => null },
     '@/components/TrackCover': { default: () => null },
+    '@/components/celestial/FennecGuide': { default: () => null },
+    '@/components/celestial/CelestialWorld': { CelestialBackdrop: () => null },
     './LiveSocial': { LiveEntrySocial: () => null }, './LiveArtwork': { default: () => null }, '@/components/profile/useProfilePeek': { useProfilePeek: () => () => {} },
   });
   const model = { items: [{ id: 'first', type: 'track', track }, { id: 'next', type: 'track', track: { ...track, _id: 'other' } }], activeIndex: 0,

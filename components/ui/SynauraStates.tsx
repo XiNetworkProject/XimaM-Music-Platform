@@ -3,6 +3,7 @@
 import { AlertTriangle, CloudOff, FileQuestion, Loader2, LockKeyhole, LogIn, RefreshCw, ShieldAlert } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { SynauraButton, SynauraSurface } from '@/components/ui/SynauraPrimitives';
+import FennecMark from '@/components/celestial/FennecMark';
 
 export function SynauraSkeleton({ className = '' }: { className?: string }) {
   return <span aria-hidden="true" className={`block animate-pulse rounded-[var(--syn-radius-sm)] bg-[var(--syn-soft-strong)] ${className}`} />;
@@ -55,7 +56,7 @@ export function SynauraState({
   className?: string;
 }) {
   const meta = stateMeta[kind];
-  const Icon = meta.icon;
+  const Icon = kind === 'empty' ? FennecMark : meta.icon;
   const content = <><span className="mx-auto grid h-12 w-12 place-items-center rounded-[var(--syn-radius-md)] bg-[var(--syn-soft)] text-[var(--syn-text-secondary)]"><Icon className="h-5 w-5" aria-hidden="true" /></span><h2 className="mt-3 text-base font-black">{title || meta.title}</h2>{description ? <div className="mx-auto mt-1 max-w-md text-sm leading-6 text-[var(--syn-text-secondary)]">{description}</div> : null}{action ? action.href ? <a href={action.href} className="mt-4 inline-flex min-h-11 items-center rounded-full bg-[var(--syn-contrast-bg)] px-5 text-sm font-black text-[var(--syn-contrast-text)]">{action.label}</a> : <SynauraButton className="mt-4" onClick={action.onClick}>{action.label}</SynauraButton> : null}</>;
   return compact ? <div role={kind === 'error' ? 'alert' : 'status'} className={`rounded-[var(--syn-radius-md)] border border-[var(--syn-border)] bg-[var(--syn-soft)] p-4 text-center ${className}`}>{content}</div> : <SynauraSurface className={`p-7 text-center sm:p-10 ${className}`}><div role={kind === 'error' ? 'alert' : 'status'}>{content}</div></SynauraSurface>;
 }

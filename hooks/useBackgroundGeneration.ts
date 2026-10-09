@@ -1,6 +1,8 @@
 // hooks/useBackgroundGeneration.ts
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
+import { reportStudioActivity } from '@/lib/studio/clientActivity';
+import { feedbackFailure } from '@/lib/studio/feedback';
 
 export interface BackgroundGeneration {
   id: string;
@@ -14,6 +16,8 @@ export interface BackgroundGeneration {
   estimatedTime: number;
   retryCount?: number;
   lastError?: string;
+  activityId?: string;
+  errorCode?: string;
   firstSaved?: boolean;
   completedSaved?: boolean;
   completedSaveRetries?: number;
@@ -31,6 +35,17 @@ export function useBackgroundGeneration() {
   const inFlight = useRef(new Set<string>());
   const MAX_RETRIES = 8;
   const DEBUG = process.env.NODE_ENV !== 'production';
+
+  useEffect(() => {
+    if (keyRef.current !== `bg_generations_${session?.user?.id}`) return;
+    for (const job of generations) {
+      const detail = job.lastError ? feedbackFailure(job.lastError, { code: job.errorCode, uncertain: !!job.retryCount }) : job.status === 'failed' ? feedbackFailure('') : null;
+      reportStudioActivity(session?.user?.id, { id: job.activityId || `generation:${job.taskId}`, kind: 'generation', taskId: job.taskId, startedAt: job.startTime, canCheck: !!job.lastError?.startsWith('Polling timeout:'),
+        stage: job.lastError === 'SAVE_COMPLETED_FAILED' ? 'Enregistrement' : job.lastError?.startsWith('Polling timeout:') ? 'Suivi interrompu' : 'Création et suivi',
+        ...(detail || { state: job.completedSaved ? 'success' as const : 'pending' as const, message: job.completedSaved ? 'Morceaux créés et enregistrés dans la bibliothèque.' : 'Demande acceptée. Création ou enregistrement en cours.' }),
+      });
+    }
+  }, [generations, session?.user?.id]);
 
   const saveToStorage = useCallback((items: BackgroundGeneration[]) => {
     const key = keyRef.current;
@@ -183,6 +198,7 @@ export function useBackgroundGeneration() {
           ...g,
           retryCount: 0,
           lastError: undefined,
+          errorCode: undefined,
           progress: calculateProgress(g.startTime, g.estimatedTime),
           latestTracks: availableTracks.length > 0 ? availableTracks : g.latestTracks,
         }));
@@ -296,7 +312,8 @@ export function useBackgroundGeneration() {
             ...g,
             status: 'failed',
             progress: Math.max(0, g.progress),
-            lastError: statusUpper,
+            lastError: typeof data.errorMessage === 'string' && data.errorMessage.trim() ? data.errorMessage : String(data.providerStatus || statusUpper),
+            errorCode: typeof data.errorCode === 'string' ? data.errorCode : String(data.providerStatus || statusUpper),
           }));
           stopPolling(taskId);
           return;

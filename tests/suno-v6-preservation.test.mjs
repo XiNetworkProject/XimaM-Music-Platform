@@ -14,7 +14,7 @@ test('reviewed V6 slots project to the historical visual contract, without chang
 test('V6 preservation rejects mutations to a reviewed request or a protected playback handler', () => {
   const file = 'app/ai-generator/page.tsx';
   const source = read(file);
-  for (const [from, to] of [['duration: generationDuration,', 'duration: 999,'], ['model: modelVersion,', "model: 'V5',"]]) {
+  for (const [from, to] of [['duration: durationAuto ? undefined : generationDuration,', 'duration: 999,'], ['model: modelVersion,', "model: 'V5',"]]) {
     assert.ok(source.includes(from));
     assert.throws(() => projectReviewedV6(file, source.replace(from, to)));
   }

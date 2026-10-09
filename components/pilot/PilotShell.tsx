@@ -7,6 +7,7 @@ import PilotPlayer from './PilotPlayer';
 import PilotReview from './PilotReview';
 import './pilot.css';
 import { usesUnifiedNavigation } from '@/lib/unifiedNavigation';
+import SynauraLogo from '@/components/brand/SynauraLogo';
 
 const spaces = [
   { href: '/live', label: 'Live', Icon: Radio },
@@ -23,7 +24,7 @@ export default function PilotShell({ children }: { children: React.ReactNode }) 
   return <div className="synaura-pilot" data-pilot-route={pathname}>
     <a className="pilot-skip" href="#pilot-main">Aller au contenu</a>
     {!usesUnifiedNavigation(pathname) && <><header className="pilot-identity">
-      <PilotLink href="/live" aria-label="Synaura — Live"><img src="/brand/v2/synaura-lockup.svg" width="224" height="52" alt="Synaura" /></PilotLink>
+      <PilotLink href="/live" aria-label="Synaura — Live"><SynauraLogo variant="lockup" size={40} decorative/></PilotLink>
       <span className="pilot-edition">La musique nous relie.</span>
       <div className="pilot-utilities">
         <PilotLink href="/search" aria-label="Rechercher"><Search /></PilotLink>

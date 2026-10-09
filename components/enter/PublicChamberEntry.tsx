@@ -10,6 +10,6 @@ export default function PublicChamberEntry({ legacy = false }: { legacy?: boolea
   useEffect(() => { recordEntryEvent('discover_view', { legacy }); }, [legacy]);
   return <div className="chambre-public-entry">
     <nav className="chambre-public-account" aria-label="Entrer dans son compte Synaura"><Link href="/enter">Entrer <span aria-hidden="true">↗</span></Link></nav>
-    <ChamberProduct presentationHref="/landing/presentation" />
+    <ChamberProduct presentationHref="/landing/presentation" celestial />
   </div>;
 }

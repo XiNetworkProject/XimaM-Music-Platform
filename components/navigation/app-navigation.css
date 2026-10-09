@@ -1,4 +1,36 @@
 /* Shared navigation: open edges, bare controls, light rather than outlined tiles. */
+.syn-studio-edge,.syn-studio-collapse,.syn-studio-header-close { display:none; }
+@media(min-width:801px) {
+  .syn-unified-app:has([data-studio-nav]) { transition:padding-left .24s cubic-bezier(.2,.8,.2,1); }
+  .syn-app-nav[data-studio-nav] { transition:width .24s cubic-bezier(.2,.8,.2,1); overflow-x:hidden; }
+  .syn-studio-edge,.syn-app-header[data-studio-header] { transition:left .24s ease,width .24s ease,transform .18s ease,opacity .18s ease; }
+  .syn-app-nav[data-studio-nav=expanded] .syn-app-destination>span:nth-child(2) { animation:studio-nav-label .2s ease both; }
+}
+@keyframes studio-nav-label { from { opacity:0; transform:translateX(-5px); } to { opacity:1; transform:translateX(0); } }
+.syn-unified-app:has(.sw-workflow[data-motion=false]),.syn-unified-app:has(.sw-workflow[data-motion=false]) .syn-app-nav,.syn-unified-app:has(.sw-workflow[data-motion=false]) .syn-app-nav * { transition:none!important; animation:none!important; }
+@media(prefers-reduced-motion:reduce) { .syn-unified-app:has([data-studio-nav]),.syn-app-nav[data-studio-nav],.syn-app-nav[data-studio-nav] * { transition:none!important; animation:none!important; } }
+.syn-app-header .syn-app-tools>.syn-studio-header-close { display:none; }
+@media(min-width:801px) {
+  .syn-unified-app:has([data-studio-nav]) { --syn-nav-height:12px; }
+  .syn-unified-app:has([data-studio-nav=compact]) { --syn-nav-width:68px; }
+  .syn-unified-app:has([data-studio-nav=expanded]) { --syn-nav-width:208px; }
+  .syn-app-nav[data-studio-nav] { padding:12px 10px; gap:5px; }
+  .syn-app-nav[data-studio-nav] .syn-app-rail-brand { margin:10px 4px 16px; }
+  .syn-app-nav[data-studio-nav=compact] .syn-app-rail-brand { display:none; }
+  .syn-app-nav[data-studio-nav=compact] .syn-app-destination { justify-content:center; min-height:48px; padding:5px; }
+  .syn-app-nav[data-studio-nav=compact] .syn-app-destination>span:nth-child(2) { display:none; }
+  .syn-app-nav[data-studio-nav=compact] .syn-app-settings { justify-content:center; font-size:0; padding:8px; gap:0; }
+  .syn-app-nav[data-studio-nav=expanded] .syn-app-destination { flex-direction:row; justify-content:flex-start; gap:13px; font-size:13px; min-height:50px; }
+  .syn-app-nav[data-studio-nav=expanded] .syn-app-rail-logo { width:155px; }
+  .syn-studio-collapse { display:grid; place-items:center; width:44px; height:38px; color:#aabbd5; border-radius:10px; margin-bottom:10px; }
+  .syn-studio-collapse:hover { background:#ffffff09; }
+  .syn-studio-edge { display:grid; place-items:center; position:fixed; z-index:113; top:0; left:var(--syn-nav-width); right:0; width:calc(100% - var(--syn-nav-width)); height:12px; color:#aabbd5; background:#101523a0; }
+  .syn-studio-edge>svg { width:12px; height:10px; }
+  .syn-app-header[data-studio-header] { top:12px; height:64px; background:#0d1320f5; backdrop-filter:blur(20px); opacity:0; transform:translateY(-110%); pointer-events:none; transition:transform .18s ease,opacity .18s ease; }
+  .syn-studio-edge:hover+.syn-app-header,.syn-app-header[data-studio-header]:is(:hover,:focus-within,[data-pinned]) { transform:translateY(0); opacity:1; pointer-events:auto; }
+  .syn-studio-edge:focus-visible { outline:2px solid #bdd0ff; outline-offset:0; }
+  .syn-app-header[data-studio-header] .syn-app-tools>.syn-studio-header-close { display:grid; }
+}
 .syn-unified-app {
   --syn-nav-width:208px;
   --syn-nav-height:94px;

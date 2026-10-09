@@ -1,6 +1,8 @@
 // lib/aiGenerationService.ts
-import { db, dbAdmin } from './database';
-import { queryDatabase } from './postgres';
+import { db, dbAdmin, createDatabaseClient } from './database';
+import { initialGenerationFolder } from './studio/generationSettings';
+import { queryDatabase, withDatabaseTransaction } from './postgres';
+import { persistPreparedTracks } from './studio/trackPersistence';
 import { Track } from '@/lib/suno-normalize';
 import { cacheSunoTrackMedia } from '@/lib/suno-media-cache';
 import { upsertDraftRemixesForGeneration } from '@/lib/remixServer';
@@ -165,10 +167,11 @@ class AIGenerationService {
   // Chaque track persiste : audio_url, stream, image_url (cover), prompt/lyrics (paroles), durée, tags.
   async saveTracks(generationId: string, tracks: Track[]): Promise<void> {
     // Récupérer les tracks existantes pour insert + update (les partial saves doivent être enrichis ensuite)
-    const { data: existingTracks } = await dbAdmin
+    const { data: existingTracks, error: existingError } = await dbAdmin
       .from('ai_tracks')
       .select('id, suno_id, audio_url, stream_audio_url, image_url, duration, prompt, title, tags, style, lyrics, source_links')
       .eq('generation_id', generationId);
+    if (existingError) throw new Error('Impossible de vérifier les pistes existantes');
     const existingBySunoId = new Map<string, any>();
     (existingTracks || []).forEach((t: any) => {
       const key = String(t?.suno_id || '').trim();
@@ -202,16 +205,6 @@ class AIGenerationService {
     });
     
     const toInsert: any[] = [];
-    const toUpdate: Array<{ sunoId: string; patch: any }> = [];
-    const parseSourceLinks = (value?: string | null) => {
-      if (!value) return {};
-      try {
-        const parsed = JSON.parse(value);
-        return parsed && typeof parsed === 'object' ? parsed : {};
-      } catch {
-        return {};
-      }
-    };
 
     for (let index = 0; index < tracks.length; index += 1) {
       const track = tracks[index];
@@ -235,9 +228,9 @@ class AIGenerationService {
       });
       const rawLinks = track.raw?.links && typeof track.raw.links === 'object' ? track.raw.links : {};
       const sourceLinks = {
-        ...parseSourceLinks(existing?.source_links),
         ...rawLinks,
         ...cachedMedia.sourceLinksPatch,
+        ...initialGenerationFolder(generation?.metadata, !!existing),
       };
 
       const nextRow = {
@@ -259,58 +252,16 @@ class AIGenerationService {
         lyrics: track.raw?.lyrics || track.raw?.prompt || generationLyrics || null,
         source_links: JSON.stringify(sourceLinks)
       };
-      if (!existing) {
-        toInsert.push(nextRow);
-        continue;
-      }
-
-      const patch: any = {
-        // Ne jamais écraser une bonne URL finale par une chaîne vide.
-        audio_url: nextRow.audio_url || existing.audio_url || '',
-        stream_audio_url: nextRow.stream_audio_url || existing.stream_audio_url || '',
-        image_url: nextRow.image_url || existing.image_url || '',
-        duration: nextRow.duration || existing.duration || 120,
-        prompt: nextRow.prompt || existing.prompt || '',
-        title: nextRow.title || existing.title || '',
-        tags: (Array.isArray(nextRow.tags) && nextRow.tags.length > 0) ? nextRow.tags : (existing.tags || []),
-        style: nextRow.style || existing.style || null,
-        lyrics: nextRow.lyrics || existing.lyrics || null,
-        source_links: nextRow.source_links || existing.source_links || null,
-      };
-      toUpdate.push({ sunoId, patch });
+      toInsert.push(nextRow);
     }
 
-    if (toInsert.length > 0) {
-      console.log("📊 Nouvelles tracks à insérer:", toInsert);
-      const { error: insertError } = await dbAdmin
-        .from('ai_tracks')
-        .insert(toInsert);
-      if (insertError) {
-        console.error("❌ Erreur insert tracks:", insertError);
-        throw new Error(`Erreur sauvegarde tracks: ${insertError.message}`);
-      }
-    }
-
-    for (const upd of toUpdate) {
-      const { error: updateError } = await dbAdmin
-        .from('ai_tracks')
-        .update(upd.patch)
-        .eq('generation_id', generationId)
-        .eq('suno_id', upd.sunoId);
-      if (updateError) {
-        console.error("❌ Erreur update track:", upd.sunoId, updateError);
-        throw new Error(`Erreur mise à jour track: ${updateError.message}`);
-      }
-    }
-
-    if (toInsert.length === 0 && toUpdate.length === 0) {
-      console.log("ℹ️ Aucune track à insérer/mettre à jour pour", generationId);
-      return;
-    }
-
-    console.log("✅ Tracks sauvegardées/mises à jour avec succès", {
-      inserted: toInsert.length,
-      updated: toUpdate.length,
+    if (!toInsert.length) return;
+    // Media downloads happen above, outside the transaction. The row lock works
+    // across workers: callback + browser polling cannot both insert the same audio.
+    await withDatabaseTransaction(async client => {
+      const locked = await client.query('SELECT id FROM ai_generations WHERE id = $1 FOR UPDATE', [generationId]);
+      if (!locked.rowCount) throw new Error('Génération introuvable');
+      await persistPreparedTracks(createDatabaseClient(client), generationId, toInsert);
     });
     await upsertDraftRemixesForGeneration(generationId, String((generation as any).user_id || ''));
   }

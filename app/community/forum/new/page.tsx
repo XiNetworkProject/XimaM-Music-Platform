@@ -120,39 +120,45 @@ function NewCommunityPostContent() {
   };
 
   useEffect(() => {
+    const controller = new AbortController();
     const loadTracks = async () => {
       if (status === 'loading' || !session?.user) return;
       setLoadingTracks(true);
       try {
-        const response = await fetch('/api/users/tracks?limit=80', { cache: 'no-store' });
+        const response = await fetch('/api/users/tracks?limit=80', { cache: 'no-store', signal: controller.signal });
+        if (!response.ok) throw new Error('tracks');
         const payload = await response.json().catch(() => ({}));
+        if (controller.signal.aborted) return;
         const list = (Array.isArray(payload?.tracks) ? payload.tracks : Array.isArray(payload) ? payload : [])
           .map(normalizeTrack)
           .filter(Boolean) as UserTrack[];
         setTracks(list);
-        if (initialTrackId && !selectedTrack) {
+        if (initialTrackId) {
           const localTrack = list.find((track) => track.id === initialTrackId);
           if (localTrack) {
             setSelectedTrack(localTrack);
           } else {
             try {
-              const trackResponse = await fetch(`/api/tracks/${encodeURIComponent(initialTrackId)}`, { cache: 'no-store' });
+              const trackResponse = await fetch(`/api/tracks/${encodeURIComponent(initialTrackId)}`, { cache: 'no-store', signal: controller.signal });
+              if (!trackResponse.ok) throw new Error('track');
               const trackPayload = await trackResponse.json().catch(() => ({}));
+              if (controller.signal.aborted) return;
               const normalized = normalizeTrack(trackPayload);
-              setSelectedTrack(normalized || { id: initialTrackId, title: searchParams.get('title') || 'Son attaché' });
+              setSelectedTrack(normalized);
             } catch {
-              setSelectedTrack({ id: initialTrackId, title: searchParams.get('title') || 'Son attaché' });
+              if (!controller.signal.aborted) notify.info('Son indisponible', 'Choisis un autre son ou publie sans pièce jointe.');
             }
           }
         }
       } catch {
-        notify.error('Sons', 'Impossible de charger tes sons.');
+        if (!controller.signal.aborted) notify.error('Sons', 'Impossible de charger tes sons.');
       } finally {
-        setLoadingTracks(false);
+        if (!controller.signal.aborted) setLoadingTracks(false);
       }
     };
     loadTracks();
-  }, [initialTrackId, searchParams, selectedTrack, session?.user, status]);
+    return () => controller.abort();
+  }, [initialTrackId, session?.user?.id, status]);
 
   useEffect(() => {
     const nextMeta = categoryMeta(category);
@@ -264,6 +270,7 @@ function NewCommunityPostContent() {
               <input
                 value={title}
                 aria-label="Titre de la discussion"
+                maxLength={255}
                 onChange={(event) => setTitle(event.target.value)}
                 placeholder="Ex : Besoin d’un avis sur mon refrain"
                 className="h-12 w-full rounded-full border border-black/[0.08] bg-white px-4 text-sm font-black text-[#171313] outline-none placeholder:text-black/28 focus:border-[#171313]"
@@ -271,6 +278,7 @@ function NewCommunityPostContent() {
               <textarea
                 value={content}
                 aria-label="Texte de la discussion"
+                maxLength={20000}
                 onChange={(event) => setContent(event.target.value)}
                 rows={8}
                 placeholder="Décris ton attente : mix, paroles, feat, remix, contraintes..."

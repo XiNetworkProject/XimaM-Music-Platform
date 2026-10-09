@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { validGenerationFolder } from '@/lib/studio/generationSettings';
 import { getApiSession } from '@/lib/getApiSession';
 import { dbAdmin } from '@/lib/database';
 import { getEntitlements } from '@/lib/entitlements';
@@ -13,6 +14,7 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 type Body = SunoUploadCoverRequest & {
+  libraryFolder?: string;
   sourceDurationSec?: number;
 };
 
@@ -50,6 +52,7 @@ export async function POST(req: NextRequest) {
     if (!body || typeof body !== 'object' || Array.isArray(body)) {
       return NextResponse.json({ error: 'Paramètres de génération invalides' }, { status: 400 });
     }
+    if (!validGenerationFolder(body.libraryFolder)) return NextResponse.json({ error: 'Dossier invalide (80 caractères maximum)' }, { status: 400 });
 
     // Entitlements: vérif modèle autorisé
     const { data: profile } = await dbAdmin.from('profiles').select('plan').eq('id', session.user.id).maybeSingle();
@@ -60,6 +63,7 @@ export async function POST(req: NextRequest) {
     const effectiveModel = normalizeGenerationModel(requestedModel, allowedModels);
 
     const tuningValidated = validateSunoTuningInput({
+      variety: body.variety,
       styleWeight: body.styleWeight,
       weirdnessConstraint: body.weirdnessConstraint,
       audioWeight: body.audioWeight,
@@ -155,6 +159,7 @@ export async function POST(req: NextRequest) {
         model: effectiveModel,
         prompt: payload.customMode ? (payload.instrumental ? '' : (payload.prompt || '')) : (payload.prompt || ''),
         metadata: {
+          libraryFolder: body.libraryFolder?.trim() || '',
           title: payload.customMode ? (payload.title || 'Remix en cours') : 'Remix automatique',
           style: payload.customMode ? (payload.style || '') : '',
           instrumental: payload.instrumental,

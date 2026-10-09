@@ -86,13 +86,16 @@ test('styles retain keyboard access, narrow layouts and reduced-motion fallbacks
   assert.match(ambient, /body:has\(\[role=dialog\]\)/);
 });
 
-test('presentation is a separate horizontal route; the original home scene remains mounted', () => {
+test('presentation stays separate from the original interactive sound chamber home', () => {
   const home = read('components/enter/PublicChamberEntry.tsx');
-  assert.match(home, /ChamberProduct presentationHref="\/landing\/presentation"/);
-  assert.doesNotMatch(home, /SynauraPresentation/);
+  assert.match(home, /ChamberProduct/);
+  assert.match(home, /presentationHref="\/landing\/presentation"/);
+  assert.doesNotMatch(home, /SynauraPresentation|CelestialHome/);
+  assert.match(read('components/chamber/ChamberProduct.tsx'), /<ChamberMaterial/);
+  assert.match(read('components/chamber/ChamberProduct.tsx'), /Envoyer une onde dans la matière/);
   assert.match(read('app/landing/presentation/page.tsx'), /safeEntryTarget/);
-  assert.match(read('components/enter/presentation-slides.css'), /scroll-snap-type:x mandatory/);
-  assert.match(read('components/enter/presentation-slides.css'), /overflow-y:auto/);
+  assert.match(read('components/celestial/celestial-story.css'), /scroll-snap-type:x mandatory/);
+  assert.match(read('components/celestial/celestial-story.css'), /overflow-y:auto/);
   assert.match(read('components/enter/EnterSynaura.tsx'), /\/landing\/presentation\?intent=signup/);
   assert.match(read('app/auth/signin/page.tsx'), /\/landing\/presentation\?intent=signup&callbackUrl=/);
 });

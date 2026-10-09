@@ -13,16 +13,26 @@ export function loadCommunityModules(db, session = null, routeSource) {
     new Function('require', 'module', 'exports', 'console', compiled)(name => {
       if (name in bindings) return bindings[name];
       throw new Error('Unbound test dependency: ' + name);
-    }, module, module.exports, { error: (...args) => errors.push(args) });
+    }, module, module.exports, { error: (...args) => errors.push(args), warn: (...args) => errors.push(args) });
     return module.exports;
   };
   const publicTracks = load('lib/publicTracks.ts');
+  const validation = load('lib/communityValidation.ts');
   const helpers = load('lib/communityPosts.ts', { '@/lib/database': { db }, '@/lib/publicTracks': publicTracks });
   const route = load('app/api/community/posts/route.ts', {
     'next/server': require('next/server'),
     '@/lib/database': { db },
     '@/lib/getApiSession': { getApiSession: async () => session },
     '@/lib/communityPosts': helpers,
+    '@/lib/communityValidation': validation,
   }, routeSource);
-  return { route, helpers, errors };
+  const loadRoute = (file, extra = {}) => load(file, {
+    'next/server': require('next/server'), '@/lib/database': { db },
+    '@/lib/getApiSession': { getApiSession: async () => session },
+    '@/lib/communityPosts': helpers, '@/lib/communityValidation': validation,
+    '@/lib/notifications': { notifyForumPostReply: async () => {}, notifyForumPostLike: async () => {} },
+    '@/lib/admin': { getAdminGuard: async () => ({ ok: session?.user?.role === 'admin', userId: session?.user?.id }) },
+    '@/lib/communityClubs': load('lib/communityClubs.ts'), ...extra,
+  });
+  return { route, helpers, errors, loadRoute, validation };
 }

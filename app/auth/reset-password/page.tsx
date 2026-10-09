@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Lock, Mail, Hash, ArrowLeft, Check, AlertCircle } from 'lucide-react';
 import SynauraLogo from '@/components/brand/SynauraLogo';
+import EntryFrame from '@/components/enter/EntryFrame';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,6 +41,7 @@ function ResetPasswordInner() {
   };
 
   return (
+    <EntryFrame eyebrow="De retour, tout doucement" title="Une nouvelle clé." description={success ? 'Ton mot de passe est réinitialisé. Tu peux te reconnecter.' : 'Choisis un nouveau mot de passe pour retrouver ton univers.'} compact>
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
@@ -141,6 +143,7 @@ function ResetPasswordInner() {
         </Link>
       </div>
     </motion.div>
+    </EntryFrame>
   );
 }
 

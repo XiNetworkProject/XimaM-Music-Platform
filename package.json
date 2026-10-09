@@ -6,7 +6,9 @@
   "scripts": {
     "build:android": "next build && npx cap sync android",
     "assets:generate": "npx capacitor-assets generate",
-    "dev": "next dev -p 3000",
+    "dev": "node scripts/dev-local.mjs",
+    "dev:check": "node scripts/dev-local.mjs --check",
+    "dev:offline": "next dev --hostname 127.0.0.1 -p 3000",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",

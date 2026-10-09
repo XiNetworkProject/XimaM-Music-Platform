@@ -60,8 +60,8 @@ test('cold /create links open over Live; explicit Clip/remix sources are still r
 });
 
 test('direct tools and secondary destinations remain available without media or data side effects', () => {
-  assert.deepEqual(CREATE_TOOLS.map(tool=>tool.href),['/studio','/upload','/clips/new','/community?compose=true&category=collab']);
-  assert.deepEqual(CREATE_OTHER_TOOLS.map(tool=>tool.href),['/create/variation','/posts?compose=true','/community?compose=true&category=feedback','/community?compose=true&category=remix']);
+  assert.deepEqual(CREATE_TOOLS.map(tool=>tool.href),['/posts?compose=true','/studio','/upload','/clips/new','/community?compose=true&category=collab']);
+  assert.deepEqual(CREATE_OTHER_TOOLS.map(tool=>tool.href),['/create/variation','/community?compose=true&category=feedback','/community?compose=true&category=remix']);
   const source = read('components/create/CreateSurface.tsx');
   assert.match(source, /replace prefetch=\{false\} data-live-route-intent/);
   assert.match(source, /SynauraOverlayTitle/); assert.match(source, /data-context-surface-initial-focus/);

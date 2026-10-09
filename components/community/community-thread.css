@@ -1,0 +1,39 @@
+.synaura-chambre .community-thread { max-width: 960px; margin-inline: auto; padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+.synaura-chambre .community-thread .thread-breadcrumb { margin: 12px 0 24px; }
+.synaura-chambre .community-thread :is(button,a) { touch-action: manipulation; }
+.synaura-chambre .community-thread :is(button,a):not(.community-author):not(.community-track-info) { align-items: center; gap: 8px; }
+.synaura-chambre .thread-breadcrumb a { display: inline-flex; min-height: 44px; font-size: 13px; color: var(--v2-muted); }
+.synaura-chambre .community-thread .thread-panel { padding: clamp(20px,3vw,34px); margin-bottom: 20px; border-radius: 24px; background: linear-gradient(135deg,color-mix(in srgb,var(--v2-accent) 5%,var(--v2-surface)),var(--v2-surface)); }
+.synaura-chambre .community-thread h1 { margin: 18px 0 24px; font-size: clamp(28px,3.5vw,46px); line-height: 1.12; letter-spacing: -.045em; font-weight: 650; overflow-wrap: anywhere; }
+.synaura-chambre .community-thread h2 { font-size: 21px; font-weight: 600; margin-bottom: 20px; }
+.synaura-chambre .thread-byline { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+.synaura-chambre .thread-byline time,.synaura-chambre .thread-muted { color: var(--v2-muted); font-size: 12px; }
+.synaura-chambre .thread-muted { display: flex; gap: 8px; align-items: center; line-height: 1.8; }
+.synaura-chambre .community-thread .thread-message { white-space: pre-wrap; overflow-wrap: anywhere; margin: 24px 0; font-size: 15px; line-height: 1.85; }
+.synaura-chambre .community-thread .thread-conversation { margin: 32px 0 22px; }
+.synaura-chambre .thread-conversation h2 span { margin-left: 8px; font-size: 14px; color: var(--v2-muted); }
+.synaura-chambre .thread-replies { display: grid; gap: 12px; }
+.synaura-chambre .community-thread .thread-reply { margin: 0; padding: 22px; animation: thread-arrive .24s ease-out both; }
+.synaura-chambre .thread-reply-actions,.synaura-chambre .thread-owner-actions { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.synaura-chambre .thread-owner-actions { margin-left: auto; }
+.synaura-chambre .community-thread :is(.thread-reply-actions,.thread-owner-actions) button { display: inline-flex; min-height: 44px; font-size: 12px; color: var(--v2-muted); }
+.synaura-chambre .community-thread [aria-pressed='true'] { color: var(--v2-accent); }
+.synaura-chambre .community-thread :is(input,textarea,select) { display: block; width: 100%; min-width: 0; background: var(--v2-bg); color: var(--v2-text); border: 1px solid var(--v2-border); border-radius: 14px; padding: 13px 15px; margin: 10px 0 18px; font-size: 16px; line-height: 1.6; }
+.synaura-chambre .community-thread textarea { resize: vertical; }
+.synaura-chambre .community-thread :is(textarea,input,select):focus-visible { outline: 2px solid var(--v2-focus); outline-offset: 3px; }
+.synaura-chambre .thread-compose-footer { display: flex; align-items: center; justify-content: space-between; gap: 15px; }
+.synaura-chambre .thread-compose-footer span { color: var(--v2-muted); font-size: 12px; }
+.synaura-chambre .thread-compose-footer button { display: inline-flex; min-height: 44px; }
+.synaura-chambre .thread-editor { scroll-margin-top: 100px; }
+.synaura-chambre .thread-loading { display: flex; align-items: center; gap: 10px; min-height: 180px; justify-content: center; }
+.community-confirm { position: fixed; inset: 0; margin: auto; width: min(440px,calc(100vw - 32px)); max-height: calc(100dvh - 40px); overflow: auto; padding: 28px; border: 0; border-radius: 24px; background: var(--v2-surface,#111524); color: var(--v2-text,#edf2ff); }
+.community-confirm::backdrop { background: rgb(0 0 0 / .65); }
+.community-confirm h2 { font-size: 22px; line-height: 1.3; }
+.community-confirm p { margin: 18px 0; line-height: 1.7; }
+.community-confirm > div { display: flex; justify-content: flex-end; gap: 14px; flex-wrap: wrap; }
+.community-confirm button { min-height: 44px; padding: 10px 14px; border-radius: 12px; background: rgb(128 128 128 / .16); }
+.community-confirm .community-danger { color: var(--syn-error,#ffadb3); }
+.community-confirm button:focus-visible { outline: 2px solid var(--v2-focus,#a8c6ff); outline-offset: 3px; }
+@keyframes thread-arrive { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@media(max-width:600px) { .synaura-chambre .thread-byline { align-items: flex-start; flex-direction: column; } .synaura-chambre .community-thread .thread-panel { border-radius: 18px; padding: 20px 16px; } .synaura-chambre .thread-owner-actions { margin-left: 0; } }
+@media(prefers-reduced-motion:reduce) { .synaura-chambre .community-thread .thread-reply { animation: none; } }

@@ -16,7 +16,7 @@ test('approved public story replaces presentation only; server member routing su
   assert.match(home, /memberHasCompletedOnboarding\(userId\)/);
   assert.match(home, /redirect\('\/live'\)/);
   assert.match(landing, /<PublicChamberEntry legacy/);
-  assert.match(entry, /<ChamberProduct presentationHref="\/landing\/presentation" \/>/);
+  assert.match(entry, /<ChamberProduct presentationHref="\/landing\/presentation" celestial \/>/);
   const presentation = await read('components/enter/SynauraPresentation.tsx');
   assert.match(presentation, /\/auth\/signin\?callbackUrl=/);
   assert.match(presentation, /\/auth\/signup\?callbackUrl=/);
@@ -32,12 +32,12 @@ test('shared shell retains complete primary navigation and specialist account ex
   for (const route of ['/upload','/ai-generator','/clips/new','/posts','/create/variation']) assert.ok(dock.includes(`'${route}'`), route);
   assert.match(dock, /withCurrentHandoff/);
 });
-test('wordmark matches approved tight sans direction without replacing the existing S symbol', async () => {
+test('wordmark follows the approved celestial fennec direction with a vector signature', async () => {
   const logo = await read('components/brand/SynauraLogo.tsx');
-  assert.match(logo, /data-chambre-wordmark/);
-  assert.match(logo, /Arial, Helvetica, sans-serif/);
-  assert.match(logo, />SYNAURA<\/span>/);
-  assert.match(logo, /SYNAURA_V2_REFERENCE/);
+  assert.match(logo, /data-celestial-brand/);
+  assert.match(logo, /Georgia, serif/);
+  assert.match(logo, />Synaura<span/);
+  assert.match(logo, /FennecMark/);
   assert.match(logo, /aria-hidden=\{decorative \|\| undefined\}/);
 });
 

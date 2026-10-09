@@ -10,6 +10,7 @@ import { useTrackActions } from '@/components/actions/useTrackActions';
 import TrackCover from '@/components/TrackCover';
 import LikeButton from '@/components/LikeButton';
 import './listening-player.css';
+import FennecMark from '@/components/celestial/FennecMark';
 
 const clock = (value: number) => {
   const seconds = Math.floor(Number.isFinite(value) ? Math.max(0, value) : 0);
@@ -94,7 +95,7 @@ export function ListeningRoom({ open, onClose, onQueue }: { open: boolean; onClo
   return <SynauraOverlay open={open} onClose={onClose} ariaLabel={`Lecture : ${track.title}`} initialFocusRef={closeButton} showClose={false} size="full" presentation="modal" className="listening-room-overlay">
     <div className="listening-room" data-playing={audioState.isPlaying} data-motion={living.enabled}>
       <div className="lr-atmosphere" aria-hidden="true"><TrackCover src={track.coverUrl} title={track.title} animationEnabled={false} className="lr-backdrop-cover" /><div className="lr-halo lr-halo-one" /><div className="lr-halo lr-halo-two" /><div className="lr-orbit" /></div>
-      <header className="lr-header"><button ref={closeButton} className="lp-icon" aria-label="Réduire le lecteur" onClick={onClose}><ChevronDown size={25} /></button><span><img src="/brand/v2/reference-symbol.svg" alt="" />La chambre sonore</span><button className="lp-icon" aria-label="Options du morceau" onClick={() => openSurface('track-options')}><MoreHorizontal size={24} /></button></header>
+      <header className="lr-header"><button ref={closeButton} className="lp-icon" aria-label="Réduire le lecteur" onClick={onClose}><ChevronDown size={25} /></button><span><FennecMark/>La chambre sonore</span><button className="lp-icon" aria-label="Options du morceau" onClick={() => openSurface('track-options')}><MoreHorizontal size={24} /></button></header>
       <div className="lr-stage">
         <div className="lr-artwork"><div className="lr-artwork-halo" /><div className="lr-artwork-frame" key={track._id}><TrackCover trackId={track._id} src={track.coverUrl} videoSrc={track.coverVideoUrl} title={track.title} alt={`Pochette de ${track.title}`} autoPlayVideo={audioState.isPlaying} className="h-full w-full" rounded="rounded-[24px]" /></div><span className="lr-under-art"><PlayingBars /><span>{audioState.isPlaying ? 'Le son nous rapproche.' : 'À votre rythme.'}</span></span></div>
         <section className="lr-song" aria-label="Commandes de lecture">

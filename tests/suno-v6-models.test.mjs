@@ -55,6 +55,10 @@ test('V6 leaves the audio engine, schema, entry and unrelated APIs on the preser
   const authorized = new Set(['app/api/suno/generate/route.ts', 'app/api/suno/upload-cover/route.ts', 'lib/routeChrome.ts', 'app/api/messages/[conversationId]/route.ts', 'app/api/messages/conversations/route.ts', 'middleware.ts']);
   // The requested search overhaul is exercised by search-v2.test.mjs, not the old V6 freeze.
   authorized.add('app/api/search/route.ts');
+  // October Community repairs intentionally replace broken embedded relations,
+  // fake categories and FAQ authorization. These exact endpoints have functional
+  // handler/ownership tests and a disposable PostgreSQL integration gate.
+  for (const path of ['app/api/community/clubs/route.ts', 'app/api/community/faq/route.ts', 'app/api/community/posts/route.ts', 'app/api/community/posts/[id]/route.ts', 'app/api/community/posts/likes/route.ts', 'app/api/community/posts/replies/route.ts', 'app/api/community/stats/route.ts']) authorized.add(path);
   // Subsequently requested recommendation redesign: executable policy/handler
   // tests replace the V6-era byte freeze for these discovery endpoints.
   authorized.add('app/api/discover/radar/route.ts');

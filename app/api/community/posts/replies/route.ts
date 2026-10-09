@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
 import { db } from '@/lib/database';
 import { notifyForumPostReply } from '@/lib/notifications';
+import { attachReplies } from '@/lib/communityPosts';
+import { communityText, COMMUNITY_REPLY_LIMIT } from '@/lib/communityValidation';
 
 export async function GET(request: NextRequest) {
   try {
@@ -24,28 +26,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Erreur lors de la récupération des réponses' }, { status: 500 });
     }
 
-    // Récupérer les profils des utilisateurs
-    const userIds = Array.from(new Set(replies?.map(reply => reply.user_id) || []));
-    const { data: profiles, error: profilesError } = await db
-      .from('profiles')
-      .select('id, name, username, avatar')
-      .in('id', userIds);
-
-    if (profilesError) {
-      console.error('Erreur lors de la récupération des profils:', profilesError);
-      return NextResponse.json({ error: 'Erreur lors de la récupération des profils' }, { status: 500 });
-    }
-
-    // Combiner les réponses avec les profils
-    const repliesWithProfiles = replies?.map(reply => {
-      const profile = profiles?.find(p => p.id === reply.user_id);
-      return {
-        ...reply,
-        profiles: profile || { id: reply.user_id, name: 'Utilisateur inconnu', username: 'unknown', avatar: null }
-      };
-    }) || [];
-
-    return NextResponse.json(repliesWithProfiles);
+    const session = await getApiSession(request);
+    return NextResponse.json(await attachReplies(replies || [], session?.user?.id), { headers: { 'Cache-Control': 'private, no-store' } });
 
   } catch (error) {
     console.error('Erreur serveur:', error);
@@ -61,8 +43,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     }
 
-    const body = await request.json();
-    const { post_id, content } = body;
+    const body = await request.json().catch(() => null);
+    const post_id = communityText(body?.post_id, 100);
+    const content = communityText(body?.content, COMMUNITY_REPLY_LIMIT);
 
     if (!post_id || !content) {
       return NextResponse.json({ error: 'ID du post et contenu requis' }, { status: 400 });
@@ -71,13 +54,18 @@ export async function POST(request: NextRequest) {
     // Vérifier si le post existe
     const { data: post, error: postError } = await db
       .from('forum_posts')
-      .select('id, user_id, title')
+      .select('id, user_id, title, is_locked')
       .eq('id', post_id)
-      .single();
+      .maybeSingle();
 
-    if (postError || !post) {
+    if (postError) throw postError;
+    if (!post) {
       return NextResponse.json({ error: 'Post non trouvé' }, { status: 404 });
     }
+    if (post.is_locked) return NextResponse.json({ error: 'Cette discussion est verrouillée.' }, { status: 423 });
+    // Read the author before inserting: an enrichment error must not cause duplicate retries.
+    const { data: profile, error: profileError } = await db.from('profiles').select('id, name, username, avatar').eq('id', session.user.id).maybeSingle();
+    if (profileError) throw profileError;
 
     // Créer la réponse
     const { data: reply, error } = await db
@@ -95,22 +83,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Erreur lors de la création de la réponse' }, { status: 500 });
     }
 
-    // Récupérer le profil de l'utilisateur
-    const { data: profile, error: profileError } = await db
-      .from('profiles')
-      .select('id, name, username, avatar')
-      .eq('id', session.user.id)
-      .single();
-
-    if (profileError) {
-      console.error('Erreur lors de la récupération du profil:', profileError);
-      return NextResponse.json({ error: 'Erreur lors de la récupération du profil' }, { status: 500 });
-    }
-
     // Combiner la réponse avec le profil
     const replyWithProfile = {
       ...reply,
-      profiles: profile || { id: session.user.id, name: 'Utilisateur', username: 'user', avatar: null }
+      profiles: profile || null,
+      is_liked: false
     };
 
     if (post.user_id && post.user_id !== session.user.id) {

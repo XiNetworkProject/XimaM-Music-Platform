@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import ts from 'typescript';
 import { projectUnifiedStudio } from './reviewed-unified-studio.mjs';
+import { projectStudioFinishing } from './reviewed-studio-finishing.mjs';
 import { projectProductHints } from './reviewed-product-hints.mjs';
 
 // V6 is an explicitly authorized behavior change after the visual redesign.
@@ -36,10 +37,11 @@ const SLOTS = {
     ['call', 'setGenerationDuration|s.generationDuration', 'replace', '8fbbfb0429330737d89e402c8a15df0eb1c1a784d15b0efd58b59fa648f0a619'],
     ['if', 'savedModel', 'replace', '9c8536b393b58e3eb1d83e5776c65ad7cbbdb23283cd5051ad18d911361f934b'],
     ['if', 'savedDuration', 'replace', 'f4042c389912a7b35382e945002f700c2e11899eabd820a8bf12ab003643b760'],
-    ['variable', 'generateMusic', 'replace', '5058d2f5bed2662bb4467b81e43f663a8440e8c5ff05f0db2ec02c34d19acdba'],
-    ['variable', 'handleReuseTrackInfo', 'replace', '6be79532de3e5f2d89accb002d27c002396c55b1b963aa8f2d281eaadcdcda39'],
-    ['variable', 'useLibraryTrackForRemix', 'replace', 'f089a5be883f22c5929e83e00d31e0be91d4f3771dd1c45a678c17151e61a772'],
-    ['variable', 'useGeneratedTrackForRemix', 'replace', '9625d52739ab9c83d89881b8341a55c316eed3ec099d462f5bd1214760602d14'],
+    // Reviewed persistent diagnostics, request uncertainty and missing-source feedback.
+    ['variable', 'generateMusic', 'replace', 'badae0d32a9801af5245e100d0b8d6b9131ff236bed81b1ab3d87df76715fbd3'],
+    ['variable', 'handleReuseTrackInfo', 'replace', 'c068def73c86895fd344dfb88089cc6282895897b2f24fb2cc779892e6f6a86b'],
+    ['variable', 'useLibraryTrackForRemix', 'replace', 'd8948d9dd57c6b744c6af6cae4b050cd0fd6de6da685ceeff8772e41cb1b44b7'],
+    ['variable', 'useGeneratedTrackForRemix', 'replace', '63eff6105387b407da60dd470b4a99924a7ac4e7cf1a7937a540c655adaae357'],
     ['variable', 'studioModelLabel', 'replace', '9242427055db877b96b770189afdfa8a33eb606d8664433c210cdee909ed0b87'],
     ['variable', 'studioExpectedSlots', 'replace', '4847df312985b3d1fd8abb1bd4281121e4ccce921c10e8178e1d085ac00c1067'],
     ['model-region', 'chambre-ai-render-settings', 'replace', '11dda99038012e5ebcddf33bfcf8e80f259225360403d3277e54a50974225ba8'],
@@ -184,6 +186,7 @@ export function projectReviewedV6(file, source = read(file)) {
 }
 
 export function assertUnchangedV6TrackBoundaries(file, source = read(file)) {
+  source = projectStudioFinishing(file, source, true);
   const protectedNames = {
     'app/ai-generator/page.tsx': ['playGenerated', 'playAITrack', 'playLibraryQueue', 'downloadGenerated', 'shareGenerated', 'toggleGenerationVisibility', 'toggleTrackTrash', 'toggleTrackLike', 'hydrateTrackFromSuno'],
     'app/ai-library/page.tsx': ['playAITrack', 'downloadTrack', 'publishTrack', 'toggleFavorite', 'resyncGeneration', 'generateCoverVideo', 'shareGeneration'],

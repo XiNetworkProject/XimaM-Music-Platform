@@ -11,9 +11,11 @@ type ValidateInput = {
   title?: string;
   duration?: number;
   hasUploadUrl?: boolean;
+  negativeTags?: string;
 };
 
 type ValidateTuningInput = {
+  variety?: number;
   styleWeight?: number;
   weirdnessConstraint?: number;
   audioWeight?: number;
@@ -31,7 +33,7 @@ export function validateSunoGenerationInput(input: ValidateInput): ValidationRes
   if (typeof input.customMode !== 'boolean' || typeof input.instrumental !== 'boolean') {
     return { ok: false, error: 'customMode et instrumental doivent être des booléens' };
   }
-  for (const key of ['prompt', 'style', 'title'] as const) {
+  for (const key of ['prompt', 'style', 'title', 'negativeTags'] as const) {
     if (input[key] != null && typeof input[key] !== 'string') {
       return { ok: false, error: `${key} invalide` };
     }
@@ -56,13 +58,14 @@ export function validateSunoGenerationInput(input: ValidateInput): ValidationRes
   }
 
   // Custom mode
-  if (!style.trim()) return { ok: false, error: 'style requis en mode Custom' };
-  if (!title.trim()) return { ok: false, error: 'title requis en mode Custom' };
+  if (input.hasUploadUrl && !style.trim()) return { ok: false, error: 'style requis pour une reprise Custom' };
+  if (input.hasUploadUrl && !title.trim()) return { ok: false, error: 'title requis pour une reprise Custom' };
+  if (!style.trim() && !(input.instrumental ? '' : prompt.trim()) && !input.negativeTags?.trim()) return { ok: false, error: 'Paroles, style ou exclusions requis' };
   if (style.length > limits.style) return { ok: false, error: `style trop long (max ${limits.style})` };
   if (title.length > limits.title) return { ok: false, error: `title trop long (max ${limits.title})` };
 
   if (!input.instrumental) {
-    if (!prompt.trim()) return { ok: false, error: 'prompt (lyrics) requis en mode Custom quand instrumental=false' };
+    if (input.hasUploadUrl && !prompt.trim()) return { ok: false, error: 'prompt (lyrics) requis pour une reprise avec voix' };
     if (prompt.length > limits.prompt) return { ok: false, error: `prompt trop long (max ${limits.prompt})` };
   }
 
@@ -80,6 +83,7 @@ export function validateUploadCoverExtra(_model: string, uploadDurationSec?: num
 }
 
 export function validateSunoTuningInput(input: ValidateTuningInput): { ok: true } | { ok: false; error: string } {
+  if (input.variety != null && (!Number.isInteger(input.variety) || input.variety < 0 || input.variety > 4)) return { ok: false, error: 'variety doit être un entier entre 0 et 4' };
   const checks: Array<{ key: string; value: number | undefined }> = [
     { key: 'styleWeight', value: input.styleWeight },
     { key: 'weirdnessConstraint', value: input.weirdnessConstraint },
@@ -100,5 +104,6 @@ export function validateSunoTuningInput(input: ValidateTuningInput): { ok: true 
   if (input.negativeTags != null && typeof input.negativeTags !== 'string') {
     return { ok: false, error: 'negativeTags invalide' };
   }
+  if (input.negativeTags && input.negativeTags.length > 1000) return { ok: false, error: 'negativeTags trop long (max 1000)' };
   return { ok: true };
 }

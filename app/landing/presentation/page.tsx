@@ -8,6 +8,6 @@ export const metadata: Metadata = {
   alternates: { canonical: '/landing/presentation' },
 };
 
-export default function PresentationPage({ searchParams }: { searchParams?: { callbackUrl?: string } }) {
-  return <SynauraPresentation callbackUrl={safeEntryTarget(searchParams?.callbackUrl, '/live')} />;
+export default function PresentationPage({ searchParams }: { searchParams?: { callbackUrl?: string; chapter?: string } }) {
+  return <SynauraPresentation callbackUrl={safeEntryTarget(searchParams?.callbackUrl, '/live')} initialChapter={Number(searchParams?.chapter || 0)} />;
 }

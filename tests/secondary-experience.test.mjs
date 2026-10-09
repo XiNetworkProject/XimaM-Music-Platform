@@ -7,6 +7,7 @@ import vm from 'node:vm';
 import {secondaryPaths, secondaryBehavior} from './helpers/secondary-presentation.mjs';
 import {usesUnifiedNavigation} from '../lib/unifiedNavigation.ts';
 import {cityControllerFingerprint} from './helpers/city-controller.mjs';
+import {assertCommunityCompletion} from './helpers/community-completion-contract.mjs';
 
 const read = path => readFileSync(new URL(`../${path}`,import.meta.url),'utf8');
 // Recorded from pre-edit files, including existing user changes, not the candidate.
@@ -28,6 +29,7 @@ test('challenge detail uses the existing shared navigation, not the old dock',()
 });
 for (const path of secondaryPaths) {
   test(`secondary visual redraw preserves business code, actions and destinations: ${path}`,()=>{
+    if (assertCommunityCompletion(path, read(path))) return;
     // City was subsequently recomposed at the user's request. Its committed
     // pre-redesign controller fingerprint and executable UI tests replace the
     // obsolete presentation-order assertion for this one route only.

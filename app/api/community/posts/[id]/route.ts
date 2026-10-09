@@ -1,348 +1,77 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
 import { db } from '@/lib/database';
-import { canViewTrack } from '@/lib/publicTracks';
+import { attachAuthors, attachReplies, attachTracks, getPostTrackId, validateAttachedTrack, withTrackRef } from '@/lib/communityPosts';
+import { communityPostInput } from '@/lib/communityValidation';
 
-const TRACK_REF_RE = /<!--\s*synaura-track:([^>\s]+)\s*-->/i;
-
-function stripTrackRef(content?: string | null) {
-  return String(content || '').replace(TRACK_REF_RE, '').trim();
-}
-
-function getPostTrackId(post: any) {
-  return post?.track_id || String(post?.content || '').match(TRACK_REF_RE)?.[1] || null;
-}
-
-function readTrackData(value: any): Record<string, any> {
-  if (!value) return {};
-  if (typeof value === 'object' && !Array.isArray(value)) return value;
-  if (typeof value !== 'string') return {};
-  try {
-    const parsed = JSON.parse(value);
-    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
-  } catch {
-    return {};
-  }
-}
-
-function normalizeAttachedTrack(track: any) {
-  if (!track) return null;
-  const profile = Array.isArray(track.profiles) ? track.profiles[0] : track.profiles;
-  const data = readTrackData(track.data);
-  return {
-    id: track.id,
-    _id: track.id,
-    title: track.title,
-    artist_id: track.creator_id || track.user_id || '',
-    artist_name: track.artist_name || profile?.name || profile?.username || 'Artiste',
-    artist_username: profile?.username || '',
-    coverUrl: track.cover_url || null,
-    cover_url: track.cover_url || null,
-    coverVideoUrl: track.cover_video_url || data.cover_video_url || data.coverVideoUrl || null,
-    cover_video_url: track.cover_video_url || data.cover_video_url || data.coverVideoUrl || null,
-    coverVideoPosterUrl: track.cover_video_poster_url || data.cover_video_poster_url || data.coverVideoPosterUrl || null,
-    cover_video_poster_url: track.cover_video_poster_url || data.cover_video_poster_url || data.coverVideoPosterUrl || null,
-    audioUrl: track.audio_url || null,
-    audio_url: track.audio_url || null,
-    duration: track.duration || 0,
-    genre: track.genre || [],
-    plays: track.plays || 0,
-    likes: track.likes || 0,
-    style: Array.isArray(track.genre) ? track.genre.slice(0, 2).join(', ') : track.genre || '',
-  };
-}
-
-function shouldFallbackSelect(error: any) {
-  const message = String(error?.message || error?.details || '').toLowerCase();
-  return (
-    error?.code === 'PGRST200' ||
-    error?.code === 'PGRST201' ||
-    error?.code === 'PGRST204' ||
-    error?.code === '42703' ||
-    message.includes('relationship') ||
-    message.includes('schema cache') ||
-    message.includes('could not find') ||
-    message.includes('column')
-  );
-}
-
-async function attachAuthor(post: any) {
-  if (!post || post.profiles) return post;
-  const { data: profile } = await db
-    .from('profiles')
-    .select('id, name, username, avatar')
-    .eq('id', post.user_id)
-    .maybeSingle();
-  return profile ? { ...post, profiles: profile } : post;
-}
-
-export async function GET(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  try {
-    const { id } = params;
-    const session = await getApiSession(request).catch(() => null);
-    const viewerId = session?.user?.id || null;
-
-    if (!id) {
-      return NextResponse.json({ error: 'ID du post requis' }, { status: 400 });
-    }
-
-    // Récupérer le post avec l'auteur. Fallback sans relation embarquée si le
-    // cache PostgREST de prod ne connaît pas la FK user_id -> profiles.
-    let { data: post, error: postError } = await db
-      .from('forum_posts')
-      .select(`
-        *,
-        profiles:user_id (
-          id,
-          name,
-          username,
-          avatar
-        )
-      `)
-      .eq('id', id)
-      .single();
-
-    if (postError && shouldFallbackSelect(postError)) {
-      const retry = await db
-        .from('forum_posts')
-        .select('*')
-        .eq('id', id)
-        .single();
-      post = retry.data;
-      postError = retry.error;
-      if (post) post = await attachAuthor(post);
-    }
-
-    if (postError || !post) {
-      return NextResponse.json({ error: 'Post non trouvé' }, { status: 404 });
-    }
-
-    const attachedTrackId = getPostTrackId(post);
-    let attachedTrack = null;
-    if (attachedTrackId) {
-      let { data: track, error: trackError } = await db
-        .from('tracks')
-        .select(`
-          *,
-          profiles:creator_id (
-            id,
-            name,
-            username,
-            avatar
-          )
-        `)
-        .eq('id', attachedTrackId)
-        .maybeSingle();
-
-      if (trackError && shouldFallbackSelect(trackError)) {
-        const retry = await db
-          .from('tracks')
-          .select('*')
-          .eq('id', attachedTrackId)
-          .maybeSingle();
-        track = retry.data;
-        if (track?.creator_id) {
-          const { data: profile } = await db
-            .from('profiles')
-            .select('id, name, username, avatar')
-            .eq('id', track.creator_id)
-            .maybeSingle();
-          track = { ...track, profiles: profile || null };
-        }
-      }
-      // Un morceau attaché peut être devenu privé depuis la publication du post :
-      // il ne doit alors plus être exposé (sauf à son propriétaire).
-      attachedTrack = track && canViewTrack(track, viewerId) ? normalizeAttachedTrack(track) : null;
-    }
-
-    // Incrémenter le compteur de vues
-    const nextViewsCount = Number(post.views_count || 0) + 1;
-    await db
-      .from('forum_posts')
-      .update({ views_count: nextViewsCount })
-      .eq('id', id);
-
-    // Récupérer les réponses
-    const { data: replies, error: repliesError } = await db
-      .from('forum_replies')
-      .select(`
-        *,
-        profiles:user_id (
-          id,
-          name,
-          username,
-          avatar
-        )
-      `)
-      .eq('post_id', id)
-      .order('created_at', { ascending: true });
-
-    if (repliesError) {
-      console.error('Erreur lors de la récupération des réponses:', repliesError);
-    }
-
-    return NextResponse.json({
-      post: {
-        ...post,
-        content: stripTrackRef(post.content),
-        track_id: attachedTrack ? (post.track_id || attachedTrackId) : null,
-        track: attachedTrack,
-        views_count: nextViewsCount
-      },
-      replies: replies || []
-    });
-
-  } catch (error) {
-    console.error('Erreur serveur:', error);
-    return NextResponse.json({ error: 'Erreur interne du serveur' }, { status: 500 });
-  }
-}
-
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  try {
-    const session = await getApiSession(request);
-
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
-    }
-
-    const { id } = params;
-    const body = await request.json();
-    const { title, content, category, tags } = body;
-
-    if (!title || !content || !category) {
-      return NextResponse.json({ error: 'Titre, contenu et catégorie requis' }, { status: 400 });
-    }
-
-    const validCategories = ['feedback', 'collab', 'remix', 'prompts', 'weekly-top', 'question', 'suggestion', 'bug', 'general'];
-    if (!validCategories.includes(category)) {
-      return NextResponse.json({ error: 'Catégorie invalide' }, { status: 400 });
-    }
-
-    // Vérifier que l'utilisateur est le propriétaire du post
-    const { data: existingPost, error: checkError } = await db
-      .from('forum_posts')
-      .select('user_id')
-      .eq('id', id)
-      .single();
-
-    if (checkError || !existingPost) {
-      return NextResponse.json({ error: 'Post non trouvé' }, { status: 404 });
-    }
-
-    if (existingPost.user_id !== session.user.id) {
-      return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
-    }
-
-    const updatePayload: any = {
-      title: title.trim(),
-      content: content.trim(),
-      category,
-      tags: tags || [],
-      updated_at: new Date().toISOString()
-    };
-    if (typeof body.track_id === 'string') {
-      updatePayload.track_id = body.track_id.trim() || null;
-    }
-
-    let { data: post, error } = await db
-      .from('forum_posts')
-      .update(updatePayload)
-      .eq('id', id)
-      .select(`
-        *,
-        profiles:user_id (
-          id,
-          name,
-          username,
-          avatar
-        )
-      `)
-      .single();
-
-    if (error && 'track_id' in updatePayload) {
-      delete updatePayload.track_id;
-      const retry = await db
-        .from('forum_posts')
-        .update(updatePayload)
-        .eq('id', id)
-        .select(`
-          *,
-          profiles:user_id (
-            id,
-            name,
-            username,
-            avatar
-          )
-        `)
-        .single();
-      post = retry.data;
-      error = retry.error;
-    }
-
-    if (error) {
-      console.error('Erreur lors de la mise à jour du post:', error);
-      return NextResponse.json({ error: 'Erreur lors de la mise à jour du post' }, { status: 500 });
-    }
-
-    return NextResponse.json(post);
-
-  } catch (error) {
-    console.error('Erreur serveur:', error);
-    return NextResponse.json({ error: 'Erreur interne du serveur' }, { status: 500 });
-  }
-}
-
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: { id: string } }
-) {
-  try {
-    const session = await getApiSession(request);
-
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
-    }
-
-    const { id } = params;
-
-    // Vérifier que l'utilisateur est le propriétaire du post
-    const { data: existingPost, error: checkError } = await db
-      .from('forum_posts')
-      .select('user_id')
-      .eq('id', id)
-      .single();
-
-    if (checkError || !existingPost) {
-      return NextResponse.json({ error: 'Post non trouvé' }, { status: 404 });
-    }
-
-    if (existingPost.user_id !== session.user.id) {
-      return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
-    }
-
-    const { error } = await db
-      .from('forum_posts')
-      .delete()
-      .eq('id', id);
-
-    if (error) {
-      console.error('Erreur lors de la suppression du post:', error);
-      return NextResponse.json({ error: 'Erreur lors de la suppression du post' }, { status: 500 });
-    }
-
-    return NextResponse.json({ success: true });
-
-  } catch (error) {
-    console.error('Erreur serveur:', error);
-    return NextResponse.json({ error: 'Erreur interne du serveur' }, { status: 500 });
-  }
-}
-
+type Context = { params: { id: string } };
+const json = NextResponse.json;
 export const dynamic = 'force-dynamic';
+
+export async function GET(request: NextRequest, { params: { id } }: Context) {
+  try {
+    const session = await getApiSession(request);
+    const { data: post, error } = await db.from('forum_posts').select('*').eq('id', id).maybeSingle();
+    if (error) throw error;
+    if (!post) return json({ error: 'Discussion introuvable.' }, { status: 404 });
+    const { data: replies, error: repliesError } = await db.from('forum_replies').select('*').eq('post_id', id).order('created_at', { ascending: true }).order('id', { ascending: true });
+    if (repliesError) throw repliesError;
+    const [hydrated] = await attachTracks(await attachAuthors([post]), session?.user?.id);
+    const hydratedReplies = await attachReplies(replies || [], session?.user?.id);
+    let isLiked = false;
+    if (session?.user?.id) {
+      const { data, error: likesError } = await db.from('forum_post_likes').select('id').eq('post_id', id).eq('user_id', session.user.id).maybeSingle();
+      if (likesError) throw likesError;
+      isLiked = Boolean(data);
+    }
+    // Prefetch/StrictMode must not inflate views: reading is side-effect free.
+    return json({ post: { ...hydrated, profiles: hydrated.author || null, is_liked: isLiked }, replies: hydratedReplies }, { headers: { 'Cache-Control': 'private, no-store' } });
+  } catch (error) {
+    console.error('[community detail]', error);
+    return json({ error: 'Impossible de charger la discussion. Réessaie dans un instant.' }, { status: 500 });
+  }
+}
+
+export async function PUT(request: NextRequest, { params: { id } }: Context) {
+  try {
+    const session = await getApiSession(request);
+    if (!session?.user?.id) return json({ error: 'Non authentifié' }, { status: 401 });
+    const body = await request.json().catch(() => null);
+    const input = communityPostInput(body);
+    if (!input.value) return json({ error: input.error }, { status: 400 });
+    const { data: existing, error } = await db.from('forum_posts').select('*').eq('id', id).maybeSingle();
+    if (error) throw error;
+    if (!existing) return json({ error: 'Discussion introuvable.' }, { status: 404 });
+    if (existing.user_id !== session.user.id) return json({ error: 'Non autorisé' }, { status: 403 });
+    if (existing.is_locked) return json({ error: 'Cette discussion est verrouillée.' }, { status: 423 });
+    const trackId = body.track_id === undefined ? getPostTrackId(existing) : body.track_id || null;
+    if (!(await validateAttachedTrack(trackId, session.user.id))) return json({ error: 'Son indisponible ou privé.' }, { status: 400 });
+    const payload: any = { ...input.value, content: withTrackRef(input.value.content, trackId), updated_at: new Date().toISOString() };
+    if ('track_id' in existing) payload.track_id = trackId;
+    const { data, error: updateError } = await db.from('forum_posts').update(payload).eq('id', id).eq('user_id', session.user.id).eq('is_locked', false).select('*').maybeSingle();
+    if (updateError?.code === '23514') return json({ error: 'Ce thème est temporairement indisponible. Ton brouillon est conservé.' }, { status: 503 });
+    if (updateError) throw updateError;
+    if (!data) return json({ error: 'La discussion a changé. Recharge la page.' }, { status: 409 });
+    return json(data);
+  } catch (error) {
+    console.error('[community update]', error);
+    return json({ error: 'Impossible de modifier la discussion.' }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: NextRequest, { params: { id } }: Context) {
+  try {
+    const session = await getApiSession(request);
+    if (!session?.user?.id) return json({ error: 'Non authentifié' }, { status: 401 });
+    const { data: existing, error } = await db.from('forum_posts').select('user_id').eq('id', id).maybeSingle();
+    if (error) throw error;
+    if (!existing) return json({ error: 'Discussion introuvable.' }, { status: 404 });
+    if (existing.user_id !== session.user.id) return json({ error: 'Non autorisé' }, { status: 403 });
+    const { error: deleteError } = await db.from('forum_posts').delete().eq('id', id).eq('user_id', session.user.id);
+    if (deleteError) throw deleteError;
+    return json({ success: true });
+  } catch (error) {
+    console.error('[community delete]', error);
+    return json({ error: 'Impossible de supprimer la discussion.' }, { status: 500 });
+  }
+}

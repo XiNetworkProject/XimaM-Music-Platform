@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
+import { safeFeedbackText } from '@/lib/studio/feedback';
 import { buildSunoCallbackUrl } from '@/lib/sunoWebhook';
 import { enforceRequestRateLimit, isSafeOpaqueIdentifier, readLimitedJson, rejectUntrustedMutationOrigin } from '@/lib/security/requestSecurity';
 
@@ -71,7 +72,7 @@ async function fetchLyricsDetails(taskId: string, apiKey: string): Promise<Lyric
   return [];
 }
 
-async function getLyricsTask(taskId: string, apiKey: string): Promise<{ variants: LyricsVariant[]; rawStatus: string }> {
+async function getLyricsTask(taskId: string, apiKey: string): Promise<{ variants: LyricsVariant[]; rawStatus: string; errorMessage: string }> {
   const endpoint = `${BASE}/api/v1/lyrics/record-info?taskId=${encodeURIComponent(taskId)}`;
   const res = await fetch(endpoint, {
     method: 'GET',
@@ -84,7 +85,7 @@ async function getLyricsTask(taskId: string, apiKey: string): Promise<{ variants
   }
   const variants = parseLyricsVariants(json);
   const rawStatus = String(json?.data?.status || json?.status || '').toUpperCase();
-  return { variants, rawStatus };
+  return { variants, rawStatus, errorMessage: safeFeedbackText(json?.data?.errorMessage) };
 }
 
 export async function POST(req: NextRequest) {
@@ -145,12 +146,15 @@ export async function POST(req: NextRequest) {
     const timeoutMs = 20000;
     let variants: LyricsVariant[] = [];
     let finalStatus = 'PENDING';
+    let errorMessage = '';
     while (Date.now() - startedAt < timeoutMs && variants.length === 0) {
       await sleep(1400);
       try {
         const detail = await getLyricsTask(taskId, apiKey);
         variants = detail.variants;
         finalStatus = detail.rawStatus || finalStatus;
+        errorMessage = detail.errorMessage;
+        if (/FAIL|ERROR/.test(finalStatus)) break;
       } catch {
         variants = await fetchLyricsDetails(taskId, apiKey);
       }
@@ -160,6 +164,7 @@ export async function POST(req: NextRequest) {
       taskId,
       status: variants.length > 0 ? 'complete' : 'pending',
       providerStatus: finalStatus,
+      errorMessage,
       variants,
       best: variants[0]?.text || null,
     });
@@ -184,11 +189,12 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const { variants, rawStatus } = await getLyricsTask(taskId, apiKey);
+    const { variants, rawStatus, errorMessage } = await getLyricsTask(taskId, apiKey);
     return NextResponse.json({
       taskId,
       status: variants.length > 0 ? 'complete' : 'pending',
       providerStatus: rawStatus,
+      errorMessage,
       variants,
       best: variants[0]?.text || null,
     });

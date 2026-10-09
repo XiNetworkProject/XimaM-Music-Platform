@@ -7,6 +7,7 @@ import postcss from 'postcss';
 import { accountBehaviorFingerprint } from './experience-account.test.mjs';
 import { projectProductJourneys } from './helpers/reviewed-product-journeys.mjs';
 import { cityControllerFingerprint } from './helpers/city-controller.mjs';
+import { assertCommunityCompletion } from './helpers/community-completion-contract.mjs';
 
 const root = new URL('../', import.meta.url);
 const read = (path) => readFileSync(new URL(path, root), 'utf8');
@@ -304,12 +305,14 @@ test('local pre-edit snapshots prove non-presentation code and event expressions
     // contracts are exercised by messaging-experience and voice-calls tests.
     // Search now has its approved functional redesign and dedicated search-v2 tests.
     // Community landing/forum now have a requested functional redesign, covered
-    // by community-refresh.test.mjs. Other Community routes remain protected.
+    // by community-refresh.test.mjs. Its October functional completion is now
+    // covered by executable thread/route tests and the isolated PostgreSQL gate.
     // Creator analytics now has the requested functional redesign, with actual
     // model, route, isolation and stale-response tests in creator-analytics.test.
     // Boosters was explicitly rebuilt functionally; its policy/SQL/UI contracts
     // replace its historical presentation-order fingerprint only.
     if (['app/messages/page.tsx', 'app/messages/[conversationId]/page.tsx', 'app/search/page.tsx', 'app/community/page.tsx', 'app/community/forum/page.tsx', 'app/stats/page.tsx', 'app/boosters/BoostersClient.tsx'].includes(path)) continue;
+    if (assertCommunityCompletion(path, read(path))) continue;
     // Signature pass adds exactly one pure decorative component to Support.
     // Keep every other import, statement and behavioral expression protected.
     let current = path === 'app/support/page.tsx'

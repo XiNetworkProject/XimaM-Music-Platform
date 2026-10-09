@@ -180,7 +180,7 @@ test('V2 error recovery keeps actions and a fully autonomous global fallback', (
   }
   assert.match(global, /<html lang="fr">/);
   assert.match(global, /<body style=/);
-  assert.match(global, /\/brand\/v2\/reference-symbol\.svg/);
+  assert.match(global, /\/brand\/celestial\/fennec-mark\.svg/);
   assert.doesNotMatch(global, /\bimport\s|useSession|useAudioPlayer|className=|var\(--/);
   assert.match(missing, /<h1/);
   assert.match(missing, /href="\/"/);

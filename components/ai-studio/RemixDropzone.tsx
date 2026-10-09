@@ -1,7 +1,9 @@
 // components/ai-studio/RemixDropzone.tsx
 'use client';
 
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
+import { reportStudioActivity } from '@/lib/studio/clientActivity';
+import { feedbackFailure } from '@/lib/studio/feedback';
 import { useDropzone } from 'react-dropzone';
 import { Music, UploadCloud } from 'lucide-react';
 
@@ -9,17 +11,21 @@ interface RemixDropzoneProps {
   onFileSelected: (file: File) => void;
   uploading: boolean;
   file?: File | null;
+  owner?: string;
 }
 
 export function RemixDropzone({
   onFileSelected,
   uploading,
   file,
+  owner,
 }: RemixDropzoneProps) {
+  const [error, setError] = useState('');
   const onDrop = useCallback(
     (acceptedFiles: File[]) => {
       if (!acceptedFiles.length) return;
       const audioFile = acceptedFiles[0];
+      setError('');
       onFileSelected(audioFile);
     },
     [onFileSelected],
@@ -27,9 +33,16 @@ export function RemixDropzone({
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
+    disabled: uploading,
+    maxSize: 500 * 1024 * 1024,
+    onDropRejected: rejections => {
+      const message = rejections.some(item => item.errors.some(error => error.code === 'file-too-large')) ? 'Le fichier dépasse 500 Mo. Choisissez un audio plus léger.' : rejections.some(item => item.errors.some(error => error.code === 'too-many-files')) ? 'Importez un seul fichier audio à la fois.' : 'Format non accepté. Choisissez un fichier MP3, WAV, OGG, M4A, FLAC, AAC ou WEBM.';
+      setError(message);
+      reportStudioActivity(owner, { kind: 'upload', stage: 'Validation du fichier', ...feedbackFailure(message) });
+    },
     multiple: false,
     accept: {
-      'audio/*': ['.mp3', '.wav', '.ogg', '.m4a'],
+      'audio/*': ['.mp3', '.wav', '.ogg', '.m4a', '.flac', '.aac', '.webm'],
     },
   });
 
@@ -55,6 +68,7 @@ export function RemixDropzone({
         )}
       </div>
       <div className="flex-1 min-w-0">
+        {error && <p role="alert" className="text-xs text-rose-200">{error}</p>}
         <p className="text-[13px] text-white/80 truncate">
           {file ? file.name : 'Dépose un extrait audio ou clique'}
         </p>

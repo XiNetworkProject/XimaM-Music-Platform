@@ -13,6 +13,7 @@ import '@/components/v2/experience-collection.css';
 import '@/components/v2/experience-creation.css';
 import '@/components/v2/experience-account.css';
 import '@/components/experience/secondary-experience.css';
+import '@/components/celestial/celestial-system.css';
 import Providers from './providers';
 import ClipUploadIndicator from '@/components/clips/ClipUploadIndicator';
 import { ConditionalNav, ConditionalNavbar, ConditionalBottomNav } from '@/components/ConditionalNav';
@@ -61,8 +62,8 @@ export const metadata: Metadata = {
     title: 'Synaura',
   },
   icons: {
-    icon: [{ url: '/brand/v2/reference-symbol.svg', type: 'image/svg+xml' }],
-    apple: '/brand/v2/reference-symbol.svg',
+    icon: [{ url: '/brand/celestial/fennec-mark.svg', type: 'image/svg+xml' }],
+    apple: '/brand/celestial/fennec-180.png',
   },
 };
 
@@ -129,7 +130,7 @@ export default function RootLayout({
             __html: `(function(){try{var m=localStorage.getItem('${SYNAURA_THEME_STORAGE_KEY}');m=(m==='dark'||m==='light'||m==='system')?m:'system';var t=m==='system'?(matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):m;var d=document.documentElement;d.dataset.synauraThemeMode=m;d.dataset.synauraTheme=t;d.classList.toggle('dark',t==='dark');d.classList.toggle('light',t==='light');d.style.colorScheme='dark';}catch(e){}})();`,
           }}
         />
-        <meta name="theme-color" content="#030508" />
+        <meta name="theme-color" content="#080e1c" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="Synaura" />
@@ -137,14 +138,14 @@ export default function RootLayout({
         {process.env.NEXT_PUBLIC_ADSENSE_CLIENT ? (
           <meta name="google-adsense-account" content={process.env.NEXT_PUBLIC_ADSENSE_CLIENT} />
         ) : null}
-        <link rel="apple-touch-icon" href="/brand/v2/reference-symbol.svg" />
+        <link rel="apple-touch-icon" href="/brand/celestial/fennec-180.png" />
         <link rel="manifest" href="/manifest.json" />
         {/* Précharger le DNS et la connexion au CDN Bunny */}
         <link rel="dns-prefetch" href={`https://${process.env.NEXT_PUBLIC_CDN_DOMAIN || 'synaura-cdn.b-cdn.net'}`} />
         <link rel="preconnect" href={`https://${process.env.NEXT_PUBLIC_CDN_DOMAIN || 'synaura-cdn.b-cdn.net'}`} crossOrigin="anonymous" />
         <AdSenseScript />
       </head>
-      <body className={`theme-suno synaura-v2 synaura-chambre ${inter.className} ${inter.variable} overflow-hidden max-w-full h-full`}>
+      <body className={`theme-suno synaura-v2 synaura-chambre synaura-celestial ${inter.className} ${inter.variable} overflow-hidden max-w-full h-full`}>
         <SynauraThemeProvider>
         <Providers>
           <ContextSurfaceProvider>

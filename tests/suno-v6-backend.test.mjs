@@ -100,6 +100,24 @@ const cover = { uploadUrl: 'https://media.invalid/source.mp3', sourceDurationSec
 const debits = (h) => h.calls.rpc.filter((call) => call.name === 'ai_debit_credits');
 const refunds = (h) => h.calls.rpc.filter((call) => call.name === 'ai_add_credits');
 
+test('lyrics-only custom generation forwards canonical lyrics to V6 without requiring title or style', async () => {
+  const h = harness();
+  const res = await h.post('generate', { ...custom, title: '', style: '', duration: undefined });
+  assert.equal(res.status, 200);
+  assert.equal(h.calls.provider[0].body.lyrics, custom.prompt);
+  assert.equal(h.calls.provider[0].body.duration, undefined);
+  assert.equal(debits(h).length, 1);
+});
+
+test('instrumental omits unsupported audioWeight; overlong exclusions cannot debit credits', async () => {
+  const h = harness();
+  assert.equal((await h.post('generate', { ...custom, instrumental: true, audioWeight: .5 })).status, 200);
+  assert.equal(h.calls.provider[0].body.audioWeight, undefined);
+  const invalid = harness();
+  assert.equal((await invalid.post('generate', { ...custom, negativeTags: 'x'.repeat(1001) })).status, 400);
+  assert.equal(debits(invalid).length, 0);
+});
+
 test('validation uses V6 text limits and distinct cover/simple limits', () => {
   const { validateSunoGenerationInput: validate } = harness().load('lib/sunoValidation.ts');
   for (const model of ['V6', 'V6_WILD', 'V6_MINI']) {
@@ -113,6 +131,18 @@ test('validation uses V6 text limits and distinct cover/simple limits', () => {
     assert.equal(validate({ ...custom, customMode: false, model, hasUploadUrl: true, prompt: 'a'.repeat(501) }).ok, false);
   }
   assert.equal(validate({ ...custom, prompt: `${'a'.repeat(5000)} ` }).ok, false, 'do not trim away overflow before sending unchanged lyrics');
+});
+
+for (const route of ['generate', 'upload-cover']) test(`${route}: destination stays in owned metadata, never provider input`, async () => {
+  const h = harness();
+  const response = await h.post(route, { ...custom, ...(route === 'upload-cover' ? cover : {}), libraryFolder: ' Album privé ' });
+  assert.equal(response.status, 200);
+  assert.equal(h.calls.inserts[0].user_id, 'user-test');
+  assert.equal(h.calls.inserts[0].metadata.libraryFolder, 'Album privé');
+  assert.equal(h.calls.provider[0].body.libraryFolder, undefined);
+  const invalid = harness();
+  assert.equal((await invalid.post(route, { ...custom, ...(route === 'upload-cover' ? cover : {}), libraryFolder: {} })).status, 400);
+  assert.equal(debits(invalid).length, 0);
 });
 
 test('duration is optional or an integer 10–360 in custom generation and cover', () => {
@@ -141,7 +171,7 @@ for (const route of ['generate', 'upload-cover']) {
 
   test(`${route}: invalid text, tuning and duration never debit credits or call provider`, async () => {
     for (const patch of [
-      { title: '' }, { title: 'a'.repeat(81) }, { prompt: 7 }, { instrumental: 'false' },
+      ...(route === 'upload-cover' ? [{ title: '' }] : [{ title: '', style: '', prompt: '' }]), { title: 'a'.repeat(81) }, { prompt: 7 }, { instrumental: 'false' },
       { customMode: 'false' }, { styleWeight: 2 }, { vocalGender: 'male' }, { negativeTags: {} },
       { duration: 361 }, { duration: 10.5 }, { customMode: false, duration: 120 },
       ...(route === 'upload-cover' ? [{ sourceDurationSec: 481 }, { uploadUrl: 'javascript:bad' }] : []),

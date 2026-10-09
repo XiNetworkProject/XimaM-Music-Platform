@@ -18,6 +18,8 @@ export default function PostsFeedPage() {
   const [cursor, setCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(true);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const [composeRequested, setComposeRequested] = useState(false);
+  useEffect(() => { setComposeRequested(new URLSearchParams(window.location.search).get('compose') === 'true'); }, []);
 
   const fetchPosts = useCallback(async (cursorParam?: string, replace = false) => {
     if (replace) setLoading(true);
@@ -108,7 +110,7 @@ export default function PostsFeedPage() {
       <div className="chambre-post-stream mx-auto max-w-2xl pb-[calc(7rem+env(safe-area-inset-bottom,0px))]">
         {session && (
           <div className="mb-5">
-            <PostComposer onPostCreated={handlePostCreated} />
+            <PostComposer onPostCreated={handlePostCreated} focusOnOpen={composeRequested} />
           </div>
         )}
 

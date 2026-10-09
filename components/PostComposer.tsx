@@ -12,6 +12,7 @@ import type { Post } from '@/components/PostCard';
 
 interface PostComposerProps {
   onPostCreated: (post: Post) => void;
+  focusOnOpen?: boolean;
 }
 
 interface UserTrack {
@@ -29,7 +30,9 @@ function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(' ');
 }
 
-export default function PostComposer({ onPostCreated }: PostComposerProps) {
+export default function PostComposer({ onPostCreated, focusOnOpen = false }: PostComposerProps) {
+  const composeRef = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => { if (focusOnOpen) { composeRef.current?.scrollIntoView({ block: 'center' }); composeRef.current?.focus({ preventScroll: true }); } }, [focusOnOpen]);
   const { data: session } = useSession();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [mode, setMode] = useState<ComposerMode>('text');
@@ -177,6 +180,7 @@ export default function PostComposer({ onPostCreated }: PostComposerProps) {
           {session?.user ? (
             <div className="rounded-[1.15rem] bg-black/[0.055] p-2">
               <textarea
+                ref={composeRef}
                 value={content}
                 onChange={(event) => setContent(event.target.value)}
                 rows={mode === 'photo' ? 2 : 3}

@@ -7,26 +7,23 @@ import { projectUnifiedStudio } from './helpers/reviewed-unified-studio.mjs';
 import { assertUnchangedV6TrackBoundaries } from './helpers/reviewed-suno-v6.mjs';
 
 const read = file => readFileSync(new URL(`../${file}`, import.meta.url), 'utf8');
-const view = read('components/ai-studio/UnifiedStudio.tsx');
+const view = read('components/ai-studio/UnifiedStudio.tsx') + read('components/ai-studio/StudioComposer.tsx');
 const controller = read('app/ai-generator/page.tsx');
 const css = read('components/ai-studio/unified-studio.css');
 
 test('unified studio and offline lab parse, styling remains scoped and responsive', () => {
-  for (const file of ['components/ai-studio/UnifiedStudio.tsx', 'app/dev/studio/StudioLab.tsx', 'app/studio/page.tsx']) {
+  for (const file of ['components/ai-studio/UnifiedStudio.tsx', 'components/ai-studio/StudioComposer.tsx', 'components/ai-studio/StudioSongMenu.tsx', 'app/dev/studio/StudioLab.tsx', 'app/studio/page.tsx']) {
     assert.equal(ts.createSourceFile(file, read(file), ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX).parseDiagnostics.length, 0);
   }
   assert.ok(postcss.parse(css).nodes.length);
   for (const value of ['max-width: 720px', 'max-width: 360px', ':focus-visible', 'prefers-reduced-motion', 'safe-area-inset-bottom']) assert.ok(css.includes(value));
-  const tree = postcss.parse(css);
-  const scrollRules = [];
-  tree.walkDecls('overflow-y', decl => {
-    if (/^(auto|scroll)$/.test(decl.value)) scrollRules.push(decl);
-  });
-  assert.equal(scrollRules.length, 2);
-  for (const decl of scrollRules) assert.equal(decl.parent.parent.params, '(min-width: 900px)');
-  assert.match(css, /\.us-workbench \.us-composer-scroll \{ overflow:visible; \}/);
-  assert.match(css, /\.us-composer-drawer \{[^}]*grid-template-rows:0fr/);
-  assert.match(css, /\[data-studio-view=create\] \.us-composer-drawer \{ grid-template-rows:1fr/);
+  const workspace = read('components/ai-studio/studio-workspace.css');
+  assert.ok(postcss.parse(workspace).nodes.length);
+  assert.match(workspace, /\.sw-results \{ overflow-y:auto/);
+  assert.match(workspace, /\.us-composer-scroll \{ overflow-y:auto/);
+  assert.match(workspace, /\.sw-collection-top \{ flex-shrink:0/);
+  assert.match(workspace, /\[data-studio-view=library\] \.us-composer-drawer.*\[data-studio-view=create\] \.us-collection \{ display:none/);
+  assert.match(workspace, /body:has\(\.listening-dock\)/);
 });
 
 test('all former IA entry routes resolve to one real controller, not the historical mock IDE library', async () => {
@@ -59,7 +56,9 @@ test('paid creation remains explicit, locked against double click, and uses exis
 
 test('all modes, real errors and lifecycle actions remain reachable without automatic publication', () => {
   for (const field of ['description', 'title', 'style', 'lyrics', 'instrumental', 'model', 'duration', 'weirdness', 'styleInfluence', 'audioWeight', 'negativeTags', 'vocalGender']) assert.ok(view.includes(`form.${field}`), field);
-  for (const action of ['play', 'download', 'share', 'remix', 'reuse', 'copyLyrics', 'like', 'trash', 'folder', 'video', 'publish']) assert.ok(view.includes(`p.actions.${action}`), action);
+  for (const action of ['play', 'download', 'share', 'copyLyrics', 'like', 'trash', 'folder', 'video', 'publish']) assert.ok((view + read('components/ai-studio/StudioLibrary.tsx')).includes(`p.actions.${action}`), action);
+  assert.match(view, /p.actions\[action\]\(track\)/);
+  for (const action of ['reuse', 'remix']) assert.ok(view.includes(`composeFrom('${action}', p.selected!)`));
   assert.match(view, /setConfirm\('publish'\)/);
   assert.match(view, /setConfirm\('trash'\)/);
   assert.match(view, /setConfirm\('video'\)/);

@@ -26,7 +26,7 @@ test('one navigation owner; legacy headers and docks opt out without changing me
   assert.equal((read('components/synaura/SynauraShell.tsx').match(/if \(usesUnifiedNavigation\(pathname\)\) return null;/g) || []).length, 3);
   assert.match(read('components/pilot/PilotShell.tsx'), /!usesUnifiedNavigation\(pathname\) &&/);
   const source = read('components/navigation/AppNavigation.tsx');
-  assert.match(source, /synaura-lockup\.svg/);
+  assert.match(source, /SynauraLogo variant="lockup"/);
   for (const href of ['/live','/discover','/create','/library','/community']) assert.ok(source.includes(`href: '${href}'`));
   assert.match(source, /PilotLink : Link/);
   assert.match(source, /prefetch=\{false\}/);

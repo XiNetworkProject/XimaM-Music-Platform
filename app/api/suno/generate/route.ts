@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { validGenerationFolder } from '@/lib/studio/generationSettings';
 import { generateCustomMusic, generateMusic, SunoProviderRejectedError } from "@/lib/suno";
 import { DEFAULT_SUNO_MODEL, normalizeGenerationModel } from '@/lib/sunoModels';
 import { getApiSession } from '@/lib/getApiSession';
@@ -15,6 +16,8 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 type Body = {
+  libraryFolder?: string;
+  variety?: number;
   customMode?: boolean; // Mode Simple (false) ou Custom (true)
   title?: string;
   style?: string;
@@ -81,6 +84,7 @@ export async function POST(req: NextRequest) {
     if (!body || typeof body !== 'object' || Array.isArray(body) || (body.customMode != null && typeof body.customMode !== 'boolean')) {
       return NextResponse.json({ error: 'Paramètres de génération invalides' }, { status: 400 });
     }
+    if (!validGenerationFolder(body.libraryFolder)) return NextResponse.json({ error: 'Dossier invalide (80 caractères maximum)' }, { status: 400 });
     const remixSource = body.remixSource?.sourceTrackId
       ? await assertCanCreateAiVariation({
           sourceTrackId: body.remixSource.sourceTrackId,
@@ -123,11 +127,13 @@ export async function POST(req: NextRequest) {
       style: body.style,
       title: body.title,
       duration: body.duration,
+      negativeTags: body.negativeTags,
     });
     if (!validated.ok) {
       return NextResponse.json({ error: validated.error }, { status: 400 });
     }
     const tuningValidated = validateSunoTuningInput({
+      variety: body.variety,
       styleWeight: body.styleWeight,
       weirdnessConstraint: body.weirdnessConstraint,
       audioWeight: body.audioWeight,
@@ -161,6 +167,7 @@ export async function POST(req: NextRequest) {
       payload.weirdnessConstraint = body.weirdnessConstraint ?? 0.5;
       payload.audioWeight = body.audioWeight ?? 0.65;
       payload.duration = body.duration;
+      if (body.variety != null) payload.variety = body.variety;
     } else {
       // Mode Simple : seulement prompt (description)
       payload.prompt = body.prompt;
@@ -200,6 +207,7 @@ export async function POST(req: NextRequest) {
         // Mode Custom : style et lyrics séparés
         generationData.prompt = body.instrumental ? '' : (finalPrompt || ''); // Lyrics seulement
         generationData.metadata = {
+          libraryFolder: body.libraryFolder?.trim() || '',
           title: body.title || 'Génération en cours',
           style: body.style || '', // Style musical
           instrumental: body.instrumental,
@@ -213,6 +221,7 @@ export async function POST(req: NextRequest) {
         // Mode Simple : description générale dans prompt
         generationData.prompt = body.prompt || ''; // Description complète
         generationData.metadata = {
+          libraryFolder: body.libraryFolder?.trim() || '',
           title: 'Génération automatique',
           description: body.prompt,
           instrumental: body.instrumental,

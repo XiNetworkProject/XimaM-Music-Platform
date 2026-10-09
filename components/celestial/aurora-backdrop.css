@@ -1,0 +1,6 @@
+.aurora-backdrop { position:absolute; inset:0; overflow:hidden; pointer-events:none; background:#080e1c; }
+.aurora-backdrop>img,.aurora-backdrop>canvas { position:absolute; inset:0; width:100%; height:100%; max-width:none; display:block; }
+.aurora-backdrop>img { object-fit:cover; }
+.aurora-backdrop>canvas[hidden] { display:none; }
+.celestial-backdrop--subtle>.aurora-backdrop { opacity:.38; }
+@media(max-width:760px) { .celestial-home .celestial-backdrop>.aurora-backdrop { height:760px; } }

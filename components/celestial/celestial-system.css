@@ -1,0 +1,195 @@
+/* Celestial product system. Visual only: no layout ownership of Live, audio,
+   keyboard sheets or call overlays. Keep error/status colors semantic. */
+html:root, html[data-synaura-theme] {
+  --celestial-cream:#f6ecdc; --celestial-muted:#bac3d3; --celestial-gold:#e6c697;
+  --celestial-blue:#a9caff; --celestial-teal:#93d6d2; --celestial-night:#080e1c;
+  --v2-bg:#080e1c; --v2-surface:#111c2e; --v2-raised:#19273c;
+  --v2-text:var(--celestial-cream); --v2-muted:var(--celestial-muted); --v2-faint:#a0aec4;
+  --v2-accent:var(--celestial-gold); --v2-accent-fill:#745c3e; --v2-blue:var(--celestial-blue); --v2-pink:#cdc0e7;
+  --v2-accent-text:#e6c697; --chambre-accent:#e6c697;
+  --v2-line:#a7bfd42c; --v2-soft:#b9cefb0b; --v2-selected:#e6c69714;
+  --v2-radius-sm:10px; --v2-radius:16px; --v2-radius-lg:24px; --v2-radius-sheet:28px;
+  --v2-focus:#bbd6ff; --v2-shadow:0 24px 80px #0006; --v2-shadow-low:0 8px 26px #0003;
+  --syn-surface-muted:#152237; --syn-surface-translucent:#111c2ef5;
+  --syn-soft-strong:#b9cefb15; --syn-contrast-bg:#edcfa5; --syn-contrast-text:#172235;
+}
+body.synaura-celestial { background:var(--celestial-night); color:var(--celestial-cream); }
+body.synaura-celestial.synaura-chambre ::selection { background:#e6c69740; color:#fff4df; }
+body.synaura-celestial.synaura-chambre .synaura-global-background { background:radial-gradient(ellipse at 80% -15%,#2b556039,transparent 57%),radial-gradient(ellipse at 15% 70%,#87704f0f,transparent 55%),#080e1c; }
+body.synaura-celestial.synaura-chambre .synaura-shell-root { background:transparent; }
+body.synaura-celestial.synaura-chambre .synaura-shell-atmosphere { background:none; }
+body.synaura-celestial.synaura-chambre .synaura-pilot {
+  --pilot-bg:#080e1c; --pilot-text:#f6ecdc; --pilot-muted:#bac3d3; --pilot-line:#a7bfd42c;
+  --v2-bg:#080e1c; --v2-raised:#19273c; --v2-surface:#111c2e; --v2-text:#f6ecdc;
+  --v2-muted:#bac3d3; --v2-faint:#a0aec4; --v2-line:#a7bfd42c; --v2-soft:#b9cefb0b;
+  --v2-accent:#e6c697; --v2-accent-fill:#745c3e; --v2-blue:#a9caff; --v2-selected:#e6c69714;
+}
+
+/* A quiet aurora instead of the former cobalt haze. CSS transforms only;
+   LivingAmbience already handles pause, visibility and reduced motion. */
+body.synaura-celestial.synaura-chambre .living-ambience { opacity:.6; }
+body.synaura-celestial.synaura-chambre .living-ambience i { width:85vw; height:45vh; left:12%; top:-25%; border-radius:45%; background:radial-gradient(ellipse,#89cfc32e,transparent 68%); }
+body.synaura-celestial.synaura-chambre .living-ambience i+i { width:70vw; height:50vh; right:-20%; bottom:0; top:auto; left:auto; background:radial-gradient(ellipse,#ad88c51b,transparent 70%); }
+body.synaura-celestial.synaura-chambre .living-ambience[data-warm=true] i+i { background:radial-gradient(ellipse,#dbb88020,transparent 70%); }
+body.synaura-celestial.synaura-chambre .living-ambience[data-moving=false] { opacity:0; }
+body.synaura-celestial.synaura-chambre .living-motion-control { background:#142135eb; border-color:#e6c69725; color:#dfc9a7; }
+
+/* Same brand and navigation on all product routes; no new tabs or borders. */
+body.synaura-celestial.synaura-chambre .syn-app-header { background:linear-gradient(#080e1cf5,#080e1cc2 65%,#080e1c00); }
+body.synaura-celestial.synaura-chambre .syn-app-nav { background:linear-gradient(90deg,#0b1423f5,#0b1423b8 76%,transparent); }
+body.synaura-celestial.synaura-chambre .syn-app-rail-logo { width:auto; height:auto; overflow:visible; }
+body.synaura-celestial.synaura-chambre .syn-app-rail-brand { margin-left:3px; }
+body.synaura-celestial.synaura-chambre .syn-app-destination { color:#b5bfd1; }
+body.synaura-celestial.synaura-chambre .syn-app-destination[aria-current] { color:#f6ecdc; }
+body.synaura-celestial.synaura-chambre .syn-app-destination[aria-current] .syn-app-nav-icon { color:#edcfa5; }
+body.synaura-celestial.synaura-chambre .syn-app-destination[aria-current] svg { filter:drop-shadow(0 0 8px #e6c69744); }
+body.synaura-celestial.synaura-chambre .syn-app-destination i { background:#e6c697; box-shadow:0 0 12px #e6c69766; }
+body.synaura-celestial.synaura-chambre .syn-app-nav-icon::before { background:radial-gradient(circle,#e6c69725,transparent 72%); }
+body.synaura-celestial.synaura-chambre .syn-app-destination--create .syn-app-nav-icon { color:#a9caff; }
+body.synaura-celestial.synaura-chambre .syn-app-destination--create .syn-app-nav-icon::before { background:radial-gradient(circle,#a9caff28,transparent 72%); }
+body.synaura-celestial.synaura-chambre .syn-app-settings { color:#bbc5d5; }
+body.synaura-celestial.synaura-chambre .syn-app-membership,body.synaura-celestial.synaura-chambre .syn-app-rewards { color:#dfc59f; }
+body.synaura-celestial.synaura-chambre .syn-app-tools .v2-account-panel { background:#142035; color:#f6ecdc; }
+body.synaura-celestial.synaura-chambre .chambre-spaces-panel { background:linear-gradient(130deg,#111c2e,#080e1c 70%)!important; }
+body.synaura-celestial.synaura-chambre .chambre-spaces-heading h2 { font-weight:500; letter-spacing:-.05em; }
+body.synaura-celestial.synaura-chambre .chambre-spaces-grid a:is(:hover,:focus-visible) { background:linear-gradient(90deg,#e6c69710,transparent); }
+
+/* Reusable quiet surfaces, form fields, tabs and portalled dialogs. */
+body.synaura-celestial.synaura-chambre :is(.v2-panel,.v2-account-panel,.v2-context-surface,.context-surface-panel,.syn-dialog-panel) { background-color:var(--v2-surface); color:var(--v2-text); border-color:var(--v2-line); }
+body.synaura-celestial.synaura-chambre :is(.v2-action-primary) { background:#e6c697; border-color:#e6c697; color:#172235; box-shadow:0 4px 24px #e6c69710; }
+body.synaura-celestial.synaura-chambre :is(.v2-action-primary):hover { background:#f1d8b4; box-shadow:0 6px 28px #e6c69724; }
+body.synaura-celestial.synaura-chambre .v2-topbar::after { background:linear-gradient(90deg,transparent,#e6c69744,#a9caff30,transparent); }
+body.synaura-celestial.synaura-chambre :is(.v2-heading,.v2-title) { color:var(--celestial-cream); }
+body.synaura-celestial.synaura-chambre :is(.v2-empty,.community-empty,.dl-empty,.us-empty,.analytics-empty) { background:radial-gradient(ellipse at 70% 0%,#a9caff0b,transparent 65%),var(--v2-surface); border-radius:22px; }
+body.synaura-celestial.synaura-chambre :is(.v2-empty,.community-empty,.dl-empty,.us-empty) h2 { font-family:Georgia,serif; font-weight:400; }
+body.synaura-celestial.synaura-chambre .context-surface-panel:has([data-context-surface=create]),body.synaura-celestial.synaura-chambre .create-sheet { background:radial-gradient(ellipse at 90% 0%,#88cfc319,transparent 55%),#101b2d; }
+body.synaura-celestial.synaura-chambre .create-sheet::before { background:linear-gradient(90deg,transparent,#a9caff70,#e6c69799,transparent); }
+body.synaura-celestial.synaura-chambre .create-sheet-header h2 em { font-family:Georgia,serif; font-style:italic; color:#e6c697; }
+body.synaura-celestial.synaura-chambre .create-sheet-eyebrow>span { background:#e6c697; box-shadow:0 0 12px #e6c69744; }
+body.synaura-celestial.synaura-chambre :is(.v2-comments,.v2-profile-peek,.v2-actions) { --v2-accent-fill:#745c3e; }
+body.synaura-celestial.synaura-chambre .v2-comments>footer { background:#111c2e; }
+
+/* Discovery: an open window, with the actual covers still in the foreground. */
+body.synaura-celestial.synaura-chambre .synaura-pilot .discovery { --dl-ink:#f6ecdc; --dl-muted:#bac3d3; --dl-faint:#a0aec4; --dl-accent:#e6c697; }
+body.synaura-celestial.synaura-chambre .discovery .dl-heading h1>span { color:#e6c697; }
+body.synaura-celestial.synaura-chambre .discovery .dl-hero { background:linear-gradient(90deg,#0a1327f5 5%,#0a1327af 42%,#0a132766),url('/brand/celestial/sanctuary-v1.webp') 70% 36%/cover; border-radius:28px; }
+body.synaura-celestial.synaura-chambre .discovery .dl-hero-copy h2 em { font-family:Georgia,serif; font-weight:400; color:#edcfa5; }
+body.synaura-celestial.synaura-chambre .discovery .dl-hero-light { background:radial-gradient(ellipse,#93d6d229,transparent 65%); }
+body.synaura-celestial.synaura-chambre .discovery .dl-primary { background:#edcfa5; color:#172235; }
+body.synaura-celestial.synaura-chambre .discovery .dl-toolbar { background:#0c1728ef; }
+body.synaura-celestial.synaura-chambre .discovery .dl-tabs button::after { background:#e6c697; box-shadow:0 0 13px #e6c69744; }
+body.synaura-celestial.synaura-chambre .discovery .dl-mood-art { color:#a9caff; }
+body.synaura-celestial.synaura-chambre .discovery :is(.dl-track-card,.dl-playlist-card,.dl-post-card) { border-radius:18px; }
+
+/* Collections, account and editorial headers inherit the same window motif.
+   Explicit selectors, not arbitrary h1 styling; artwork/content stays untouched. */
+body.synaura-celestial.synaura-chambre :is(.experience-collection-header,.experience-settings-heading,.signature-activity-heading,.v2-upload-header,.v2-community-hero,.chambre-support-heading,.experience-membership-heading,.analytics-header) {
+  position:relative; isolation:isolate; background:linear-gradient(100deg,#080e1c 15%,#080e1ca8 72%,#080e1c66),url('/brand/celestial/sanctuary-v1.webp') 72% 23%/cover;
+  border-radius:24px; padding:clamp(24px,3vw,44px); margin-bottom:28px;
+}
+body.synaura-celestial.synaura-chambre :is(.experience-collection-header,.experience-settings-heading,.signature-activity-heading,.v2-upload-header,.chambre-support-heading,.experience-membership-heading,.analytics-header) h1 { color:#f6ecdc; font-weight:550; letter-spacing:-.05em; }
+body.synaura-celestial.synaura-chambre :is(.experience-collection-header,.experience-settings-heading,.experience-membership-heading,.analytics-header) h1 :is(em,span) { color:#e6c697; }
+body.synaura-celestial.synaura-chambre .experience-membership-heading h1 { font-weight:550; }
+body.synaura-celestial.synaura-chambre .experience-membership-plan { background:linear-gradient(155deg,#d8ba8410,transparent 42%),#111c2e; }
+body.synaura-celestial.synaura-chambre .experience-membership-plan-featured { border-color:#e6c69766; }
+body.synaura-celestial.synaura-chambre .experience-collection-header::after,body.synaura-celestial.synaura-chambre .experience-settings-heading::after { opacity:.3; }
+body.synaura-celestial.synaura-chambre .chambre-support-contact { border-top-color:#e6c697!important; background:linear-gradient(155deg,#203144,#111c2e 50%)!important; }
+body.synaura-celestial.synaura-chambre .analytics-workspace { --analytics-accent:#a9caff; }
+body.synaura-celestial.synaura-chambre .analytics-header h1 span { font-family:Georgia,serif; font-style:italic; font-weight:400; }
+
+/* Creation: stationary, readable workbench with a warm commit action. */
+body.synaura-celestial.synaura-chambre .unified-studio { --us-bg:#080e1c; --us-panel:#111c2e; --us-line:#a7bfd42c; --us-muted:#bac3d3; --us-text:#f6ecdc; --us-accent:#e6c697; }
+body.synaura-celestial.synaura-chambre .us-composer { background:linear-gradient(145deg,#24405255,#111c2e 40%); border-color:#a7bfd426; }
+body.synaura-celestial.synaura-chambre .us-composer-heading h1 { color:#f6ecdc; }
+body.synaura-celestial.synaura-chambre .us-composer-heading h1 em { color:#e6c697; font-family:Georgia,serif; }
+body.synaura-celestial.synaura-chambre .us-commit { background:#132035; }
+body.synaura-celestial.synaura-chambre .us-generate { background:#e6c697; color:#172235; }
+body.synaura-celestial.synaura-chambre .us-credit { background:#19273c; }
+body.synaura-celestial.synaura-chambre .us-mode button[aria-pressed=true] { background:#e6c69720; color:#f0d4af; }
+body.synaura-celestial.synaura-chambre .us-collection-heading h2 { font-family:Georgia,serif; letter-spacing:-.035em; }
+body.synaura-celestial.synaura-chambre .us-collection-heading h2 span { color:#e6c697; }
+
+/* Social: warm conversation, original message/user customization preserved. */
+body.synaura-celestial.synaura-chambre :is(.ms-inbox,.ms-thread,.ms-dialog) { --ms-ink:#f6ecdc; --ms-muted:#bac3d3; --ms-soft:#a9caff; }
+body.synaura-celestial.synaura-chambre .ms-inbox .v2-inbox-heading h1 { font-family:Georgia,serif; font-weight:400; letter-spacing:-.04em; }
+body.synaura-celestial.synaura-chambre .ms-inbox .v2-inbox-heading p:first-child { color:#e6c697; }
+body.synaura-celestial.synaura-chambre .ms-thread { background:radial-gradient(ellipse at 70% 0%,#78b7b51a,transparent 60%),#0d1829!important; }
+body.synaura-celestial.synaura-chambre .profile-identity-scene { background:radial-gradient(ellipse at 90% 0%,#93d6d21b,transparent 55%),#111c2e; color:#f6ecdc; }
+body.synaura-celestial.synaura-chambre .profile-reimagined { --pr-muted:#bac3d3; }
+body.synaura-celestial.synaura-chambre .profile-identity-scene .pr-name-group h1 { color:#f6ecdc; }
+body.synaura-celestial.synaura-chambre .community-hub .community-discussion { background:#111c2e; }
+body.synaura-celestial.synaura-chambre .community-hub .community-header h1 { font-weight:550; }
+body.synaura-celestial.synaura-chambre .community-hub .community-header h1 em { color:#e6c697; font-family:Georgia,serif; }
+
+/* Every player remains artwork-led. Only its chrome changes. */
+body.synaura-celestial.synaura-chambre .track-experience-shell {
+  --syn-background:#080e1c; --syn-surface:#111c2e; --syn-surface-muted:#152237; --syn-text-primary:#f6ecdc; --syn-text-secondary:#bac3d3;
+  --v2-bg:#080e1c; --v2-text:#f6ecdc; --v2-muted:#bac3d3; --v2-faint:#a0aec4; --v2-line:#a7bfd42c; --v2-raised:#19273c; --v2-accent:#e6c697; --v2-blue:#a9caff; --v2-selected:#e6c69714;
+  background:#080e1c; color:#f6ecdc;
+}
+body.synaura-celestial.synaura-chambre .track-play { background:#edcfa5; color:#172235; }
+body.synaura-celestial.synaura-chambre .track-identity h1 { color:#f6ecdc; }
+body.synaura-celestial.synaura-chambre .profile-reimagined .v2-profile-tabs button[aria-pressed=true]::after { background:#e6c697; box-shadow:0 2px 12px #e6c69733; }
+body.synaura-celestial.synaura-chambre :is(.v2-download-hero,.v2-post-intro,.chambre-clip-cover,.v2-legal-intro) { background:radial-gradient(ellipse at 80% 0%,#93d6d212,transparent 55%),linear-gradient(120deg,#111c2e,#080e1c); border-radius:24px; }
+body.synaura-celestial.synaura-chambre :is(.v2-download-hero,.v2-post-intro,.chambre-clip-cover,.v2-legal-intro) .chambre-type-accent { color:#e6c697; }
+body.synaura-celestial.synaura-chambre .fennec-panel { --syn-surface-overlay:#111c2e; --v2-text-primary:#f6ecdc; }
+body.synaura-celestial.synaura-chambre .fennec-whisper { background:#f1e4cc; color:#172235; }
+body.synaura-celestial.synaura-chambre .fennec-eyebrow { color:#e6c697; }
+body.synaura-celestial.synaura-chambre :is(.listening-dock,.listening-room) { --lp-ink:#f6ecdc; --lp-muted:#bac3d3; --lp-light:#e6c697; }
+body.synaura-celestial.synaura-chambre .listening-dock { background:linear-gradient(115deg,#192b3ef5,#101c2ef7 60%,#243335f0); box-shadow:0 12px 48px #0007,inset 0 1px #e6c69726; }
+body.synaura-celestial.synaura-chambre .lp-dock-glow::after { background:linear-gradient(90deg,transparent,#e6c69788,transparent); }
+body.synaura-celestial.synaura-chambre .lp-play { background:#edcfa5; color:#172235; box-shadow:0 0 24px #e6c69720; }
+body.synaura-celestial.synaura-chambre .lp-position input::-webkit-slider-runnable-track { background:linear-gradient(to right,#e6c697 var(--lp-progress),#ffffff19 var(--lp-progress)); }
+body.synaura-celestial.synaura-chambre .lp-position input::-moz-range-progress { background:#e6c697; }
+body.synaura-celestial.synaura-chambre .lp-position input::-webkit-slider-thumb { background:#fae7ca; box-shadow:0 0 12px #e6c69744; }
+body.synaura-celestial.synaura-chambre .listening-dock .lp-more-menu { background:#142035fa; }
+body.synaura-celestial.synaura-chambre .pilot-player { background:#111c2ef5; color:#f6ecdc; }
+
+/* Decorative route landmarks, never a second pet or an extra query. */
+body.synaura-celestial.synaura-chambre .sx-search { --sx-ink:#f6ecdc; --sx-muted:#bac3d3; --sx-soft:#b9cefb0b; }
+body.synaura-celestial.synaura-chambre .sx-hero { background:linear-gradient(95deg,#0d182cf2 10%,#0d182c99 70%,#0d182c55),url('/brand/celestial/sanctuary-v1.webp') 75% 30%/cover; border-radius:26px; padding:36px; }
+body.synaura-celestial.synaura-chambre .sx-hero--compact { padding:24px 28px; }
+body.synaura-celestial.synaura-chambre .sx-hero h1 em { font-family:Georgia,serif; font-weight:400; color:#edcfa5; }
+body.synaura-celestial.synaura-chambre .sx-orbits { opacity:.35; }
+body.synaura-celestial.synaura-chambre .sx-hero-glow { background:radial-gradient(ellipse,#93d6d21a,transparent 65%); }
+body.synaura-celestial.synaura-chambre .community-hub .community-welcome { padding:30px; border-radius:26px; margin-bottom:24px; background:linear-gradient(100deg,#0c172aef 30%,#0c172a88),url('/brand/celestial/sanctuary-v1.webp') 70% 38%/cover; }
+body.synaura-celestial.synaura-chambre .community-hub .community-welcome h1 { font-weight:500; }
+body.synaura-celestial.synaura-chambre .community-hub .community-welcome h1 span { font:italic 1em Georgia,serif; color:#edcfa5; }
+body.synaura-celestial.synaura-chambre .community-hub .community-primary { background:#e6c697; color:#172235; }
+body.synaura-celestial.synaura-chambre .city-experience { --city-ink:#f6ecdc; --city-muted:#bac3d3; --city-accent:#e6c697; }
+body.synaura-celestial.synaura-chambre .city-stage { background:linear-gradient(90deg,#0c172af5 15%,#0c172aaa 60%,#0c172a77),url('/brand/celestial/sanctuary-v1.webp') 75% 30%/cover; border-radius:26px; }
+body.synaura-celestial.synaura-chambre .city-stage h1 em { color:#e6c697; font-family:Georgia,serif; }
+body.synaura-celestial.synaura-chambre .city-stage-watermark { opacity:.05; }
+body.synaura-celestial.synaura-chambre .boost-stage { background:linear-gradient(95deg,#080e1cf2 15%,#080e1cbb 60%,#080e1c99),url('/brand/celestial/sanctuary-v1.webp') 70% 32%/cover; border-radius:28px; }
+body.synaura-celestial.synaura-chambre :is(.boost-page,.boost-dialog) { --boost-ink:#f6ecdc; --boost-muted:#bac3d3; --boost-accent:#e6c697; --boost-fill:#745c3e; }
+body.synaura-celestial.synaura-chambre .boost-stage h1 { color:#f6ecdc; }
+body.synaura-celestial.synaura-chambre .boost-stage h1 em { background:none; -webkit-text-fill-color:currentColor; color:#e6c697; font-family:Georgia,serif; font-weight:400; }
+body.synaura-celestial.synaura-chambre .experience-refresh :is(.experience-collection-header,.experience-settings-heading,.signature-activity-heading,.v2-upload-header,.v2-community-hero,.chambre-support-heading) {
+  padding:clamp(24px,3vw,44px); background:linear-gradient(100deg,#0c172af5 20%,#0c172aaa 72%,#0c172a88),url('/brand/celestial/sanctuary-v1.webp') 72% 23%/cover!important;
+}
+body.synaura-celestial.synaura-chambre .experience-refresh :is(.experience-collection-header,.experience-settings-heading,.signature-activity-heading,.v2-upload-header,.chambre-support-heading)::after { display:none; }
+body.synaura-celestial.synaura-chambre .us-brand>svg { width:30px; height:34px; color:#a9caff; }
+body.synaura-celestial.synaura-chambre .lr-header>span>svg { width:24px; height:28px; color:#a9caff; }
+body.synaura-celestial.synaura-chambre .recovery-refresh { position:relative; isolation:isolate; background:radial-gradient(ellipse at 80% 0%,#86bdcf18,transparent 65%); border-radius:28px; }
+.celestial-landmark { pointer-events:none; position:absolute; inset:0; overflow:hidden; border-radius:inherit; z-index:-1; }
+.celestial-landmark::before { content:''; position:absolute; inset:0; background:linear-gradient(90deg,#080e1c 5%,#080e1c99 55%,#080e1c22),url('/brand/celestial/sanctuary-v1.webp') 76% 32%/cover; opacity:.7; }
+.celestial-landmark>svg { position:absolute; right:5%; top:20%; width:clamp(100px,16vw,210px); height:70%; max-height:180px; color:#d0dfff; opacity:.09; transform:rotate(-10deg); }
+.celestial-landmark-stars { position:absolute; inset:10% 3% 10% 45%; background:radial-gradient(circle at 25% 30%,#e6c697aa 0 1px,transparent 2px),radial-gradient(circle at 70% 20%,#c9e8ff99 0 1px,transparent 2px),radial-gradient(circle at 90% 65%,#c9e8ff66 0 1px,transparent 2px); }
+body.synaura-celestial.synaura-chambre .chambre-resonance { position:relative; }
+body.synaura-celestial.synaura-chambre .chambre-resonance .celestial-landmark { z-index:0; mask-image:radial-gradient(ellipse,#000 20%,transparent 70%); }
+body.synaura-celestial.synaura-chambre .chambre-resonance .celestial-landmark>svg { opacity:.36; }
+
+@media(min-width:801px) and (max-width:1100px) {
+  body.synaura-celestial.synaura-chambre .syn-app-rail-logo [data-celestial-brand]>span:last-child { display:none; }
+}
+@media(max-width:800px) {
+  body.synaura-celestial.synaura-chambre :is(.sx-hero,.community-hub .community-welcome) { padding:24px 20px; }
+  body.synaura-celestial.synaura-chambre .experience-refresh :is(.experience-collection-header,.experience-settings-heading,.signature-activity-heading,.v2-upload-header,.v2-community-hero,.chambre-support-heading) { padding:24px 20px; }
+  body.synaura-celestial.synaura-chambre .syn-app-nav { background:linear-gradient(#0c1728e8,#0c1728fa); }
+  body.synaura-celestial.synaura-chambre .syn-app-brand [data-celestial-brand] { gap:7px!important; }
+  body.synaura-celestial.synaura-chambre :is(.experience-collection-header,.experience-settings-heading,.signature-activity-heading,.v2-upload-header,.v2-community-hero,.chambre-support-heading,.experience-membership-heading,.analytics-header) { padding:24px 20px; border-radius:20px; margin-bottom:22px; background-position:70% 25%; }
+  body.synaura-celestial.synaura-chambre .living-ambience { opacity:.35; }
+}
+@media(prefers-reduced-motion:reduce) {
+  body.synaura-celestial.synaura-chambre .living-ambience { display:none; }
+}

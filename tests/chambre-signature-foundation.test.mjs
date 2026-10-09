@@ -17,12 +17,20 @@ test('resonance renders deterministic bounded decorative geometry without runtim
   const source = read('components/v2/ChambreResonance.tsx');
   assert.doesNotMatch(source, /useEffect|useState|fetch\(|Audio|requestAnimationFrame|setTimeout|Math\.random/);
   const exports = {};
-  vm.runInNewContext(ts.transpileModule(source, { compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX} }).outputText, {exports, require});
+  const load = id => {
+    const paths = {'@/components/celestial/CelestialLandmark':'components/celestial/CelestialLandmark.tsx','./FennecMark':'components/celestial/FennecMark.tsx'};
+    if (!paths[id]) return require(id);
+    const exports = {};
+    vm.runInNewContext(ts.transpileModule(read(paths[id]), {compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText, {exports, require:load});
+    return exports;
+  };
+  vm.runInNewContext(ts.transpileModule(source, { compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX} }).outputText, {exports, require:load});
   const first = renderToStaticMarkup(React.createElement(exports.default));
   assert.equal(first, renderToStaticMarkup(React.createElement(exports.default)));
   assert.match(first, /aria-hidden="true"/);
   assert.match(first, /focusable="false"/);
-  assert.equal((first.match(/<path /g) || []).length, 30);
+  assert.equal((first.match(/<path /g) || []).length, 3);
+  assert.match(first, /celestial-landmark/);
   assert.ok(first.length < 65000, `${first.length} characters`);
   assert.doesNotMatch(first, /NaN|Infinity|<audio|<button|tabindex/);
 });
@@ -72,6 +80,15 @@ test('root integration preserves providers with the reviewed decorative layer; s
   const current = read('app/layout.tsx').replaceAll('\r\n','\n');
   // The explicitly requested full experience redraw adds these presentation sheets only.
   let previousIntegration = current;
+  // Explicit celestial presentation layer and previously approved companion.
+  for (const fragment of ["import '@/components/celestial/celestial-system.css';\n", "import FennecCompanion from '@/components/companion/FennecCompanion';\n", '          <Suspense fallback={null}><FennecCompanion /></Suspense>\n']) {
+    assert.equal(previousIntegration.split(fragment).length, 2);
+    previousIntegration = previousIntegration.replace(fragment, '');
+  }
+  previousIntegration = previousIntegration.replace('synaura-chambre synaura-celestial', 'synaura-chambre')
+    .replaceAll('/brand/celestial/fennec-180.png', '/brand/v2/reference-symbol.svg')
+    .replaceAll('/brand/celestial/fennec-mark.svg', '/brand/v2/reference-symbol.svg')
+    .replace('<meta name="theme-color" content="#080e1c" />', '<meta name="theme-color" content="#030508" />');
   const secondarySheet = "import '@/components/experience/secondary-experience.css';\n";
   assert.equal(previousIntegration.split(secondarySheet).length, 2, 'one scoped secondary-page stylesheet');
   previousIntegration = previousIntegration.replace(secondarySheet, '');

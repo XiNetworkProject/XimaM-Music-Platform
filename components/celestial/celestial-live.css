@@ -1,0 +1,57 @@
+/* Entry is a sanctuary; the actual feed stays artwork-led and keeps its audio/layout contracts. */
+.synaura-pilot .celestial-live { --pilot-ink:#f6ecdc; --pilot-muted:#b7bac9; --pilot-accent:#e6c697; --v2-accent:#e6c697; --v2-accent-fill:#b79970; color:#f6ecdc; }
+.synaura-pilot .celestial-live .pilot-entry { isolation:isolate; background:#080e1c; padding:48px clamp(24px,5vw,88px) 28px; gap:38px 5vw; }
+.celestial-live .pilot-entry>.celestial-backdrop {position:fixed;inset:0;z-index:-1;opacity:.4;pointer-events:none;}
+.celestial-live .pilot-entry>.celestial-backdrop>img {object-position:70% center;}
+.celestial-live .pilot-entry>.celestial-backdrop::after {background:linear-gradient(90deg,#080e1c 5%,#080e1cbb 48%,#080e1c22),linear-gradient(0deg,#080e1c,transparent 75%);}
+.synaura-pilot .celestial-live .pilot-entry-copy {display:block;max-width:590px;}
+.synaura-pilot .celestial-live .pilot-entry-copy .pilot-kicker {color:#d8b98d;font-size:10px;letter-spacing:.17em;}
+.synaura-pilot .celestial-live .pilot-entry-copy h1 {font-size:clamp(42px,5.5vw,78px);font-weight:500;letter-spacing:-.055em;line-height:1.05;}
+.synaura-pilot .celestial-live .pilot-entry-copy h1 em {font-family:Georgia,serif;font-weight:400;color:#e6c697;letter-spacing:-.045em;}
+.synaura-pilot .celestial-live .pilot-entry-intent {font-size:15px;line-height:1.75;color:#bdc0ce;}
+.celestial-live .pilot-entry .celestial-guide {margin:24px 0 16px;max-width:440px;}
+.celestial-live .pilot-entry .celestial-guide-note {background:#111c2a9c;border-color:#e4c7a320;}
+.synaura-pilot .celestial-live .pilot-entry-shortcuts {margin-top:18px;gap:4px 22px;}
+.synaura-pilot .celestial-live .pilot-entry-shortcuts button {border-color:#e4c7a31a;padding:13px 0;color:#f0e3d2;}
+.synaura-pilot .celestial-live .pilot-entry-shortcuts small {color:#aab4c8;}
+.synaura-pilot .celestial-live .pilot-entry-record {max-width:min(100%,44vh);padding:12px;border:1px solid #e4c7a322;border-radius:28px;background:linear-gradient(145deg,#cddfff0f,#10182980);box-shadow:0 24px 90px #0005;}
+.synaura-pilot .celestial-live .pilot-entry-art {border-radius:18px;overflow:hidden;}
+.synaura-pilot .celestial-live .pilot-entry-art img {border-radius:18px;}
+.synaura-pilot .celestial-live .pilot-entry-track {padding:16px 4px 0;}
+.synaura-pilot .celestial-live .pilot-entry-track h2 {font-size:22px;}
+.synaura-pilot .celestial-live .pilot-entry-track>button {background:#ebcda1;color:#172032;box-shadow:0 0 24px #e6c69720;}
+.synaura-pilot .celestial-live .pilot-entry-stats {padding-inline:4px;color:#c1c2ce;}
+.synaura-pilot .celestial-live .pilot-entry-direct {border-color:#e4c7a32a;color:#ecd3b0;border-radius:16px;min-height:48px;}
+.synaura-pilot .celestial-live .pilot-entry-around {gap:28px;border-top:1px solid #e4c7a320;padding-top:25px;}
+.synaura-pilot .celestial-live .pilot-entry-section-title h2 {font-family:Georgia,serif;font-weight:400;font-size:24px;color:#f1e4d0;}
+.synaura-pilot .celestial-live .pilot-entry-section-title>span {display:none;}
+.synaura-pilot .celestial-live .pilot-entry-discoveries>button,.synaura-pilot .celestial-live .pilot-entry-posts>button {border-color:#e4c7a317;border-radius:14px;background:#101a2980;}
+.synaura-pilot .celestial-live .pilot-entry-footer {border-color:#e4c7a326;}
+.synaura-pilot .celestial-live .pilot-entry-footer .pilot-entry-enter {color:#e6c697;}
+.synaura-pilot .celestial-live .live-identity h2 {color:#f6eee3;text-shadow:0 2px 24px #0003;}
+.synaura-pilot .celestial-live .pilot-kicker,.synaura-pilot .celestial-live .pilot-media-caption {color:#dcc6a7;}
+.synaura-pilot .celestial-live .live-cover-play {background:#f4dfbfeb;color:#142033;box-shadow:0 0 32px #d6b88d20;}
+.synaura-pilot .celestial-live .pilot-live-position>span {color:#eedcc2;}
+.synaura-pilot .celestial-live .pilot-transport>span>i {background:#e6c697;}
+.celestial-live button:focus-visible {outline:2px solid #a9caff;outline-offset:4px;}
+body:has(.celestial-live) .syn-app-rail-brand .celestial-rail-brand {display:flex;align-items:center;gap:9px;color:#f3e2c8;font:italic 25px Georgia,serif;}
+.celestial-rail-brand svg {width:31px;height:34px;flex:none;}
+@media(max-width:1100px) and (min-width:801px) {.synaura-pilot .celestial-live .pilot-entry{padding:32px 28px;gap:28px}.synaura-pilot .celestial-live .pilot-entry-copy h1{font-size:52px}.synaura-pilot .celestial-live .pilot-entry-record{max-width:100%}}
+@media(max-width:800px) {
+ .synaura-pilot .celestial-live .pilot-entry {padding:28px 20px max(28px,env(safe-area-inset-bottom));gap:24px;grid-template-columns:minmax(0,1fr);}
+ .synaura-pilot .celestial-live .pilot-entry-copy {order:0;display:block;max-width:none;}
+ .synaura-pilot .celestial-live .pilot-entry-copy h1 {font-size:clamp(40px,9vw,60px);margin:12px 0;}
+ .synaura-pilot .celestial-live .pilot-entry-intent {font-size:13px;margin-bottom:12px;}
+ .celestial-live .pilot-entry .celestial-guide {margin:10px 0 0;}
+ .celestial-live .pilot-entry .celestial-guide-pet {width:90px;}
+ .celestial-live .pilot-entry .celestial-guide-note {font-size:12px;padding:12px 14px;}
+ .synaura-pilot .celestial-live .pilot-entry-record {order:1;max-width:min(100%,410px);width:100%;}
+ .synaura-pilot .celestial-live .pilot-entry-shortcuts {display:flex;overflow-x:auto;gap:22px;margin-top:12px;scrollbar-width:none;}
+ .synaura-pilot .celestial-live .pilot-entry-shortcuts button {min-width:110px;flex-shrink:0;gap:12px;}
+ .synaura-pilot .celestial-live .pilot-entry-shortcuts small {font-size:10px;}
+ .synaura-pilot .celestial-live .pilot-entry-around {order:2;grid-template-columns:minmax(0,1fr);gap:24px;}
+ .synaura-pilot .celestial-live .pilot-entry-footer {order:3;}
+ .celestial-live .pilot-entry>.celestial-backdrop {opacity:.22;}
+ body:has(.celestial-live) .celestial-rail-brand>span {display:none;}
+}
+@media(prefers-reduced-motion:reduce) {.celestial-live .celestial-star,.celestial-live .celestial-aurora{animation:none!important}}

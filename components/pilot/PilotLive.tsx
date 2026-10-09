@@ -29,6 +29,7 @@ import { liveItemCover } from '@/lib/liveAmbience';
 import { useLivingMotion } from '@/components/ambient/useLivingMotion';
 import './live-experience.css';
 import './live-ambience.css';
+import '@/components/celestial/celestial-live.css';
 
 const filters = [{ id: 'foryou', name: 'Pour vous' }, { id: 'new', name: 'Nouveaux' }, { id: 'clips', name: 'Clips' }, { id: 'creators', name: 'Artistes' }, { id: 'challenges', name: 'Défis' }] as const;
 const count = (value: number | string[]) => Array.isArray(value) ? value.length : value;
@@ -68,7 +69,7 @@ function LiveScene({ model }: { model: LivePilotModel }) {
     model.enterFeed();
     requestAnimationFrame(() => scrollSnap.containerRef.current?.focus({ preventScroll: true }));
   };
-  return <div ref={scene} className="pilot-live live-experience" data-motion={motion.enabled} data-audio-analysis={pulseStatus} data-entry-open={model.entryOpen} data-active-item-id={items[activeIndex]?.id} data-filter={filter}
+  return <div ref={scene} className="pilot-live live-experience celestial-live" data-motion={motion.enabled} data-audio-analysis={pulseStatus} data-entry-open={model.entryOpen} data-active-item-id={items[activeIndex]?.id} data-filter={filter}
     style={{'--live-cover-blur':`${settings.blur}px`,'--live-halo':settings.halo/100,'--live-darkness':settings.darkness/100,'--music-particle-speed':`${18-settings.particleSpeed*.13}s`,'--music-particle-scale':.5+settings.particleSize*.015,'--music-particle-light':settings.particleLight/100} as CSSProperties}
     onPointerMove={event => { if (!motion.enabled || !settings.parallax || event.pointerType !== 'mouse') return; const bounds = event.currentTarget.getBoundingClientRect(); event.currentTarget.style.setProperty('--live-x', `${(event.clientX - bounds.left) / bounds.width * 20 - 10}px`); event.currentTarget.style.setProperty('--live-y', `${(event.clientY - bounds.top) / bounds.height * 16 - 8}px`); }}
     onPointerLeave={()=>{scene.current?.style.setProperty('--live-x','0px');scene.current?.style.setProperty('--live-y','0px');}}>

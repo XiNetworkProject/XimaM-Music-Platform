@@ -46,6 +46,7 @@ export function withCreateSurfaceContext(href: string, entry: Pick<ContextSurfac
 }
 
 export const CREATE_TOOLS = [
+  { id: 'post', title: 'Publier un post', description: 'Une idée, une photo ou un son à partager.', href: '/posts?compose=true' },
   { id: 'ai', title: 'Créer avec l’IA', description: 'Une idée ou des paroles deviennent musique.', href: '/studio' },
   { id: 'upload', title: 'Importer un morceau', description: 'Publier un fichier audio déjà créé.', href: '/upload' },
   { id: 'clip', title: 'Publier un Clip', description: 'Une vidéo courte avec un son Synaura.', href: '/clips/new' },
@@ -54,7 +55,6 @@ export const CREATE_TOOLS = [
 
 export const CREATE_OTHER_TOOLS = [
   { id: 'variation', title: 'Créer une variation', href: '/create/variation' },
-  { id: 'post', title: 'Écrire un post', href: '/posts?compose=true' },
   { id: 'feedback', title: 'Demander un avis', href: '/community?compose=true&category=feedback' },
   { id: 'remix', title: 'Lancer un défi remix', href: '/community?compose=true&category=remix' },
 ] as const;

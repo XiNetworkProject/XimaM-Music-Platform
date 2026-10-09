@@ -45,7 +45,7 @@ function AuthErrorContent() {
         </SynauraButton>
         <Link href="/" className="syn-interactive inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-[var(--syn-border)] bg-[var(--syn-surface)] px-5 text-sm font-black hover:bg-[var(--syn-soft)]">
           <ArrowLeft className="h-4 w-4" aria-hidden />
-          Revenir à Discover
+          Revenir à l’accueil
         </Link>
       </div>
     </EntryFrame>

@@ -1,71 +1,31 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { db } from '@/lib/database';
-
-export async function GET(request: NextRequest) {
+export const dynamic = 'force-dynamic';
+export async function GET() {
   try {
-    // Calculer les statistiques de la communauté
-    const [
-      resolvedQuestionsResult,
-      forumPostsResult,
-      implementedSuggestionsResult
-    ] = await Promise.all([
-      // Questions résolues : posts de catégorie "question" avec replies_count > 0
-      db
-        .from('forum_posts')
-        .select('id', { count: 'exact', head: true })
-        .eq('category', 'question')
-        .gt('replies_count', 0),
-      
-      // Total des posts du forum
-      db
-        .from('forum_posts')
-        .select('id', { count: 'exact', head: true }),
-      
-      // Suggestions implémentées : posts de catégorie "suggestion" avec likes_count >= 5
-      db
-        .from('forum_posts')
-        .select('id', { count: 'exact', head: true })
-        .eq('category', 'suggestion')
-        .gte('likes_count', 5)
+    const since = new Date(Date.now() - 30 * 86400000).toISOString();
+    const [total, solutions, authors, repliers] = await Promise.all([
+      db.from('forum_posts').select('id', { count: 'exact', head: true }),
+      db.from('forum_replies').select('post_id').eq('is_solution', true),
+      db.from('forum_posts').select('user_id').gte('created_at', since),
+      db.from('forum_replies').select('user_id').gte('created_at', since),
     ]);
-
-    // Vérifier les erreurs
-    if (resolvedQuestionsResult.error || forumPostsResult.error || implementedSuggestionsResult.error) {
-      console.error('Erreur lors de la récupération des statistiques:', { 
-        resolvedQuestionsError: resolvedQuestionsResult.error, 
-        forumPostsError: forumPostsResult.error, 
-        implementedSuggestionsError: implementedSuggestionsResult.error 
-      });
-      return NextResponse.json({ error: 'Erreur lors de la récupération des statistiques' }, { status: 500 });
+    for (const result of [total, solutions, authors, repliers]) if (result.error) throw result.error;
+    const solutionIds = Array.from(new Set((solutions.data || []).map((row: any) => row.post_id)));
+    let resolvedQuestions = 0;
+    if (solutionIds.length) {
+      const questions = await db.from('forum_posts').select('id', { count: 'exact', head: true }).eq('category', 'question').in('id', solutionIds);
+      if (questions.error) throw questions.error;
+      resolvedQuestions = questions.count || 0;
     }
-
-    // Calculer les membres actifs : utilisateurs ayant posté dans les 30 derniers jours
-    let activeMembersCount = 0;
-    const thirtyDaysAgo = new Date();
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-    
-    const { data: recentUsers, error: recentUsersError } = await db
-      .from('forum_posts')
-      .select('user_id')
-      .gte('created_at', thirtyDaysAgo.toISOString())
-      .not('user_id', 'is', null);
-    
-    if (!recentUsersError && recentUsers) {
-      const uniqueUsers = new Set(recentUsers.map(post => post.user_id));
-      activeMembersCount = uniqueUsers.size;
-    }
-
     return NextResponse.json({
-      resolvedQuestions: resolvedQuestionsResult.count || 0,
-      forumPosts: forumPostsResult.count || 0,
-      activeMembers: activeMembersCount,
-      implementedSuggestions: implementedSuggestionsResult.count || 0
+      forumPosts: total.count || 0, resolvedQuestions,
+      activeMembers: new Set([...(authors.data || []), ...(repliers.data || [])].map((row: any) => row.user_id).filter(Boolean)).size,
+      // No implementation status exists in the schema. Likes are not evidence of delivery.
+      implementedSuggestions: null, implementedSuggestionsAvailable: false,
     });
-
   } catch (error) {
-    console.error('Erreur serveur:', error);
-    return NextResponse.json({ error: 'Erreur interne du serveur' }, { status: 500 });
+    console.error('[community stats]', error);
+    return NextResponse.json({ error: 'Statistiques temporairement indisponibles.' }, { status: 500 });
   }
 }
-
-export const dynamic = 'force-dynamic';

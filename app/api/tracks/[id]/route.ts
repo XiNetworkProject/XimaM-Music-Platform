@@ -5,7 +5,7 @@ import { deleteLocalMedia, isLocalMediaOwnedBy, isLocalMediaReference } from '@/
 import { remixPermissionsFromRow, remixPermissionsToRow, sanitizeRemixPermissions } from '@/lib/remixPermissions';
 import { getPublishedVariationCounts, getRemixAttributionForChildren, getRemixSourceSummary, normalizeRemixTrackRef } from '@/lib/remixServer';
 import { getPublishedClipCounts } from '@/lib/musicClips';
-import { canViewAiTrack, canViewTrack } from '@/lib/publicTracks';
+import { canViewAiTrack, canViewTrack, isAiTrackPublic } from '@/lib/publicTracks';
 import { getLinkedChallengeForSource } from '@/lib/musicChallenges';
 import { toPublicMediaUrl } from '@/lib/mediaUrls';
 
@@ -74,7 +74,7 @@ export async function GET(
         genre: Array.isArray(aiTrack.tags) ? aiTrack.tags : [],
         plays: aiTrack.play_count || 0,
         likes: aiTrack.like_count || 0,
-        isPublic: aiTrack.is_public === true,
+        isPublic: isAiTrackPublic(aiTrack),
         createdAt: aiTrack.created_at,
         lyrics: aiTrack.lyrics || null,
         isAI: true,

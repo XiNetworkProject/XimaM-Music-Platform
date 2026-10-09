@@ -1,7 +1,7 @@
 'use client';
 
 import { useId } from 'react';
-import { ArrowUpRight, Film, ListMusic, Sparkles, UploadCloud, Users } from 'lucide-react';
+import { ArrowUpRight, Film, ListMusic, MessageCircle, Image, Music2, Sparkles, UploadCloud, Users } from 'lucide-react';
 import Link from '@/components/navigation/HandoffLink';
 import ExperienceMotionFrame from '@/components/ambient/ExperienceMotionFrame';
 import type { ContextSurfaceRendererProps } from '@/components/context-surfaces/ContextSurfaceController';
@@ -9,7 +9,7 @@ import { SynauraOverlayTitle, SynauraOverlayDescription } from '@/components/ui/
 import { CREATE_TOOLS, CREATE_OTHER_TOOLS, withCreateSurfaceContext } from '@/lib/createSurface';
 import './create-surface.css';
 
-const icons = { ai: Sparkles, upload: UploadCloud, clip: Film, collab: Users };
+const icons = { post: MessageCircle, ai: Sparkles, upload: UploadCloud, clip: Film, collab: Users };
 
 /** A small, resolution-independent light ribbon; no canvas, timer or media state. */
 function CreationLight() {
@@ -35,9 +35,9 @@ export default function CreateSurface({ entry }: ContextSurfaceRendererProps) {
   return <ExperienceMotionFrame className="create-sheet">
     <div className="create-sheet-handle" aria-hidden="true" />
     <header className="create-sheet-header" tabIndex={-1} data-context-surface-initial-focus>
-      <span className="create-sheet-eyebrow"><span aria-hidden="true" />L’ESPACE CRÉATION</span>
-      <SynauraOverlayTitle>À vous de <em>créer.</em></SynauraOverlayTitle>
-      <SynauraOverlayDescription className={entry.entityId ? '' : 'sr-only'}>{entry.entityId ? 'Choisissez un outil pour participer au défi.' : 'Créez avec l’IA, importez un morceau, publiez un Clip ou trouvez une collaboration.'}</SynauraOverlayDescription>
+      <span className="create-sheet-eyebrow"><span aria-hidden="true" />À VOUS DE JOUER</span>
+      <SynauraOverlayTitle>Ça commence par <em>vous.</em></SynauraOverlayTitle>
+      <SynauraOverlayDescription>{entry.entityId ? 'Choisissez comment participer au défi.' : 'Un post, un morceau, un moment à partager.'}</SynauraOverlayDescription>
     </header>
     <div className="create-sheet-scroll">
       <div className="create-sheet-tools">
@@ -47,17 +47,15 @@ export default function CreateSurface({ entry }: ContextSurfaceRendererProps) {
           // not to an empty /create page. Modified clicks retain native link behavior.
           return <Link key={tool.id} replace prefetch={false} data-live-route-intent href={href(tool.href)} className={`create-sheet-tool create-sheet-tool-${tool.id}`} aria-labelledby={`create-tool-${tool.id}`}>
             {tool.id === 'ai' ? <CreationLight /> : null}
+            {tool.id === 'post' && <span className="create-sheet-post-art" aria-hidden="true"><MessageCircle/><Image/><Music2/></span>}
             <span className="create-sheet-icon"><Icon size={23} strokeWidth={1.6} aria-hidden="true" /></span>
-            <span className="create-sheet-tool-copy"><strong id={`create-tool-${tool.id}`}>{tool.title}</strong><small>{tool.description}</small></span>
+            <span className="create-sheet-tool-copy"><strong id={`create-tool-${tool.id}`}>{tool.title}</strong><small>{tool.description}</small>{tool.id === 'post' && <span className="create-sheet-formats">Texte · Photos · Musique</span>}</span>
             <ArrowUpRight className="create-sheet-arrow" size={18} aria-hidden="true" />
           </Link>;
         })}
       </div>
-      <details className="create-sheet-more">
-        <summary>Autres façons de créer <span aria-hidden="true">+</span></summary>
-        <div>{CREATE_OTHER_TOOLS.map(tool => <Link key={tool.id} replace prefetch={false} data-live-route-intent href={href(tool.href)}>{tool.title}<ArrowUpRight size={15} aria-hidden="true" /></Link>)}</div>
-      </details>
-      <Link replace prefetch={false} data-live-route-intent href={href('/ai-library')} className="create-sheet-library"><ListMusic size={18} aria-hidden="true" /><span>Retrouver mes créations IA</span><ArrowUpRight size={17} aria-hidden="true" /></Link>
+      <nav className="create-sheet-more" aria-label="Créer ensemble"><span>Faire grandir une idée</span><div>{CREATE_OTHER_TOOLS.map(tool => <Link key={tool.id} replace prefetch={false} data-live-route-intent href={href(tool.href)}>{tool.title}<ArrowUpRight size={15} aria-hidden="true" /></Link>)}</div></nav>
+      <footer className="create-sheet-footer"><Link replace prefetch={false} data-live-route-intent href={href('/posts')} className="create-sheet-library"><MessageCircle size={18} aria-hidden="true" /><span>Découvrir les posts</span><ArrowUpRight size={17} aria-hidden="true" /></Link><Link replace prefetch={false} data-live-route-intent href={href('/ai-library')} className="create-sheet-library"><ListMusic size={18} aria-hidden="true" /><span>Mes créations IA</span><ArrowUpRight size={17} aria-hidden="true" /></Link></footer>
     </div>
   </ExperienceMotionFrame>;
 }

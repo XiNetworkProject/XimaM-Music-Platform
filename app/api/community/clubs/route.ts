@@ -11,26 +11,19 @@ export async function GET() {
   try {
     const clubs = await Promise.all(
       COMMUNITY_CLUBS.map(async (club) => {
-        const [{ count }, { data: latestRows }] = await Promise.all([
+        const [{ count, error: countError }, { data: latestRows, error: latestError }] = await Promise.all([
           db
             .from('forum_posts')
             .select('id', { count: 'exact', head: true })
             .eq('category', club.category),
           db
             .from('forum_posts')
-            .select(`
-              *,
-              profiles:user_id (
-                id,
-                name,
-                username,
-                avatar
-              )
-            `)
+            .select('*')
             .eq('category', club.category)
             .order('created_at', { ascending: false })
             .limit(1),
         ]);
+        if (countError || latestError) throw countError || latestError;
 
         const withAuthors = await attachAuthors(latestRows || []);
         const [latestPost] = await attachTracks(withAuthors);
@@ -45,6 +38,7 @@ export async function GET() {
 
     return NextResponse.json({ clubs });
   } catch (error: any) {
-    return NextResponse.json({ error: error?.message || 'Impossible de charger les Clubs' }, { status: 500 });
+    console.error('[community clubs]', error);
+    return NextResponse.json({ error: 'Impossible de charger les Clubs' }, { status: 500 });
   }
 }

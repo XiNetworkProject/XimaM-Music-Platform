@@ -34,8 +34,9 @@ export interface SunoGenerateRequest {
 }
 
 export interface SunoCustomGenerateRequest {
-  title: string;
-  style: string;
+  variety?: number;
+  title?: string;
+  style?: string;
   prompt?: string;
   instrumental: boolean;
   model?: string;
@@ -99,6 +100,7 @@ export interface SunoCreditsResponse {
 }
 
 export interface SunoUploadCoverRequest {
+  variety?: number;
   uploadUrl: string;
   customMode: boolean;
   instrumental: boolean;
@@ -193,13 +195,15 @@ export async function generateCustomMusic(request: SunoCustomGenerateRequest): P
     title: request.title,
     style: request.style,
     prompt: request.instrumental ? undefined : request.prompt,
+    lyrics: request.instrumental ? undefined : request.prompt,
     model,
     duration: request.duration,
     negativeTags: request.negativeTags,
     vocalGender: request.vocalGender || undefined,
     styleWeight: request.styleWeight ?? 0.65,
     weirdnessConstraint: request.weirdnessConstraint ?? 0.5,
-    audioWeight: request.audioWeight ?? 0.65,
+    audioWeight: request.instrumental ? undefined : request.audioWeight ?? 0.65,
+    ...(request.variety != null ? { variety: request.variety } : {}),
     callBackUrl: request.callBackUrl,
   };
 
@@ -260,6 +264,7 @@ export async function uploadAndCoverAudio(request: SunoUploadCoverRequest): Prom
     payload.styleWeight = request.styleWeight ?? 0.65;
     payload.weirdnessConstraint = request.weirdnessConstraint ?? 0.5;
     payload.audioWeight = request.audioWeight ?? 0.65;
+    if (request.variety != null) payload.variety = request.variety;
   } else {
     // Non-custom: seulement prompt + uploadUrl
     payload.prompt = request.prompt;

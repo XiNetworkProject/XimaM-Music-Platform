@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Mail, ArrowLeft, Check, AlertCircle } from 'lucide-react';
 import SynauraLogo from '@/components/brand/SynauraLogo';
+import EntryFrame from '@/components/enter/EntryFrame';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -35,6 +36,7 @@ export default function ForgotPasswordPage() {
   };
 
   return (
+    <EntryFrame eyebrow="Un petit coup de main" title="Retrouve ton accès." description={success ? 'Regarde dans ta boîte mail pour la suite.' : 'Ton univers n’est pas perdu. Commençons par ton email.'} compact>
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
@@ -125,5 +127,6 @@ export default function ForgotPasswordPage() {
         </Link>
       </div>
     </motion.div>
+    </EntryFrame>
   );
 }

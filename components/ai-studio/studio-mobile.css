@@ -1,0 +1,99 @@
+/* Density is layout, never page zoom. Keep 16px editable text to avoid iOS auto-zoom. */
+.sw-mobile-filters { display:none; }
+.sw-more[aria-expanded=true] { background:#b6ccff1a; color:#e4ecff; }
+.sw-more svg { transition:transform .2s ease; }
+.sw-more[aria-expanded=true] svg { transform:rotate(90deg); }
+.sw-action-menu button { transition:background-color .16s,color .16s,transform .16s; }
+.sw-action-menu button:active { transform:translateX(2px); }
+.sw-lyrics-controls { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:8px; margin:10px 0; }
+.sw-lyrics-controls .us-text-button { font-size:11px; min-height:36px; }
+.sw-lyric-line { display:block; min-height:1.9em; border-radius:5px; }
+.sw-lyric-line[role=button] { cursor:pointer; }
+.sw-lyric-line[role=button]:hover { background:#ffffff05; }
+.sw-lyric-line:focus-visible { outline:2px solid #c6d6fa; outline-offset:3px; }
+.sw-synced-lyrics .sw-lyric-line[data-current=true] { background:transparent; text-shadow:none; }
+@media(max-width:899px) {
+ .sw-workflow .us-header { min-height:40px; padding:3px 12px; }
+ .sw-workflow .us-brand { font-size:14px; gap:5px; }
+ .sw-workflow .us-brand svg { width:21px; height:21px; }
+ .sw-workflow .sc-companion { width:28px; height:34px; }
+ .sw-workflow .us-header-actions { gap:5px; }
+ .sw-workflow .us-return { display:none; }
+ .sw-workflow .us-credit { font-size:11px!important; padding:7px 10px; min-height:34px; }
+ .sw-workflow .sc-mobile-tabs { padding:0 12px 4px; gap:4px; }
+ .sw-workflow .sc-mobile-tabs button { min-height:40px; padding:5px; font-size:11px; gap:6px; }
+ .sw-workflow .sc-mobile-tabs svg { width:15px; height:15px; }
+ .sw-workflow .us-collection { padding-inline:10px; }
+ .sw-workflow .sw-collection-top { padding-top:2px; }
+ .sw-workflow .sw-collection-header { padding-bottom:4px; min-height:40px; gap:3px; }
+ .sw-workflow .sw-folder { gap:6px; min-width:0; }
+ .sw-workflow .sw-folder select { max-width:200px; min-height:36px; }
+ .sw-workflow .sw-header-buttons { gap:0; }
+ .sw-workflow .sw-header-buttons button { padding:5px; min-width:36px; min-height:40px; }
+ .sw-workflow .sw-toolbar { display:grid; grid-template-columns:minmax(0,1fr) 40px 40px; gap:4px; padding-bottom:6px; }
+ .sw-workflow .sw-toolbar .us-search { grid-column:1; grid-row:1; width:100%; min-width:0; padding:0 10px; height:40px; }
+ .sw-workflow .sw-toolbar>.sw-mobile-filters { display:grid; grid-column:2; grid-row:1; place-items:center; width:40px; height:40px; }
+ .sw-workflow .sw-toolbar>.sw-mobile-filters:is([aria-expanded=true],[data-active=true]) { background:#b6ccff18; border-radius:10px; color:#d8e3ff; }
+ .sw-workflow .sw-toolbar>.us-icon:last-child { grid-column:3; grid-row:1; width:40px; height:40px; }
+ .sw-workflow .sw-toolbar>.sw-select { display:none; }
+ .sw-workflow .sw-toolbar[data-filters-open=true]>.sw-select { display:flex; grid-column:1/-1; min-width:0; border-radius:10px; animation:sw-arrive .16s ease; }
+ .sw-workflow .sw-filter-chips { display:none; }
+ .sw-workflow .sw-filter-chips[data-filters-open=true] { display:flex; padding:0 0 6px; gap:0; }
+ .sw-workflow .sw-filter-chips button { min-height:36px; }
+ .sw-workflow .sw-date { font-size:10px; padding:10px 4px 5px; }
+ .sw-workflow .sw-songs[data-layout=list] .sw-song { display:grid; grid-template-columns:54px minmax(0,1fr) 36px; grid-template-rows:auto auto; column-gap:9px; row-gap:0; padding:6px 2px; border-radius:10px; }
+ .sw-workflow .sw-songs[data-layout=list] .us-cover { grid-column:1; grid-row:1/3; width:54px; height:54px; border-radius:8px; }
+ .sw-workflow .sw-songs[data-layout=list] .sw-song-main { grid-column:2; grid-row:1/3; }
+ .sw-workflow .sw-song .us-song-info { gap:2px; }
+ .sw-workflow .sw-song .us-song-info strong { font-size:12px; line-height:1.4; }
+ .sw-workflow .sw-song .us-song-info>span { display:none; }
+ .sw-workflow .sw-song .us-cover small { bottom:3px; right:3px; font-size:9px; padding:1px 3px; }
+ .sw-workflow .sw-song-meta { margin-top:3px; gap:5px; font-size:10px; }
+ .sw-workflow .sw-quick-actions { margin-top:2px; gap:6px; min-height:36px; }
+ .sw-workflow .sw-quick-actions .us-icon { width:32px; height:36px; }
+ .sw-workflow .sw-quick-actions .us-text-button { min-height:36px; font-size:10px!important; gap:3px; }
+ .sw-workflow .sw-quick-actions svg { width:13px; height:13px; }
+ .sw-workflow .sw-songs[data-layout=list] .sw-edit { grid-column:3; grid-row:1; width:36px; height:36px; min-width:36px; min-height:36px; }
+ .sw-workflow .sw-songs[data-layout=list] .sw-more { grid-column:3; grid-row:2; width:36px; height:36px; }
+ .sw-workflow .sw-skeleton-cover { width:54px; height:54px; }
+ .sw-workflow .sw-pending-song { padding:10px 6px; gap:10px; }
+ .sw-workflow .sw-selection { padding:5px 3px; gap:8px; min-height:44px; }
+ .sw-workflow .sw-selection strong { font-size:11px; }.sw-workflow .sw-selection small { font-size:9px; }
+ .sw-workflow .sw-selection button { min-height:36px; font-size:10px; }
+ .sw-workflow .us-composer-scroll { padding:8px 12px; }
+ .sw-workflow .sc-mode-row { margin-bottom:8px; }
+ .sw-workflow .us-mode button { min-height:38px; padding:5px 11px; font-size:11px; }
+ .sw-workflow .sc-source-actions { margin-bottom:8px; border-radius:10px; }
+ .sw-workflow .sc-source-actions button { min-height:40px; padding:7px 5px; font-size:10px; }
+ .sw-workflow .sc-simple-fields,.sw-workflow .sc-advanced-fields { gap:8px; }
+ .sw-workflow .sc-prompt { padding:12px 12px 4px; border-radius:12px; }
+ .sw-workflow .sc-prompt textarea { min-height:100px; line-height:1.5; }
+ .sw-workflow .sc-section summary { min-height:42px; padding:10px 12px; font-size:12px; }
+ .sw-workflow .sc-section-body { padding:0 12px 10px; gap:8px; }
+ .sw-workflow .sc-lyrics-editor>textarea { min-height:100px; line-height:1.6; }
+ .sw-workflow .sc-inspiration { padding:8px 2px; gap:8px; }
+ .sw-workflow .us-inspirations button { min-height:32px; padding:5px 8px; font-size:10px; }
+ .sw-workflow .us-commit { padding:8px 12px; gap:5px; }
+ .sw-workflow .us-generate { min-height:44px; padding:10px 14px; font-size:12px; }
+ .us-detail-overlay .us-detail.unified-studio { padding:20px 16px; }
+ .us-detail-overlay .us-detail-hero { padding:8px 28px 14px 0; gap:12px; }
+ .us-detail-overlay .us-detail-hero>img { width:64px; height:64px; border-radius:10px; }
+ .us-detail-overlay .us-detail-hero h2 { font-size:17px; margin:5px 0; }
+ .us-detail-overlay .us-detail-actions { gap:6px; margin-bottom:14px; }
+ .us-detail-overlay .us-detail-actions button { padding:10px 3px; gap:6px; }
+ .sw-actions-overlay .sw-mobile-menu-title { padding:14px 48px 10px 16px; font-size:12px; }
+ .sw-actions-overlay .sw-action-menu { padding:0 8px calc(10px + env(safe-area-inset-bottom,0px)); }
+ .sw-actions-overlay .sw-action-menu button { min-height:44px; padding:10px; font-size:12px; }
+}
+@media(max-width:800px) {
+ .syn-unified-app:has(.sw-workflow) { --syn-nav-height:52px; --syn-nav-bottom:64px; }
+ .syn-unified-app:has(.sw-workflow) .syn-app-header { height:52px; padding-inline:12px; gap:8px; }
+ .syn-unified-app:has(.sw-workflow) .syn-app-brand img { width:102px; height:28px; }
+ .syn-unified-app:has(.sw-workflow) .syn-app-nav { height:calc(64px + env(safe-area-inset-bottom,0px)); padding:4px 6px calc(4px + env(safe-area-inset-bottom,0px)); }
+ .syn-unified-app:has(.sw-workflow) .syn-app-destination,.syn-unified-app:has(.sw-workflow) .syn-app-dock-spaces .chambre-spaces-trigger { min-height:52px; gap:2px; padding:2px 0 4px; font-size:10px; }
+ .syn-unified-app:has(.sw-workflow) .syn-app-nav-icon { width:27px; height:27px; }
+ .syn-unified-app:has(.sw-workflow) .syn-app-nav-icon svg { width:21px; height:21px; }
+ body:has(.sw-workflow) .living-app-control { top:55px; right:128px; padding:6px; width:30px; height:30px; }
+ body:has(.sw-workflow) .living-app-control span { display:none; }
+}
+@media(prefers-reduced-motion:reduce) { .sw-action-menu *, .sw-more svg, .sw-workflow .sw-select { animation:none!important; transition:none!important; } }

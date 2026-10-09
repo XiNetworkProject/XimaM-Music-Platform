@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {compile,read} from './helpers/recommendation-fixtures.mjs';
+import { feedbackFailure } from '../lib/studio/feedback.ts';
 
 const job=(extra={})=>({id:'fixture',taskId:'fixture-task',status:'failed',lastError:'Polling timeout: offline',title:'Fixture',style:'',prompt:'',progress:0,startTime:Date.now(),estimatedTime:60000,...extra});
 // Execute the actual hook; React scheduling and provider responses are isolated.
@@ -14,7 +15,7 @@ function harness(jobs=[job()],storageUnavailable=false){
   useCallback(fn,deps){const i=cursor++;if(!same(slots[i]?.deps,deps))slots[i]={deps,fn};return slots[i].fn;},
   useEffect(fn,deps){const i=cursor++;if(!same(slots[i]?.deps,deps)){const old=slots[i];slots[i]={deps};effects.push(()=>{old?.cleanup?.();slots[i].cleanup=fn();});}},
  };
- const {useBackgroundGeneration}=compile(read('hooks/useBackgroundGeneration.ts'),{react,'next-auth/react':{useSession:()=>({data:{user:{id:owner}}})}},{
+ const {useBackgroundGeneration}=compile(read('hooks/useBackgroundGeneration.ts'),{react,'next-auth/react':{useSession:()=>({data:{user:{id:owner}}})}, '@/lib/studio/feedback': {feedbackFailure}, '@/lib/studio/clientActivity': {reportStudioActivity() {}}},{
   process:{env:{NODE_ENV:'production'}},localStorage:{getItem:key=>{if(storageUnavailable)throw Error('blocked');return storage.get(key)||null;},setItem:(key,val)=>{if(storageUnavailable)throw Error('full');storage.set(key,val);}},
   setTimeout:(fn,ms)=>{timers.set(++timerId,{fn,ms});return timerId;},clearTimeout:id=>timers.delete(id),
   setInterval:(fn,ms)=>{intervals.set(++timerId,{fn,ms});return timerId;},clearInterval:id=>intervals.delete(id),

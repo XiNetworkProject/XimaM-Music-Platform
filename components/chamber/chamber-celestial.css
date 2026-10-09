@@ -1,0 +1,64 @@
+/* Public-home blend: sky replaces the sculpture; original chapters and controls stay intact. */
+.cp-celestial { --cp-bg:#080e1c; --cp-text:#f6ecdc; --cp-blue:#d7bd94; --cp-muted:#c4c6d1; }
+.cp-celestial .cp-material-stage>.aurora-backdrop { opacity:1; transition:opacity 1.2s ease; }
+.cp-celestial .cp-room-light { z-index:1; background:linear-gradient(90deg,#080e1cec 0%,#080e1c99 30%,#080e1c0a 65%),linear-gradient(0deg,#080e1ccc,transparent 45%); }
+.cp-celestial .cp-floor { display:none; }
+.cp-celestial .cp-material-shade { z-index:2; background:linear-gradient(0deg,#080e1c 0%,#080e1c11 24%,transparent 65%,#080e1c55); }
+.cp-celestial .cs-stage-grain { z-index:2; opacity:.04; }
+.cp-celestial .cp-header { background:linear-gradient(#080e1cbd,#080e1c55 55%,transparent); }
+.chamber-product.cp-celestial .cp-wordmark { display:flex; align-items:center; gap:10px; font:italic 31px/1 Georgia,serif; letter-spacing:-1.5px; }
+.cp-celestial .cp-wordmark svg { width:25px; height:30px; color:#b7d5ff; }
+.cp-celestial .cp-wordmark i { color:#e6c697; font-size:13px; font-style:normal; align-self:flex-start; margin-top:7px; }
+.cp-celestial .cp-entry h1 { color:#f6ecdc; text-shadow:0 3px 50px #080e1c22; }
+.cp-celestial .cp-entry h1 .cp-dot { color:#e6c697; }
+.cp-celestial .cp-entry-description { color:#d0d1db; text-shadow:0 2px 16px #080e1c; }
+.cp-celestial .cp-eyebrow { color:#d8c5a9; }
+.cp-celestial .cp-eyebrow>span { background:#e6c697; box-shadow:0 0 15px #e6c69760; }
+.chamber-product.cp-celestial .cp-button-light { background:#edcfa5; color:#182032; border-radius:999px; box-shadow:0 3px 30px #f5c98414; }
+.cp-celestial .cp-entry-action>span b { color:#e6c697; }
+.cp-celestial .cp-material-caption { color:#d0c3b3; text-shadow:0 2px 16px #080e1c; }
+.cp-celestial .cs-chapter-stops [aria-current] i { background:#e6c697; box-shadow:0 0 15px #e6c69750; }
+.cp-celestial .cs-chapter-stops [aria-current] { color:#f6ecdc!important; }
+.cp-celestial .cp-story-panel:not(.cp-listening-section) h2 em { color:#e4c9a4; }
+.cp-celestial[data-chapter="1"] .cp-material-stage>.aurora-backdrop,
+.cp-celestial[data-chapter="2"] .cp-material-stage>.aurora-backdrop,
+.cp-celestial[data-chapter="3"] .cp-material-stage>.aurora-backdrop,
+.cp-celestial[data-chapter="4"] .cp-material-stage>.aurora-backdrop { opacity:.48; }
+.cp-celestial[data-listening="true"] .cp-material-stage>.aurora-backdrop { opacity:.12; }
+.cp-celestial .cp-chapter-guide { margin:20px auto 0; max-width:420px; text-align:left; }
+.cp-celestial .cp-chapter-guide .celestial-guide-note p { font-size:14px; }
+.cp-celestial .cp-chapter-friend { position:absolute; width:32%; max-width:380px; top:50%; transform:translateY(-45%); }
+.cp-celestial .cp-chapter-friend--left { left:9%; }
+.cp-celestial .cp-chapter-friend--right { right:6%; }
+.cp-celestial .cp-chapter-friend .celestial-guide { flex-direction:column; text-align:center; }
+.cp-celestial .cp-chapter-friend .celestial-guide-pet { width:clamp(150px,20vw,275px); height:auto; aspect-ratio:1; }
+.cp-celestial .cp-chapter-friend .celestial-guide-sign { justify-content:center; }
+.cp-celestial .cp-chapter-friend .celestial-guide-note { background:#0c1728c9; padding:22px; border-radius:22px; border:1px solid #e6c69720; }
+.cp-celestial .cs-ambient-index { width:30vw; height:40vh; opacity:.05; color:#a9caff; }
+.cp-celestial .cs-ambient-index svg { width:100%; height:100%; }
+.cp-celestial .cs-definition h2>span { -webkit-text-stroke-color:#e6c697bb; }
+.cp-celestial .cs-definition-signature { color:#cfc1ad; }
+.cp-celestial .cs-definition-signature i { background:#e6c697; box-shadow:0 0 12px #e6c69755; }
+.cp-celestial .cs-next-link { color:#e6c697; }
+.cp-celestial .cp-listening { --cp-blue:#e6c697; }
+.cp-celestial .cp-catalog-state { border-radius:24px; background:linear-gradient(145deg,#142238,#0c1729); border-color:#e6c69725; }
+.cp-celestial .cp-genre-filters button[aria-pressed=true] { color:#e6c697; border-color:#e6c697; }
+.cp-celestial .cp-track-selected { background:#e6c6970b; }
+.chambre-public-entry .chambre-public-account a { background:#142035a6; color:#f6ecdc; border:1px solid #e6c69726; border-radius:999px; }
+@media(max-width:760px) {
+  .cp-celestial .cp-chapter-friend { position:static; width:100%; max-width:440px; transform:none; margin:24px auto 0; order:2; }
+  .cp-celestial :is(.cs-explore,.cs-create) { flex-direction:column; justify-content:center; }
+  .cp-celestial .cp-chapter-friend .celestial-guide { flex-direction:row; text-align:left; }
+  .cp-celestial .cp-chapter-friend .celestial-guide-pet { width:95px; flex:none; }
+  .cp-celestial .cp-chapter-friend .celestial-guide-note { padding:12px 14px; }
+  .cp-celestial .cp-chapter-friend .celestial-guide-note p { font-size:12px; }
+  .cp-celestial .cp-chapter-friend .celestial-guide-sign { justify-content:flex-start; }
+  .cp-celestial .cs-definition h2 { font-size:clamp(34px,8.4vw,60px); }
+  .cp-celestial .cp-chapter-guide { margin-top:18px; }
+  .cp-celestial .cp-chapter-guide .celestial-guide-note p { font-size:12px; }
+  .cp-celestial .cp-material-stage>.aurora-backdrop { opacity:.94; }
+  .cp-celestial .cp-room-light { background:linear-gradient(90deg,#080e1caa,#080e1c11),linear-gradient(0deg,#080e1cc9,transparent 55%); }
+  .chamber-product.cp-celestial .cp-wordmark { font-size:28px; }
+  .cp-celestial .cs-chapter-rail { background:linear-gradient(transparent,#080e1ccb 40%,#080e1cee); }
+}
+@media(prefers-reduced-motion:reduce) { .cp-celestial .cp-material-stage>.aurora-backdrop { transition:none; } }

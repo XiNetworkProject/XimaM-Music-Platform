@@ -5,7 +5,7 @@ export type CommunityTrack = {
   id: string; title?: string; artist_id?: string; artist_name?: string; artist_username?: string;
   coverUrl?: string | null; cover_url?: string | null; coverVideoUrl?: string | null;
   coverVideoPosterUrl?: string | null; audioUrl?: string | null; audio_url?: string | null;
-  duration?: number; genre?: string[]; plays?: number;
+  duration?: number; genre?: string[]; plays?: number; style?: string;
 };
 export type CommunityPost = {
   id: string; title: string; content: string; category: string; created_at?: string;

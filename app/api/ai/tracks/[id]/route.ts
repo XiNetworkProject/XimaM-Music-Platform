@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession } from '@/lib/getApiSession';
-import { dbAdmin } from '@/lib/database';
-import { deleteLocalMedia } from '@/lib/localMediaStorage';
+import { dbAdmin, createDatabaseClient } from '@/lib/database';
+import { withDatabaseTransaction } from '@/lib/postgres';
+import { deleteLocalMedia, isLocalMediaOwnedBy, isLocalMediaReference } from '@/lib/localMediaStorage';
+import { canViewAiTrack } from '@/lib/publicTracks';
+import { enforceRequestRateLimit, readLimitedJson, rejectUntrustedMutationOrigin } from '@/lib/security/requestSecurity';
 
 export async function DELETE(
   request: NextRequest,
@@ -70,21 +73,37 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
+    const originError = rejectUntrustedMutationOrigin(request);
+    if (originError) return originError;
     const session = await getApiSession(request);
     if (!session?.user?.id) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     }
 
     const trackId = params.id;
-    const body = await request.json().catch(() => ({}));
+    const limited = enforceRequestRateLimit(request, 'ai-track-edit', 40, 60_000, session.user.id);
+    if (limited) return limited;
+    const parsed = await readLimitedJson<any>(request, 12 * 1024);
+    if (!parsed.ok) return parsed.response;
+    const body = parsed.value;
+    if (!body || typeof body !== 'object' || Array.isArray(body)) return NextResponse.json({ error: 'Modification invalide' }, { status: 400 });
     const hasFolder = Object.prototype.hasOwnProperty.call(body, 'libraryFolder');
-    if (!hasFolder) {
+    const hasTitle = Object.prototype.hasOwnProperty.call(body, 'title');
+    const hasCover = Object.prototype.hasOwnProperty.call(body, 'coverUrl');
+    if (!hasFolder && !hasTitle && !hasCover) {
       return NextResponse.json({ error: 'Aucune modification fournie' }, { status: 400 });
+    }
+    if ((hasTitle && (typeof body.title !== 'string' || !body.title.trim() || body.title.trim().length > 160 || /[\u0000-\u001f]/.test(body.title))) ||
+        (hasFolder && body.libraryFolder !== null && (typeof body.libraryFolder !== 'string' || body.libraryFolder.length > 80 || /[\u0000-\u001f]/.test(body.libraryFolder)))) {
+      return NextResponse.json({ error: 'Titre ou dossier invalide' }, { status: 400 });
+    }
+    if (hasCover && (!isLocalMediaOwnedBy(body.coverPublicId, session.user.id) || !isLocalMediaReference(body.coverUrl, body.coverPublicId, 'ai-cover'))) {
+      return NextResponse.json({ error: 'Importez une pochette depuis votre compte' }, { status: 400 });
     }
 
     const { data: track, error } = await dbAdmin
       .from('ai_tracks')
-      .select('id, source_links, generation:ai_generations!inner(user_id)')
+      .select('id, generation_id, source_links, generation:ai_generations!inner(user_id)')
       .eq('id', trackId)
       .single();
 
@@ -96,26 +115,27 @@ export async function PATCH(
       return NextResponse.json({ error: 'Non autorisé' }, { status: 403 });
     }
 
-    const sourceLinks = parseSourceLinks((track as any).source_links);
-    const libraryFolder = String(body.libraryFolder || '').trim();
-    const nextSourceLinks = {
-      ...sourceLinks,
-      library_folder: libraryFolder || null,
-      library_folder_updated_at: new Date().toISOString(),
-    };
-
-    const { error: updateError } = await dbAdmin
-      .from('ai_tracks')
-      .update({ source_links: JSON.stringify(nextSourceLinks) })
-      .eq('id', trackId);
-
-    if (updateError) {
-      return NextResponse.json({ error: updateError.message || 'Erreur mise à jour' }, { status: 500 });
-    }
-
-    return NextResponse.json({ trackId, libraryFolder: libraryFolder || null, source_links: nextSourceLinks });
+    const result = await withDatabaseTransaction(async client => {
+      // Same short lock as callback persistence: artist edits cannot be lost.
+      const locked = await client.query('SELECT id FROM ai_generations WHERE id = $1 AND user_id = $2 FOR UPDATE', [track.generation_id, session.user.id]);
+      if (!locked.rowCount) throw new Error('Génération introuvable');
+      const database = createDatabaseClient(client);
+      const fresh = await database.from('ai_tracks').select('source_links').eq('id', trackId).single();
+      if (fresh.error || !fresh.data) throw new Error('Piste introuvable');
+      const links = parseSourceLinks(fresh.data.source_links);
+      const patch: Record<string, unknown> = {};
+      const now = new Date().toISOString();
+      if (hasFolder) { links.library_folder = body.libraryFolder?.trim() || null; links.library_folder_updated_at = now; }
+      if (hasTitle) { patch.title = body.title.trim(); links.artist_title_edited_at = now; }
+      if (hasCover) { patch.image_url = body.coverUrl; links.artist_cover_edited_at = now; links.artist_cover_public_id = body.coverPublicId; }
+      patch.source_links = JSON.stringify(links);
+      const updated = await database.from('ai_tracks').update(patch).eq('id', trackId);
+      if (updated.error) throw new Error('Impossible de modifier la piste');
+      return { trackId, ...patch, libraryFolder: links.library_folder || null, source_links: links };
+    });
+    return NextResponse.json(result);
   } catch (e: any) {
-    return NextResponse.json({ error: e.message || 'Erreur interne' }, { status: 500 });
+    return NextResponse.json({ error: 'Impossible de modifier le morceau. Réessayez.' }, { status: 500 });
   }
 }
 
@@ -131,11 +151,12 @@ export async function GET(
 
     const { data, error } = await dbAdmin
       .from('ai_tracks')
-      .select('*')
+      .select('*, generation:ai_generations!inner(user_id, is_public, status, is_trashed)')
       .eq('id', id)
       .single();
 
-    if (error || !data) {
+    const session = await getApiSession(request).catch(() => null);
+    if (error || !data || !canViewAiTrack(data, session?.user?.id)) {
       return NextResponse.json({ error: 'Piste IA non trouvée' }, { status: 404 });
     }
 

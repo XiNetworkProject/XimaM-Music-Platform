@@ -68,9 +68,14 @@ test('the complete simple prompt is validated without truncating explicit tags',
   assert.equal(build({ ...base, selectedTags: ['jazz'] }).prompt, `${base.description}, jazz`);
 });
 
-test('custom limits validate combined style and require lyrics for voices', () => {
-  assert.throws(() => build({ ...base, customMode: true, instrumental: true, title: '' }), /Titre requis/);
-  assert.throws(() => build({ ...base, customMode: true }), /paroles/);
+test('custom limits allow optional title and style under the current V6 contract', () => {
+  assert.equal(build({ ...base, customMode: true, instrumental: true, title: '' }).title, undefined);
+  const lyricsOnly = build({ ...base, customMode: true, title: '', style: '', lyrics: '[Verse]\nUne idée', duration: undefined });
+  assert.equal(validateBackend(lyricsOnly).ok, true);
+  assert.equal(lyricsOnly.duration, undefined);
+  assert.throws(() => build({ ...base, customMode: true, title: '', style: '', lyrics: '' }), /paroles/);
+  assert.throws(() => build({ ...base, uploadUrl: 'https://media.invalid/audio.mp3', style: '', lyrics: 'Text' }), /direction musicale/);
+  assert.throws(() => build({ ...base, uploadUrl: 'https://media.invalid/audio.mp3', lyrics: '' }), /paroles/);
   assert.throws(() => build({ ...base, customMode: true, instrumental: true, style: 'a'.repeat(1000), selectedTags: ['jazz'] }), /1000 caractères/);
   assert.throws(() => build({ ...base, customMode: true, instrumental: true, title: 'a'.repeat(81) }), /80 caractères/);
   assert.throws(() => build({ ...base, customMode: true, lyrics: 'a'.repeat(5001) }), /5000 caractères/);

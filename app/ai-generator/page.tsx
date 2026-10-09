@@ -41,11 +41,14 @@ import {
 import SynauraStudioEventBar from '@/components/synaura/SynauraStudioEventBar';
 import CreateArrivalBanner from '@/components/create/CreateArrivalBanner';
 import { uploadLocalMedia } from '@/lib/clientMediaUpload';
+import { reportStudioActivity, startStudioActivity } from '@/lib/studio/clientActivity';
+import { feedbackFailure } from '@/lib/studio/feedback';
 import { getEntitlements } from '@/lib/entitlements';
 import { CURRENT_SUNO_MODELS, DEFAULT_SUNO_MODEL, getSunoModelLabel, normalizeGenerationModel, SUNO_GENERATION_LIMITS } from '@/lib/sunoModels';
 import { buildSunoGeneratorPayload, restoreGeneratorDuration } from '@/lib/sunoGeneratorForm';
 import SunoV6Announcement from '@/components/ai-studio/SunoV6Announcement';
 import UnifiedStudio from '@/components/ai-studio/UnifiedStudio';
+import { studioFolder } from '@/lib/studio/workspace';
 
 const DEBUG_AI_STUDIO = process.env.NODE_ENV !== 'production';
 
@@ -104,7 +107,7 @@ function getSunoErrorMessage(status: number, errJson: { error?: string; msg?: st
     404: 'Service temporairement indisponible.',
     405: 'Limite de requêtes dépassée. Réessayez plus tard.',
     413: 'Texte trop long (titre, style ou paroles). Réduisez la taille.',
-    429: 'Crédits insuffisants. Ajoutez des crédits pour continuer.',
+    429: 'Trop de demandes rapprochées. Attendez avant de réessayer.',
     430: 'Trop de requêtes. Attendez quelques secondes avant de relancer.',
     455: 'Suno est en maintenance. Réessayez dans quelques minutes.',
     500: 'Erreur serveur. Réessayez dans un moment.',
@@ -447,6 +450,8 @@ function AIGeneratorContent({ unifiedStudio = true }: { unifiedStudio?: boolean 
   const [customMode, setCustomMode] = useState(false);
   const [modelVersion, setModelVersion] = useState<string>(DEFAULT_SUNO_MODEL);
   const [generationDuration, setGenerationDuration] = useState<number>(120);
+  const [durationAuto, setDurationAuto] = useState(false);
+  const [generationFolder, setGenerationFolder] = useState('');
   const availableModels = getEntitlements(quota.plan_type === 'enterprise' ? 'pro' : quota.plan_type).ai.availableModels;
 
   useEffect(() => {
@@ -1714,6 +1719,7 @@ function AIGeneratorContent({ unifiedStudio = true }: { unifiedStudio?: boolean 
   const [description, setDescription] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [weirdness, setWeirdness] = useState<number>(50);
+  const [variety, setVariety] = useState<number>(1);
   const [styleInfluence, setStyleInfluence] = useState<number>(50);
   const [audioWeight, setAudioWeight] = useState<number>(50);
   const [advancedSettingsOpen, setAdvancedSettingsOpen] = useState(false);
@@ -2122,18 +2128,26 @@ function AIGeneratorContent({ unifiedStudio = true }: { unifiedStudio?: boolean 
 
   const shareGenerated = async (gt: GeneratedTrack) => {
     try {
+      const source = allTracks.find(track => String(track.id) === gt.id || (!!track.suno_id && String(track.suno_id) === (gt.sunoAudioId || gt.id)));
+      if (!source) { notify.warning('Partage', 'Attendez la fin de l’enregistrement du morceau.'); return; }
+      const response = await fetch(`/api/tracks/ai-${encodeURIComponent(String(source.id))}`, { cache: 'no-store' });
+      const published = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error('Le morceau n’est pas accessible pour le partage.');
+      if (!published.isPublic) { notify.warning('Partage', 'Publiez ce morceau avant de partager son lien.'); return; }
       const shareData = {
         title: gt.title || 'Musique générée',
         text: 'Écoutez ma musique générée par IA sur Synaura',
-        url: typeof window !== 'undefined' ? window.location.href : ''
+        url: new URL(`/track/ai-${encodeURIComponent(String(source.id))}`, window.location.origin).href
       } as any;
       if ((navigator as any).share) {
-        await (navigator as any).share(shareData);
-      } else if (navigator.clipboard) {
+        try { await (navigator as any).share(shareData); return; }
+        catch (error: any) { if (error?.name === 'AbortError') return; }
+      }
+      if (navigator.clipboard) {
         await navigator.clipboard.writeText(shareData.url);
         notify.success('Partage', 'Lien copié');
-      }
-    } catch {}
+      } else throw new Error('Le navigateur ne permet pas le partage. Ouvrez la page du morceau pour copier son adresse.');
+    } catch (error: any) { if (error?.name !== 'AbortError') notify.error('Partage', error?.message || 'Impossible de partager ce morceau.'); }
   };
 
   // Fonction pour ouvrir le panneau de track
@@ -2162,7 +2176,7 @@ function AIGeneratorContent({ unifiedStudio = true }: { unifiedStudio?: boolean 
   }, [pushLog]);
 
   const handleReuseTrackInfo = useCallback((track: GeneratedTrack) => {
-    const sourceLyrics = track.lyrics || track.prompt || '';
+    const sourceLyrics = track.lyrics || '';
     selectGenerationMode('custom');
     setSourceContext(null);
     setSelectedTags([]);
@@ -2170,14 +2184,16 @@ function AIGeneratorContent({ unifiedStudio = true }: { unifiedStudio?: boolean 
     setStyle(track.style || '');
     setLyrics(sourceLyrics);
     setIsInstrumental(Boolean(track.isInstrumental) || !sourceLyrics.trim());
+    reportStudioActivity(session?.user?.id, { kind: 'source', stage: 'Réutilisation de la composition', state: !sourceLyrics.trim() && !track.isInstrumental ? 'warning' : 'success', message: !sourceLyrics.trim() && !track.isInstrumental ? 'Titre et style repris, mais aucune parole écrite n’est disponible pour ce morceau.' : 'Composition reprise dans le brouillon. Aucune génération lancée.', advice: !sourceLyrics.trim() ? 'Le prompt n’est pas copié comme s’il s’agissait de paroles. Ajoutez un texte et désactivez Instrumental si vous voulez du chant.' : undefined });
     notify.success('Formulaire', 'Titre, style et paroles réutilisés.');
     closeTrackPanel();
-  }, [selectGenerationMode]);
+  }, [selectGenerationMode, session?.user?.id]);
 
   const useLibraryTrackForRemix = (track: AITrack) => {
     const media = resolveTrackMedia(track as any);
     const sourceUrl = media.audioUrl || media.streamUrl || media.playableUrl;
     if (!sourceUrl) {
+      reportStudioActivity(session?.user?.id, { kind: 'source', stage: 'Choix de la source', ...feedbackFailure('Aucun lien audio exploitable pour ce morceau. Choisissez une autre source ou récupérez son audio depuis les outils.') });
       notify.error('Remix', 'Aucune URL audio exploitable pour cette piste.');
       return;
     }
@@ -2207,6 +2223,7 @@ function AIGeneratorContent({ unifiedStudio = true }: { unifiedStudio?: boolean 
       track.createdAt
     );
     if (!sourceUrl) {
+      reportStudioActivity(session?.user?.id, { kind: 'source', stage: 'Choix de la source', ...feedbackFailure('Aucun lien audio exploitable pour cette génération. Attendez son enregistrement ou récupérez son audio depuis les outils.') });
       notify.error('Remix', 'Aucune URL audio exploitable pour cette génération.');
       return;
     }
@@ -2295,6 +2312,7 @@ function AIGeneratorContent({ unifiedStudio = true }: { unifiedStudio?: boolean 
   };
 
   const performRemixUpload = useCallback(async (file: File, uploadTitle: string) => {
+    const activityId = startStudioActivity(session?.user?.id, 'upload', 'Envoi du fichier');
     setRemixUploading(true);
     setUploadingRemixTitle(uploadTitle);
     uploadAbortRef.current = new AbortController();
@@ -2326,9 +2344,17 @@ function AIGeneratorContent({ unifiedStudio = true }: { unifiedStudio?: boolean 
             fileName: file.name,
           })
         });
-        if (res.ok) window.dispatchEvent(new CustomEvent('aiLibraryUpdated'));
-      } catch {}
+        if (res.ok) {
+          window.dispatchEvent(new CustomEvent('aiLibraryUpdated'));
+          reportStudioActivity(session?.user?.id, { id: activityId, kind: 'upload', stage: 'Enregistrement', state: 'success', message: 'Audio envoyé, enregistré et prêt à être utilisé.' });
+        } else {
+          reportStudioActivity(session?.user?.id, { id: activityId, kind: 'upload', stage: 'Enregistrement dans la bibliothèque', ...feedbackFailure('', { status: res.status, stage: 'save' }), advice: 'L’audio reste utilisable dans cette composition, mais sa présence dans la bibliothèque n’est pas confirmée. Vérifiez-la avant de réimporter.' });
+        }
+      } catch (error) {
+        reportStudioActivity(session?.user?.id, { id: activityId, kind: 'upload', stage: 'Enregistrement dans la bibliothèque', ...feedbackFailure(error, { stage: 'save' }), advice: 'L’audio a été envoyé et reste dans cette composition. Vérifiez la bibliothèque avant de réimporter.' });
+      }
     } catch (e: any) {
+      reportStudioActivity(session?.user?.id, { id: activityId, kind: 'upload', stage: 'Envoi du fichier', ...feedbackFailure(e) });
       if (e?.name === 'AbortError') return;
       setRemixUploading(false);
       notify.error('Upload audio', e?.message || 'Erreur upload');
@@ -2336,7 +2362,7 @@ function AIGeneratorContent({ unifiedStudio = true }: { unifiedStudio?: boolean 
       setUploadingRemixTitle(null);
       uploadAbortRef.current = null;
     }
-  }, []);
+  }, [session?.user?.id]);
 
   // Fonction pour convertir AITrack en GeneratedTrack
   const convertAITrackToGenerated = (aiTrack: AITrack): GeneratedTrack => {
@@ -2650,7 +2676,7 @@ function AIGeneratorContent({ unifiedStudio = true }: { unifiedStudio?: boolean 
   const selectedTrackForVisibility = React.useMemo(() => {
     const active = selectedTrack || generatedTrack;
     if (!active?.id) return null;
-    const trackInAll = allTracks.find((t) => String(t.id) === String(active.id));
+    const trackInAll = allTracks.find((t) => String(t.id) === String(active.id) || (!!t.suno_id && String(t.suno_id) === (active.sunoAudioId || active.id)));
     if (trackInAll) return trackInAll;
     for (const g of recentGenerationsSorted) {
       const found = (g.tracks || []).find((t: any) => String(t.id) === String(active.id));
@@ -2660,10 +2686,10 @@ function AIGeneratorContent({ unifiedStudio = true }: { unifiedStudio?: boolean 
   }, [allTracks, generatedTrack, recentGenerationsSorted, selectedTrack]);
 
   const selectedGenerationForVisibility = React.useMemo(() => {
-    if (selectedGeneration) return selectedGeneration;
+    if (selectedGeneration) return generationsById.get(String(selectedGeneration.id)) || selectedGeneration;
     const active = selectedTrack || generatedTrack;
     if (active) {
-      const sourceTrack = allTracks.find((t) => String(t.id) === String(active.id));
+      const sourceTrack = allTracks.find((t) => String(t.id) === String(active.id) || (!!t.suno_id && String(t.suno_id) === (active.sunoAudioId || active.id)));
       const sourceGenId = (sourceTrack as any)?.generation_id || (sourceTrack as any)?.generation?.id;
       if (sourceGenId) {
         const byId = generationsById.get(String(sourceGenId));
@@ -2679,7 +2705,7 @@ function AIGeneratorContent({ unifiedStudio = true }: { unifiedStudio?: boolean 
 
   const selectedVisibilityState = React.useMemo(() => {
     const track = selectedTrackForVisibility as any;
-    if (track?.is_public != null) return { is_public: track.is_public };
+    if (track?.is_public != null) return { is_public: track.is_public === true && selectedGenerationForVisibility?.is_public === true };
     const gen = selectedGenerationForVisibility;
     if (gen) return { is_public: gen.is_public === true };
     return null;
@@ -2817,6 +2843,7 @@ function AIGeneratorContent({ unifiedStudio = true }: { unifiedStudio?: boolean 
 
   /** Charger waveform + paroles synchronisÃ©es pour la piste effective (en lecture ou sÃ©lectionnÃ©e) */
   React.useEffect(() => {
+    if (unifiedStudio) return; // The single inspector lyric surface owns its track-scoped request.
     const { taskId, audioId } = effectiveTrackContext;
     if (!taskId?.trim() || !audioId?.trim()) {
       setTimestampedWords([]);
@@ -2824,7 +2851,7 @@ function AIGeneratorContent({ unifiedStudio = true }: { unifiedStudio?: boolean 
       return;
     }
     fetchTimestampedLyrics(true, effectiveTrackContext);
-  }, [effectiveTrackContext.taskId, effectiveTrackContext.audioId, fetchTimestampedLyrics]);
+  }, [effectiveTrackContext.taskId, effectiveTrackContext.audioId, fetchTimestampedLyrics, unifiedStudio]);
 
   const activeWordIndex = React.useMemo(() => {
     const now = Number(audioState.currentTime || 0);
@@ -2848,6 +2875,8 @@ function AIGeneratorContent({ unifiedStudio = true }: { unifiedStudio?: boolean 
       );
       return {
         id: track.id || `${activeBgGeneration.taskId}_${index}`,
+        sunoAudioId: track.id,
+        generationTaskId: activeBgGeneration.taskId,
         audioUrl: primaryUrl,
         backupAudioUrls: backups,
         prompt: customMode ? (lyrics.trim() ? lyrics : '') : description,
@@ -2953,6 +2982,9 @@ function AIGeneratorContent({ unifiedStudio = true }: { unifiedStudio?: boolean 
   }, [generationStatus, pushLog]);
 
   const generateMusic = async () => {
+    const activityId = startStudioActivity(session?.user?.id, 'generation', 'Validation de la composition');
+    let feedbackStatus: number | undefined;
+    let requestSent = false;
     setIsGenerating(true);
     setSunoError(null);
     setGenerationStatus('pending');
@@ -2983,9 +3015,10 @@ function AIGeneratorContent({ unifiedStudio = true }: { unifiedStudio?: boolean 
         lyrics,
         selectedTags,
         remixPrompt: remixCreativePrompt,
-        duration: generationDuration,
+        duration: durationAuto ? undefined : generationDuration,
         styleInfluence,
         weirdness,
+        variety,
         audioWeight,
         negativeTags,
         vocalGender,
@@ -2993,6 +3026,7 @@ function AIGeneratorContent({ unifiedStudio = true }: { unifiedStudio?: boolean 
         sourceDurationSec: remixSourceDurationSec,
       });
       requestBody.callBackUrl = typeof window !== 'undefined' ? `${window.location.origin}/api/suno/callback` : undefined;
+      requestBody.libraryFolder = generationFolder;
       if (sourceContext?.id) {
         requestBody.remixSource = {
           sourceTrackId: sourceContext.id,
@@ -3004,6 +3038,7 @@ function AIGeneratorContent({ unifiedStudio = true }: { unifiedStudio?: boolean 
         if (challengeId) requestBody.challengeId = challengeId;
       }
 
+      requestSent = true;
       const response = await fetch(remixUploadUrl ? '/api/suno/upload-cover' : '/api/suno/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -3012,7 +3047,8 @@ function AIGeneratorContent({ unifiedStudio = true }: { unifiedStudio?: boolean 
 
       if (!response.ok) {
         const errJson = await response.json().catch(() => ({}));
-        if (response.status === 402 || response.status === 429) setShowBuyCredits(true);
+        feedbackStatus = response.status;
+        if (response.status === 402) setShowBuyCredits(true);
         if (response.status === 430) setRateLimitCooldownUntil(Date.now() + 12000); // 12 s cooldown
         const msg = getSunoErrorMessage(response.status, errJson);
         setSunoError(msg);
@@ -3047,6 +3083,7 @@ function AIGeneratorContent({ unifiedStudio = true }: { unifiedStudio?: boolean 
           : promptText.substring(0, 50) + (promptText.length > 50 ? '...' : '');
         
         startBackgroundGeneration({
+          activityId,
           id: data.id,
           taskId: data.taskId,
           status: 'pending',
@@ -3078,12 +3115,14 @@ function AIGeneratorContent({ unifiedStudio = true }: { unifiedStudio?: boolean 
         };
 
         setGeneratedTrack(track);
+        reportStudioActivity(session?.user?.id, { id: activityId, kind: 'generation', stage: 'Réponse reçue', state: 'success', message: 'Le service a renvoyé un morceau.' });
         setGenerationStatus('completed');
         pushLog('info', `Génération terminée: ${track.title || track.id}`);
       }
     } catch (error) {
       console.error('Erreur:', error);
       const message = error instanceof Error ? error.message : 'Erreur lors de la génération';
+      reportStudioActivity(session?.user?.id, { id: activityId, kind: 'generation', stage: requestSent ? 'Envoi de la demande' : 'Validation de la composition', ...feedbackFailure(error, { status: feedbackStatus, uncertain: requestSent && (!feedbackStatus || feedbackStatus >= 500) }) });
       setSunoError(message);
       notify.error('Génération', message);
       setGenerationStatus('failed');
@@ -3322,19 +3361,22 @@ function AIGeneratorContent({ unifiedStudio = true }: { unifiedStudio?: boolean 
   // UNIFIED_STUDIO_PRESENTATION_START: adapter only, existing request/audio handlers stay unchanged.
   const unifiedSongs = useMemo(() => allTracks.map(source => {
     const generation = generationsById.get(String(source.generation_id));
-    return { track: convertAITrackToGenerated(source), liked: likedTrackIds.has(source.id), trashed: trashedTrackIds.has(source.id), published: source.is_public ?? generation?.is_public ?? false, folder: parseSourceLinks(source.source_links)?.library_folder, model: getSunoModelLabel(source.model_name || generation?.model) };
+    return { track: convertAITrackToGenerated(source), liked: likedTrackIds.has(source.id), trashed: trashedTrackIds.has(source.id), published: source.is_public ?? generation?.is_public ?? false, folder: studioFolder(source.source_links), model: getSunoModelLabel(source.model_name || generation?.model), generationId: String(source.generation_id), sourceIds: Array.isArray(generation?.metadata?.sourceIds) ? generation.metadata.sourceIds.filter((id: unknown): id is string => typeof id === 'string') : [], operation: generation?.metadata?.studioAction };
   }), [allTracks, generationsById, likedTrackIds, trashedTrackIds]); // Media conversion depends only on tracks and their generations, not the audio clock.
   if (unifiedStudio) {
-    const findSource = (track: GeneratedTrack) => allTracks.find(item => String(item.id) === track.id);
+    const findSource = (track: GeneratedTrack) => allTracks.find(item => String(item.id) === track.id || (!!item.suno_id && String(item.suno_id) === (track.sunoAudioId || track.id)));
     const select = (track: GeneratedTrack) => {
       const source = findSource(track);
       // Preserve stored remix permissions alongside the display model.
-      const selection = source ? { ...source, ...track } : track;
+      const selection = source ? { ...source, ...convertAITrackToGenerated(source) } : track;
       setSelectedTrack(selection);
       setGeneratedTrack(selection);
       setSelectedGeneration(source ? generationsById.get(String(source.generation_id)) || null : null);
     };
     return <UnifiedStudio
+      key={session?.user?.id || 'guest'} owner={session?.user?.id || ''}
+      checkGeneration={resumeBackgroundGeneration}
+      refreshCredits={() => { void fetchCreditsBalance().then(data => { if (data && typeof data.balance === 'number') setCreditsBalance(data.balance); }); }}
       generationRecovery={activeBgGeneration?.lastError?.startsWith('Polling timeout:') ? <div role="status" className="us-error"><p>Le suivi a été interrompu. La génération peut encore être en cours : vérifie son état avant d’en lancer une autre.</p><button type="button" className="us-secondary" onClick={()=>resumeBackgroundGeneration(activeBgGeneration.taskId)}>Reprendre le suivi · sans nouvelle génération</button></div> : null}
       draftRecovery={<DraftRecovery owner={session?.user?.id || ''} scope="studio-composition" fields={{title,style,lyrics,description}} empty={![title,style,lyrics,description].some(v=>v.trim())}
         reset={()=>{setTitle('');setStyle('');setLyrics('');setDescription('');}}
@@ -3345,20 +3387,47 @@ function AIGeneratorContent({ unifiedStudio = true }: { unifiedStudio?: boolean 
         description: { value: description, set: setDescription }, title: { value: title, set: setTitle },
         style: { value: style, set: setStyle }, lyrics: { value: lyrics, set: setLyrics },
         instrumental: { value: isInstrumental, set: setIsInstrumental }, model: { value: modelVersion, set: value => setModelVersion(normalizeGenerationModel(value, availableModels)) }, allowedModels: availableModels,
-        duration: { value: generationDuration, set: setGenerationDuration }, weirdness: { value: weirdness, set: setWeirdness }, styleInfluence: { value: styleInfluence, set: setStyleInfluence }, audioWeight: { value: audioWeight, set: setAudioWeight },
+        duration: { value: generationDuration, set: setGenerationDuration }, durationAuto: { value: durationAuto, set: setDurationAuto }, libraryFolder: { value: generationFolder, set: setGenerationFolder }, variety: { value: variety, set: setVariety }, weirdness: { value: weirdness, set: setWeirdness }, styleInfluence: { value: styleInfluence, set: setStyleInfluence }, audioWeight: { value: audioWeight, set: setAudioWeight },
         negativeTags: { value: negativeTags, set: setNegativeTags }, vocalGender: { value: vocalGender, set: value => setVocalGender(value as '' | 'm' | 'f') }, tags: selectedTags, clearTags: () => setSelectedTags([]),
         sourceCredit: sourceContext ? <div className="us-source-credit">À partir de {sourceContext.trackUrl ? <Link href={sourceContext.trackUrl}>{sourceContext.title}</Link> : sourceContext.title}{sourceContext.artist && ` · ${sourceContext.artist}`}{sourceContext.warning && <p role="status">{sourceContext.warning}</p>}</div> : null,
         remixReady: Boolean(remixUploadUrl || remixSourceTrackId),
         remixSource: <div className="us-remix-source">
-          <RemixDropzone file={remixFile} uploading={remixUploading} onFileSelected={file => { setRemixFile(file); setPendingRemixFile(file); setRemixUploadModalOpen(true); }} />
+          <RemixDropzone owner={session?.user?.id} file={remixFile} uploading={remixUploading} onFileSelected={file => { setRemixFile(file); setPendingRemixFile(file); setRemixUploadModalOpen(true); }} />
           {(remixUploadUrl || remixSourceTrackId) && <div className="us-source-credit">{remixSourceLabel || 'Audio prêt'}<button className="us-text-button" onClick={clearRemixSource}>Retirer</button></div>}
           {!(remixUploadUrl || remixSourceTrackId) && <p className="us-source-hint">Ou choisissez « Remixer » sur un de vos morceaux.</p>}
         </div>,
         remixOptions: <><label className="us-field">Transformation<select value={remixType} onChange={event => setRemixType(event.target.value as RemixType)}>{REMIX_TYPE_OPTIONS.map(option => <option key={option.id} value={option.id}>{option.label}</option>)}</select></label><label className="us-field">Consigne du remix<select value={remixPromptVisibility} onChange={event => setRemixPromptVisibility(event.target.value as 'private' | 'public')}><option value="private">Privée</option><option value="public">Visible avec le remix</option></select></label></>,
       }}
-      generation={{ busy: isGenerating || remixUploading, pending: sunoState === 'pending' || sunoState === 'first', progress: liveProgressPct, status: liveStatusLabel, error: sunoError, cooldown: cooldownSecondsLeft, submit: generateMusic, lyricsBusy: isGeneratingLyrics, generateLyrics: generateAutoLyrics }}
+      generation={{ busy: isGenerating || remixUploading, taskId: activeBgGeneration?.taskId, pending: sunoState === 'pending' || sunoState === 'first', progress: liveProgressPct, status: liveStatusLabel, error: sunoError, cooldown: cooldownSecondsLeft, submit: generateMusic, lyricsBusy: isGeneratingLyrics, generateLyrics: generateAutoLyrics }}
       library={{ songs: unifiedSongs, loading: generationsLoading, error: generationsError, refresh: refreshGenerations, fresh: generatedTracks }}
       selected={studioInspectorTrack} select={select}
+      lyricPlayback={{ track: activeQueueTrack ? { id: String(activeQueueTrack._id || '').replace(/^(ai-|gen-)/, ''), sunoAudioId: (activeQueueTrack as any).sunoAudioId, generationTaskId: (activeQueueTrack as any).generationTaskId } as GeneratedTrack : null, seconds: audioState.currentTime, seek }}
+      importAudio={file => {
+        if ((!file.type.startsWith('audio/') && !/\.(mp3|wav|m4a|ogg|flac|aac|webm)$/i.test(file.name)) || file.size > 500 * 1024 * 1024) { reportStudioActivity(session?.user?.id, { kind: 'upload', stage: 'Validation du fichier', ...feedbackFailure('Choisissez un fichier audio de 500 Mo maximum.') }); notify.error('Import', 'Choisissez un fichier audio de 500 Mo maximum.'); return; }
+        setRemixFile(file); setPendingRemixFile(file); setRemixUploadModalOpen(true);
+      }}
+      editTrack={async (track, edit) => {
+        const source = findSource(track);
+        if (!source) throw new Error('Attendez la fin de l’enregistrement.');
+        const body: Record<string, unknown> = { title: edit.title };
+        if (edit.cover) {
+          const upload = await fetch('/api/media/upload?kind=ai-cover', { method: 'POST', headers: { 'Content-Type': edit.cover.type, 'X-File-Name': encodeURIComponent(edit.cover.name), 'X-File-Size': String(edit.cover.size) }, body: edit.cover });
+          const media = await upload.json().catch(() => ({}));
+          if (!upload.ok) throw new Error(media.error || 'Import de la pochette impossible.');
+          body.coverUrl = media.secure_url; body.coverPublicId = media.public_id;
+        }
+        const response = await fetch(`/api/ai/tracks/${encodeURIComponent(String(source.id))}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+        const saved = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(saved.error || 'Enregistrement impossible.');
+        const patch = { title: saved.title || edit.title, ...(saved.image_url ? { image_url: saved.image_url } : {}), source_links: saved.source_links };
+        setAllTracks(items => items.map(item => item.id === source.id ? { ...item, ...patch } : item));
+        setGenerations(items => items.map(item => ({ ...item, tracks: item.tracks?.map(itemTrack => itemTrack.id === source.id ? { ...itemTrack, ...patch } : itemTrack) })));
+        const display = { title: patch.title, ...(saved.image_url ? { imageUrl: saved.image_url } : {}) };
+        setSelectedTrack(item => item && (item.id === track.id || item.id === source.id) ? { ...item, ...display } : item);
+        setGeneratedTracks(items => items.map(item => item.id === track.id || item.sunoAudioId === source.suno_id || item.id === source.suno_id ? { ...item, ...display } : item));
+        window.dispatchEvent(new CustomEvent('aiLibraryUpdated'));
+        notify.success('Morceau', 'Modifications enregistrées.');
+      }}
       actions={{
         play: playGenerated, download: downloadGenerated, share: shareGenerated, copyLyrics: handleCopyLyrics, reuse: handleReuseTrackInfo,
         remix: track => { const source = findSource(track); if (source) useLibraryTrackForRemix(source); else useGeneratedTrackForRemix(track); },

@@ -2,14 +2,15 @@ import { db } from '@/lib/database';
 import { canViewTrack } from '@/lib/publicTracks';
 
 const TRACK_REF_RE = /<!--\s*synaura-track:([^>\s]+)\s*-->/i;
+const ALL_TRACK_REFS = /<!--\s*synaura-track:[^>]*-->/gi;
 
 export function withTrackRef(content: string, trackId?: string | null) {
-  const clean = content.replace(TRACK_REF_RE, '').trim();
+  const clean = content.replace(ALL_TRACK_REFS, '').trim();
   return trackId ? `${clean}\n\n<!--synaura-track:${trackId}-->` : clean;
 }
 
 export function stripTrackRef(content?: string | null) {
-  return String(content || '').replace(TRACK_REF_RE, '').trim();
+  return String(content || '').replace(ALL_TRACK_REFS, '').trim();
 }
 
 export function getPostTrackId(post: any) {
@@ -58,37 +59,20 @@ function normalizeAttachedTrack(track: any) {
 export async function attachTracks(posts: any[], viewerId?: string | null) {
   const normalizedPosts = (posts || []).map((post) => ({ ...post, content: stripTrackRef(post.content), _attached_track_id: getPostTrackId(post) }));
   const trackIds = Array.from(new Set(normalizedPosts.map((post) => post._attached_track_id).filter(Boolean)));
-  if (!trackIds.length) return normalizedPosts;
+  if (!trackIds.length) return normalizedPosts.map(({ _attached_track_id, ...post }) => ({ ...post, track: null }));
 
-  let { data: tracks, error } = await db
+  const { data: trackRows, error } = await db
     .from('tracks')
-    .select(`
-      *,
-      profiles:creator_id (
-        id,
-        name,
-        username,
-        avatar
-      )
-    `)
+    .select('*')
     .in('id', trackIds);
-
-  if (error) {
-    const fallback = await db
-      .from('tracks')
-      .select('*')
-      .in('id', trackIds);
-    tracks = fallback.data || [];
-
-    const creatorIds = Array.from(new Set((tracks || []).map((track: any) => track.creator_id).filter(Boolean)));
-    if (creatorIds.length) {
-      const { data: profiles } = await db
-        .from('profiles')
-        .select('id, name, username, avatar')
-        .in('id', creatorIds);
-      const profilesById = new Map((profiles || []).map((profile: any) => [profile.id, profile]));
-      tracks = (tracks || []).map((track: any) => ({ ...track, profiles: profilesById.get(track.creator_id) || null }));
-    }
+  if (error) throw error;
+  let tracks = trackRows || [];
+  const creatorIds = Array.from(new Set(tracks.map((track: any) => track.creator_id).filter(Boolean)));
+  if (creatorIds.length) {
+    const { data: profiles, error: profileError } = await db.from('profiles').select('id, name, username, avatar').in('id', creatorIds);
+    if (profileError) throw profileError;
+    const profilesById = new Map((profiles || []).map((profile: any) => [profile.id, profile]));
+    tracks = tracks.map((track: any) => ({ ...track, profiles: profilesById.get(track.creator_id) || null }));
   }
 
   const rawTracksById = new Map((tracks || []).map((track: any) => [track.id, track]));
@@ -161,12 +145,6 @@ export async function attachAuthors(posts: any[]) {
   }));
 }
 
-export function legacyCategory(category: string) {
-  if (category === 'feedback') return 'question';
-  if (category === 'collab' || category === 'remix' || category === 'prompts' || category === 'weekly-top' || category === 'ai_prompt' || category === 'top_tracks' || category === 'announcement') return 'suggestion';
-  return category;
-}
-
 export function shouldRetryWithoutOptionalColumns(error: any) {
   const message = String(error?.message || error?.details || '').toLowerCase();
   return (
@@ -175,15 +153,6 @@ export function shouldRetryWithoutOptionalColumns(error: any) {
     message.includes('could not find') ||
     message.includes('column') ||
     message.includes('schema cache')
-  );
-}
-
-export function shouldRetryLegacyCategory(error: any) {
-  const message = String(error?.message || error?.details || '').toLowerCase();
-  return (
-    error?.code === '23514' ||
-    message.includes('category') ||
-    message.includes('check constraint')
   );
 }
 
@@ -216,22 +185,26 @@ export async function insertForumPost(insertPayload: any) {
 
     if (!error) return { post: data, error: null };
     lastError = error;
-    if (!shouldRetryWithoutOptionalColumns(error) && !shouldRetryLegacyCategory(error)) break;
-  }
-
-  const fallbackCategory = legacyCategory(insertPayload.category);
-  if (fallbackCategory !== insertPayload.category && shouldRetryLegacyCategory(lastError)) {
-    const legacyPayload = { ...insertPayload, category: fallbackCategory };
-    delete legacyPayload.track_id;
-    delete legacyPayload.tags;
-    const { data, error } = await db
-      .from('forum_posts')
-      .insert(legacyPayload)
-      .select('*')
-      .single();
-    if (!error) return { post: { ...data, category: insertPayload.category }, error: null };
-    lastError = error;
+    if (!shouldRetryWithoutOptionalColumns(error)) break;
   }
 
   return { post: null, error: lastError };
+}
+
+export async function attachReplies(replies: any[], viewerId?: string | null) {
+  const rows = await attachAuthors(replies);
+  let liked = new Set<string>();
+  if (viewerId && rows.length) {
+    const { data, error } = await db.from('forum_reply_likes').select('reply_id').eq('user_id', viewerId).in('reply_id', rows.map((row: any) => row.id));
+    if (error) throw error;
+    liked = new Set((data || []).map((row: any) => row.reply_id));
+  }
+  return rows.map((row: any) => ({ ...row, profiles: row.author || null, is_liked: liked.has(row.id) }));
+}
+
+export async function validateAttachedTrack(trackId: string | null, viewerId: string) {
+  if (!trackId) return true;
+  const { data, error } = await db.from('tracks').select('*').eq('id', trackId).maybeSingle();
+  if (error) throw error;
+  return Boolean(data && canViewTrack(data, viewerId));
 }

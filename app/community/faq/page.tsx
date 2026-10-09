@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import Link from '@/components/navigation/HandoffLink';
 import { ArrowRight, ChevronDown, ChevronUp, HelpCircle, MessageSquare, Search, Sparkles } from 'lucide-react';
-import { notify } from '@/components/NotificationCenter';
 import { SynauraAppShell, SynauraInkPanel, SynauraPanel, SynauraTopBar } from '@/components/synaura/SynauraShell';
 
 type FAQItem = {
@@ -31,23 +30,36 @@ export default function CommunityFAQPage() {
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('all');
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [error, setError] = useState(false);
+  const [retry, setRetry] = useState(0);
 
   useEffect(() => {
+    const controller = new AbortController();
     const loadFaq = async () => {
       setLoading(true);
+      setError(false);
       try {
-        const response = await fetch('/api/community/faq?limit=100', { cache: 'no-store' });
-        if (!response.ok) throw new Error('faq');
-        const data = await response.json();
-        setFaqs(Array.isArray(data.faqs) ? data.faqs : []);
+        const all: FAQItem[] = [];
+        let page = 1, totalPages = 1;
+        do {
+          const response = await fetch(`/api/community/faq?limit=100&page=${page}`, { cache: 'no-store', signal: controller.signal });
+          if (!response.ok) throw new Error('faq');
+          const data = await response.json();
+          if (!Array.isArray(data.faqs)) throw new Error('Invalid FAQ');
+          all.push(...data.faqs);
+          totalPages = Number(data.pagination?.totalPages || 1);
+          page++;
+        } while (page <= totalPages && !controller.signal.aborted);
+        if (!controller.signal.aborted) setFaqs(Array.from(new Map(all.map(faq => [faq.id, faq])).values()));
       } catch {
-        notify.error('FAQ', 'Impossible de charger l’aide.');
+        if (!controller.signal.aborted) setError(true);
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) setLoading(false);
       }
     };
     loadFaq();
-  }, []);
+    return () => controller.abort();
+  }, [retry]);
 
   const filteredFaqs = faqs.filter((faq) => {
     const matchesCategory = category === 'all' || faq.category === category;
@@ -140,7 +152,7 @@ export default function CommunityFAQPage() {
                 <p className="mt-3 text-sm font-black text-black/42">Chargement de l’aide...</p>
               </div>
             </div>
-          ) : filteredFaqs.length ? (
+          ) : error ? <div role="alert" className="p-6"><p>L’aide est momentanément indisponible.</p><button className="min-h-11 mt-3 underline" onClick={() => setRetry(value => value + 1)}>Réessayer</button></div> : filteredFaqs.length ? (
             <div className="grid gap-2.5">
               {filteredFaqs.map((faq) => {
                 const isOpen = expanded.has(faq.id);

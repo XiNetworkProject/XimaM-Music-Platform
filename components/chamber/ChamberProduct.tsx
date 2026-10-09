@@ -9,10 +9,14 @@ import ChamberListening from './ChamberListening';
 import { CHAMBER_CHAPTERS, LAST_CHAMBER_CHAPTER, chapterAtScroll, progressAtScroll } from './chamberStory';
 import './chamber-product.css';
 import './chamber-story.css';
+import AuroraBackdrop from '@/components/celestial/AuroraBackdrop';
+import { FennecMark } from '@/components/celestial/CelestialWorld';
+import './chamber-celestial.css';
+import FennecGuide from '@/components/celestial/FennecGuide';
 
 const ChamberMaterial = dynamic(() => import('./ChamberMaterial'), { ssr: false });
 
-export default function ChamberProduct({ presentationHref }: { presentationHref?: string } = {}) {
+export default function ChamberProduct({ presentationHref, celestial = false }: { presentationHref?: string; celestial?: boolean } = {}) {
   const rootRef = useRef<HTMLDivElement>(null);
   const panelsRef = useRef<Array<HTMLElement | null>>([]);
   const [entered, setEntered] = useState(false);
@@ -77,15 +81,16 @@ export default function ChamberProduct({ presentationHref }: { presentationHref?
   const listening = chapter === LAST_CHAMBER_CHAPTER;
 
   return (
-    <div ref={rootRef} className={'chamber-product cp-story ' + (paused ? 'cp-paused ' : '') + (ready ? 'cp-ready' : '')} data-chamber-product data-chapter={chapter} data-listening={listening} data-context-surface-origin="other" tabIndex={-1}>
+    <div ref={rootRef} className={'chamber-product cp-story ' + (celestial ? 'cp-celestial ' : '') + (paused ? 'cp-paused ' : '') + (ready ? 'cp-ready' : '')} data-chamber-product data-chapter={chapter} data-listening={listening} data-context-surface-origin="other" tabIndex={-1}>
       <a className="cp-skip" href="#chamber-listening" onClick={() => setEntered(true)}>Aller directement aux morceaux</a>
       <div className="cp-material-stage" aria-hidden="true">
+        {celestial && <AuroraBackdrop paused={paused || listening} pulse={pulse} interactive positionX={.7} positionY={.45}/>}
         <div className="cp-room-light" /><div className="cp-floor" />
-        <ChamberMaterial progress={progress} paused={paused} playing={audioState.isPlaying} pulse={pulse} className="cp-material" />
+        {!celestial && <ChamberMaterial progress={progress} paused={paused} playing={audioState.isPlaying} pulse={pulse} className="cp-material" />}
         <div className="cp-material-shade" /><div className="cs-stage-grain" />
       </div>
       <header className="cp-header">
-        <button type="button" className="cp-wordmark" onClick={() => goToChapter(0)} aria-label="Synaura, revenir à l’entrée">SYNAURA</button>
+        <button type="button" className="cp-wordmark" onClick={() => goToChapter(0)} aria-label="Synaura, revenir à l’entrée">{celestial ? <><FennecMark/><span>Synaura</span><i aria-hidden="true">✧</i></> : 'SYNAURA'}</button>
         <nav className="cp-top-nav" aria-label="Navigation Synaura">
           <button type="button" onClick={() => goToChapter(0)} aria-current={!listening ? 'page' : undefined}>L’expérience</button>
           <button type="button" onClick={() => goToChapter(LAST_CHAMBER_CHAPTER)} aria-current={listening ? 'page' : undefined}>Écouter</button>
@@ -101,24 +106,26 @@ export default function ChamberProduct({ presentationHref }: { presentationHref?
           <p className="cp-entry-description">Il y a la musique que l’on écoute.<br />Et celle que l’on ressent.</p>
           <div className="cp-entry-action">{presentationHref ? <Link href={presentationHref} className="cp-button cp-button-light">Découvrir Synaura <ArrowUpRight size={20} /></Link> : <button type="button" className="cp-button cp-button-light" onClick={() => goToChapter(1)}>Découvrir Synaura <ArrowUpRight size={20} /></button>}<span>LA MUSIQUE. LES PERSONNES.<br /><b>ET TOUT CE QUI NOUS RELIE.</b></span></div>
         </div>
-        <div className="cp-material-caption" aria-hidden="true"><span>+</span> MATIÈRE SONORE<br />COBALT / 001</div>
-        <button type="button" className="cp-material-pulse" onClick={() => setPulse(value => value + 1)} disabled={paused} aria-label="Envoyer une onde dans la matière"><span className="cp-pulse-mark" aria-hidden="true">≋</span> TOUCHEZ LA MATIÈRE <ArrowUpRight size={15} /></button>
+        <div className="cp-material-caption" aria-hidden="true"><span>{celestial ? '✧' : '+'}</span>{celestial ? <> LE CIEL<br />TE RÉPOND.</> : <> MATIÈRE SONORE<br />COBALT / 001</>}</div>
+        <button type="button" className="cp-material-pulse" onClick={() => setPulse(value => value + 1)} disabled={paused} aria-label={celestial ? 'Envoyer une onde dans les aurores' : 'Envoyer une onde dans la matière'}><span className="cp-pulse-mark" aria-hidden="true">≋</span> {celestial ? 'TOUCHE LE CIEL' : 'TOUCHEZ LA MATIÈRE'} <ArrowUpRight size={15} /></button>
       </section>
 
       <section ref={node => { panelsRef.current[1] = node; }} id="chamber-synaura" className="cp-story-panel cs-definition" data-active={chapter === 1} aria-labelledby="cs-definition-title" tabIndex={-1}>
-        <div className="cs-ambient-index" aria-hidden="true">S.</div>
+        <div className="cs-ambient-index" aria-hidden="true">{celestial ? <FennecMark/> : 'S.'}</div>
         <div className="cs-definition-copy cs-reveal">
           <p className="cp-eyebrow"><span /> QU’EST-CE QUE SYNAURA ?</p>
           <h2 id="cs-definition-title">UN UNIVERS.<br /><span>VOS ÉMOTIONS.</span><br />VOTRE MUSIQUE.</h2>
           <p className="cs-description">Un espace musical et social pour écouter, créer et partager.<br className="cs-desktop-break" /> Et rencontrer les personnes de l’autre côté du son.</p>
           <div className="cs-definition-signature"><span>ÉCOUTER</span><i /><span>CRÉER</span><i /><span>SE RENCONTRER</span></div>
+          {celestial && <div className="cp-chapter-guide"><FennecGuide compact active={chapter === 1 && !paused} text="Moi, c’est Fennec. Écouter, créer, rencontrer… je peux te montrer le chemin." help/></div>}
           <button type="button" className="cs-next-link" onClick={() => goToChapter(2)}>Suivre le son <ArrowRight size={19} /></button>
         </div>
         <span className="cs-margin-note" aria-hidden="true">UNE MÊME ÉNERGIE. PLUSIEURS FAÇONS DE LA VIVRE.</span>
       </section>
 
       <section ref={node => { panelsRef.current[2] = node; }} id="chamber-explorer" className="cp-story-panel cs-explore" data-active={chapter === 2} aria-labelledby="cs-explore-title" tabIndex={-1}>
-        <div className="cs-orbit-caption" aria-hidden="true"><span>+</span> DE L’INCONNU<br />AU COUP DE CŒUR.</div>
+        {!celestial && <div className="cs-orbit-caption" aria-hidden="true"><span>+</span> DE L’INCONNU<br />AU COUP DE CŒUR.</div>}
+        {celestial && <div className="cp-chapter-friend cp-chapter-friend--left"><FennecGuide active={chapter === 2 && !paused} pose="music" text="Dans Live, chaque swipe ouvre une nouvelle découverte. Un cœur pour la retrouver dans tes favoris."/></div>}
         <div className="cs-explore-copy cs-reveal">
           <p className="cp-eyebrow"><span /> ÉCOUTER & EXPLORER</p>
           <h2 id="cs-explore-title">SUIVEZ<br />CE QUI VOUS<br /><em>TRAVERSE.</em></h2>
@@ -129,7 +136,8 @@ export default function ChamberProduct({ presentationHref }: { presentationHref?
       </section>
 
       <section ref={node => { panelsRef.current[3] = node; }} id="chamber-creer" className="cp-story-panel cs-create" data-active={chapter === 3} aria-labelledby="cs-create-title" tabIndex={-1}>
-        <div className="cs-creation-lines" aria-hidden="true"><i /><i /><i /><span>UNE IMPULSION.<br />VOTRE EMPREINTE.</span></div>
+        {!celestial && <div className="cs-creation-lines" aria-hidden="true"><i /><i /><i /><span>UNE IMPULSION.<br />VOTRE EMPREINTE.</span></div>}
+        {celestial && <div className="cp-chapter-friend cp-chapter-friend--right"><FennecGuide active={chapter === 3 && !paused} pose="curious" text="Une idée en tête ? Le Studio t’aide à créer. Tu peux aussi publier tes propres sons et clips."/></div>}
         <div className="cs-create-copy cs-reveal">
           <p className="cp-eyebrow"><span /> CRÉER & PARTAGER</p>
           <h2 id="cs-create-title">D’UNE IDÉE.<br />À VOTRE<br /><em>SIGNATURE.</em></h2>
@@ -146,6 +154,7 @@ export default function ChamberProduct({ presentationHref }: { presentationHref?
           <h2 id="cs-meet-title">LE SON NOUS<br /><em>RAPPROCHE.</em></h2>
           <p className="cs-description">Derrière chaque morceau, quelqu’un.<br />Échangez dans les commentaires, réagissez à un moment musical et retrouvez la communauté.</p>
           <div className="cs-meet-notes"><span>Des profils à découvrir</span><span>Des moments à partager</span><span>Des conversations à poursuivre</span></div>
+          {celestial && <div className="cp-chapter-guide"><FennecGuide compact active={chapter === 4 && !paused} pose="happy" text="Derrière les morceaux, de vraies personnes. On part à leur rencontre ?"/></div>}
           <button type="button" className="cp-button cp-button-light cs-listen-cta" onClick={() => goToChapter(LAST_CHAMBER_CHAPTER)}>Trouver ma fréquence <ArrowUpRight size={20} /></button>
           <span className="cs-meet-afterword">L’EXPLORATION DEVIENT LA VÔTRE.</span>
         </div>

@@ -78,7 +78,7 @@ export async function cacheSunoTrackMedia(input: CacheInput): Promise<CachedSuno
 
   const cachedAudio = existingAudioIsDurable
     ? null
-    : await uploadFirstRemoteMedia([sourceAudioUrl, sourceStreamUrl], 'ai-audio');
+    : await uploadFirstRemoteMedia([sourceAudioUrl], 'ai-audio'); // Never cache a stream preview as permanent final audio.
   const cachedImage = existingImageIsDurable
     ? null
     : await uploadFirstRemoteMedia([sourceImageUrl], 'ai-cover');

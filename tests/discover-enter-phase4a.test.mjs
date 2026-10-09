@@ -166,11 +166,11 @@ test('la timeline visuelle attend le démarrage audio réel et conserve reduced 
   assert.doesNotMatch(frameLoop, /(?<!\.)\bset[A-Z][A-Za-z0-9_]*\s*\(/);
 });
 
-test('la V2 réutilise exactement le raster fourni, isolé et sans nouveau symbole', async () => {
+test('la signature céleste remplace le logo actif sans écraser les assets historiques', async () => {
   const brand = await read('lib/brand.ts');
   const component = await read('components/brand/SynauraLogo.tsx');
   assert.match(brand, /symbol: '\/brand\/v2\/reference-symbol\.svg'/);
-  assert.match(component, /SYNAURA_V2_REFERENCE/);
+  assert.match(component, /FennecMark/);
   assert.match(component, /data-synaura-logo-safe-zone/);
   const reference = await read('lib/brandV2.ts');
   assert.match(reference, /data:image\/png;base64/);

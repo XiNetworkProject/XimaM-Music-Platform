@@ -1,0 +1,28 @@
+.unified-studio.st-atelier{padding:clamp(18px,4vw,36px);max-width:100%;min-width:0;min-height:0;background:transparent}
+.st-heading .us-eyebrow{display:flex;align-items:center;gap:8px}
+.st-heading h2{font-size:clamp(26px,5vw,39px);letter-spacing:-.045em;margin:10px 0 22px}
+.st-heading h2 em{font-style:normal;color:var(--color-accent-soft,#c9bded)}
+.st-tabs{display:flex;gap:6px;margin-bottom:22px;padding:5px;background:rgba(255,255,255,.04);border-radius:16px}
+.st-tabs button{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:11px;border-radius:12px;font-size:13px;color:#aebbd0}
+.st-tabs button[aria-pressed=true]{background:rgba(170,185,235,.12);color:#f3f4fa}
+.st-catalog{display:grid;gap:25px}.st-catalog h3{font-size:13px;letter-spacing:.04em;color:#c1cbe0;margin-bottom:11px}
+.st-tool-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.st-tool{display:flex;align-items:center;gap:12px;text-align:left;padding:15px 12px;min-height:98px;border-radius:16px;background:linear-gradient(135deg,rgba(159,186,255,.07),rgba(178,162,222,.025));transition:background .18s,transform .18s;min-width:0}
+.st-tool:hover{background:rgba(159,186,255,.12);transform:translateY(-2px)}
+.st-tool>span:nth-child(2){flex:1;min-width:0}.st-tool strong{display:block;font-size:14px;font-weight:600}.st-tool small{display:block;font-size:12px;line-height:1.5;color:#aeb8cb;margin-top:5px}.st-tool>svg{flex-shrink:0;color:#a9bade}
+.st-tool-icon{width:32px;height:38px;display:grid;place-items:center;color:#aebfff;flex-shrink:0}
+.st-tool-price{display:inline-flex;margin-top:8px;padding:3px 8px;border-radius:7px;font-size:11px;font-weight:600;line-height:1.5;color:#d7e3fa;background:#bacfff12;max-width:100%}
+.st-tool-price[data-free=true]{color:#b8e2d2;background:#9cdabc0c}.st-tool-price[data-pending=true]{background:transparent;padding-left:0;color:#aebbd0}
+.st-price-summary{display:flex;align-items:start;justify-content:space-between;gap:12px;flex-wrap:wrap}.st-price-summary .st-tool-price{margin-top:0;flex-shrink:0}
+.st-price-guide{font-size:12px;line-height:1.6;color:#bbc9de;max-width:65ch}
+.st-form{display:grid;gap:20px}.st-form h3{font-size:23px;letter-spacing:-.025em;margin-bottom:5px}
+.st-muted,.st-footnote{font-size:12px;color:#abb7cc;line-height:1.6}.st-footnote{text-align:center}
+.st-form .us-field small{font-size:11px;color:#aab7cf;line-height:1.5}
+.st-form .us-field select{max-width:100%}.st-range-fields{display:flex;flex-wrap:wrap;gap:12px;align-items:end}.st-range-fields>*{flex:1;min-width:110px}
+.st-check{display:flex;align-items:center;gap:10px;font-size:13px;color:#d1d9e9}.st-check input{accent-color:#b7b4ff;width:18px;height:18px}
+.st-submit{padding:15px 0 max(5px,env(safe-area-inset-bottom));display:grid;gap:10px}.st-notice{font-size:12px;line-height:1.65;color:#c8d4ed;background:rgba(147,175,231,.075);border-radius:12px;padding:12px 14px}
+.st-confirm-actions{display:flex;gap:10px}.st-confirm-actions .us-generate{flex:1}
+.st-jobs{display:grid;gap:16px}.st-job{padding:18px;background:rgba(171,190,229,.045);border-radius:18px;min-width:0}.st-job header{display:flex;justify-content:space-between;gap:12px;align-items:start}.st-job h3{font-size:16px;overflow-wrap:anywhere}.st-job small{font-size:11px;color:#b7c5de}.st-job-state{display:flex;align-items:center;gap:6px;white-space:nowrap;color:#cfbbef;font-size:11px}.st-job-state[data-state=completed]{color:#a1dccc}.st-job .st-muted{margin:9px 0}.st-result-text{white-space:pre-wrap;overflow-wrap:anywhere;font-size:13px;line-height:1.7;margin:15px 0}.st-asset{display:flex;align-items:center;gap:10px;margin-top:9px;padding:9px 0}.st-asset>span{flex:1;font-size:13px;min-width:0;overflow-wrap:anywhere}.st-asset img{width:64px;height:64px;object-fit:cover;border-radius:9px}.st-status{display:flex;align-items:center;gap:8px;font-size:13px;color:#b8c6de}
+.st-atelier button:focus-visible,.st-atelier a:focus-visible{outline:2px solid #bdcaff;outline-offset:3px}
+@media(max-width:520px){.st-tool-grid{grid-template-columns:1fr}.st-tool{min-height:82px}.st-tool small{font-size:12px}.st-job header{flex-wrap:wrap}.st-heading h2{font-size:30px}.st-atelier{padding-bottom:calc(24px + env(safe-area-inset-bottom))}}
+@media(prefers-reduced-motion:reduce){.st-tool{transition:none}.st-tool:hover{transform:none}.st-atelier .us-spin{animation:none}}

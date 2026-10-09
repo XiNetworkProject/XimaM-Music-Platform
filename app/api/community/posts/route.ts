@@ -7,17 +7,19 @@ import {
   insertForumPost,
   shouldFallbackSelect,
   withTrackRef,
+  validateAttachedTrack,
 } from '@/lib/communityPosts';
+import { communityPage, communityPostInput } from '@/lib/communityValidation';
 
 export async function GET(request: NextRequest) {
   try {
     const session = await getApiSession(request);
     const { searchParams } = new URL(request.url);
     const category = searchParams.get('category');
-    const search = searchParams.get('search');
+    const search = searchParams.get('search')?.trim().slice(0, 120).replace(/[(),%_*\\]/g, '');
     const sort = searchParams.get('sort') || 'recent';
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '10');
+    const page = communityPage(searchParams.get('page'), 1);
+    const limit = communityPage(searchParams.get('limit'), 10, 50);
     const offset = (page - 1) * limit;
 
     const applyFiltersAndSort = (baseQuery: any, sortKey: string) => {
@@ -85,18 +87,20 @@ export async function GET(request: NextRequest) {
       countQuery = countQuery.or(`title.ilike.%${search}%,content.ilike.%${search}%`);
     }
 
-    const { count } = await countQuery;
+    const { count, error: countError } = await countQuery;
+    if (countError) throw countError;
 
     const postsWithAuthors = await attachAuthors(posts || []);
     let hydratedPosts = await attachTracks(postsWithAuthors || [], session?.user?.id || null);
 
     if (session?.user?.id && hydratedPosts.length) {
       const postIds = hydratedPosts.map((post: any) => post.id).filter(Boolean);
-      const { data: ownLikes } = await db
+      const { data: ownLikes, error: ownLikesError } = await db
         .from('forum_post_likes')
         .select('post_id')
         .eq('user_id', session.user.id)
         .in('post_id', postIds);
+      if (ownLikesError) throw ownLikesError;
       const likedPostIds = new Set((ownLikes || []).map((like: any) => like.post_id));
       hydratedPosts = hydratedPosts.map((post: any) => ({
         ...post,
@@ -112,7 +116,7 @@ export async function GET(request: NextRequest) {
         total: count || 0,
         totalPages: Math.ceil((count || 0) / limit)
       }
-    });
+    }, { headers: { 'Cache-Control': 'private, no-store' } });
 
   } catch (error) {
     console.error('Erreur serveur:', error);
@@ -128,19 +132,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Non authentifié' }, { status: 401 });
     }
 
-    const body = await request.json();
-    const { title, content, category, tags } = body;
-
-    if (!title || !content || !category) {
-      return NextResponse.json({ error: 'Titre, contenu et catégorie requis' }, { status: 400 });
-    }
-
-    const validCategories = ['feedback', 'collab', 'remix', 'prompts', 'weekly-top', 'ai_prompt', 'top_tracks', 'question', 'announcement', 'suggestion', 'bug', 'general'];
-    if (!validCategories.includes(category)) {
-      return NextResponse.json({ error: 'Catégorie invalide' }, { status: 400 });
-    }
+    const body = await request.json().catch(() => null);
+    const input = communityPostInput(body);
+    if (!input.value) return NextResponse.json({ error: input.error }, { status: 400 });
+    const { title, content, category, tags } = input.value;
 
     const requestedTrackId = typeof body.track_id === 'string' && body.track_id.trim() ? body.track_id.trim() : null;
+    if (!(await validateAttachedTrack(requestedTrackId, session.user.id))) return NextResponse.json({ error: 'Son indisponible ou privé.' }, { status: 400 });
     const insertPayload: any = {
       user_id: session.user.id,
       title: title.trim(),
@@ -154,17 +152,17 @@ export async function POST(request: NextRequest) {
 
     const { post, error } = await insertForumPost(insertPayload);
 
+    if (error?.code === '23514') return NextResponse.json({ error: 'Ce thème est temporairement indisponible. Ton brouillon est conservé.' }, { status: 503 });
     if (error) {
       console.error('Erreur lors de la création du post:', error);
       return NextResponse.json(
-        { error: 'Erreur lors de la création du post', details: error.message || error.details || error.code },
+        { error: 'Erreur lors de la création du post' },
         { status: 500 },
       );
     }
 
-    const [postWithAuthor] = await attachAuthors([post]);
-    const [hydratedPost] = await attachTracks([postWithAuthor], session.user.id);
-    return NextResponse.json(hydratedPost || post, { status: 201 });
+    // A committed publication must not fail because optional hydration failed afterwards.
+    return NextResponse.json(post, { status: 201 });
 
   } catch (error) {
     console.error('Erreur serveur:', error);

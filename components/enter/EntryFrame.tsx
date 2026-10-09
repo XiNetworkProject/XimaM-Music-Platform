@@ -1,26 +1,30 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowLeft, ArrowUpRight } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { ArrowUpRight } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
 import { MotionControl } from '@/components/ambient/LivingAmbience';
 import { useLivingMotion } from '@/components/ambient/useLivingMotion';
-import { ProductScreen } from './ProductScreens';
+import { CelestialBackdrop, CelestialBrand } from '@/components/celestial/CelestialWorld';
+import FennecGuide from '@/components/celestial/FennecGuide';
 import './entry-experience.css';
+import '@/components/celestial/celestial.css';
 
 export default function EntryFrame({ eyebrow, title, description, children, compact = false }: { eyebrow: string; title: string; description: string; children: ReactNode; compact?: boolean }) {
   const { enabled } = useLivingMotion();
+  const [privateInput, setPrivateInput] = useState(false);
   return (
-    <main className="entry-auth" data-compact={compact} data-moving={enabled}>
+    <main className="entry-auth celestial-auth" data-compact={compact} data-moving={enabled}
+      onFocusCapture={event => setPrivateInput(event.target instanceof HTMLInputElement && event.target.type === 'password')}
+      onBlurCapture={event => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setPrivateInput(false); }}>
+      <CelestialBackdrop/>
       <aside className="entry-auth-story">
-        <div className="entry-auth-glow" aria-hidden="true" />
-        <Link className="entry-auth-brand" href="/landing" aria-label="Synaura, présentation"><img src="/brand/v2/synaura-lockup.svg" width="155" height="38" alt="Synaura" /></Link>
-        <div className="entry-auth-text"><p className="entry-kicker">ÉCOUTER. CRÉER. SE RENCONTRER.</p><h2>Le son nous<br /><em>rapproche.</em></h2><p>Un nouvel artiste. Une idée qui prend vie.<br />Et cette sensation d’être à sa place.</p></div>
-        <div className="entry-auth-preview"><ProductScreen screen="discover" compact /></div>
+        <div className="entry-auth-brand"><CelestialBrand/></div>
+        <div className="entry-auth-text"><p className="celestial-eyebrow">UN CŒUR DANS LES PIXELS</p><h2>Il y a une place<br /><em>pour toi, ici.</em></h2><p>Ta musique. Tes idées. Tes rencontres.<br />Et un petit compagnon pour la route.</p></div>
+        <FennecGuide pose={privateInput ? 'sleep' : 'tail'} text={privateInput ? 'Je ferme les yeux. Cette petite clé, elle n’appartient qu’à toi.' : compact ? 'Pas besoin de tout connaître. On découvre à ton rythme.' : 'Installe-toi. Je reste tout près pendant que tu entres.'}/>
         <div className="entry-auth-bottom"><Link href="/landing/presentation">Découvrir Synaura <ArrowUpRight size={16} /></Link><MotionControl /></div>
       </aside>
       <section className="entry-auth-panel">
-        <div className="entry-auth-mobile-nav"><Link href="/landing" aria-label="Synaura, présentation"><img src="/brand/v2/synaura-lockup.svg" width="127" height="32" alt="Synaura" /></Link><div><MotionControl /><Link href="/landing" className="entry-text-link" aria-label="Retour à la présentation"><ArrowLeft size={18} /></Link></div></div>
         <header><p className="entry-kicker">{eyebrow}</p><h1>{title}</h1><p>{description}</p></header>
         {children}
       </section>

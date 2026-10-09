@@ -58,13 +58,14 @@ function Fennec({owner}:{owner:string}){
     const mq=matchMedia('(prefers-reduced-motion: reduce)'),motion=()=>setSystemReduced(mq.matches);
     const resized=()=>setViewport({width:window.innerWidth,height:window.visualViewport?.height||window.innerHeight}),network=()=>setOnline(navigator.onLine);motion();resized();network();
     mq.addEventListener('change',motion);window.addEventListener('resize',resized);window.visualViewport?.addEventListener('resize',resized);window.addEventListener('online',network);window.addEventListener('offline',network);
-    const checkQuiet=()=>{const focus=document.activeElement;const typing=focus instanceof HTMLElement&&Boolean(focus.closest('input,textarea,[contenteditable="true"]'));setQuiet(document.hidden||typing||Boolean(document.querySelector('[role="dialog"][aria-modal="true"],dialog[open]')));};
+    const checkQuiet=()=>{const focus=document.activeElement;const typing=focus instanceof HTMLElement&&Boolean(focus.closest('input,textarea,[contenteditable="true"]'));setQuiet(document.hidden||typing||Boolean(document.querySelector('[data-fennec-host],[role="dialog"][aria-modal="true"],dialog[open]')));};
     let queued:number|null=null;const scheduleQuiet=()=>{if(queued===null)queued=requestAnimationFrame(()=>{queued=null;checkQuiet();});};
-    const observer=new MutationObserver(scheduleQuiet);observer.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['aria-modal','open']});checkQuiet();
+    const observer=new MutationObserver(scheduleQuiet);observer.observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['aria-modal','open','data-fennec-host']});checkQuiet();
     document.addEventListener('focusin',checkQuiet);document.addEventListener('focusout',checkQuiet);document.addEventListener('visibilitychange',checkQuiet);
     const keyboard=(e:KeyboardEvent)=>{if(e.altKey&&e.shiftKey&&e.code==='KeyF'){e.preventDefault();setPrefs(p=>({...p,hidden:false}));setOpen(true);}};window.addEventListener('keydown',keyboard);
     return()=>{if(queued!==null)cancelAnimationFrame(queued);mq.removeEventListener('change',motion);window.removeEventListener('resize',resized);window.visualViewport?.removeEventListener('resize',resized);window.removeEventListener('online',network);window.removeEventListener('offline',network);observer.disconnect();document.removeEventListener('focusin',checkQuiet);document.removeEventListener('focusout',checkQuiet);document.removeEventListener('visibilitychange',checkQuiet);window.removeEventListener('keydown',keyboard);};
   },[]);
+  useEffect(()=>{const showHelp=()=>{if(current.current.calling)return;setHint('');setOpen(true);setSettings(false);};window.addEventListener('synaura:companion-open',showHelp);return()=>window.removeEventListener('synaura:companion-open',showHelp);},[]);
   useEffect(()=>{
     if(!loaded||prefs.hidden||!canvas.current)return;let disposed=false,instance:Pet|null=null;const controller=new AbortController();
     Promise.all([loadEngine(),fetch('/companions/fennec/atlas.json',{signal:controller.signal}).then(r=>{if(!r.ok)throw Error();return r.json();})]).then(async([,atlas])=>{
